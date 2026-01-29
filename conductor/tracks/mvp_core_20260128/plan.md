@@ -1,10 +1,10 @@
 # Implementation Plan - MVP Core
 
 ## Phase 1: Foundation & Scaffold
-- [ ] Task: Initialize Tauri v2 project with React/TS/Tailwind
-    - [ ] Run `npm create tauri-app@latest`
-    - [ ] Configure Tailwind CSS
-    - [ ] Verify build and window launch
+- [x] Task: Initialize Tauri v2 project with React/TS/Tailwind
+    - [x] Run `npm create tauri-app@latest`
+    - [x] Configure Tailwind CSS
+    - [x] Verify build and window launch [e539bb8]
 - [ ] Task: Database & Security Initialization
     - [ ] Implement SQLite schema for `hosts` and `credentials`
     - [ ] Integrate `libsodium` for master password hashing (Argon2id)
