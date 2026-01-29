@@ -15,9 +15,9 @@
 - [x] Task: Implement Main Dashboard & Tabbed UI [ba23785]
     - [x] Create layout with sidebar and main tab area
     - [x] Implement tab management (Add/Remove/Switch)
-- [ ] Task: Host Management UI
-    - [ ] Create host list view with filtering
-    - [ ] Implement "Add Host" dialog
+- [x] Task: Host Management UI [e60eb1f]
+    - [x] Create host list view with filtering
+    - [x] Implement "Add Host" dialog
 - [ ] Task: Conductor - User Manual Verification 'Core UI & Navigation' (Protocol in workflow.md)
 
 ## Phase 3: Connectivity & Discovery
