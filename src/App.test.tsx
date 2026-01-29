@@ -1,16 +1,21 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import App from './App';
 import '@testing-library/jest-dom';
 
-// Mock Tauri invoke
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(() => Promise.resolve('Hello, World! You\'ve been greeted from Rust!'))
+// Mock SQL plugin
+vi.mock('@tauri-apps/plugin-sql', () => ({
+  default: {
+    load: vi.fn().mockResolvedValue({
+      execute: vi.fn().mockResolvedValue({ rowsAffected: 0 }),
+      select: vi.fn().mockResolvedValue([]),
+    }),
+  },
 }));
 
 describe('App', () => {
-  it('renders layout with dashboard', () => {
+  it('renders layout with dashboard', async () => {
     render(<App />);
-    expect(screen.getByText('Welcome to Project Titan')).toBeInTheDocument();
+    expect(await screen.findByText('Host Inventory')).toBeInTheDocument();
   });
 });
