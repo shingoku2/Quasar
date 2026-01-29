@@ -9,19 +9,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 describe('App', () => {
-  it('renders welcome message', () => {
+  it('renders layout with dashboard', () => {
     render(<App />);
-    expect(screen.getByText('Welcome to Tauri + React')).toBeInTheDocument();
-  });
-
-  it('greets when button is clicked', async () => {
-    render(<App />);
-    const input = screen.getByPlaceholderText('Enter a name...');
-    const button = screen.getByRole('button', { name: /Greet/i });
-
-    fireEvent.change(input, { target: { value: 'World' } });
-    fireEvent.click(button);
-
-    expect(await screen.findByText("Hello, World! You've been greeted from Rust!")).toBeInTheDocument();
+    expect(screen.getByText('Welcome to Project Titan')).toBeInTheDocument();
   });
 });
