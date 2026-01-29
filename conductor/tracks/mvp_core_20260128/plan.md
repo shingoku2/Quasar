@@ -1,0 +1,30 @@
+# Implementation Plan - MVP Core
+
+## Phase 1: Foundation & Scaffold
+- [ ] Task: Initialize Tauri v2 project with React/TS/Tailwind
+    - [ ] Run `npm create tauri-app@latest`
+    - [ ] Configure Tailwind CSS
+    - [ ] Verify build and window launch
+- [ ] Task: Database & Security Initialization
+    - [ ] Implement SQLite schema for `hosts` and `credentials`
+    - [ ] Integrate `libsodium` for master password hashing (Argon2id)
+    - [ ] Implement secure credential vault (AES-256-GCM)
+- [ ] Task: Conductor - User Manual Verification 'Foundation & Scaffold' (Protocol in workflow.md)
+
+## Phase 2: Core UI & Navigation
+- [ ] Task: Implement Main Dashboard & Tabbed UI
+    - [ ] Create layout with sidebar and main tab area
+    - [ ] Implement tab management (Add/Remove/Switch)
+- [ ] Task: Host Management UI
+    - [ ] Create host list view with filtering
+    - [ ] Implement "Add Host" dialog
+- [ ] Task: Conductor - User Manual Verification 'Core UI & Navigation' (Protocol in workflow.md)
+
+## Phase 3: Connectivity & Discovery
+- [ ] Task: System Protocol Launchers
+    - [ ] Implement SSH launch via system terminal
+    - [ ] Implement RDP launch via system `mstsc` (Windows) or equivalent
+- [ ] Task: LAN Discovery Module
+    - [ ] Integrate `nmap` sidecar for scanning
+    - [ ] Implement passive discovery via `mdns-sd`
+- [ ] Task: Conductor - User Manual Verification 'Connectivity & Discovery' (Protocol in workflow.md)
