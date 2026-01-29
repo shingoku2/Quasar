@@ -1,0 +1,101 @@
+import React, { useState } from 'react';
+
+interface Tab {
+  id: string;
+  title: string;
+  content: React.ReactNode;
+}
+
+const Layout: React.FC = () => {
+  const [tabs, setTabs] = useState<Tab[]>([
+    { id: 'dashboard', title: 'Dashboard', content: <div className="p-4">Welcome to Project Titan</div> }
+  ]);
+  const [activeTabId, setActiveTabId] = useState('dashboard');
+
+  const addTab = (title: string, content: React.ReactNode) => {
+    const newId = Math.random().toString(36).substring(7);
+    setTabs([...tabs, { id: newId, title, content }]);
+    setActiveTabId(newId);
+  };
+
+  const removeTab = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tabs.length === 1) return;
+    const newTabs = tabs.filter(tab => tab.id !== id);
+    setTabs(newTabs);
+    if (activeTabId === id) {
+      setActiveTabId(newTabs[newTabs.length - 1].id);
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-900 text-gray-100 overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-700 font-bold text-xl tracking-wider text-blue-400">
+          TITAN
+        </div>
+        <nav className="flex-1 overflow-y-auto p-2">
+          <ul className="space-y-1">
+            <li>
+              <button 
+                onClick={() => setActiveTabId('dashboard')}
+                className={`w-full text-left px-3 py-2 rounded transition-colors ${activeTabId === 'dashboard' ? 'bg-gray-700 text-white' : 'hover:bg-gray-700 text-gray-400'}`}
+              >
+                Dashboard
+              </button>
+            </li>
+            {/* Future Navigation Items */}
+          </ul>
+        </nav>
+        <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
+          v0.1.0-alpha
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Tab Bar */}
+        <div className="flex bg-gray-800 border-b border-gray-700 overflow-x-auto no-scrollbar">
+          {tabs.map(tab => (
+            <div
+              key={tab.id}
+              onClick={() => setActiveTabId(tab.id)}
+              className={`flex items-center px-4 py-2 border-r border-gray-700 cursor-pointer min-w-[120px] max-w-[200px] transition-colors ${
+                activeTabId === tab.id ? 'bg-gray-900 text-blue-400 border-b-2 border-b-blue-400' : 'text-gray-400 hover:bg-gray-750'
+              }`}
+            >
+              <span className="truncate flex-1 text-sm">{tab.title}</span>
+              {tab.id !== 'dashboard' && (
+                <button 
+                  onClick={(e) => removeTab(tab.id, e)}
+                  className="ml-2 hover:text-white rounded-full p-0.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+          <button 
+            onClick={() => addTab(`New Session ${tabs.length}`, <div className="p-4 text-gray-400 italic">Connecting to host...</div>)}
+            className="px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-750 transition-colors"
+            title="New Session"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-auto bg-gray-900">
+          {tabs.find(tab => tab.id === activeTabId)?.content}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Layout;
