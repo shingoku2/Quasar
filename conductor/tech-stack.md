@@ -1,0 +1,40 @@
+# Technology Stack
+
+## Core Architecture
+- **Framework:** Tauri v2 (Desktop Application)
+- **Architecture Pattern:** "Sidecar" pattern for isolating GPL/AGPL components and handling heavy tasks.
+
+## Backend (Core Logic)
+- **Language:** Rust
+- **Key Crates:**
+    - `tauri`: IPC and window management.
+    - `ironrdp`: Native RDP implementation.
+    - `russh`: Native SSH implementation.
+    - `rust-vnc`: Native VNC implementation.
+    - `libsodium`: Cryptography (Argon2id, SecretBox).
+    - `rusqlite`: SQLite database interaction.
+    - `mdns-sd`: Zero-config LAN discovery.
+
+## Frontend (User Interface)
+- **Framework:** React
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Component Library:** Headless UI / Radix UI (for accessibility and custom styling) or a minimal component set.
+- **Terminal Emulator:** xterm.js
+- **Charts/Graphs:** Recharts
+
+## Data & Storage
+- **Database:** SQLite (WAL mode)
+- **Schema Management:** Automated migrations on startup.
+- **Encryption:** Sensitive fields (passwords, keys) encrypted at rest using libsodium.
+
+## External Tools & Sidecars
+- **AI/LLM:** Ollama (Local inference, optional sidecar)
+- **Network Scanning:** nmap (Sidecar subprocess)
+- **System Monitoring:** Glances (Sidecar agent)
+
+## Infrastructure & Build
+- **Build Tool:** Cargo (Rust), Vite (Frontend)
+- **Package Manager:** npm / pnpm
+- **CI/CD:** GitHub Actions
+- **Distribution:** MSI (Windows), DMG (macOS), Deb/AppImage (Linux)
