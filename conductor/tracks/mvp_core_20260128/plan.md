@@ -5,10 +5,10 @@
     - [x] Run `npm create tauri-app@latest`
     - [x] Configure Tailwind CSS
     - [x] Verify build and window launch [e539bb8]
-- [ ] Task: Database & Security Initialization
-    - [ ] Implement SQLite schema for `hosts` and `credentials`
-    - [ ] Integrate `libsodium` for master password hashing (Argon2id)
-    - [ ] Implement secure credential vault (AES-256-GCM)
+- [x] Task: Database & Security Initialization [checkpoint: f7a7ff3]
+    - [x] Implement SQLite schema for `hosts` and `credentials` [aae7d76]
+    - [x] Integrate `libsodium` for master password hashing (Argon2id) [77fe29d]
+    - [x] Implement secure credential vault (AES-256-GCM) [59496ed]
 - [ ] Task: Conductor - User Manual Verification 'Foundation & Scaffold' (Protocol in workflow.md)
 
 ## Phase 2: Core UI & Navigation
