@@ -12,9 +12,9 @@
 - [ ] Task: Conductor - User Manual Verification 'Foundation & Scaffold' (Protocol in workflow.md)
 
 ## Phase 2: Core UI & Navigation
-- [ ] Task: Implement Main Dashboard & Tabbed UI
-    - [ ] Create layout with sidebar and main tab area
-    - [ ] Implement tab management (Add/Remove/Switch)
+- [x] Task: Implement Main Dashboard & Tabbed UI [ba23785]
+    - [x] Create layout with sidebar and main tab area
+    - [x] Implement tab management (Add/Remove/Switch)
 - [ ] Task: Host Management UI
     - [ ] Create host list view with filtering
     - [ ] Implement "Add Host" dialog
