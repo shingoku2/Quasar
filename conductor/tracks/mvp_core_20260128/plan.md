@@ -1,6 +1,6 @@
 # Implementation Plan - MVP Core
 
-## Phase 1: Foundation & Scaffold
+## Phase 1: Foundation & Scaffold [checkpoint: e384873]
 - [x] Task: Initialize Tauri v2 project with React/TS/Tailwind
     - [x] Run `npm create tauri-app@latest`
     - [x] Configure Tailwind CSS
