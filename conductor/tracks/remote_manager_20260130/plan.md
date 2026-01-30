@@ -26,11 +26,11 @@ Add the interactive toolbar for active sessions and real-time health monitoring.
 - [x] Task: Connect diagnostic data to the `SessionToolbar` UI using Tauri events. 0bfc3b1
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Toolbar & Diagnostics' (Protocol in workflow.md) [checkpoint: 0bfc3b1]
 
-## Phase 4: Integration & System Launcher Migration
+## Phase 4: Integration & System Launcher Migration [checkpoint: 059a485]
 Migrate existing host management to use the new embedded manager instead of external launchers.
 
-- [~] Task: Implement `CredentialPrompt` dialog for sessions without stored passwords.
-- [ ] Task: Update `HostList` and `Discovery` components to trigger embedded sessions.
-- [ ] Task: Refactor `src-tauri/src/launcher.rs` to support internal session handling alongside external fallbacks.
-- [ ] Task: Final end-to-end testing and performance verification.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)
+- [x] Task: Implement `CredentialPrompt` dialog for sessions without stored passwords. 059a485
+- [x] Task: Update `HostList` and `Discovery` components to trigger embedded sessions. 059a485
+- [x] Task: Refactor `src-tauri/src/launcher.rs` to support internal session handling alongside external fallbacks. 059a485
+- [x] Task: Final end-to-end testing and performance verification. 059a485
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md) [checkpoint: 059a485]
