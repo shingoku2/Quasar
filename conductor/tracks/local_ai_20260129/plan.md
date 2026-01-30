@@ -8,13 +8,13 @@
     - [x] Implement `chat_request` with streaming support (using Tauri events).
 - [x] Task: Conductor - User Manual Verification 'Backend Foundation' (Protocol in workflow.md) [manual]
 
-## Phase 2: Frontend UI (React)
-- [ ] Task: AI Assistant UI
-    - [ ] Create `src/components/AIAssistant.tsx`.
-    - [ ] Implement "Connection Status" indicator (checking Ollama).
-    - [ ] Implement "Model Selector" dropdown.
-    - [ ] Implement "Chat Interface" (Message list, Input area).
-- [ ] Task: Integration
-    - [ ] Add "AI Assistant" to the `Layout` sidebar.
-    - [ ] Wire up the Chat UI to the Rust backend (streaming responses).
-- [ ] Task: Conductor - User Manual Verification 'Frontend UI' (Protocol in workflow.md)
+## Phase 2: Frontend UI (React) [checkpoint: 9b63ed9]
+- [x] Task: AI Assistant UI [3d2a884]
+    - [x] Create `src/components/AIAssistant.tsx`.
+    - [x] Implement "Connection Status" indicator (checking Ollama).
+    - [x] Implement "Model Selector" dropdown.
+    - [x] Implement "Chat Interface" (Message list, Input area).
+- [x] Task: Integration [3d2a884]
+    - [x] Add "AI Assistant" to the `Layout` sidebar.
+    - [x] Wire up the Chat UI to the Rust backend (streaming responses).
+- [x] Task: Conductor - User Manual Verification 'Frontend UI' (Protocol in workflow.md) [manual]
