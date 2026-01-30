@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
+import AIAssistant from './AIAssistant';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
 
@@ -16,8 +17,16 @@ const Layout: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState('dashboard');
 
-  const addTab = (title: string, content: React.ReactNode) => {
-    const newId = Math.random().toString(36).substring(7);
+  const addTab = (title: string, content: React.ReactNode, id?: string) => {
+    // If ID is provided, check if it exists and switch to it
+    if (id) {
+      const existing = tabs.find(t => t.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        return;
+      }
+    }
+    const newId = id || Math.random().toString(36).substring(7);
     setTabs(prev => [...prev, { id: newId, title, content }]);
     setActiveTabId(newId);
   };
@@ -102,6 +111,14 @@ const Layout: React.FC = () => {
                 className={`w-full text-left px-3 py-2 rounded transition-colors ${activeTabId === 'dashboard' ? 'bg-gray-700 text-white' : 'hover:bg-gray-700 text-gray-400'}`}
               >
                 Dashboard
+              </button>
+            </li>
+            <li>
+              <button 
+                onClick={() => addTab('AI Assistant', <AIAssistant />, 'ai-assistant')}
+                className={`w-full text-left px-3 py-2 rounded transition-colors ${activeTabId === 'ai-assistant' ? 'bg-gray-700 text-white' : 'hover:bg-gray-700 text-gray-400'}`}
+              >
+                AI Assistant
               </button>
             </li>
             {/* Future Navigation Items */}
