@@ -17,12 +17,12 @@
     - [x] Ensure state-based navigation works between views.
 - [x] Task: Conductor - User Manual Verification 'App Shell' (Protocol in workflow.md) [manual]
 
-## Phase 3: Dashboard Module
-- [ ] Task: Implement Dashboard Widgets
-    - [ ] Create `src/components/dashboard/SystemHealthWidget.tsx`.
-    - [ ] Create `src/components/dashboard/MetricChartCard.tsx` using Recharts.
-    - [ ] Create `src/components/dashboard/AlertFeed.tsx`.
-- [ ] Task: Compose Dashboard View
-    - [ ] Create `src/components/dashboard/DashboardView.tsx` implementing the grid layout.
-    - [ ] Hook up mock data for charts and alerts.
-- [ ] Task: Conductor - User Manual Verification 'Dashboard' (Protocol in workflow.md)
+## Phase 3: Dashboard Module [checkpoint: d57e435]
+- [x] Task: Implement Dashboard Widgets [6a5e21a]
+    - [x] Create `src/components/dashboard/SystemHealthWidget.tsx`.
+    - [x] Create `src/components/dashboard/MetricChartCard.tsx` using Recharts.
+    - [x] Create `src/components/dashboard/AlertFeed.tsx`.
+- [x] Task: Compose Dashboard View [6a5e21a]
+    - [x] Create `src/components/dashboard/DashboardView.tsx` implementing the grid layout.
+    - [x] Hook up mock data for charts and alerts.
+- [x] Task: Conductor - User Manual Verification 'Dashboard' (Protocol in workflow.md) [manual]
