@@ -13,8 +13,8 @@ Implement the core terminal emulator component and connect it to the Rust SSH ba
 ## Phase 2: Hybrid Session Management UI
 Build the tabbed and split-pane container to manage multiple active sessions.
 
-- [ ] Task: Implement `SessionContainer` with support for dynamic tabs.
-- [ ] Task: Add "Split View" capability to `SessionContainer` (side-by-side or grid layout).
+- [x] Task: Implement `SessionContainer` with support for dynamic tabs. 02bc21f
+- [~] Task: Add "Split View" capability to `SessionContainer` (side-by-side or grid layout).
 - [ ] Task: Update `App.tsx` to route remote connection requests to the new `SessionContainer`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Session Management' (Protocol in workflow.md)
 
