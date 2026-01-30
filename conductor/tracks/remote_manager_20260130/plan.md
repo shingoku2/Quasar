@@ -21,8 +21,8 @@ Build the tabbed and split-pane container to manage multiple active sessions.
 ## Phase 3: Session Toolbar & Diagnostics
 Add the interactive toolbar for active sessions and real-time health monitoring.
 
-- [ ] Task: Implement `SessionToolbar` component with Clipboard Sync toggle.
-- [ ] Task: Implement real-time latency and bandwidth tracking in the Rust backend.
+- [x] Task: Implement `SessionToolbar` component with Clipboard Sync toggle. f7b2288
+- [~] Task: Implement real-time latency and bandwidth tracking in the Rust backend.
 - [ ] Task: Connect diagnostic data to the `SessionToolbar` UI using Tauri events.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Toolbar & Diagnostics' (Protocol in workflow.md)
 
