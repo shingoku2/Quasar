@@ -18,17 +18,18 @@ Build the tabbed and split-pane container to manage multiple active sessions.
 - [x] Task: Update `App.tsx` to route remote connection requests to the new `SessionContainer`. 9dbccda
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Session Management' (Protocol in workflow.md) [checkpoint: 9dbccda]
 
-## Phase 3: Session Toolbar & Diagnostics
+## Phase 3: Session Toolbar & Diagnostics [checkpoint: 0bfc3b1]
 Add the interactive toolbar for active sessions and real-time health monitoring.
 
 - [x] Task: Implement `SessionToolbar` component with Clipboard Sync toggle. f7b2288
-- [~] Task: Implement real-time latency and bandwidth tracking in the Rust backend.
-- [ ] Task: Connect diagnostic data to the `SessionToolbar` UI using Tauri events.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Toolbar & Diagnostics' (Protocol in workflow.md)
+- [x] Task: Implement real-time latency and bandwidth tracking in the Rust backend. 0bfc3b1
+- [x] Task: Connect diagnostic data to the `SessionToolbar` UI using Tauri events. 0bfc3b1
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Toolbar & Diagnostics' (Protocol in workflow.md) [checkpoint: 0bfc3b1]
 
 ## Phase 4: Integration & System Launcher Migration
 Migrate existing host management to use the new embedded manager instead of external launchers.
 
+- [ ] Task: Implement `CredentialPrompt` dialog for sessions without stored passwords.
 - [ ] Task: Update `HostList` and `Discovery` components to trigger embedded sessions.
 - [ ] Task: Refactor `src-tauri/src/launcher.rs` to support internal session handling alongside external fallbacks.
 - [ ] Task: Final end-to-end testing and performance verification.
