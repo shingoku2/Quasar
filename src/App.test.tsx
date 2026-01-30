@@ -25,6 +25,6 @@ vi.mock('@tauri-apps/plugin-sql', () => ({
 describe('App', () => {
   it('renders layout with dashboard', async () => {
     render(<App />);
-    expect(await screen.findByText('Host Inventory')).toBeInTheDocument();
+    expect(await screen.findByText('DASHBOARD COMING SOON')).toBeInTheDocument();
   });
 });
