@@ -94,7 +94,15 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                     password: password || undefined 
                 });
                 
-                if (isMounted) term.write('Session Established.\r\n');
+                if (isMounted) {
+                    term.write('Session Established.\r\n');
+                    // Sync initial size
+                    invoke('resize_ssh', { 
+                        id: sessionId, 
+                        rows: term.rows, 
+                        cols: term.cols 
+                    }).catch(console.error);
+                }
 
             } catch (err) {
                 if (isMounted) {
@@ -114,7 +122,23 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         });
 
         const resizeObserver = new ResizeObserver(() => {
-            fitAddon.fit();
+            try {
+                fitAddon.fit();
+                // Sync resize with backend
+                if (term.cols > 0 && term.rows > 0) {
+                    invoke('resize_ssh', { 
+                        id: sessionId, 
+                        rows: term.rows, 
+                        cols: term.cols 
+                    }).catch(e => {
+                        if (!JSON.stringify(e).includes("Session not found")) {
+                            console.error("Resize error:", e);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Resize observer error:", e);
+            }
         });
         resizeObserver.observe(terminalRef.current);
 

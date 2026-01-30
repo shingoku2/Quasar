@@ -3,6 +3,7 @@ import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
 import TerminalComponent from './TerminalComponent';
 import SessionContainer, { SessionTab } from './SessionContainer';
+import CredentialPrompt from './CredentialPrompt';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
@@ -13,11 +14,13 @@ const RemoteManager: React.FC = () => {
   const [tabs, setTabs] = useState<SessionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState('inventory');
   const [splitViewIds, setSplitViewIds] = useState<string[]>([]);
+  
+  // State for credential prompt
+  const [pendingHost, setPendingHost] = useState<Host | null>(null);
 
   const addTab = (id: string, title: string, content: React.ReactNode) => {
     setTabs(prev => [...prev, { id, title, content, closable: true }]);
     setActiveTabId(id);
-    // If in split mode, add new tab to split view automatically?
     if (splitViewIds.length > 0) {
       setSplitViewIds(prev => [...prev, id]);
     }
@@ -26,17 +29,10 @@ const RemoteManager: React.FC = () => {
   const handleToggleSplit = (id: string) => {
     setSplitViewIds(prev => {
       if (prev.includes(id)) {
-        // Remove from split
         const newSplit = prev.filter(sid => sid !== id);
-        return newSplit.length < 2 ? [] : newSplit; // Exit split mode if < 2 tabs
+        return newSplit.length < 2 ? [] : newSplit;
       } else {
-        // Add to split
-        // If we were not in split mode, we need to add the currently active tab + this new one
         if (prev.length === 0) {
-           // If I click split on Tab B while Tab A is active:
-           // Case 1: Tab B is the active one (most likely if button is on the tab).
-           // Case 2: I click split on a background tab.
-           // Logic: If starting split, include the active tab and the target tab.
            const ids = new Set([activeTabId, id]);
            return Array.from(ids);
         }
@@ -45,28 +41,30 @@ const RemoteManager: React.FC = () => {
     });
   };
   
-  // Update active tab when selecting
   const handleTabChange = (id: string) => {
     setActiveTabId(id);
-    // If in split mode, just make it active (highlight).
-    // The container handles rendering.
+  };
+
+  const startSession = (host: Host, password?: string) => {
+    const sessionId = Math.random().toString(36).substring(7);
+    addTab(
+      sessionId, 
+      `SSH: ${host.name}`, 
+      <TerminalComponent 
+        sessionId={sessionId}
+        host={host.address}
+        port={host.port || 22}
+        username={host.username || 'root'}
+        password={password} 
+      />
+    );
   };
 
   const handleConnect = async (host: Host) => {
     try {
       if (host.protocol === 'ssh') {
-        const sessionId = Math.random().toString(36).substring(7);
-        addTab(
-          sessionId, 
-          `SSH: ${host.name}`, 
-          <TerminalComponent 
-            sessionId={sessionId}
-            host={host.address}
-            port={host.port || 22}
-            username={host.username || 'root'}
-            password={undefined} 
-          />
-        );
+        // Always prompt for password if not provided in host (though we don't store it in host yet)
+        setPendingHost(host);
       } else if (host.protocol === 'rdp') {
         await invoke('connect_rdp', { address: host.address });
         const sessionId = Math.random().toString(36).substring(7);
@@ -113,7 +111,7 @@ const RemoteManager: React.FC = () => {
     if (tabs.length === 1) return;
     const newTabs = tabs.filter(tab => tab.id !== id);
     setTabs(newTabs);
-    setSplitViewIds(prev => prev.filter(sid => sid !== id)); // Remove from split view
+    setSplitViewIds(prev => prev.filter(sid => sid !== id));
     if (activeTabId === id) {
       setActiveTabId(newTabs[newTabs.length - 1].id);
     }
@@ -134,6 +132,18 @@ const RemoteManager: React.FC = () => {
         <AddHostDialog 
           onClose={() => setShowAddHost(false)} 
           onAdded={() => setRefreshTrigger(prev => prev + 1)} 
+        />
+      )}
+
+      {pendingHost && (
+        <CredentialPrompt 
+          hostName={pendingHost.name}
+          username={pendingHost.username || 'root'}
+          onSubmit={(password) => {
+            startSession(pendingHost, password);
+            setPendingHost(null);
+          }}
+          onCancel={() => setPendingHost(null)}
         />
       )}
     </div>
