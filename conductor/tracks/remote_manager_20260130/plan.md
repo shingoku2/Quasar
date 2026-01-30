@@ -8,7 +8,7 @@ Implement the core terminal emulator component and connect it to the Rust SSH ba
 - [x] Task: Create `TerminalComponent` using `xterm.js` and `lucide-react`. 778170c
 - [x] Task: Implement Tauri commands for SSH session lifecycle (connect, write, resize, disconnect). 3adba54
 - [x] Task: Connect `TerminalComponent` to the Rust `russh` backend via async streams. 6bf5d43
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Terminal Foundation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Terminal Foundation' (Protocol in workflow.md) [checkpoint: 0406ca4]
 
 ## Phase 2: Hybrid Session Management UI
 Build the tabbed and split-pane container to manage multiple active sessions.
