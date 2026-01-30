@@ -3,6 +3,7 @@ import Sidebar, { ViewId } from './Sidebar';
 import TopBar from './TopBar';
 import RemoteManager from './RemoteManager';
 import AIAssistant from './AIAssistant';
+import DashboardView from './dashboard/DashboardView';
 
 const Layout: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewId>('dashboard');
@@ -10,12 +11,7 @@ const Layout: React.FC = () => {
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return (
-          <div className="p-8 h-full flex flex-col items-center justify-center text-center">
-            <h1 className="text-4xl font-black text-white mb-4 italic tracking-tighter">DASHBOARD COMING SOON</h1>
-            <p className="text-gray-500 max-w-md">Phase 3 will implement the high-density metric grid and alert feed as specified in the SysAdmin Nexus design.</p>
-          </div>
-        );
+        return <DashboardView />;
       case 'remote':
         return <RemoteManager />;
       case 'ai':
