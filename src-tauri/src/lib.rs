@@ -3,9 +3,11 @@ mod launcher;
 mod discovery;
 mod ai;
 mod ssh;
+mod scanner;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
+use std::sync::Arc;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -70,11 +72,52 @@ async fn send_ai_chat(app: AppHandle, model: String, messages: Vec<FrontendMessa
     ai::chat_request(app, model, chat_messages).await
 }
 
+#[tauri::command]
+async fn scan_network(
+    state: State<'_, Arc<scanner::ScannerState>>,
+    app: AppHandle,
+    cidr: String,
+) -> Result<(), String> {
+    let state = Arc::clone(&state);
+    let app_for_progress = app.clone();
+    let app_for_result = app.clone();
+    
+    tokio::spawn(async move {
+        let on_progress = move |progress: scanner::ScanProgress| {
+            let _ = app_for_progress.emit("scan_progress", progress);
+        };
+        
+        let on_result = move |result: scanner::ScanResult| {
+            let _ = app_for_result.emit("scan_result", result);
+        };
+        
+        let _ = scanner::scan_network(state, cidr, on_progress, on_result).await;
+    });
+    
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_scan(state: State<'_, Arc<scanner::ScannerState>>) {
+    scanner::stop_scan(&state);
+}
+
+#[tauri::command]
+fn get_scan_progress(state: State<'_, Arc<scanner::ScannerState>>) -> scanner::ScanProgress {
+    scanner::get_scan_progress(&state)
+}
+
+#[tauri::command]
+fn is_scanning(state: State<'_, Arc<scanner::ScannerState>>) -> bool {
+    scanner::is_scanning(&state)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             app.manage(ssh::SshState::new());
+            app.manage(Arc::new(scanner::ScannerState::new()));
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
@@ -92,7 +135,11 @@ pub fn run() {
             ssh::connect_ssh,
             ssh::write_ssh,
             ssh::resize_ssh,
-            ssh::disconnect_ssh
+            ssh::disconnect_ssh,
+            scan_network,
+            stop_scan,
+            get_scan_progress,
+            is_scanning
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
