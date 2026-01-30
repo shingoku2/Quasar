@@ -3,3 +3,6 @@
 This file tracks all major tracks for the project. Each track has its own detailed plan in its respective folder.
 
 ---
+
+- [~] **Track: Remote Connection Manager (Module B)**
+*Link: [./tracks/remote_manager_20260130/](./tracks/remote_manager_20260130/)*

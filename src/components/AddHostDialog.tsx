@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Database from "@tauri-apps/plugin-sql";
+import { initDatabase } from '../db';
 
 interface AddHostDialogProps {
   onClose: () => void;
@@ -18,16 +18,21 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded }) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const db = await Database.load("sqlite:titan.db");
+      // Use initDatabase to ensure tables exist and get connection
+      const db = await initDatabase();
+      
+      const portVal = port.trim() ? parseInt(port) : null;
+      
       await db.execute(
-        "INSERT INTO hosts (name, address, protocol, port, username) VALUES ($1, $2, $3, $4, $5)",
-        [name, address, protocol, port ? parseInt(port) : null, username || null]
+        "INSERT INTO hosts (name, address, protocol, port, username) VALUES (?, ?, ?, ?, ?)",
+        [name, address, protocol, portVal, username || null]
       );
       onAdded();
       onClose();
     } catch (err) {
       console.error("Failed to add host:", err);
-      alert("Failed to add host. See console for details.");
+      // Show the actual error to the user for debugging
+      alert(`Failed to add host: ${err}`);
     } finally {
       setSubmitting(false);
     }

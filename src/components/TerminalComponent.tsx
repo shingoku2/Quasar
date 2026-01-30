@@ -24,49 +24,59 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
     useEffect(() => {
         if (!terminalRef.current) return;
-        if (connectedRef.current) return;
+        
+        // Strict Mode protection: check if we already initialized this specific ref instance
+        if (xtermRef.current) return;
 
-        // Initialize xterm
+        console.log("Terminal mounting", sessionId);
+
         const term = new Terminal({
             cursorBlink: true,
             theme: {
-                background: '#09090b', // Zinc-950
-                foreground: '#f4f4f5', // Zinc-100
-                cursor: '#e4e4e7',
-                selectionBackground: 'rgba(255, 255, 255, 0.3)',
+                background: '#000000',
+                foreground: '#ffffff',
             },
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            fontFamily: 'monospace',
             fontSize: 14,
-            allowProposedApi: true,
         });
 
         const fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
         
         term.open(terminalRef.current);
-        fitAddon.fit();
-
-        term.write(`\x1b[1;34mTitan Terminal\x1b[0m\r\nConnecting to ${host}...\r\n`);
-
+        term.write('Terminal Initialized.\r\n');
+        
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
-        connectedRef.current = true;
 
-        let unlisten: (() => void) | undefined;
-
-        const connect = async () => {
+        // Fit after a small delay to ensure DOM layout
+        setTimeout(() => {
             try {
-                // Listen for incoming data FIRST
-                unlisten = await listen<string>(`ssh_data_${sessionId}`, (event) => {
+                fitAddon.fit();
+                term.write('Dimensions set.\r\n');
+            } catch (e) {
+                term.write(`Fit error: ${e}\r\n`);
+            }
+        }, 100);
+
+        let unlistenData: (() => void) | undefined;
+        let unlistenClosed: (() => void) | undefined;
+        let isMounted = true;
+
+        const initSession = async () => {
+            try {
+                term.write(`Connecting to ${host} as ${username}...\r\n`);
+                
+                unlistenData = await listen<string>(`ssh_data_${sessionId}`, (event) => {
                     term.write(event.payload);
                 });
-
-                // Listen for disconnect
-                await listen(`ssh_closed_${sessionId}`, () => {
-                    term.write('\r\n\x1b[1;31mConnection closed.\x1b[0m\r\n');
+                
+                unlistenClosed = await listen(`ssh_closed_${sessionId}`, () => {
+                    term.write('\r\nConnection closed.\r\n');
                 });
 
-                // Start connection
+                if (!isMounted) return;
+
                 await invoke('connect_ssh', { 
                     id: sessionId,
                     host,
@@ -75,41 +85,53 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                     password: password || undefined 
                 });
                 
-                term.write('\x1b[1;32mConnected.\x1b[0m\r\n');
+                if (isMounted) term.write('Session Established.\r\n');
 
             } catch (err) {
-                term.write(`\r\n\x1b[1;31mConnection failed: ${err}\x1b[0m\r\n`);
+                if (isMounted) {
+                    term.write(`\r\nConnection Error: ${err}\r\n`);
+                    console.error("SSH Connect Error:", err);
+                }
             }
         };
 
-        connect();
+        initSession();
 
-        // Handle user input
         const onDataDisposable = term.onData((data) => {
-            invoke('write_ssh', { id: sessionId, data }).catch(console.error);
+            invoke('write_ssh', { id: sessionId, data }).catch(e => {
+                // Ignore "Session not found" which happens during disconnects
+                if (!JSON.stringify(e).includes("Session not found")) {
+                    console.error("Write error:", e);
+                }
+            });
         });
 
-        // Handle resize
         const resizeObserver = new ResizeObserver(() => {
             fitAddon.fit();
-            // Optional: send resize to backend
-            // invoke('resize_ssh', { id: sessionId, rows: term.rows, cols: term.cols }).catch(console.error);
         });
         resizeObserver.observe(terminalRef.current);
 
         return () => {
+            console.log("Terminal unmounting", sessionId);
+            isMounted = false;
             resizeObserver.disconnect();
             onDataDisposable.dispose();
-            if (unlisten) unlisten();
-            invoke('disconnect_ssh', { id: sessionId }).catch(console.error);
+            if (unlistenData) unlistenData();
+            if (unlistenClosed) unlistenClosed();
+            
+            invoke('disconnect_ssh', { id: sessionId }).catch(e => {
+                console.log("Disconnect result:", e);
+            });
+            
             term.dispose();
+            xtermRef.current = null;
         };
-    }, []); // Run once on mount
+    }, [sessionId, host, port, username, password]);
 
     return (
         <div 
             ref={terminalRef} 
-            className={`w-full h-full overflow-hidden ${className || ''}`}
+            className={`w-full h-full min-h-[400px] bg-black border border-gray-700 overflow-hidden ${className || ''}`}
             data-testid="terminal-container"
         />
     );

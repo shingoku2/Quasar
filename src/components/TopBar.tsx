@@ -41,13 +41,6 @@ const TopBar: React.FC<TopBarProps> = ({ activeView }) => {
             <User className="h-4 w-4" />
           </button>
         </div>
-
-        {/* Window Controls (Mac Style or just placeholders) */}
-        <div className="flex items-center space-x-2 pl-2">
-          <button className="p-1 text-gray-600 hover:text-gray-400"><Minus className="h-4 w-4" /></button>
-          <button className="p-1 text-gray-600 hover:text-gray-400"><Maximize2 className="h-3 w-3" /></button>
-          <button className="p-1 text-gray-600 hover:text-red-500"><X className="h-4 w-4" /></button>
-        </div>
       </div>
     </header>
   );
