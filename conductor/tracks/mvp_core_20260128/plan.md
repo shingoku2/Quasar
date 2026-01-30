@@ -21,10 +21,10 @@
 - [x] Task: Conductor - User Manual Verification 'Core UI & Navigation' (Protocol in workflow.md) [manual]
 
 ## Phase 3: Connectivity & Discovery
-- [ ] Task: System Protocol Launchers
-    - [ ] Implement SSH launch via system terminal
-    - [ ] Implement RDP launch via system `mstsc` (Windows) or equivalent
-- [ ] Task: LAN Discovery Module
+- [x] Task: System Protocol Launchers [b4c1465]
+    - [x] Implement SSH launch via system terminal
+    - [x] Implement RDP launch via system `mstsc` (Windows) or equivalent
+- [x] Task: LAN Discovery Module [b3e328a]
     - [ ] Integrate `nmap` sidecar for scanning
-    - [ ] Implement passive discovery via `mdns-sd`
+    - [x] Implement passive discovery via `mdns-sd`
 - [ ] Task: Conductor - User Manual Verification 'Connectivity & Discovery' (Protocol in workflow.md)
