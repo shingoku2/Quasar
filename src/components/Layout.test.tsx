@@ -29,41 +29,20 @@ vi.mock('@tauri-apps/plugin-sql', () => ({
 }));
 
 describe('Layout Component', () => {
-  it('renders sidebar and host inventory', async () => {
+  it('renders sidebar and top bar', async () => {
     render(<Layout />);
-    expect(screen.getByText('TITAN')).toBeInTheDocument();
-    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0);
+    expect(screen.getByText('TITAN NEXUS')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search resources/)).toBeInTheDocument();
+  });
+
+  it('can switch views', async () => {
+    render(<Layout />);
     
+    const remoteButton = screen.getByTitle('Remote');
+    fireEvent.click(remoteButton);
+
     await waitFor(() => {
-      expect(screen.getByText('Host Inventory')).toBeInTheDocument();
+      expect(screen.getByText('Remote Hosts')).toBeInTheDocument();
     });
-  });
-
-  it('can add and switch between tabs', async () => {
-    render(<Layout />);
-    
-    await waitFor(() => expect(screen.getByText('Host Inventory')).toBeInTheDocument());
-
-    const addButton = screen.getByTitle('New Session');
-    fireEvent.click(addButton);
-
-    expect(screen.getByText('New Session 1')).toBeInTheDocument();
-  });
-
-  it('can remove tabs', async () => {
-    render(<Layout />);
-    
-    await waitFor(() => expect(screen.getByText('Host Inventory')).toBeInTheDocument());
-
-    const addButton = screen.getByTitle('New Session');
-    fireEvent.click(addButton);
-
-    const tabItem = screen.getByText('New Session 1').parentElement;
-    const closeBtn = tabItem?.querySelector('button');
-    if (closeBtn) {
-      fireEvent.click(closeBtn);
-    }
-
-    expect(screen.queryByText('New Session 1')).not.toBeInTheDocument();
   });
 });
