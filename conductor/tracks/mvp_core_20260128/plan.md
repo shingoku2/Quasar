@@ -11,14 +11,14 @@
     - [x] Implement secure credential vault (AES-256-GCM) [59496ed]
 - [ ] Task: Conductor - User Manual Verification 'Foundation & Scaffold' (Protocol in workflow.md)
 
-## Phase 2: Core UI & Navigation
+## Phase 2: Core UI & Navigation [checkpoint: 8fdd4c3]
 - [x] Task: Implement Main Dashboard & Tabbed UI [ba23785]
     - [x] Create layout with sidebar and main tab area
     - [x] Implement tab management (Add/Remove/Switch)
 - [x] Task: Host Management UI [e60eb1f]
     - [x] Create host list view with filtering
     - [x] Implement "Add Host" dialog
-- [ ] Task: Conductor - User Manual Verification 'Core UI & Navigation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Core UI & Navigation' (Protocol in workflow.md) [manual]
 
 ## Phase 3: Connectivity & Discovery
 - [ ] Task: System Protocol Launchers
