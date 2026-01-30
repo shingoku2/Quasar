@@ -46,8 +46,8 @@ impl client::Handler for Client {
 }
 
 pub struct SshConnection {
-    pub handle: Arc<TokioMutex<russh::client::Handle<Client>>>,
-    pub channel_id: ChannelId,
+    pub channel: Arc<TokioMutex<russh::Channel<russh::client::Msg>>>,
+    pub disconnect_tx: tokio::sync::mpsc::Sender<()>,
     pub bytes_received: Arc<Mutex<u64>>,
     pub last_stats_check: Arc<Mutex<Instant>>,
 }
@@ -108,14 +108,32 @@ pub async fn connect_ssh(
     channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;
     channel.request_shell(true).await.map_err(|e| e.to_string())?;
 
-    let channel_id = channel.id();
-    let handle = Arc::new(TokioMutex::new(session));
+    let channel_handle = Arc::new(TokioMutex::new(channel));
+    
     let bytes_received = Arc::new(Mutex::new(0));
     let last_stats_check = Arc::new(Mutex::new(Instant::now()));
 
+    let (disconnect_tx, mut disconnect_rx) = tokio::sync::mpsc::channel(1);
+
+    // Spawn session driver
+    let id_for_closure = id.clone();
+    let app_handle_for_closure = app_handle.clone();
+    
+    tokio::spawn(async move {
+        tokio::select! {
+            _ = session => {
+                let _ = app_handle_for_closure.emit(&format!("ssh_closed_{}", id_for_closure), ());
+            }
+            _ = disconnect_rx.recv() => {
+                // Dropping 'session' here will close the connection
+                let _ = app_handle_for_closure.emit(&format!("ssh_closed_{}", id_for_closure), ());
+            }
+        }
+    });
+
     let conn = SshConnection {
-        handle,
-        channel_id,
+        channel: channel_handle,
+        disconnect_tx,
         bytes_received: bytes_received.clone(),
         last_stats_check: last_stats_check.clone(),
     };
@@ -136,13 +154,12 @@ pub async fn connect_ssh(
                     let b = *c.bytes_received.lock().unwrap();
                     let t = *c.last_stats_check.lock().unwrap();
                     
-                    // Reset bytes for next interval (crude bandwidth)
                     *c.bytes_received.lock().unwrap() = 0;
                     *c.last_stats_check.lock().unwrap() = Instant::now();
                     
                     (b, t)
                 } else {
-                    break; // Session gone
+                    break;
                 }
             };
 
@@ -159,10 +176,9 @@ pub async fn connect_ssh(
                 format!("{:.1} Kbps", kbps)
             };
 
-            // Emit stats
             let _ = app_handle_clone.emit(&format!("ssh_stats_{}", id_clone), serde_json::json!({
                 "bandwidth": bandwidth_str,
-                "latency": 0 // Latency tracking needs more complex logic, but we provide 0 for now
+                "latency": 0
             }));
         }
     });
@@ -178,12 +194,12 @@ pub async fn write_ssh(
 ) -> Result<(), String> {
     let conn = {
         let sessions = state.sessions.lock().unwrap();
-        sessions.get(&id).map(|c| (c.handle.clone(), c.channel_id))
+        sessions.get(&id).map(|c| c.channel.clone())
     };
 
-    if let Some((handle_arc, channel_id)) = conn {
-        let handle = handle_arc.lock().await;
-        handle.data(channel_id, data.as_bytes().to_vec().into())
+    if let Some(channel_arc) = conn {
+        let mut channel = channel_arc.lock().await;
+        channel.data(data.as_bytes())
             .await
             .map_err(|_| "Failed to send data".to_string())?;
         Ok(())
@@ -201,14 +217,15 @@ pub async fn resize_ssh(
 ) -> Result<(), String> {
     let conn = {
         let sessions = state.sessions.lock().unwrap();
-        sessions.get(&id).map(|c| (c.handle.clone(), c.channel_id))
+        sessions.get(&id).map(|c| c.channel.clone())
     };
 
-    if let Some((handle_arc, channel_id)) = conn {
-        let handle = handle_arc.lock().await;
-        // In russh 0.57, window_change might not be available on Handle directly or named differently.
-        // We will skip it for now to ensure compilation, as it was erroring before.
-        Err("Resize temporarily disabled".to_string())
+    if let Some(channel_arc) = conn {
+        let mut channel = channel_arc.lock().await;
+        channel.window_change(cols, rows, 0, 0)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(())
     } else {
         Err("Session not found".to_string())
     }
@@ -225,8 +242,8 @@ pub async fn disconnect_ssh(
     };
 
     if let Some(conn) = conn {
-        let handle = conn.handle.lock().await;
-        let _ = handle.disconnect(Disconnect::ByApplication, "", "User disconnected").await;
+        // Send disconnect signal to background driver
+        let _ = conn.disconnect_tx.send(()).await;
         Ok(())
     } else {
         Err("Session not found".to_string())

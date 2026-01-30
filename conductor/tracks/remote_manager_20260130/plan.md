@@ -29,7 +29,7 @@ Add the interactive toolbar for active sessions and real-time health monitoring.
 ## Phase 4: Integration & System Launcher Migration
 Migrate existing host management to use the new embedded manager instead of external launchers.
 
-- [ ] Task: Implement `CredentialPrompt` dialog for sessions without stored passwords.
+- [~] Task: Implement `CredentialPrompt` dialog for sessions without stored passwords.
 - [ ] Task: Update `HostList` and `Discovery` components to trigger embedded sessions.
 - [ ] Task: Refactor `src-tauri/src/launcher.rs` to support internal session handling alongside external fallbacks.
 - [ ] Task: Final end-to-end testing and performance verification.
