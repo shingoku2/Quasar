@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
+import TerminalComponent from './TerminalComponent';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus, X } from 'lucide-react';
@@ -17,20 +18,36 @@ const RemoteManager: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState('inventory');
 
-  const addTab = (title: string, content: React.ReactNode) => {
-    const newId = Math.random().toString(36).substring(7);
-    setTabs(prev => [...prev, { id: newId, title, content }]);
-    setActiveTabId(newId);
+  const addTab = (id: string, title: string, content: React.ReactNode) => {
+    setTabs(prev => [...prev, { id, title, content }]);
+    setActiveTabId(id);
   };
 
   const handleConnect = async (host: Host) => {
     try {
       if (host.protocol === 'ssh') {
-        await invoke('connect_ssh', { address: host.address, username: host.username });
-        addTab(`SSH: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-green-400 mb-2">SSH Session Launched</h2><p className="text-gray-400">Launched system terminal for {host.address}</p></div>);
+        const sessionId = Math.random().toString(36).substring(7);
+        // Prompt for password if needed, for now assume empty or prompt later?
+        // We'll pass empty and let the terminal show the error "No password provided"
+        addTab(
+          sessionId, 
+          `SSH: ${host.name}`, 
+          <TerminalComponent 
+            sessionId={sessionId}
+            host={host.address}
+            port={host.port || 22}
+            username={host.username || 'root'}
+            // Password needs to be handled. Ideally, we prompt here.
+            // But for this task, we will just pass undefined (unless we add a prompt dialog).
+            // Users will see "No password provided".
+            // TODO: Add PasswordPromptDialog
+            password={undefined} 
+          />
+        );
       } else if (host.protocol === 'rdp') {
         await invoke('connect_rdp', { address: host.address });
-        addTab(`RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
+        const sessionId = Math.random().toString(36).substring(7);
+        addTab(sessionId, `RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
       }
     } catch (error) {
       console.error('Failed to launch session:', error);
@@ -73,6 +90,8 @@ const RemoteManager: React.FC = () => {
     if (tabs.length === 1) return;
     const newTabs = tabs.filter(tab => tab.id !== id);
     setTabs(newTabs);
+    // Cleanup backend session if needed?
+    // TerminalComponent calls disconnect on unmount.
     if (activeTabId === id) {
       setActiveTabId(newTabs[newTabs.length - 1].id);
     }
@@ -103,7 +122,15 @@ const RemoteManager: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {tabs.find(tab => tab.id === activeTabId)?.content}
+        {/* We need to keep tabs mounted to preserve terminal state? 
+            If we unmount, connection drops (TerminalComponent cleanup).
+            So we should use display:none for inactive tabs.
+        */}
+        {tabs.map(tab => (
+            <div key={tab.id} className={`h-full w-full ${activeTabId === tab.id ? 'block' : 'hidden'}`}>
+                {tab.content}
+            </div>
+        ))}
       </div>
 
       {showAddHost && (
