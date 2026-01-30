@@ -9,6 +9,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'connect_ssh' || cmd === 'connect_rdp' || cmd === 'start_discovery') {
       return Promise.resolve();
     }
+    if (cmd === 'check_ai_status') return Promise.resolve(false); // Default to offline for layout tests
     return Promise.resolve();
   }),
 }));
