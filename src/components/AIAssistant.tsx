@@ -69,9 +69,11 @@ const AIAssistant: React.FC = () => {
         } else {
           setMessages(prev => {
             const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
+            const lastIdx = newMessages.length - 1;
+            const lastMessage = { ...newMessages[lastIdx] };
             if (lastMessage.role === 'assistant') {
               lastMessage.content += event.payload.content;
+              newMessages[lastIdx] = lastMessage;
             }
             return newMessages;
           });
