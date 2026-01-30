@@ -15,6 +15,8 @@
     - `aes-gcm`: AES-256-GCM encryption.
     - `tauri-plugin-sql`: SQLite database interaction.
     - `mdns-sd`: Zero-config LAN discovery.
+    - `ollama-rs`: Ollama REST API interaction.
+    - `tokio-stream`: Async stream utilities for AI chat.
 
 ## Frontend (User Interface)
 - **Framework:** React
