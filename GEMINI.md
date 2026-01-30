@@ -4,22 +4,26 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Track:** `mvp_core_20260128` (Create Project Titan MVP with Core Remote Access and Discovery).
-- **Status:** In Progress (`[~]`).
-- **Last Action:** Successfully initialized the Tauri scaffold and configured Tailwind CSS v4. Verified the frontend build (`npm run build`).
+- **Status:** **Core Foundation Complete**.
+- **Last Action:** Successfully implemented the "SysAdmin Nexus" high-fidelity UI overhaul, including the Sidebar, TopBar, and a real-time animated Dashboard using Recharts.
 
-## Environment Blockers
-- **Rust/Cargo:** **NOT FOUND**. 
-- The task "Verify build and window launch" is currently blocked. You must install Rust and ensure `cargo` is in your PATH before we can proceed with Tauri-specific development.
+## Progress Summary (2026-01-29)
+Today was a highly productive session where we moved from a blank scaffold to a functional, high-fidelity IT operations console.
+1.  **MVP Foundation:** Verified Rust build, implemented SQLite schema, and added Argon2id/AES-GCM security.
+2.  **Connectivity:** Implemented system-level SSH/RDP launchers and passive LAN discovery (mDNS).
+3.  **Local AI:** Integrated Ollama with a streaming chat interface and model selection.
+4.  **UI/UX:** Overhauled the entire application shell based on the "SysAdmin Nexus" design concept, including a high-density dashboard.
 
-## Implementation Progress
-- [~] **Task: Initialize Tauri v2 project with React/TS/Tailwind**
-    - [x] Run `npm create tauri-app@latest`
-    - [x] Configure Tailwind CSS (v4)
-    - [ ] Verify build and window launch (Blocked by missing Rust)
+## Environment Status
+- **Rust/Cargo:** **FOUND** (v1.93.0). Blockers cleared.
+- **Node.js:** Functional.
+- **Dependencies:** All core UI and backend dependencies installed and verified.
+
+## Next Steps / Pending Tasks
+- **Module B: Remote Connection Manager:** Replace system launchers with native `xterm.js` terminals and `ironrdp` streams inside the app.
+- **Module D: Automation Workflow Editor:** Implement the React Flow canvas for visual playbooks.
+- **Active Scanning:** Integrate `nmap` sidecar for more aggressive network discovery.
 
 ## Resume Instructions
-When you are ready to continue:
-1.  **Install Rust:** [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install)
-2.  **Verify Path:** Run `cargo --version` in your terminal to ensure it's recognized.
-3.  **Resume Track:** Run the command `/conductor:implement` to pick up exactly where we left off.
+1.  **Launch App:** `cmd /c "set PATH=%USERPROFILE%\.cargo\bin;%PATH% && npm run tauri dev"` to see the current state.
+2.  **New Track:** Run `/conductor:setup` or `/conductor:implement` to define and start the next module (e.g., Native SSH).
