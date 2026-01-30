@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
 import { initDatabase } from '../db';
+import { invoke } from "@tauri-apps/api/core";
 
 interface Tab {
   id: string;
@@ -19,6 +20,21 @@ const Layout: React.FC = () => {
     const newId = Math.random().toString(36).substring(7);
     setTabs(prev => [...prev, { id: newId, title, content }]);
     setActiveTabId(newId);
+  };
+
+  const handleConnect = async (host: Host) => {
+    try {
+      if (host.protocol === 'ssh') {
+        await invoke('connect_ssh', { address: host.address, username: host.username });
+        addTab(`SSH: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-green-400 mb-2">SSH Session Launched</h2><p className="text-gray-400">Launched system terminal for {host.address}</p></div>);
+      } else if (host.protocol === 'rdp') {
+        await invoke('connect_rdp', { address: host.address });
+        addTab(`RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
+      }
+    } catch (error) {
+      console.error('Failed to launch session:', error);
+      alert(`Failed to launch session: ${error}`);
+    }
   };
 
   useEffect(() => {
@@ -52,7 +68,7 @@ const Layout: React.FC = () => {
             <div className="flex-1 overflow-hidden">
               <HostList 
                 key={refreshTrigger} 
-                onConnect={(host) => addTab(`${host.protocol.toUpperCase()}: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">Connecting to {host.address}...</h2><p className="text-gray-500">Terminal implementation coming in Phase 3.</p></div>)} 
+                onConnect={handleConnect} 
               />
             </div>
           </div>
