@@ -2,8 +2,9 @@ mod crypto;
 mod launcher;
 mod discovery;
 mod ai;
+mod ssh;
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -23,7 +24,7 @@ fn verify_password(password: String, hashed: String) -> bool {
 }
 
 #[tauri::command]
-async fn connect_ssh(address: String, username: Option<String>) -> Result<(), String> {
+async fn launch_ssh_external(address: String, username: Option<String>) -> Result<(), String> {
     launcher::launch_ssh(&address, username.as_deref())
 }
 
@@ -72,18 +73,26 @@ async fn send_ai_chat(app: AppHandle, model: String, messages: Vec<FrontendMessa
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            app.manage(ssh::SshState::new());
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             hash_password,
             verify_password,
-            connect_ssh,
+            launch_ssh_external,
             connect_rdp,
             start_discovery,
             check_ai_status,
             list_ai_models,
-            send_ai_chat
+            send_ai_chat,
+            ssh::connect_ssh,
+            ssh::write_ssh,
+            ssh::resize_ssh,
+            ssh::disconnect_ssh
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
