@@ -3,6 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TerminalComponent from './TerminalComponent';
 import '@testing-library/jest-dom';
 
+// Mock Tauri invoke and event
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
+}));
+
 // Mock ResizeObserver
 global.ResizeObserver = class {
   observe = vi.fn();
@@ -18,6 +27,7 @@ vi.mock('@xterm/xterm', () => {
       loadAddon = vi.fn();
       dispose = vi.fn();
       write = vi.fn();
+      onData = vi.fn(() => ({ dispose: vi.fn() }));
     },
   };
 });
@@ -32,19 +42,15 @@ vi.mock('@xterm/addon-fit', () => {
 });
 
 describe('TerminalComponent', () => {
+  const defaultProps = {
+    sessionId: 'test-session',
+    host: 'localhost',
+    username: 'user',
+  };
+
   it('renders the terminal container', () => {
-    render(<TerminalComponent />);
+    render(<TerminalComponent {...defaultProps} />);
     const container = screen.getByTestId('terminal-container');
     expect(container).toBeInTheDocument();
-  });
-
-  it('initializes the Xterm instance', () => {
-    render(<TerminalComponent />);
-    // Since we mocked the module, we can check if the constructor was called
-    // indirectly by checking side effects or we can trust the render passed without error
-    // and the container is present.
-    // For a stricter test, we'd spy on the mock, but finding it via the module registry in Vitest
-    // can be verbose. The container check proves the component mounted.
-    expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
   });
 });
