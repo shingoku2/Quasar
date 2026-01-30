@@ -20,11 +20,11 @@
     - [x] Implement "Add Host" dialog
 - [x] Task: Conductor - User Manual Verification 'Core UI & Navigation' (Protocol in workflow.md) [manual]
 
-## Phase 3: Connectivity & Discovery
+## Phase 3: Connectivity & Discovery [checkpoint: 48c5145]
 - [x] Task: System Protocol Launchers [b4c1465]
     - [x] Implement SSH launch via system terminal
     - [x] Implement RDP launch via system `mstsc` (Windows) or equivalent
 - [x] Task: LAN Discovery Module [b3e328a]
     - [ ] Integrate `nmap` sidecar for scanning
     - [x] Implement passive discovery via `mdns-sd`
-- [ ] Task: Conductor - User Manual Verification 'Connectivity & Discovery' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Connectivity & Discovery' (Protocol in workflow.md) [manual]
