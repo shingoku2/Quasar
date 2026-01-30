@@ -1,8 +1,10 @@
 mod crypto;
 mod launcher;
 mod discovery;
+mod ai;
 
 use tauri::AppHandle;
+use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -35,6 +37,38 @@ fn start_discovery(app: AppHandle) {
     discovery::start_mdns_discovery(app);
 }
 
+#[tauri::command]
+async fn check_ai_status() -> bool {
+    ai::check_ollama_status().await
+}
+
+#[tauri::command]
+async fn list_ai_models() -> Result<Vec<String>, String> {
+    ai::list_models().await
+}
+
+// Simple struct to receive messages from frontend
+#[derive(serde::Deserialize)]
+struct FrontendMessage {
+    role: String,
+    content: String,
+}
+
+#[tauri::command]
+async fn send_ai_chat(app: AppHandle, model: String, messages: Vec<FrontendMessage>) -> Result<(), String> {
+    let chat_messages = messages.into_iter().map(|m| {
+        let role = match m.role.as_str() {
+            "user" => MessageRole::User,
+            "assistant" => MessageRole::Assistant,
+            "system" => MessageRole::System,
+            _ => MessageRole::User,
+        };
+        ChatMessage::new(role, m.content)
+    }).collect();
+
+    ai::chat_request(app, model, chat_messages).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -46,7 +80,10 @@ pub fn run() {
             verify_password,
             connect_ssh,
             connect_rdp,
-            start_discovery
+            start_discovery,
+            check_ai_status,
+            list_ai_models,
+            send_ai_chat
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
