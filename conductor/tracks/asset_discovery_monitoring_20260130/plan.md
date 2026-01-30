@@ -11,8 +11,8 @@ Implement the core network scanning functionality in Rust with async/concurrent 
 - [x] Task: Implement TCP port scanner for common service ports
 - [x] Task: Create Tauri commands: `scan_network`, `stop_scan`, `get_scan_progress`
 - [x] Task: Add scan results emitter for real-time UI updates
-- [~] Task: Write unit tests for scanner modules
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: LAN Scanner' (Protocol in workflow.md)
+- [x] Task: Write unit tests for scanner modules 2039b02
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: LAN Scanner' (Protocol in workflow.md) [checkpoint: 2039b02]
 
 ## Phase 2: Discovery UI & Integration
 
