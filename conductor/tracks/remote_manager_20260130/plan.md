@@ -10,13 +10,13 @@ Implement the core terminal emulator component and connect it to the Rust SSH ba
 - [x] Task: Connect `TerminalComponent` to the Rust `russh` backend via async streams. 6bf5d43
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Terminal Foundation' (Protocol in workflow.md) [checkpoint: 0406ca4]
 
-## Phase 2: Hybrid Session Management UI
+## Phase 2: Hybrid Session Management UI [checkpoint: 9dbccda]
 Build the tabbed and split-pane container to manage multiple active sessions.
 
 - [x] Task: Implement `SessionContainer` with support for dynamic tabs. 02bc21f
-- [~] Task: Add "Split View" capability to `SessionContainer` (side-by-side or grid layout).
-- [ ] Task: Update `App.tsx` to route remote connection requests to the new `SessionContainer`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Session Management' (Protocol in workflow.md)
+- [x] Task: Add "Split View" capability to `SessionContainer` (side-by-side or grid layout). 9dbccda
+- [x] Task: Update `App.tsx` to route remote connection requests to the new `SessionContainer`. 9dbccda
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Session Management' (Protocol in workflow.md) [checkpoint: 9dbccda]
 
 ## Phase 3: Session Toolbar & Diagnostics
 Add the interactive toolbar for active sessions and real-time health monitoring.
