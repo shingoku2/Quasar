@@ -9,7 +9,8 @@
 - **Key Crates:**
     - `tauri`: IPC and window management.
     - `ironrdp`: Native RDP implementation (Planned).
-    - `russh`: Native SSH implementation (Planned).
+    - `russh`: Native SSH implementation.
+    - `russh-keys`: SSH key management.
     - `rust-vnc`: Native VNC implementation.
     - `argon2`: Password hashing (Argon2id).
     - `aes-gcm`: AES-256-GCM encryption.
@@ -24,7 +25,7 @@
 - Styling: Tailwind CSS
 - Component Library: Lucide React (Icons), Recharts (Data Viz)
 - Utilities: clsx, tailwind-merge (Dynamic styling)
-- Terminal Emulator: xterm.js
+- Terminal Emulator: @xterm/xterm, @xterm/addon-fit
 
 ## Data & Storage
 - **Database:** SQLite (WAL mode)

@@ -16,7 +16,7 @@ Project Titan is a unified, open-source IT operations console designed for sysad
 - **Sidecar Monitoring:** Enable pre-flight health checks (CPU/RAM) without full connection using sidecar agents.
 
 ## Key Features
-- **Tabbed Connection Manager:** Manage RDP, SSH, VNC, and web sessions in a single window with shared context.
+- **Remote Connection Manager:** Unified management of RDP and SSH sessions with tabbed navigation, split-view capability, and embedded terminals (xterm.js).
 - **Asset Inventory:** Active inventory populated by auto-discovery (mDNS, nmap) and manual entry.
 - **Local AI Integration:** (Planned for Phase 2) Local Ollama inference for log analysis and playbook generation, ensuring privacy.
 - **Sidecar Architecture:** Isolate GPL/AGPL components to prevent license contamination and ensure stability.
