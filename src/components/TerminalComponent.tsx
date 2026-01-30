@@ -64,6 +64,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
         let unlistenData: (() => void) | undefined;
         let unlistenClosed: (() => void) | undefined;
+        let unlistenStats: (() => void) | undefined;
         let isMounted = true;
 
         const initSession = async () => {
@@ -76,6 +77,11 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                 
                 unlistenClosed = await listen(`ssh_closed_${sessionId}`, () => {
                     term.write('\r\nConnection closed.\r\n');
+                });
+
+                unlistenStats = await listen<{bandwidth: string, latency: number}>(`ssh_stats_${sessionId}`, (event) => {
+                    setBandwidth(event.payload.bandwidth);
+                    setLatency(event.payload.latency);
                 });
 
                 if (!isMounted) return;
@@ -119,6 +125,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             onDataDisposable.dispose();
             if (unlistenData) unlistenData();
             if (unlistenClosed) unlistenClosed();
+            if (unlistenStats) unlistenStats();
             
             invoke('disconnect_ssh', { id: sessionId }).catch(e => {
                 console.log("Disconnect result:", e);
@@ -146,8 +153,5 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         </div>
     );
 };
-
-export default TerminalComponent;
-
 
 export default TerminalComponent;

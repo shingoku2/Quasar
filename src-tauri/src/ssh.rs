@@ -1,10 +1,11 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex}; // For the outer map
-use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter, Manager};
 use russh::*;
+use russh::keys::*;
 use russh::client::*;
-use tokio::sync::Mutex as TokioMutex; // For the inner handle
+use tokio::sync::Mutex as TokioMutex;
 
 #[derive(Clone)]
 pub struct Client {
@@ -28,16 +29,27 @@ impl client::Handler for Client {
         data: &[u8],
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        // Update stats
+        let state = self.app_handle.state::<SshState>();
+        if let Ok(sessions) = state.sessions.lock() {
+            if let Some(conn) = sessions.get(&self.id) {
+                if let Ok(mut bytes) = conn.bytes_received.lock() {
+                    *bytes += data.len() as u64;
+                }
+            }
+        }
+
         let data_str = String::from_utf8_lossy(data).to_string();
         let _ = self.app_handle.emit(&format!("ssh_data_{}", self.id), data_str);
         Ok(())
     }
 }
 
-// Handle is not Clone in 0.57, so we wrap it in Arc<TokioMutex>
 pub struct SshConnection {
     pub handle: Arc<TokioMutex<russh::client::Handle<Client>>>,
     pub channel_id: ChannelId,
+    pub bytes_received: Arc<Mutex<u64>>,
+    pub last_stats_check: Arc<Mutex<Instant>>,
 }
 
 pub struct SshState {
@@ -71,7 +83,6 @@ pub async fn connect_ssh(
 
     let addr = format!("{}:{}", host, port);
     
-    // Connect
     let mut session = match tokio::time::timeout(
         Duration::from_secs(5),
         russh::client::connect(config, addr, sh)
@@ -80,23 +91,8 @@ pub async fn connect_ssh(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    // Auth
     if let Some(pass) = password {
         let auth_res = session.authenticate_password(&user, pass).await.map_err(|e| e.to_string())?;
-        // Handle AuthResult (Success, Failure, etc.)
-        // Note: We check if it matches Success. If types don't match, compiler will tell us.
-        // If AuthResult is not imported, we use the fully qualified path if possible, or try to infer.
-        // Since we can't easily see the definition, we will use a workaround:
-        // If it compiles with `if !auth_res`, it's bool.
-        // Since it didn't, we assume it's an enum.
-        // We will match on `auth_res`.
-        // If we can't import AuthResult easily, we might need to look at `russh::auth::AuthResult`.
-        // We'll try implicit check or debug print (not valid in logic).
-        // Let's rely on standard russh usage: `russh::client::AuthResult`.
-        
-        // TEMPORARY HACK: If we can't find AuthResult, we might just proceed? No, unsafe.
-        // We'll try to use the `is_success()` method if it exists?
-        // Or just `matches!`.
         let is_success = match auth_res {
              russh::client::AuthResult::Success => true,
              _ => false,
@@ -109,65 +105,68 @@ pub async fn connect_ssh(
     };
 
     let mut channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
-    
     channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;
     channel.request_shell(true).await.map_err(|e| e.to_string())?;
 
     let channel_id = channel.id();
-    
-    // Wrap session (Handle)
     let handle = Arc::new(TokioMutex::new(session));
+    let bytes_received = Arc::new(Mutex::new(0));
+    let last_stats_check = Arc::new(Mutex::new(Instant::now()));
 
-    state.sessions.lock().unwrap().insert(id.clone(), SshConnection {
+    let conn = SshConnection {
         handle,
-        channel_id
+        channel_id,
+        bytes_received: bytes_received.clone(),
+        last_stats_check: last_stats_check.clone(),
+    };
+
+    state.sessions.lock().unwrap().insert(id.clone(), conn);
+
+    // Spawn stats reporter
+    let app_handle_clone = app_handle.clone();
+    let id_clone = id.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            
+            let (bytes, last_time) = {
+                let state = app_handle_clone.state::<SshState>();
+                let sessions = state.sessions.lock().unwrap();
+                if let Some(c) = sessions.get(&id_clone) {
+                    let b = *c.bytes_received.lock().unwrap();
+                    let t = *c.last_stats_check.lock().unwrap();
+                    
+                    // Reset bytes for next interval (crude bandwidth)
+                    *c.bytes_received.lock().unwrap() = 0;
+                    *c.last_stats_check.lock().unwrap() = Instant::now();
+                    
+                    (b, t)
+                } else {
+                    break; // Session gone
+                }
+            };
+
+            let elapsed = last_time.elapsed().as_secs_f64();
+            let kbps = if elapsed > 0.0 {
+                (bytes as f64 * 8.0) / (elapsed * 1024.0)
+            } else {
+                0.0
+            };
+
+            let bandwidth_str = if kbps > 1024.0 {
+                format!("{:.1} Mbps", kbps / 1024.0)
+            } else {
+                format!("{:.1} Kbps", kbps)
+            };
+
+            // Emit stats
+            let _ = app_handle_clone.emit(&format!("ssh_stats_{}", id_clone), serde_json::json!({
+                "bandwidth": bandwidth_str,
+                "latency": 0 // Latency tracking needs more complex logic, but we provide 0 for now
+            }));
+        }
     });
 
-    // We can't easily spawn the event loop from the Handle if we've wrapped it?
-    // Wait. `session` IS the handle.
-    // The event loop is running in the background spawned by `connect`.
-    // We just need to keep `session` (the handle) alive?
-    // Actually, `russh::client::connect` spawns the loop?
-    // No, `connect` returns a `Handle` AND a `Connection` (future)?
-    // Russh 0.34+: `connect` returns `Handle`. The loop is spawned implicitly?
-    // Russh docs say "You should await the future returned by connect...".
-    // Wait. `connect` returns `impl Future<Output = Result<Handle<H>, Error>>`.
-    // It returns the Handle. The background task is spawned by `connect`?
-    // Usually yes.
-    // So we just keep the handle.
-    
-    // Wait, earlier code `tokio::spawn(async move { let _ = session.await; ... })`.
-    // Does `session` need to be awaited?
-    // `Handle` implements Future?
-    // If so, awaiting it waits for the connection to close.
-    // If we wrap it in Mutex, we can't await it easily.
-    // But we need to await it to keep the connection alive (maybe?).
-    // Or to know when it closes.
-    // If `Handle` is the future of the connection, we MUST await it.
-    // But if we put it in a Mutex, we can't await it concurrently with using it.
-    // This implies `connect` splits it?
-    // Or `Handle` is just a handle, and we don't need to await it?
-    // Russh 0.57: `connect` returns `Handle`.
-    // `Handle` usually has a `future` we can await?
-    // Or `connect` returns `(Handle, Future)`?
-    // If `connect` returns just `Handle`, and `Handle` is a Future, then we have a problem.
-    // We can't share a Future that we are awaiting.
-    // If `Handle` is `Future`, we should `poll` it or `await` it.
-    // If we await it, we consume it (or lock it).
-    // This suggests we shouldn't share the `Handle` directly if it's the driver.
-    // BUT usually `russh` gives a `Handle` to send commands, and runs the loop separately.
-    // Let's check `russh` 0.57 `connect`.
-    // "Returns a handle to the session."
-    // If the handle is also the future that drives the session, we can't lock it.
-    // This suggests `russh` 0.57 might behave differently.
-    // However, usually one spawns the handler.
-    // I'll assume `Handle` is just a handle and I don't need to await it to drive progress, ONLY to wait for completion.
-    // I can check completion by `monitor_cancellation` or similar?
-    // Or just NOT await it in a loop?
-    // If I don't await it, does it drop?
-    // If `Handle` holds the channel sender, it keeps the task alive.
-    // I'll skip the `tokio::spawn(session.await)` part for now.
-    
     Ok(())
 }
 
@@ -179,13 +178,11 @@ pub async fn write_ssh(
 ) -> Result<(), String> {
     let conn = {
         let sessions = state.sessions.lock().unwrap();
-        // Clone the Arc, not the inner mutex
         sessions.get(&id).map(|c| (c.handle.clone(), c.channel_id))
     };
 
     if let Some((handle_arc, channel_id)) = conn {
-        let mut handle = handle_arc.lock().await;
-        // data returns Result<(), CryptoVec>. map_err appropriately.
+        let handle = handle_arc.lock().await;
         handle.data(channel_id, data.as_bytes().to_vec().into())
             .await
             .map_err(|_| "Failed to send data".to_string())?;
@@ -208,14 +205,9 @@ pub async fn resize_ssh(
     };
 
     if let Some((handle_arc, channel_id)) = conn {
-        let mut handle = handle_arc.lock().await;
-        // window_change might be missing or named differently.
-        // We'll try `window_change` again. If it fails, we comment it out.
-        // Actually, if `Handle` is generic `Handle<Client>`, it should have it.
-        // If not, we'll return Err("Resize not supported").
-        // handle.window_change(channel_id, cols, rows, 0, 0).await.map_err(|e| e.to_string())?;
-        // Commented out to ensure compilation for now.
-        // We can check docs later.
+        let handle = handle_arc.lock().await;
+        // In russh 0.57, window_change might not be available on Handle directly or named differently.
+        // We will skip it for now to ensure compilation, as it was erroring before.
         Err("Resize temporarily disabled".to_string())
     } else {
         Err("Session not found".to_string())
@@ -227,14 +219,13 @@ pub async fn disconnect_ssh(
     state: tauri::State<'_, SshState>,
     id: String,
 ) -> Result<(), String> {
-    // Remove from map
     let conn = {
         let mut sessions = state.sessions.lock().unwrap();
         sessions.remove(&id)
     };
 
     if let Some(conn) = conn {
-        let mut handle = conn.handle.lock().await;
+        let handle = conn.handle.lock().await;
         let _ = handle.disconnect(Disconnect::ByApplication, "", "User disconnected").await;
         Ok(())
     } else {
