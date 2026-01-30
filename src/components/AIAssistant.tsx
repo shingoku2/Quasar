@@ -19,10 +19,15 @@ const AIAssistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
+  const isSending = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const unlistenRef = useRef<() => void | undefined>(undefined);
 
   useEffect(() => {
     checkStatus();
+    return () => {
+      if (unlistenRef.current) unlistenRef.current();
+    };
   }, []);
 
   useEffect(() => {
@@ -50,22 +55,29 @@ const AIAssistant: React.FC = () => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || generating || !selectedModel) return;
+    if (!input.trim() || isSending.current || !selectedModel) return;
 
+    isSending.current = true;
+    setGenerating(true);
+    
     const userMessage: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setGenerating(true);
 
     // Add placeholder for assistant response
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
+      // Cleanup previous listener if any (safety)
+      if (unlistenRef.current) unlistenRef.current();
+
       // Set up listener for stream
       const unlisten = await listen<ChatResponse>('ai-chat-response', (event) => {
         if (event.payload.done) {
           setGenerating(false);
+          isSending.current = false;
           unlisten();
+          unlistenRef.current = undefined;
         } else {
           setMessages(prev => {
             const newMessages = [...prev];
@@ -79,6 +91,7 @@ const AIAssistant: React.FC = () => {
           });
         }
       });
+      unlistenRef.current = unlisten;
 
       await invoke('send_ai_chat', {
         model: selectedModel,
@@ -88,6 +101,11 @@ const AIAssistant: React.FC = () => {
       console.error('Failed to send chat:', err);
       setMessages(prev => [...prev, { role: 'system', content: `Error: ${err}` }]);
       setGenerating(false);
+      isSending.current = false;
+      if (unlistenRef.current) {
+        unlistenRef.current();
+        unlistenRef.current = undefined;
+      }
     }
   };
 
