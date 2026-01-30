@@ -1,5 +1,8 @@
 mod crypto;
 mod launcher;
+mod discovery;
+
+use tauri::AppHandle;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -27,6 +30,11 @@ async fn connect_rdp(address: String) -> Result<(), String> {
     launcher::launch_rdp(&address)
 }
 
+#[tauri::command]
+fn start_discovery(app: AppHandle) {
+    discovery::start_mdns_discovery(app);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -37,7 +45,8 @@ pub fn run() {
             hash_password,
             verify_password,
             connect_ssh,
-            connect_rdp
+            connect_rdp,
+            start_discovery
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
