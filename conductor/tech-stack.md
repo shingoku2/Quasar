@@ -19,12 +19,12 @@
     - `tokio-stream`: Async stream utilities for AI chat.
 
 ## Frontend (User Interface)
-- **Framework:** React
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Component Library:** Headless UI / Radix UI (for accessibility and custom styling) or a minimal component set.
-- **Terminal Emulator:** xterm.js
-- **Charts/Graphs:** Recharts
+- Framework: React
+- Language: TypeScript
+- Styling: Tailwind CSS
+- Component Library: Lucide React (Icons), Recharts (Data Viz)
+- Utilities: clsx, tailwind-merge (Dynamic styling)
+- Terminal Emulator: xterm.js
 
 ## Data & Storage
 - **Database:** SQLite (WAL mode)
