@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import SessionToolbar from './SessionToolbar';
 import '@xterm/xterm/css/xterm.css';
 
 interface TerminalComponentProps {
@@ -20,12 +21,14 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
-    const connectedRef = useRef(false);
+    const [clipboardSync, setClipboardSync] = useState(false);
+    const [latency, setLatency] = useState<number | undefined>(undefined);
+    const [bandwidth, setBandwidth] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         if (!terminalRef.current) return;
         
-        // Strict Mode protection: check if we already initialized this specific ref instance
+        // Strict Mode protection
         if (xtermRef.current) return;
 
         console.log("Terminal mounting", sessionId);
@@ -49,7 +52,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
 
-        // Fit after a small delay to ensure DOM layout
+        // Fit after a small delay
         setTimeout(() => {
             try {
                 fitAddon.fit();
@@ -90,7 +93,6 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             } catch (err) {
                 if (isMounted) {
                     term.write(`\r\nConnection Error: ${err}\r\n`);
-                    console.error("SSH Connect Error:", err);
                 }
             }
         };
@@ -99,7 +101,6 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
         const onDataDisposable = term.onData((data) => {
             invoke('write_ssh', { id: sessionId, data }).catch(e => {
-                // Ignore "Session not found" which happens during disconnects
                 if (!JSON.stringify(e).includes("Session not found")) {
                     console.error("Write error:", e);
                 }
@@ -129,12 +130,24 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     }, [sessionId, host, port, username, password]);
 
     return (
-        <div 
-            ref={terminalRef} 
-            className={`w-full h-full min-h-[400px] bg-black border border-gray-700 overflow-hidden ${className || ''}`}
-            data-testid="terminal-container"
-        />
+        <div className={`flex flex-col h-full ${className || ''}`} data-testid="terminal-wrapper">
+            <SessionToolbar 
+                sessionId={sessionId}
+                latency={latency}
+                bandwidth={bandwidth}
+                clipboardSync={clipboardSync}
+                onToggleClipboard={() => setClipboardSync(!clipboardSync)}
+            />
+            <div 
+                ref={terminalRef} 
+                className="flex-1 bg-black border border-gray-700 overflow-hidden"
+                data-testid="terminal-container"
+            />
+        </div>
     );
 };
+
+export default TerminalComponent;
+
 
 export default TerminalComponent;

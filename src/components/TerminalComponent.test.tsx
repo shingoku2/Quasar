@@ -48,9 +48,9 @@ describe('TerminalComponent', () => {
     username: 'user',
   };
 
-  it('renders the terminal container', () => {
+  it('renders the terminal wrapper and container', () => {
     render(<TerminalComponent {...defaultProps} />);
-    const container = screen.getByTestId('terminal-container');
-    expect(container).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-wrapper')).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
   });
 });
