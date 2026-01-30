@@ -12,51 +12,54 @@ interface Tab {
 const Layout: React.FC = () => {
   const [showAddHost, setShowAddHost] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState('dashboard');
-
-  useEffect(() => {
-    // Initialize DB and set default tab
-    initDatabase().then(() => {
-      setTabs([
-        { 
-          id: 'dashboard', 
-          title: 'Dashboard', 
-          content: (
-            <div className="flex flex-col h-full">
-              <div className="p-6 bg-gray-900 border-b border-gray-800">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-white">Host Inventory</h1>
-                  <button 
-                    onClick={() => setShowAddHost(true)}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold transition-colors flex items-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="12 4v16m8-8H4" />
-                    </svg>
-                    Add Host
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <HostList 
-                  key={refreshTrigger} 
-                  onConnect={(host) => addTab(`${host.protocol.toUpperCase()}: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">Connecting to {host.address}...</h2><p className="text-gray-500">Terminal implementation coming in Phase 3.</p></div>)} 
-                />
-              </div>
-            </div>
-          ) 
-        }
-      ]);
-    });
-  }, [refreshTrigger]);
 
   const addTab = (title: string, content: React.ReactNode) => {
     const newId = Math.random().toString(36).substring(7);
     setTabs(prev => [...prev, { id: newId, title, content }]);
     setActiveTabId(newId);
   };
+
+  useEffect(() => {
+    // Initialize DB schema
+    initDatabase().catch(err => {
+      console.error("Failed to initialize database:", err);
+      // alert("Database initialization failed. Please check the console.");
+    });
+
+    // Set initial dashboard tab
+    setTabs([
+      { 
+        id: 'dashboard', 
+        title: 'Dashboard', 
+        content: (
+          <div className="flex flex-col h-full">
+            <div className="p-6 bg-gray-900 border-b border-gray-800">
+              <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-white">Host Inventory</h1>
+                <button 
+                  onClick={() => setShowAddHost(true)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold transition-colors flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="12 4v16m8-8H4" />
+                  </svg>
+                  Add Host
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <HostList 
+                key={refreshTrigger} 
+                onConnect={(host) => addTab(`${host.protocol.toUpperCase()}: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">Connecting to {host.address}...</h2><p className="text-gray-500">Terminal implementation coming in Phase 3.</p></div>)} 
+              />
+            </div>
+          </div>
+        ) 
+      }
+    ]);
+  }, [refreshTrigger]); // Re-render dashboard when refreshTrigger changes (e.g. after adding host)
 
   const removeTab = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
