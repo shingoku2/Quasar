@@ -3,14 +3,18 @@ import { describe, it, expect, vi } from 'vitest';
 import Layout from './Layout';
 import '@testing-library/jest-dom';
 
-// Mock Tauri invoke
+// Mock Tauri invoke and event
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd) => {
-    if (cmd === 'connect_ssh' || cmd === 'connect_rdp') {
+    if (cmd === 'connect_ssh' || cmd === 'connect_rdp' || cmd === 'start_discovery') {
       return Promise.resolve();
     }
     return Promise.resolve();
   }),
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
 }));
 
 // Mock SQL plugin

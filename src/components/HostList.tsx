@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Database from "@tauri-apps/plugin-sql";
+import Discovery from './Discovery';
 
 export interface Host {
   id: number;
@@ -89,6 +90,11 @@ const HostList: React.FC<{ onConnect: (host: Host) => void }> = ({ onConnect }) 
             </tbody>
           </table>
         )}
+      </div>
+      
+      {/* LAN Discovery Section */}
+      <div className="border-t border-gray-700 bg-gray-850 p-4">
+        <Discovery />
       </div>
     </div>
   );
