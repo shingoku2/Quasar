@@ -8,11 +8,12 @@
 - **Language:** Rust
 - **Key Crates:**
     - `tauri`: IPC and window management.
-    - `ironrdp`: Native RDP implementation.
-    - `russh`: Native SSH implementation.
+    - `ironrdp`: Native RDP implementation (Planned).
+    - `russh`: Native SSH implementation (Planned).
     - `rust-vnc`: Native VNC implementation.
-    - `libsodium`: Cryptography (Argon2id, SecretBox).
-    - `rusqlite`: SQLite database interaction.
+    - `argon2`: Password hashing (Argon2id).
+    - `aes-gcm`: AES-256-GCM encryption.
+    - `tauri-plugin-sql`: SQLite database interaction.
     - `mdns-sd`: Zero-config LAN discovery.
 
 ## Frontend (User Interface)
