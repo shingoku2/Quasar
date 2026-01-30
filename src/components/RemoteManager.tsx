@@ -2,24 +2,19 @@ import React, { useState, useEffect } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
 import TerminalComponent from './TerminalComponent';
+import SessionContainer, { SessionTab } from './SessionContainer';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
-import { Plus, X } from 'lucide-react';
-
-interface Tab {
-  id: string;
-  title: string;
-  content: React.ReactNode;
-}
+import { Plus } from 'lucide-react';
 
 const RemoteManager: React.FC = () => {
   const [showAddHost, setShowAddHost] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [tabs, setTabs] = useState<SessionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState('inventory');
 
   const addTab = (id: string, title: string, content: React.ReactNode) => {
-    setTabs(prev => [...prev, { id, title, content }]);
+    setTabs(prev => [...prev, { id, title, content, closable: true }]);
     setActiveTabId(id);
   };
 
@@ -27,8 +22,6 @@ const RemoteManager: React.FC = () => {
     try {
       if (host.protocol === 'ssh') {
         const sessionId = Math.random().toString(36).substring(7);
-        // Prompt for password if needed, for now assume empty or prompt later?
-        // We'll pass empty and let the terminal show the error "No password provided"
         addTab(
           sessionId, 
           `SSH: ${host.name}`, 
@@ -37,10 +30,6 @@ const RemoteManager: React.FC = () => {
             host={host.address}
             port={host.port || 22}
             username={host.username || 'root'}
-            // Password needs to be handled. Ideally, we prompt here.
-            // But for this task, we will just pass undefined (unless we add a prompt dialog).
-            // Users will see "No password provided".
-            // TODO: Add PasswordPromptDialog
             password={undefined} 
           />
         );
@@ -80,18 +69,16 @@ const RemoteManager: React.FC = () => {
               />
             </div>
           </div>
-        ) 
+        ),
+        closable: false
       }
     ]);
   }, [refreshTrigger]);
 
-  const removeTab = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleTabClose = (id: string) => {
     if (tabs.length === 1) return;
     const newTabs = tabs.filter(tab => tab.id !== id);
     setTabs(newTabs);
-    // Cleanup backend session if needed?
-    // TerminalComponent calls disconnect on unmount.
     if (activeTabId === id) {
       setActiveTabId(newTabs[newTabs.length - 1].id);
     }
@@ -99,39 +86,12 @@ const RemoteManager: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Tab Bar */}
-      <div className="flex bg-bg-sidebar border-b border-gray-800 overflow-x-auto no-scrollbar">
-        {tabs.map(tab => (
-          <div
-            key={tab.id}
-            onClick={() => setActiveTabId(tab.id)}
-            className={`flex items-center px-4 h-10 border-r border-gray-800 cursor-pointer min-w-[120px] max-w-[200px] transition-all relative ${
-              activeTabId === tab.id ? 'bg-bg-root text-accent' : 'text-gray-500 hover:bg-bg-root/50 hover:text-gray-300'
-            }`}
-          >
-            <span className="truncate flex-1 text-xs font-bold uppercase tracking-wider">{tab.title}</span>
-            {tab.id !== 'inventory' && (
-              <button onClick={(e) => removeTab(tab.id, e)} className="ml-2 hover:text-white transition-colors">
-                <X className="h-3 w-3" />
-              </button>
-            )}
-            {activeTabId === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />}
-          </div>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-hidden relative bg-bg-root">
-        {/* We need to keep tabs mounted to preserve terminal state? 
-            If we unmount, connection drops (TerminalComponent cleanup).
-            So we should use display:none for inactive tabs.
-        */}
-        {tabs.map(tab => (
-            <div key={tab.id} className={`absolute inset-0 ${activeTabId === tab.id ? 'block' : 'hidden'}`}>
-                {tab.content}
-            </div>
-        ))}
-      </div>
+      <SessionContainer 
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onTabChange={setActiveTabId}
+        onTabClose={handleTabClose}
+      />
 
       {showAddHost && (
         <AddHostDialog 
