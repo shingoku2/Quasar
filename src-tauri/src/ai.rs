@@ -34,12 +34,12 @@ pub async fn chat_request(
     let request = ChatMessageRequest::new(model, messages);
 
     let mut stream: ChatMessageResponseStream = ollama
-        .send_chat_messages_with_history_stream(request)
+        .send_chat_messages_stream(request)
         .await
         .map_err(|e| e.to_string())?;
 
     while let Some(Ok(res)) = stream.next().await {
-        if let Some(content) = res.message {
+        if let Some(content) = Some(res.message) {
             let payload = ChatStreamPayload {
                 content: content.content,
                 done: false,

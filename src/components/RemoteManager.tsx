@@ -121,13 +121,13 @@ const RemoteManager: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative bg-bg-root">
         {/* We need to keep tabs mounted to preserve terminal state? 
             If we unmount, connection drops (TerminalComponent cleanup).
             So we should use display:none for inactive tabs.
         */}
         {tabs.map(tab => (
-            <div key={tab.id} className={`h-full w-full ${activeTabId === tab.id ? 'block' : 'hidden'}`}>
+            <div key={tab.id} className={`absolute inset-0 ${activeTabId === tab.id ? 'block' : 'hidden'}`}>
                 {tab.content}
             </div>
         ))}

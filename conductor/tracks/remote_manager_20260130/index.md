@@ -1,4 +1,4 @@
-# Track mvp_core_20260128 Context
+# Track remote_manager_20260130 Context
 
 - [Specification](./spec.md)
 - [Implementation Plan](./plan.md)
