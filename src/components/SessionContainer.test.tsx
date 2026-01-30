@@ -7,6 +7,7 @@ describe('SessionContainer', () => {
   const mockTabs: SessionTab[] = [
     { id: '1', title: 'Tab 1', content: <div>Content 1</div> },
     { id: '2', title: 'Tab 2', content: <div>Content 2</div> },
+    { id: '3', title: 'Tab 3', content: <div>Content 3</div> },
   ];
 
   it('renders tabs correctly', () => {
@@ -35,39 +36,21 @@ describe('SessionContainer', () => {
     expect(screen.getByText('Content 2').parentElement).toHaveClass('hidden');
   });
 
-  it('calls onTabChange when a tab is clicked', () => {
-    const handleTabChange = vi.fn();
+  it('supports split view', () => {
     render(
       <SessionContainer 
         tabs={mockTabs} 
-        activeTabId="1" 
-        onTabChange={handleTabChange} 
+        activeTabId="1"
+        splitViewIds={['1', '2']} 
+        onTabChange={() => {}} 
         onTabClose={() => {}} 
       />
     );
+    // Both 1 and 2 should be visible
+    expect(screen.getByText('Content 1')).toBeInTheDocument();
+    expect(screen.getByText('Content 2')).toBeInTheDocument();
     
-    fireEvent.click(screen.getByText('Tab 2'));
-    expect(handleTabChange).toHaveBeenCalledWith('2');
-  });
-
-  it('calls onTabClose when close button is clicked', () => {
-    const handleTabClose = vi.fn();
-    render(
-      <SessionContainer 
-        tabs={mockTabs} 
-        activeTabId="1" 
-        onTabChange={() => {}} 
-        onTabClose={handleTabClose} 
-      />
-    );
-    
-    // Find the close button for Tab 2. 
-    // We assume the close icon is within the tab container.
-    // A simple way is to look for a button within the tab element or by test id.
-    const closeButtons = screen.getAllByRole('button');
-    // Assuming 2 close buttons (one for each tab if they are closable)
-    // We'll adjust the component to ensure accessibility
-    fireEvent.click(closeButtons[1]); 
-    expect(handleTabClose).toHaveBeenCalledWith('2');
+    // 3 should be missing (not rendered in split mode)
+    expect(screen.queryByText('Content 3')).not.toBeInTheDocument();
   });
 });

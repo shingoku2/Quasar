@@ -12,10 +12,44 @@ const RemoteManager: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tabs, setTabs] = useState<SessionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState('inventory');
+  const [splitViewIds, setSplitViewIds] = useState<string[]>([]);
 
   const addTab = (id: string, title: string, content: React.ReactNode) => {
     setTabs(prev => [...prev, { id, title, content, closable: true }]);
     setActiveTabId(id);
+    // If in split mode, add new tab to split view automatically?
+    if (splitViewIds.length > 0) {
+      setSplitViewIds(prev => [...prev, id]);
+    }
+  };
+
+  const handleToggleSplit = (id: string) => {
+    setSplitViewIds(prev => {
+      if (prev.includes(id)) {
+        // Remove from split
+        const newSplit = prev.filter(sid => sid !== id);
+        return newSplit.length < 2 ? [] : newSplit; // Exit split mode if < 2 tabs
+      } else {
+        // Add to split
+        // If we were not in split mode, we need to add the currently active tab + this new one
+        if (prev.length === 0) {
+           // If I click split on Tab B while Tab A is active:
+           // Case 1: Tab B is the active one (most likely if button is on the tab).
+           // Case 2: I click split on a background tab.
+           // Logic: If starting split, include the active tab and the target tab.
+           const ids = new Set([activeTabId, id]);
+           return Array.from(ids);
+        }
+        return [...prev, id];
+      }
+    });
+  };
+  
+  // Update active tab when selecting
+  const handleTabChange = (id: string) => {
+    setActiveTabId(id);
+    // If in split mode, just make it active (highlight).
+    // The container handles rendering.
   };
 
   const handleConnect = async (host: Host) => {
@@ -79,6 +113,7 @@ const RemoteManager: React.FC = () => {
     if (tabs.length === 1) return;
     const newTabs = tabs.filter(tab => tab.id !== id);
     setTabs(newTabs);
+    setSplitViewIds(prev => prev.filter(sid => sid !== id)); // Remove from split view
     if (activeTabId === id) {
       setActiveTabId(newTabs[newTabs.length - 1].id);
     }
@@ -89,8 +124,10 @@ const RemoteManager: React.FC = () => {
       <SessionContainer 
         tabs={tabs}
         activeTabId={activeTabId}
-        onTabChange={setActiveTabId}
+        splitViewIds={splitViewIds}
+        onTabChange={handleTabChange}
         onTabClose={handleTabClose}
+        onToggleSplit={handleToggleSplit}
       />
 
       {showAddHost && (

@@ -1,28 +1,46 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Columns, Square } from 'lucide-react';
 
 export interface SessionTab {
   id: string;
   title: string;
   content: React.ReactNode;
-  closable?: boolean; // Default to true
+  closable?: boolean;
 }
 
 interface SessionContainerProps {
   tabs: SessionTab[];
   activeTabId: string;
+  splitViewIds?: string[]; // IDs of tabs to show in split view
   onTabChange: (id: string) => void;
   onTabClose: (id: string) => void;
+  onToggleSplit?: (id: string) => void; // Optional handler to toggle split for a specific tab
   className?: string;
 }
 
 const SessionContainer: React.FC<SessionContainerProps> = ({
   tabs,
   activeTabId,
+  splitViewIds = [],
   onTabChange,
   onTabClose,
+  onToggleSplit,
   className
 }) => {
+  const isSplitMode = splitViewIds.length > 0;
+
+  // If in split mode, we show all splitViewIds. 
+  // If not, we show activeTabId.
+  const visibleIds = isSplitMode ? splitViewIds : [activeTabId];
+
+  // Calculate grid columns for split view
+  // Simple logic: equal width columns for now
+  const gridStyle = isSplitMode ? {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${visibleIds.length}, 1fr)`,
+    height: '100%'
+  } : undefined;
+
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className || ''}`}>
       {/* Tab Bar */}
@@ -32,18 +50,36 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={`flex items-center px-4 h-10 border-r border-gray-800 cursor-pointer min-w-[120px] max-w-[200px] transition-all relative group ${
-              activeTabId === tab.id ? 'bg-bg-root text-accent' : 'text-gray-500 hover:bg-bg-root/50 hover:text-gray-300'
+              visibleIds.includes(tab.id) ? 'bg-bg-root text-accent' : 'text-gray-500 hover:bg-bg-root/50 hover:text-gray-300'
             }`}
           >
             <span className="truncate flex-1 text-xs font-bold uppercase tracking-wider">{tab.title}</span>
+            
+            {/* Split Toggle Button (Only if NOT the inventory tab and onToggleSplit provided) */}
+            {(tab.closable !== false && onToggleSplit) && (
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   onToggleSplit(tab.id);
+                 }}
+                 className={`ml-2 hover:text-white transition-colors p-0.5 rounded hover:bg-white/10 ${
+                    // Highlight if currently in split view
+                    splitViewIds.includes(tab.id) ? 'text-accent' : 'opacity-0 group-hover:opacity-100'
+                 }`}
+                 title="Toggle Split View"
+               >
+                 {splitViewIds.includes(tab.id) ? <Square className="h-3 w-3" /> : <Columns className="h-3 w-3" />}
+               </button>
+            )}
+
             {(tab.closable !== false) && (
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   onTabClose(tab.id);
                 }} 
-                className={`ml-2 hover:text-white transition-colors p-0.5 rounded hover:bg-white/10 ${
-                   activeTabId === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                className={`ml-1 hover:text-white transition-colors p-0.5 rounded hover:bg-white/10 ${
+                   visibleIds.includes(tab.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}
                 aria-label={`Close ${tab.title}`}
               >
@@ -57,14 +93,29 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
 
       {/* Content Area */}
       <div className="flex-1 overflow-hidden relative bg-bg-root">
-        {tabs.map(tab => (
-            <div 
-              key={tab.id} 
-              className={`absolute inset-0 w-full h-full ${activeTabId === tab.id ? 'block' : 'hidden'}`}
-            >
-                {tab.content}
-            </div>
-        ))}
+        {isSplitMode ? (
+          <div style={gridStyle}>
+            {visibleIds.map(id => {
+                const tab = tabs.find(t => t.id === id);
+                if (!tab) return null;
+                return (
+                  <div key={tab.id} className="relative w-full h-full border-r border-gray-800 last:border-r-0">
+                    {tab.content}
+                    {/* Overlay to indicate active tab in split mode if we want? */}
+                  </div>
+                );
+            })}
+          </div>
+        ) : (
+          tabs.map(tab => (
+              <div 
+                key={tab.id} 
+                className={`absolute inset-0 w-full h-full ${activeTabId === tab.id ? 'block' : 'hidden'}`}
+              >
+                  {tab.content}
+              </div>
+          ))
+        )}
       </div>
     </div>
   );
