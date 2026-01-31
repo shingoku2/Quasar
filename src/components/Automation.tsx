@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Workflow, Plus, FolderOpen, Settings } from 'lucide-react';
+import { Workflow, Plus, FolderOpen, Settings, History, Paintbrush } from 'lucide-react';
 import Canvas from './automation/Canvas';
+import ExecutionHistory from './automation/ExecutionHistory';
 
 const Automation: React.FC = () => {
   const [activeWorkflow, setActiveWorkflow] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<{ id: string; name: string }[]>([]);
+  const [activeView, setActiveView] = useState<'canvas' | 'history'>('canvas');
 
   const createNewWorkflow = async () => {
     // This would call the backend to create a workflow
@@ -28,6 +30,25 @@ const Automation: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-2">
+          {activeWorkflow && (
+            <>
+              <button
+                onClick={() => setActiveView('canvas')}
+                className={`p-2 rounded ${activeView === 'canvas' ? 'text-accent bg-accent/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                title="Canvas"
+              >
+                <Paintbrush className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setActiveView('history')}
+                className={`p-2 rounded ${activeView === 'history' ? 'text-accent bg-accent/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                title="Execution History"
+              >
+                <History className="w-4 h-4" />
+              </button>
+              <div className="w-px h-4 bg-gray-700 mx-2" />
+            </>
+          )}
           <button
             onClick={createNewWorkflow}
             className="flex items-center space-x-2 px-3 py-1.5 bg-accent text-black rounded text-sm font-bold hover:bg-accent/90"
@@ -44,10 +65,14 @@ const Automation: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Canvas Area */}
+      {/* Main Content Area */}
       <div className="flex-1 overflow-hidden">
         {activeWorkflow ? (
-          <Canvas workflowId={activeWorkflow} />
+          activeView === 'canvas' ? (
+            <Canvas workflowId={activeWorkflow} />
+          ) : (
+            <ExecutionHistory workflowId={activeWorkflow} />
+          )
         ) : (
           <div className="h-full flex items-center justify-center">
             <div className="text-center space-y-4">
