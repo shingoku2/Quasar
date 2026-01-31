@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Database from "@tauri-apps/plugin-sql";
 import Discovery from './Discovery';
+import HealthCheckBadge from './HealthCheckBadge';
 
 export interface Host {
   id: number;
@@ -76,7 +77,12 @@ const HostList: React.FC<{ onConnect: (host: Host) => void }> = ({ onConnect }) 
                       {host.protocol}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400">{host.address}{host.port ? `:${host.port}` : ''}</td>
+                  <td className="px-4 py-3 text-gray-400">
+                    <div className="flex items-center space-x-2">
+                      <span>{host.address}{host.port ? `:${host.port}` : ''}</span>
+                      <HealthCheckBadge host={host.address} />
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button 
                       onClick={() => onConnect(host)}
