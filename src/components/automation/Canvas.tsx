@@ -1,6 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut, MousePointer2, Trash2, Play, Save, Download, Upload } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import TriggerNode from './nodes/TriggerNode';
+import ActionNode from './nodes/ActionNode';
+import ConditionNode from './nodes/ConditionNode';
+import NotificationNode from './nodes/NotificationNode';
 
 export interface NodeData {
   id: string;
@@ -212,91 +216,6 @@ const Canvas: React.FC<CanvasProps> = ({
     notification: '#8b5cf6',
   };
 
-  const renderNode = (node: NodeData) => {
-    const isSelected = selectedNodes.has(node.id);
-    const color = nodeColors[node.type];
-    
-    return (
-      <g
-        key={node.id}
-        transform={`translate(${node.position.x}, ${node.position.y})`}
-        onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-        className="cursor-move"
-      >
-        {/* Node shadow */}
-        <rect
-          x={2}
-          y={4}
-          width={148}
-          height={78}
-          rx={8}
-          fill="rgba(0,0,0,0.3)"
-        />
-        {/* Node body */}
-        <rect
-          x={0}
-          y={0}
-          width={150}
-          height={80}
-          rx={8}
-          fill="#1a1a1a"
-          stroke={isSelected ? color : '#333'}
-          strokeWidth={isSelected ? 2 : 1}
-          className="transition-all"
-        />
-        {/* Header bar */}
-        <rect
-          x={0}
-          y={0}
-          width={150}
-          height={24}
-          rx={8}
-          fill={color}
-        />
-        <rect
-          x={0}
-          y={12}
-          width={150}
-          height={12}
-          fill={color}
-        />
-        {/* Label */}
-        <text
-          x={75}
-          y={50}
-          textAnchor="middle"
-          fill="#fff"
-          fontSize={12}
-          fontFamily="system-ui"
-        >
-          {node.data.label}
-        </text>
-        {/* Input port */}
-        <circle
-          cx={0}
-          cy={40}
-          r={6}
-          fill="#333"
-          stroke="#555"
-          strokeWidth={2}
-          className="cursor-crosshair hover:fill-accent"
-          onMouseUp={(e) => handlePortMouseUp(e, node.id, 'input')}
-        />
-        {/* Output port */}
-        <circle
-          cx={150}
-          cy={40}
-          r={6}
-          fill="#333"
-          stroke="#555"
-          strokeWidth={2}
-          className="cursor-crosshair hover:fill-accent"
-          onMouseDown={(e) => handlePortMouseDown(e, node.id, 'output')}
-        />
-      </g>
-    );
-  };
-
   const renderConnection = (conn: ConnectionData) => {
     const sourceNode = nodes.find(n => n.id === conn.source);
     const targetNode = nodes.find(n => n.id === conn.target);
@@ -381,7 +300,29 @@ const Canvas: React.FC<CanvasProps> = ({
             })()}
             
             {/* Nodes */}
-            {nodes.map(renderNode)}
+            {nodes.map(node => {
+              const isSelected = selectedNodes.has(node.id);
+              const commonProps = {
+                node,
+                isSelected,
+                onMouseDown: (e: React.MouseEvent) => handleNodeMouseDown(e, node.id),
+                onPortMouseDown: (e: React.MouseEvent, port: string) => handlePortMouseDown(e, node.id, port),
+                onPortMouseUp: (e: React.MouseEvent, port: string) => handlePortMouseUp(e, node.id, port),
+              };
+              
+              switch (node.type) {
+                case 'trigger':
+                  return <TriggerNode key={node.id} {...commonProps} />;
+                case 'action':
+                  return <ActionNode key={node.id} {...commonProps} />;
+                case 'condition':
+                  return <ConditionNode key={node.id} {...commonProps} />;
+                case 'notification':
+                  return <NotificationNode key={node.id} {...commonProps} />;
+                default:
+                  return null;
+              }
+            })}
           </g>
         </svg>
 
