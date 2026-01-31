@@ -5,6 +5,7 @@ mod ai;
 mod ssh;
 mod scanner;
 mod health;
+mod monitoring;
 
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
@@ -128,6 +129,27 @@ async fn check_host_health(
     Ok(health::check_ssh_health(&host, port, &username, password.as_deref()).await)
 }
 
+#[tauri::command]
+fn get_system_metrics() -> monitoring::SystemMetrics {
+    let mut collector = monitoring::MetricsCollector::new();
+    collector.collect()
+}
+
+#[tauri::command]
+fn add_alert_rule(rule: monitoring::AlertRule) {
+    // AlertEngine will be managed state in setup
+}
+
+#[tauri::command]
+fn remove_alert_rule(rule_id: String) {
+    // AlertEngine will be managed state in setup
+}
+
+#[tauri::command]
+fn get_alert_rules() -> Vec<monitoring::AlertRule> {
+    Vec::new()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -157,7 +179,11 @@ pub fn run() {
             get_scan_progress,
             is_scanning,
             preflight_check,
-            check_host_health
+            check_host_health,
+            get_system_metrics,
+            add_alert_rule,
+            remove_alert_rule,
+            get_alert_rules
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
