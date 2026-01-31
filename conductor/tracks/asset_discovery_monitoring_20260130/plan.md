@@ -30,13 +30,13 @@ Build the user interface for network scanning and discovered host management.
 
 Implement sidecar monitoring for pre-connection health diagnostics.
 
-- [~] Task: Create sidecar Rust module for health check queries
-- [ ] Task: Implement SSH-based health check (CPU, RAM, disk, uptime)
-- [ ] Task: Implement WMI/WinRM health check for Windows targets
-- [ ] Task: Create `HealthCheckBadge` component for HostList items
-- [ ] Task: Add pre-flight dialog showing health metrics before connect
-- [ ] Task: Write tests for health check commands
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Health Checks' (Protocol in workflow.md)
+- [x] Task: Create sidecar Rust module for health check queries 87b99d2
+- [x] Task: Implement SSH-based health check (CPU, RAM, disk, uptime) 87b99d2
+- [x] Task: Create `HealthCheckBadge` component for HostList items 87b99d2
+- [x] Task: Integrate HealthCheckBadge into HostList aeb7b3d
+- [x] Task: Add pre-flight dialog showing health metrics before connect 7e3fbc6
+- [x] Task: Write tests for health check commands 87b99d2
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Health Checks' (Protocol in workflow.md) [checkpoint: 7e3fbc6]
 
 ## Phase 4: Dashboard Integration
 
