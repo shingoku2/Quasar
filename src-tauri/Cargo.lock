@@ -5670,6 +5670,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "argon2",
+ "chrono",
  "cidr-utils",
  "futures",
  "mdns-sd",
@@ -5686,8 +5687,10 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-opener",
  "tauri-plugin-sql",
+ "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
+ "uuid",
 ]
 
 [[package]]

@@ -6,14 +6,14 @@ Visual workflow builder for creating automated tasks and orchestration flows. Dr
 
 ### Phase 1: Workflow Engine Backend (Rust)
 
-- [ ] Task: Create `automation.rs` module with workflow data structures
-- [ ] Task: Define Workflow, Node, Connection, and ExecutionContext structs
-- [ ] Task: Implement workflow execution engine with topological sorting
-- [ ] Task: Create action handlers for SSH command execution
-- [ ] Task: Create action handlers for file transfer (SFTP/SCP)
-- [ ] Task: Create notification action handlers (in-app, system notifications)
-- [ ] Task: Add Tauri commands for CRUD operations on workflows
-- [ ] Task: Write unit tests for workflow execution engine
+- [x] Task: Create `automation.rs` module with workflow data structures
+- [x] Task: Define Workflow, Node, Connection, and ExecutionContext structs
+- [x] Task: Implement workflow execution engine with topological sorting
+- [x] Task: Create action handlers for SSH command execution
+- [x] Task: Create action handlers for file transfer (SFTP/SCP)
+- [x] Task: Create notification action handlers (in-app, system notifications)
+- [x] Task: Add Tauri commands for CRUD operations on workflows
+- [x] Task: Write unit tests for workflow execution engine
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Workflow Engine' (Protocol in workflow.md) [checkpoint: TBD]
 
 ### Phase 2: Canvas Component Foundation
