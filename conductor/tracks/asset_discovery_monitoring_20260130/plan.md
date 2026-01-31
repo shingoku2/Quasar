@@ -42,7 +42,7 @@ Implement sidecar monitoring for pre-connection health diagnostics.
 
 Integrate discovery and monitoring into the main dashboard view.
 
-- [ ] Task: Create `DiscoveryWidget` for dashboard showing recent discoveries
+- [~] Task: Create `DiscoveryWidget` for dashboard showing recent discoveries
 - [ ] Task: Create `NetworkMapWidget` simple visualization of discovered hosts
 - [ ] Task: Update `DashboardView.tsx` to include new widgets
 - [ ] Task: Add auto-refresh mechanism for health indicators
