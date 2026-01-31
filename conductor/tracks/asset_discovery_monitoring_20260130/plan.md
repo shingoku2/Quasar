@@ -23,14 +23,14 @@ Build the user interface for network scanning and discovered host management.
 - [x] Task: Add scan progress indicator (progress bar, stats)
 - [x] Task: Update `Discovery.tsx` to use new embedded scanner (remove mDNS-only limitation)
 - [x] Task: Implement host suggestion dialog for newly discovered devices
-- [x] Task: Write component tests for Discovery UI
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Discovery UI' (Protocol in workflow.md)
+- [x] Task: Write component tests for Discovery UI c6fe18e
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Discovery UI' (Protocol in workflow.md) [checkpoint: c6fe18e]
 
 ## Phase 3: Pre-flight Health Checks (Sidecar)
 
 Implement sidecar monitoring for pre-connection health diagnostics.
 
-- [ ] Task: Create sidecar Rust module for health check queries
+- [~] Task: Create sidecar Rust module for health check queries
 - [ ] Task: Implement SSH-based health check (CPU, RAM, disk, uptime)
 - [ ] Task: Implement WMI/WinRM health check for Windows targets
 - [ ] Task: Create `HealthCheckBadge` component for HostList items
