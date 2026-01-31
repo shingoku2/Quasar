@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import SystemHealthWidget from './SystemHealthWidget';
 import MetricChartCard from './MetricChartCard';
 import AlertFeed from './AlertFeed';
+import AlertRules from './AlertRules';
 import DiscoveryWidget from './DiscoveryWidget';
 import NetworkMapWidget from './NetworkMapWidget';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
@@ -115,8 +116,12 @@ const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-h-0">
             <AlertFeed />
+          </div>
+          
+          <div className="shrink-0">
+            <AlertRules />
           </div>
         </div>
       </div>
