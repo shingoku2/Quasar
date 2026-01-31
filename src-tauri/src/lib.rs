@@ -4,6 +4,7 @@ mod discovery;
 mod ai;
 mod ssh;
 mod scanner;
+mod health;
 
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
@@ -112,6 +113,21 @@ fn is_scanning(state: State<'_, Arc<scanner::ScannerState>>) -> bool {
     scanner::is_scanning(&state)
 }
 
+#[tauri::command]
+async fn preflight_check(host: String) -> Result<health::HealthCheckResult, String> {
+    Ok(health::preflight_check(&host).await)
+}
+
+#[tauri::command]
+async fn check_host_health(
+    host: String,
+    port: u16,
+    username: String,
+    password: Option<String>,
+) -> Result<health::HealthCheckResult, String> {
+    Ok(health::check_ssh_health(&host, port, &username, password.as_deref()).await)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -139,7 +155,9 @@ pub fn run() {
             scan_network,
             stop_scan,
             get_scan_progress,
-            is_scanning
+            is_scanning,
+            preflight_check,
+            check_host_health
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
