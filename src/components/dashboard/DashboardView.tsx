@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import SystemHealthWidget from './SystemHealthWidget';
 import MetricChartCard from './MetricChartCard';
 import AlertFeed, { Alert } from './AlertFeed';
-import { Search, Plus } from 'lucide-react';
+import DiscoveryWidget from './DiscoveryWidget';
+import NetworkMapWidget from './NetworkMapWidget';
+import { Search } from 'lucide-react';
 
 const DashboardView: React.FC = () => {
   const [cpuData, setCpuData] = useState<{ time: string; value: number }[]>([]);
@@ -56,6 +58,12 @@ const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Charts Column */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Discovery and Network Map Widgets */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DiscoveryWidget />
+            <NetworkMapWidget />
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <MetricChartCard title="CPU Usage" value="42.5%" data={cpuData} color="#3b82f6" />
             <MetricChartCard title="Memory Utilization" value="12.8 GB" data={memData} color="#10b981" />
