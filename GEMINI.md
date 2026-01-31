@@ -4,8 +4,8 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **Asset Discovery & Monitoring Track Complete**.
-- **Last Action:** Successfully implemented the "Asset Discovery & Monitoring" track with LAN scanner, host discovery UI, pre-flight health checks, and dashboard integration.
+- **Status:** **Monitoring & Alerts Track Complete**. Starting Automation Canvas.
+- **Last Action:** Fixed real-time metrics display in DashboardView. Now beginning Automation Canvas track.
 
 ## Progress Summary (2026-01-30)
 
@@ -36,7 +36,21 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
      - `NetworkMapWidget` for visual network topology
      - Auto-refresh mechanism for health indicators
 
-## Environment Status
+3. **Monitoring & Alerts Track** - COMPLETE
+   - **Phase 1:** System Metrics Collection (Rust backend with sysinfo)
+   - **Phase 2:** Alert Engine with threshold evaluation
+   - **Phase 3:** AlertFeed component with real-time updates
+   - **Phase 4:** AlertRules UI for managing alert configurations
+   - Live metrics in DashboardView (CPU, Memory, Disk I/O, Network)
+
+### Active Track
+
+4. **Automation Canvas Track** - IN PROGRESS
+   - Visual workflow builder with drag-and-drop nodes
+   - Support for triggers (scheduled, webhook, manual)
+   - Action nodes for SSH command execution, file transfer, notifications
+   - Canvas.tsx component for building workflows
+   - Workflow engine in Rust to execute automation flows
 - **Rust/Cargo:** **Functional**. (v1.93.0). 
   - `russh` 0.57 - SSH client library
   - `surge-ping` 0.7 - ICMP ping for network scanning
