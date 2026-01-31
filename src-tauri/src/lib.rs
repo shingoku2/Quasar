@@ -156,6 +156,13 @@ pub fn run() {
         .setup(|app| {
             app.manage(ssh::SshState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
+            
+            // Start the background monitoring task
+            let app_handle = app.handle().clone();
+            tokio::spawn(async move {
+                monitoring::start_monitoring_task(app_handle, 5000).await;
+            });
+            
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
