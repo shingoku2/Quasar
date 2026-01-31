@@ -4,6 +4,7 @@ import TopBar from './TopBar';
 import RemoteManager from './RemoteManager';
 import AIAssistant from './AIAssistant';
 import DashboardView from './dashboard/DashboardView';
+import Automation from './Automation';
 
 const Layout: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewId>('dashboard');
@@ -16,8 +17,9 @@ const Layout: React.FC = () => {
         return <RemoteManager />;
       case 'ai':
         return <AIAssistant />;
-      case 'monitoring':
       case 'automation':
+        return <Automation />;
+      case 'monitoring':
       case 'settings':
         return (
           <div className="p-12 flex flex-col items-center justify-center opacity-20 grayscale">
