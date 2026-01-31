@@ -18,7 +18,7 @@ Implement the core network scanning functionality in Rust with async/concurrent 
 
 Build the user interface for network scanning and discovered host management.
 
-- [ ] Task: Create `NetworkScanner` component with start/stop controls
+- [~] Task: Create `NetworkScanner` component with start/stop controls
 - [ ] Task: Implement `DiscoveryResults` list with add-to-inventory actions
 - [ ] Task: Add scan progress indicator (progress bar, stats)
 - [ ] Task: Update `Discovery.tsx` to use new embedded scanner (remove mDNS-only limitation)
