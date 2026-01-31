@@ -1,6 +1,8 @@
-import React from 'react';
-import { AlertCircle, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Clock, Check, X, Activity, Cpu, HardDrive } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface Alert {
   id: string;
@@ -8,32 +10,147 @@ export interface Alert {
   message: string;
   severity: 'critical' | 'warning' | 'info';
   timestamp: string;
+  acknowledged?: boolean;
+}
+
+export interface SystemMetrics {
+  cpu_usage: number;
+  memory_used: number;
+  memory_total: number;
+  memory_usage_percent: number;
+  disk_read_bytes: number;
+  disk_write_bytes: number;
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+  timestamp: number;
 }
 
 interface AlertFeedProps {
-  alerts: Alert[];
+  alerts?: Alert[];
 }
 
-const AlertFeed: React.FC<AlertFeedProps> = ({ alerts }) => {
+const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => {
+  const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+
+  const mapSeverity = (severity: any): 'critical' | 'warning' | 'info' => {
+    const severityStr = String(severity).toLowerCase();
+    if (severityStr.includes('critical')) return 'critical';
+    if (severityStr.includes('warning')) return 'warning';
+    return 'info';
+  };
+
+  useEffect(() => {
+    // Listen for real-time system metrics
+    const unlistenMetrics = listen<SystemMetrics>('system-metrics', (event) => {
+      setMetrics(event.payload);
+    });
+
+    // Listen for triggered alerts
+    const unlistenAlerts = listen<Alert[]>('alerts-triggered', (event) => {
+      const newAlerts: Alert[] = event.payload.map((a: any) => ({
+        id: a.id,
+        source: a.rule_id || 'System',
+        message: a.message,
+        severity: mapSeverity(a.severity),
+        timestamp: new Date(a.timestamp * 1000).toLocaleTimeString(),
+        acknowledged: false
+      }));
+      setAlerts(prev => [...newAlerts, ...prev].slice(0, 50));
+    });
+
+    // Initial metrics fetch
+    invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
+
+    return () => {
+      unlistenMetrics.then(fn => fn());
+      unlistenAlerts.then(fn => fn());
+    };
+  }, []);
+
+  const dismissAlert = (id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  };
+
+  const acknowledgeAlert = (id: string) => {
+    setAlerts(prev => prev.map(a => 
+      a.id === id ? { ...a, acknowledged: true } : a
+    ));
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B/s';
+    const k = 1024;
+    const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
   return (
     <div className="bg-bg-card border border-gray-800 rounded-xl flex flex-col h-full overflow-hidden shadow-sm">
       <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-bg-card/50">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Alerts</h3>
-        <span className="text-[10px] bg-zinc-800 text-gray-500 px-2 py-0.5 rounded-full font-mono">LIVE</span>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">System Monitor</h3>
+        <span className="text-[10px] bg-zinc-800 text-accent px-2 py-0.5 rounded-full font-mono animate-pulse">LIVE</span>
       </div>
+
+      {/* Metrics Summary */}
+      {metrics && (
+        <div className="grid grid-cols-3 gap-2 p-3 border-b border-gray-800/50 bg-black/20">
+          <div className="flex items-center space-x-2">
+            <Cpu className="h-3 w-3 text-accent" />
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase">CPU</p>
+              <p className={cn(
+                "text-xs font-mono font-bold",
+                metrics.cpu_usage > 80 ? "text-alert" : metrics.cpu_usage > 60 ? "text-warning" : "text-gray-300"
+              )}>
+                {metrics.cpu_usage.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Activity className="h-3 w-3 text-accent" />
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase">RAM</p>
+              <p className={cn(
+                "text-xs font-mono font-bold",
+                metrics.memory_usage_percent > 80 ? "text-alert" : metrics.memory_usage_percent > 60 ? "text-warning" : "text-gray-300"
+              )}>
+                {metrics.memory_usage_percent.toFixed(0)}%
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <HardDrive className="h-3 w-3 text-accent" />
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase">Disk I/O</p>
+              <p className="text-xs font-mono font-bold text-gray-300">
+                {formatBytes(metrics.disk_read_bytes + metrics.disk_write_bytes)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {alerts.length === 0 ? (
-          <div className="p-8 text-center text-gray-600 italic text-sm">No active alerts.</div>
+          <div className="p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+              <Activity className="h-5 w-5 text-green-500" />
+            </div>
+            <p className="text-gray-500 text-sm">All systems nominal</p>
+            <p className="text-[10px] text-gray-600 mt-1">No active alerts</p>
+          </div>
         ) : (
           <div className="divide-y divide-gray-800/50">
             {alerts.map((alert) => (
               <div 
                 key={alert.id} 
                 className={cn(
-                  "p-3 flex items-start space-x-3 transition-colors hover:bg-white/5 border-l-4",
-                  alert.severity === 'critical' ? "border-alert" : 
-                  alert.severity === 'warning' ? "border-warning" : "border-accent"
+                  "p-3 flex items-start space-x-3 transition-all border-l-4 group",
+                  alert.acknowledged ? "opacity-50 bg-white/[0.02]" : "hover:bg-white/5",
+                  alert.severity === 'critical' ? "border-alert bg-alert/5" : 
+                  alert.severity === 'warning' ? "border-warning bg-warning/5" : "border-accent"
                 )}
               >
                 <AlertCircle className={cn(
@@ -44,12 +161,33 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
                     <p className="text-xs font-bold text-gray-300 truncate">{alert.source}</p>
-                    <div className="flex items-center text-[10px] text-gray-500 font-mono shrink-0 ml-2">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {alert.timestamp}
+                    <div className="flex items-center space-x-1">
+                      <div className="flex items-center text-[10px] text-gray-500 font-mono shrink-0">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {alert.timestamp}
+                      </div>
+                      {!alert.acknowledged && (
+                        <button
+                          onClick={() => acknowledgeAlert(alert.id)}
+                          className="p-1 hover:bg-green-500/10 rounded text-green-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Acknowledge"
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => dismissAlert(alert.id)}
+                        className="p-1 hover:bg-red-500/10 rounded text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Dismiss"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">{alert.message}</p>
+                  <p className={cn(
+                    "text-xs mt-1 line-clamp-2 leading-relaxed",
+                    alert.acknowledged ? "text-gray-600" : "text-gray-400"
+                  )}>{alert.message}</p>
                 </div>
               </div>
             ))}
@@ -58,9 +196,17 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts }) => {
       </div>
       
       <div className="p-2 border-t border-gray-800 bg-bg-card/30">
-        <button className="w-full py-1.5 text-[10px] font-bold text-gray-500 hover:text-gray-300 uppercase tracking-widest transition-colors">
-          View Audit Log
-        </button>
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-gray-600">
+            {alerts.filter(a => !a.acknowledged).length} unacknowledged
+          </span>
+          <button 
+            onClick={() => setAlerts([])}
+            className="text-[10px] font-bold text-gray-500 hover:text-gray-300 uppercase tracking-widest transition-colors"
+          >
+            Clear All
+          </button>
+        </div>
       </div>
     </div>
   );
