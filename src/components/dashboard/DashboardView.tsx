@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SystemHealthWidget from './SystemHealthWidget';
 import MetricChartCard from './MetricChartCard';
-import AlertFeed, { Alert } from './AlertFeed';
+import AlertFeed from './AlertFeed';
 import DiscoveryWidget from './DiscoveryWidget';
 import NetworkMapWidget from './NetworkMapWidget';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
@@ -35,13 +35,6 @@ const DashboardView: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
-
-  const alerts: Alert[] = [
-    { id: '1', source: 'Database-01', message: 'High CPU Usage (over 90% for 5 mins)', severity: 'critical', timestamp: '3 mins ago' },
-    { id: '2', source: 'Database-01', message: 'High I/O Wait', severity: 'warning', timestamp: '5 mins ago' },
-    { id: '3', source: 'Web-02', message: 'Disk Space Low (< 10%)', severity: 'warning', timestamp: '12 mins ago' },
-    { id: '4', source: 'Web-03', message: 'Disk Space Low (< 15%)', severity: 'info', timestamp: '15 mins ago' },
-  ];
 
   return (
     <div className="p-6 space-y-6 h-full overflow-y-auto no-scrollbar bg-bg-root animate-in fade-in duration-500">
@@ -123,7 +116,7 @@ const DashboardView: React.FC = () => {
           </div>
 
           <div className="flex-1">
-            <AlertFeed alerts={alerts} />
+            <AlertFeed />
           </div>
         </div>
       </div>
