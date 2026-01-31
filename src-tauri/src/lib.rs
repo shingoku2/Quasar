@@ -157,9 +157,9 @@ pub fn run() {
             app.manage(ssh::SshState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
             
-            // Start the background monitoring task
+            // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 monitoring::start_monitoring_task(app_handle, 5000).await;
             });
             
