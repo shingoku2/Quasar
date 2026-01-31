@@ -5,6 +5,7 @@ import TriggerNode from './nodes/TriggerNode';
 import ActionNode from './nodes/ActionNode';
 import ConditionNode from './nodes/ConditionNode';
 import NotificationNode from './nodes/NotificationNode';
+import PropertiesPanel from './PropertiesPanel';
 
 export interface NodeData {
   id: string;
@@ -145,6 +146,16 @@ const Canvas: React.FC<CanvasProps> = ({
     
     e.stopPropagation();
   };
+
+  const handleUpdateNode = (nodeId: string, data: Partial<NodeData['data']>) => {
+    setNodes(prev => prev.map(n => 
+      n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n
+    ));
+  };
+
+  const selectedNode = selectedNodes.size === 1 
+    ? nodes.find(n => n.id === Array.from(selectedNodes)[0]) || null 
+    : null;
 
   const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, port: string) => {
     e.stopPropagation();
@@ -401,6 +412,13 @@ const Canvas: React.FC<CanvasProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Properties Panel */}
+      <PropertiesPanel
+        node={selectedNode}
+        onClose={() => setSelectedNodes(new Set())}
+        onUpdate={handleUpdateNode}
+      />
     </div>
   );
 };
