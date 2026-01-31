@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import MetricChartCard from './MetricChartCard';
 import AlertFeed from './AlertFeed';
@@ -8,33 +10,51 @@ import NetworkMapWidget from './NetworkMapWidget';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
 import { Search } from 'lucide-react';
 
+interface SystemMetrics {
+  cpu_usage_percent: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
+  memory_usage_percent: number;
+  disk_read_mb: number;
+  disk_write_mb: number;
+  network_rx_mb: number;
+  network_tx_mb: number;
+}
+
 const DashboardView: React.FC = () => {
   const [cpuData, setCpuData] = useState<{ time: string; value: number }[]>([]);
   const [memData, setMemData] = useState<{ time: string; value: number }[]>([]);
+  const [diskData, setDiskData] = useState<{ time: string; value: number }[]>([]);
+  const [netData, setNetData] = useState<{ time: string; value: number }[]>([]);
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [discoveredHosts, setDiscoveredHosts] = useState<ScanResult[]>([]);
 
-  // Generate initial mock data
+  // Listen for real-time metrics from backend
   useEffect(() => {
-    const generateData = () => {
-      const data = [];
-      for (let i = 0; i < 20; i++) {
-        data.push({
-          time: `${i}:00`,
-          value: Math.floor(Math.random() * 40) + 30
-        });
-      }
-      return data;
+    const timeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    const unlisten = listen<SystemMetrics>('system-metrics', (event) => {
+      const data = event.payload;
+      setMetrics(data);
+      
+      setCpuData(prev => [...prev.slice(-19), { time: timeLabel, value: data.cpu_usage_percent }]);
+      setMemData(prev => [...prev.slice(-19), { time: timeLabel, value: data.memory_usage_percent }]);
+      setDiskData(prev => [...prev.slice(-19), { time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
+      setNetData(prev => [...prev.slice(-19), { time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
+    });
+
+    // Get initial metrics
+    invoke<SystemMetrics>('get_system_metrics').then((data) => {
+      setMetrics(data);
+      setCpuData([{ time: timeLabel, value: data.cpu_usage_percent }]);
+      setMemData([{ time: timeLabel, value: data.memory_usage_percent }]);
+      setDiskData([{ time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
+      setNetData([{ time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
+    }).catch(console.error);
+
+    return () => {
+      unlisten.then(fn => fn());
     };
-    setCpuData(generateData());
-    setMemData(generateData());
-
-    // Simulated real-time update
-    const interval = setInterval(() => {
-      setCpuData(prev => [...prev.slice(1), { time: 'Now', value: Math.floor(Math.random() * 40) + 30 }]);
-      setMemData(prev => [...prev.slice(1), { time: 'Now', value: Math.floor(Math.random() * 40) + 40 }]);
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -86,10 +106,30 @@ const DashboardView: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <MetricChartCard title="CPU Usage" value="42.5%" data={cpuData} color="#3b82f6" />
-            <MetricChartCard title="Memory Utilization" value="12.8 GB" data={memData} color="#10b981" />
-            <MetricChartCard title="Disk I/O Traffic" value="240 MB/s" data={cpuData} color="#f59e0b" />
-            <MetricChartCard title="Network Traffic" value="1.2 Gbps" data={memData} color="#8b5cf6" />
+            <MetricChartCard 
+              title="CPU Usage" 
+              value={metrics ? `${metrics.cpu_usage_percent.toFixed(1)}%` : '--%'} 
+              data={cpuData} 
+              color="#3b82f6" 
+            />
+            <MetricChartCard 
+              title="Memory Utilization" 
+              value={metrics ? `${(metrics.memory_used_mb / 1024).toFixed(1)} GB / ${(metrics.memory_total_mb / 1024).toFixed(1)} GB` : '-- GB'} 
+              data={memData} 
+              color="#10b981" 
+            />
+            <MetricChartCard 
+              title="Disk I/O Traffic" 
+              value={metrics ? `${(metrics.disk_read_mb + metrics.disk_write_mb).toFixed(0)} MB/s` : '-- MB/s'} 
+              data={diskData} 
+              color="#f59e0b" 
+            />
+            <MetricChartCard 
+              title="Network Traffic" 
+              value={metrics ? `${((metrics.network_rx_mb + metrics.network_tx_mb) / 1024).toFixed(2)} MB/s` : '-- MB/s'} 
+              data={netData} 
+              color="#8b5cf6" 
+            />
           </div>
         </div>
 
