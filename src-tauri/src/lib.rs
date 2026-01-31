@@ -1,3 +1,4 @@
+mod automation;
 mod crypto;
 mod launcher;
 mod discovery;
@@ -10,6 +11,8 @@ mod monitoring;
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::sync::Arc;
+
+use crate::automation::{AutomationState, Workflow, ExecutionRecord, ExecutionStatus};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -136,6 +139,76 @@ fn get_system_metrics() -> monitoring::SystemMetrics {
 }
 
 #[tauri::command]
+async fn create_workflow(
+    state: State<'_, Arc<automation::AutomationState>>,
+    workflow: automation::Workflow,
+) -> Result<String, String> {
+    Ok(state.create_workflow(workflow).await)
+}
+
+#[tauri::command]
+async fn get_workflow(
+    state: State<'_, Arc<automation::AutomationState>>,
+    id: String,
+) -> Result<Option<automation::Workflow>, String> {
+    Ok(state.get_workflow(&id).await)
+}
+
+#[tauri::command]
+async fn list_workflows(
+    state: State<'_, Arc<automation::AutomationState>>,
+) -> Result<Vec<automation::Workflow>, String> {
+    Ok(state.list_workflows().await)
+}
+
+#[tauri::command]
+async fn delete_workflow(
+    state: State<'_, Arc<automation::AutomationState>>,
+    id: String,
+) -> Result<bool, String> {
+    Ok(state.delete_workflow(&id).await)
+}
+
+#[tauri::command]
+async fn execute_workflow(
+    state: State<'_, Arc<automation::AutomationState>>,
+    app: AppHandle,
+    workflow_id: String,
+) -> Result<String, String> {
+    let workflow = state.get_workflow(&workflow_id).await
+        .ok_or_else(|| "Workflow not found".to_string())?;
+    
+    let exec_id = state.create_execution(&workflow_id).await;
+    let exec_id_for_spawn = exec_id.clone();
+    
+    // Spawn execution in background
+    let state_clone = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let engine = automation::engine::WorkflowEngine::new(app);
+        let mut context = automation::ExecutionContext::new();
+        
+        let status = engine.execute_workflow(&workflow, &exec_id_for_spawn, &mut context).await;
+        
+        // Update execution record
+        if let Some(mut record) = state_clone.get_execution(&exec_id_for_spawn).await {
+            record.status = status.unwrap_or(automation::ExecutionStatus::Failed);
+            record.completed_at = Some(chrono::Utc::now());
+            state_clone.update_execution(record).await;
+        }
+    });
+    
+    Ok(exec_id)
+}
+
+#[tauri::command]
+async fn get_execution_status(
+    state: State<'_, Arc<automation::AutomationState>>,
+    id: String,
+) -> Result<Option<automation::ExecutionRecord>, String> {
+    Ok(state.get_execution(&id).await)
+}
+
+#[tauri::command]
 fn add_alert_rule(rule: monitoring::AlertRule) {
     // AlertEngine will be managed state in setup
 }
@@ -156,6 +229,7 @@ pub fn run() {
         .setup(|app| {
             app.manage(ssh::SshState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
+            app.manage(Arc::new(automation::AutomationState::new()));
             
             // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
@@ -190,7 +264,13 @@ pub fn run() {
             get_system_metrics,
             add_alert_rule,
             remove_alert_rule,
-            get_alert_rules
+            get_alert_rules,
+            create_workflow,
+            get_workflow,
+            list_workflows,
+            delete_workflow,
+            execute_workflow,
+            get_execution_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
