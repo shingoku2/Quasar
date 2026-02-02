@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::time::timeout;
 
 #[derive(Debug, Clone, Serialize)]
@@ -49,8 +49,6 @@ pub async fn check_ssh_health(
     username: &str,
     password: Option<&str>,
 ) -> HealthCheckResult {
-    let start = Instant::now();
-    
     // First check if host is reachable
     let ping_result = check_ping(host).await;
     let latency_ms = ping_result.ok();
@@ -65,23 +63,27 @@ pub async fn check_ssh_health(
         };
     }
     
-    // Try to get system metrics via SSH
-    // This would use the existing ssh module to execute commands
-    // For now, we return basic reachability info
+    // Try to get system metrics via SSH if credentials provided
+    let metrics = if let Some(pass) = password {
+        match crate::ssh_exec::get_system_metrics(host, port, username, pass).await {
+            Ok(m) => Some(m),
+            Err(_) => None, // Failed to get metrics, but host is reachable
+        }
+    } else {
+        None
+    };
     
     HealthCheckResult {
         host: host.to_string(),
         reachable: true,
         latency_ms,
-        metrics: None, // Would be populated by SSH commands
+        metrics,
         error: None,
     }
 }
 
 /// Quick pre-flight check without credentials
 pub async fn preflight_check(host: &str) -> HealthCheckResult {
-    let start = Instant::now();
-    
     match check_ping(host).await {
         Ok(latency_ms) => {
             HealthCheckResult {

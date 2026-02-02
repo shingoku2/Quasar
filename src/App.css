@@ -3,7 +3,7 @@
 @theme {
   --color-bg-root: #1a1b21;
   --color-bg-card: #27272a;
-  --color-bg-sidebar: #151518; /* Slightly darker than root */
+  --color-bg-sidebar: #151518;
   --color-accent: #3b82f6;
   --color-alert: #ef4444;
   --color-success: #10b981;

@@ -24,14 +24,49 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     const [clipboardSync, setClipboardSync] = useState(false);
     const [latency, setLatency] = useState<number | undefined>(undefined);
     const [bandwidth, setBandwidth] = useState<string | undefined>(undefined);
+    const [isReady, setIsReady] = useState(false);
 
+    // First effect: wait for container to be ready
     useEffect(() => {
-        if (!terminalRef.current) return;
+        if (!terminalRef.current) {
+            return;
+        }
+        
+        const checkAndSetReady = () => {
+            if (!terminalRef.current) return;
+            const rect = terminalRef.current.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                setIsReady(true);
+            }
+        };
+
+        // Check immediately
+        checkAndSetReady();
+
+        // Also check after a delay in case of initial render issues
+        const timer = setTimeout(() => {
+            checkAndSetReady();
+        }, 200);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [sessionId]);
+
+    // Second effect: initialize terminal once ready
+    useEffect(() => {
+        if (!isReady) {
+            return;
+        }
+        
+        if (!terminalRef.current) {
+            return;
+        }
         
         // Strict Mode protection
-        if (xtermRef.current) return;
-
-        console.log("Terminal mounting", sessionId);
+        if (xtermRef.current) {
+            return;
+        }
 
         const term = new Terminal({
             cursorBlink: true,
@@ -52,15 +87,16 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
 
-        // Fit after a small delay
+        // Fit after a small delay to ensure container is fully rendered
         setTimeout(() => {
             try {
                 fitAddon.fit();
                 term.write('Dimensions set.\r\n');
             } catch (e) {
+                console.error('Fit error:', e);
                 term.write(`Fit error: ${e}\r\n`);
             }
-        }, 100);
+        }, 150);
 
         let unlistenData: (() => void) | undefined;
         let unlistenClosed: (() => void) | undefined;
@@ -143,7 +179,6 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         resizeObserver.observe(terminalRef.current);
 
         return () => {
-            console.log("Terminal unmounting", sessionId);
             isMounted = false;
             resizeObserver.disconnect();
             onDataDisposable.dispose();
@@ -151,14 +186,14 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             if (unlistenClosed) unlistenClosed();
             if (unlistenStats) unlistenStats();
             
-            invoke('disconnect_ssh', { id: sessionId }).catch(e => {
-                console.log("Disconnect result:", e);
+            invoke('disconnect_ssh', { id: sessionId }).catch(() => {
+                // Session cleanup
             });
             
             term.dispose();
             xtermRef.current = null;
         };
-    }, [sessionId, host, port, username, password]);
+    }, [isReady, sessionId, host, port, username, password]);
 
     return (
         <div className={`flex flex-col h-full ${className || ''}`} data-testid="terminal-wrapper">

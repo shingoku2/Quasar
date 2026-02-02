@@ -4,9 +4,22 @@ import AddHostDialog from './AddHostDialog';
 import TerminalComponent from './TerminalComponent';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
+import CredentialSelector from './vault/CredentialSelector';
+import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
+import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
+
+interface Credential {
+  id: string;
+  name: string;
+  username: string;
+  password: string;
+  credential_type: string;
+  host?: string;
+  port?: number;
+}
 
 const RemoteManager: React.FC = () => {
   const [showAddHost, setShowAddHost] = useState(false);
@@ -15,8 +28,13 @@ const RemoteManager: React.FC = () => {
   const [activeTabId, setActiveTabId] = useState('inventory');
   const [splitViewIds, setSplitViewIds] = useState<string[]>([]);
   
-  // State for credential prompt
+  // State for credential prompt and selector
   const [pendingHost, setPendingHost] = useState<Host | null>(null);
+  const [showCredentialSelector, setShowCredentialSelector] = useState(false);
+  const [useManualEntry, setUseManualEntry] = useState(false);
+  
+  // SSH host key verification
+  const { promptData, verifyHostKey, handleTrust, handleReject } = useSshHostKeyVerification();
 
   const addTab = (id: string, title: string, content: React.ReactNode) => {
     setTabs(prev => [...prev, { id, title, content, closable: true }]);
@@ -63,8 +81,19 @@ const RemoteManager: React.FC = () => {
   const handleConnect = async (host: Host) => {
     try {
       if (host.protocol === 'ssh') {
-        // Always prompt for password if not provided in host (though we don't store it in host yet)
         setPendingHost(host);
+        setUseManualEntry(false);
+        
+        try {
+          const isLocked = await invoke<boolean>('is_vault_locked');
+          if (isLocked) {
+            setUseManualEntry(true);
+          } else {
+            setShowCredentialSelector(true);
+          }
+        } catch {
+          setUseManualEntry(true);
+        }
       } else if (host.protocol === 'rdp') {
         await invoke('connect_rdp', { address: host.address });
         const sessionId = Math.random().toString(36).substring(7);
@@ -74,6 +103,19 @@ const RemoteManager: React.FC = () => {
       console.error('Failed to launch session:', error);
       alert(`Failed to launch session: ${error}`);
     }
+  };
+
+  const handleCredentialSelected = (credential: Credential) => {
+    if (pendingHost) {
+      startSession(pendingHost, credential.password);
+      setShowCredentialSelector(false);
+      setPendingHost(null);
+    }
+  };
+
+  const handleManualEntry = () => {
+    setShowCredentialSelector(false);
+    setUseManualEntry(true);
   };
 
   useEffect(() => {
@@ -135,15 +177,44 @@ const RemoteManager: React.FC = () => {
         />
       )}
 
-      {pendingHost && (
+      {showCredentialSelector && pendingHost && (
+        <CredentialSelector
+          hostAddress={pendingHost.address}
+          onSelect={handleCredentialSelected}
+          onCancel={() => {
+            setShowCredentialSelector(false);
+            setPendingHost(null);
+          }}
+          onManualEntry={handleManualEntry}
+        />
+      )}
+
+      {useManualEntry && pendingHost && (
         <CredentialPrompt 
           hostName={pendingHost.name}
           username={pendingHost.username || 'root'}
           onSubmit={(password) => {
             startSession(pendingHost, password);
             setPendingHost(null);
+            setUseManualEntry(false);
           }}
-          onCancel={() => setPendingHost(null)}
+          onCancel={() => {
+            setPendingHost(null);
+            setUseManualEntry(false);
+          }}
+        />
+      )}
+
+      {promptData && (
+        <SshHostKeyPrompt
+          host={promptData.host}
+          port={promptData.port}
+          fingerprint={promptData.fingerprint}
+          keyType={promptData.keyType}
+          isChanged={promptData.isChanged}
+          oldFingerprint={promptData.oldFingerprint}
+          onTrust={handleTrust}
+          onReject={handleReject}
         />
       )}
     </div>

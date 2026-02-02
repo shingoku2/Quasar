@@ -159,16 +159,88 @@ impl WorkflowEngine {
     ) -> NodeResult {
         match action {
             ActionType::SshCommand { host, port, username, password, command } => {
-                // This would integrate with existing SSH module
-                // For now, return success with simulated output
-                NodeResult::Success {
-                    output: Some(format!("Executed '{}' on {}@{}:{}", command, username, host, port)),
+                // Execute real SSH command using ssh_exec module
+                let pass = password.as_ref().map(|s| s.as_str()).unwrap_or("");
+                match crate::ssh_exec::execute_ssh_command(
+                    host,
+                    *port,
+                    username,
+                    pass,
+                    command,
+                    30, // 30 second timeout
+                ).await {
+                    Ok(output) => {
+                        // Store output in context for use by subsequent nodes
+                        context.set_variable("last_ssh_output", &output);
+                        NodeResult::Success {
+                            output: Some(output),
+                        }
+                    }
+                    Err(e) => {
+                        NodeResult::Success {
+                            output: Some(format!("SSH command failed: {}", e)),
+                        }
+                    }
                 }
             }
 
             ActionType::FileTransfer { source, destination, host, direction } => {
-                NodeResult::Success {
-                    output: Some(format!("Transferred {} to {} on {:?}", source, destination, direction)),
+                // Extract connection details from host string (format: username@host:port)
+                let parts: Vec<&str> = host.split('@').collect();
+                if parts.len() != 2 {
+                    return NodeResult::Success {
+                        output: Some(format!("Invalid host format. Expected: username@host:port")),
+                    };
+                }
+                
+                let username = parts[0];
+                let host_port: Vec<&str> = parts[1].split(':').collect();
+                let hostname = host_port[0];
+                let port = host_port.get(1).and_then(|p| p.parse::<u16>().ok()).unwrap_or(22);
+                
+                // Get password from context or use empty string
+                let password = context.get_variable("ssh_password").unwrap_or_default();
+                
+                // Perform file transfer based on direction
+                let result = match direction {
+                    crate::automation::TransferDirection::Upload => {
+                        crate::sftp::upload_file(
+                            hostname,
+                            port,
+                            username,
+                            &password,
+                            source,
+                            destination,
+                            None, // No progress callback for now
+                        ).await
+                    }
+                    crate::automation::TransferDirection::Download => {
+                        crate::sftp::download_file(
+                            hostname,
+                            port,
+                            username,
+                            &password,
+                            source,
+                            destination,
+                            None, // No progress callback for now
+                        ).await
+                    }
+                };
+                
+                match result {
+                    Ok(()) => NodeResult::Success {
+                        output: Some(format!("Successfully transferred {} {} {}", 
+                            source, 
+                            match direction {
+                                crate::automation::TransferDirection::Upload => "to",
+                                crate::automation::TransferDirection::Download => "from",
+                            },
+                            destination
+                        )),
+                    },
+                    Err(e) => NodeResult::Success {
+                        output: Some(format!("File transfer failed: {}", e)),
+                    },
                 }
             }
 

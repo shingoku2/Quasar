@@ -198,17 +198,259 @@ const Canvas: React.FC<CanvasProps> = ({
   };
 
   const executeWorkflow = async () => {
-    if (!workflowId) {
-      console.error('No workflow ID provided');
-      return;
-    }
+    const wfId = workflowId || `workflow-${Date.now()}`;
+    
+    // Convert canvas nodes to workflow format matching backend NodeConfig
+    const workflow = {
+      id: wfId,
+      name: 'Untitled Workflow',
+      nodes: nodes.map(n => {
+        let config: any;
+        
+        // Check if node has old-format config and convert it
+        const existingConfig = n.data.config;
+        if (!existingConfig) {
+          // Build default config based on node type
+          switch (n.type) {
+            case 'trigger':
+              config = { 
+                type: 'trigger',
+                trigger_type: 'manual' 
+              };
+              break;
+            case 'action':
+              config = { 
+                type: 'action',
+                action_type: {
+                  ssh_command: {
+                    host: 'localhost',
+                    port: 22,
+                    username: 'admin',
+                    password: null,
+                    command: 'echo "Hello from automation"'
+                  }
+                }
+              };
+              break;
+            case 'condition':
+              config = { 
+                type: 'condition',
+                expression: 'true',
+                true_branch: '',
+                false_branch: ''
+              };
+              break;
+            case 'notification':
+              config = {
+                type: 'notification',
+                title: 'Workflow Notification',
+                message: 'Workflow executed successfully',
+                channel: 'in_app'
+              };
+              break;
+            default:
+              config = {};
+          }
+        } else {
+          // Use existing config or build new one
+          switch (n.type) {
+            case 'trigger':
+              // Ensure trigger_type is in correct format (string for manual, not object)
+              if (existingConfig?.trigger_type) {
+                config = { ...existingConfig };
+                // Fix nested type format if present
+                if (typeof config.trigger_type === 'object' && config.trigger_type.type === 'manual') {
+                  config.trigger_type = 'manual';
+                }
+              } else {
+                config = { 
+                  type: 'trigger',
+                  trigger_type: 'manual' 
+                };
+              }
+              break;
+            case 'action':
+              // Ensure action_type is in correct format
+              if (existingConfig?.action_type) {
+                config = { ...existingConfig };
+                // Fix nested type format if present
+                if (config.action_type.type === 'ssh_command') {
+                  const { type, ...rest } = config.action_type;
+                  config.action_type = { ssh_command: rest };
+                }
+              } else {
+                config = { 
+                  type: 'action',
+                  action_type: {
+                    ssh_command: {
+                      host: 'localhost',
+                      port: 22,
+                      username: 'admin',
+                      password: null,
+                      command: 'echo "Hello from automation"'
+                    }
+                  }
+                };
+              }
+              break;
+            case 'condition':
+              config = existingConfig || { 
+                type: 'condition',
+                expression: 'true',
+                true_branch: '',
+                false_branch: ''
+              };
+              break;
+            case 'notification':
+              config = existingConfig || {
+                type: 'notification',
+                title: 'Workflow Notification',
+                message: 'Workflow executed successfully',
+                channel: 'in_app'
+              };
+              break;
+            default:
+              config = existingConfig || {};
+          }
+        }
+        
+        return {
+          id: n.id,
+          node_type: n.type,
+          name: n.data.label,
+          position: n.position,
+          config: config
+        };
+      }),
+      connections: connections.map(c => ({
+        id: c.id,
+        source_node: c.source,
+        target_node: c.target,
+        source_port: c.sourcePort || 'output',
+        target_port: c.targetPort || 'input'
+      })),
+      enabled: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
     try {
-      const execId = await invoke<string>('execute_workflow', { workflowId });
+      // Debug: log the workflow structure
+      console.log('Saving workflow:', JSON.stringify(workflow, null, 2));
+      
+      // First save the workflow
+      await invoke('save_workflow', { workflow });
+      console.log('Workflow saved:', wfId);
+      
+      // Then execute it
+      const execId = await invoke<string>('execute_workflow', { workflowId: wfId });
       console.log('Workflow execution started:', execId);
     } catch (err) {
       console.error('Failed to execute workflow:', err);
     }
   };
+
+  // Load workflow from backend on mount
+  useEffect(() => {
+    const loadWorkflow = async () => {
+      if (!workflowId) return;
+      
+      try {
+        const workflow = await invoke<any>('get_workflow', { id: workflowId });
+        if (workflow && workflow.nodes) {
+          // Convert backend nodes to canvas format
+          const canvasNodes: NodeData[] = workflow.nodes.map((node: any) => ({
+            id: node.id,
+            type: node.node_type,
+            position: node.position,
+            data: {
+              label: node.name,
+              config: node.config,
+            },
+          }));
+          
+          const canvasConnections: ConnectionData[] = workflow.connections.map((conn: any) => ({
+            id: conn.id,
+            source: conn.source_node,
+            target: conn.target_node,
+            sourcePort: conn.source_port,
+            targetPort: conn.target_port,
+          }));
+          
+          setNodes(canvasNodes);
+          setConnections(canvasConnections);
+        }
+      } catch (err) {
+        console.error('Failed to load workflow:', err);
+      }
+    };
+    
+    loadWorkflow();
+  }, [workflowId]);
+
+  // Auto-save workflow when component unmounts (switching views)
+  useEffect(() => {
+    return () => {
+      if (!workflowId || nodes.length === 0) return;
+      
+      // Save workflow on unmount
+      const saveOnUnmount = async () => {
+        try {
+          const workflow = {
+            id: workflowId,
+            name: 'Untitled Workflow',
+            nodes: nodes.map(n => {
+              // Use existing config if available, ensuring proper format
+              let config = n.data.config;
+              
+              // If no config, provide defaults
+              if (!config) {
+                config = getDefaultConfig(n.type);
+              } else {
+                // Ensure config is in correct format (same logic as executeWorkflow)
+                if (n.type === 'trigger' && config.trigger_type) {
+                  // Ensure trigger_type is a string, not an object
+                  if (typeof config.trigger_type === 'object' && config.trigger_type.type) {
+                    config = { ...config, trigger_type: config.trigger_type.type };
+                  }
+                } else if (n.type === 'action' && config.action_type) {
+                  // Ensure action_type is properly nested
+                  if (config.action_type.type === 'ssh_command') {
+                    const { type, ...rest } = config.action_type;
+                    config = { ...config, action_type: { ssh_command: rest } };
+                  }
+                }
+              }
+              
+              return {
+                id: n.id,
+                node_type: n.type,
+                name: n.data.label,
+                position: n.position,
+                config: config,
+              };
+            }),
+            connections: connections.map(c => ({
+              id: c.id,
+              source_node: c.source,
+              target_node: c.target,
+              source_port: c.sourcePort || 'output',
+              target_port: c.targetPort || 'input',
+            })),
+            enabled: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          
+          await invoke('save_workflow', { workflow });
+        } catch (err) {
+          console.error('Failed to auto-save workflow:', err);
+        }
+      };
+      
+      saveOnUnmount();
+    };
+  }, [workflowId, nodes, connections]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -218,7 +460,34 @@ const Canvas: React.FC<CanvasProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodes]);
+  }, [selectedNodes, deleteSelected]);
+  
+  // Helper function to get default config for node types
+  const getDefaultConfig = (type: string) => {
+    switch (type) {
+      case 'trigger':
+        return { type: 'trigger', trigger_type: 'manual' };
+      case 'action':
+        return {
+          type: 'action',
+          action_type: {
+            ssh_command: {
+              host: 'localhost',
+              port: 22,
+              username: 'admin',
+              password: null,
+              command: 'echo "Hello"',
+            },
+          },
+        };
+      case 'condition':
+        return { type: 'condition', expression: 'true', true_branch: '', false_branch: '' };
+      case 'notification':
+        return { type: 'notification', title: 'Notification', message: 'Message', channel: 'in_app' };
+      default:
+        return {};
+    }
+  };
 
   const nodeColors = {
     trigger: '#10b981',
@@ -396,14 +665,191 @@ const Canvas: React.FC<CanvasProps> = ({
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => {/* Export */}}
+              onClick={() => {
+                // Build proper configs for export
+                const nodesWithConfigs = nodes.map(n => {
+                  let config: any;
+                  const existingConfig = n.data.config;
+                  
+                  // Use existing config if available, otherwise create defaults
+                  if (existingConfig && Object.keys(existingConfig).length > 0) {
+                    config = existingConfig;
+                  } else {
+                    // Create default configs with type field
+                    switch (n.type) {
+                      case 'trigger':
+                        config = {
+                          type: 'trigger',
+                          trigger_type: 'manual'
+                        };
+                        break;
+                      case 'action':
+                        config = {
+                          type: 'action',
+                          action_type: {
+                            ssh_command: {
+                              host: 'localhost',
+                              port: 22,
+                              username: 'admin',
+                              password: null,
+                              command: 'echo "Hello from automation"'
+                            }
+                          }
+                        };
+                        break;
+                      case 'condition':
+                        config = {
+                          type: 'condition',
+                          expression: 'true',
+                          true_branch: '',
+                          false_branch: ''
+                        };
+                        break;
+                      case 'notification':
+                        config = {
+                          type: 'notification',
+                          title: 'Workflow Notification',
+                          message: 'Workflow executed successfully',
+                          channel: 'in_app'
+                        };
+                        break;
+                      default:
+                        config = {};
+                    }
+                  }
+                  
+                  // Ensure config has type field
+                  if (!config.type) {
+                    config = { type: n.type, ...config };
+                  }
+                  
+                  return {
+                    id: n.id,
+                    node_type: n.type,
+                    name: n.data.label,
+                    position: n.position,
+                    config: config
+                  };
+                });
+                
+                const workflow = {
+                  id: workflowId || `workflow-${Date.now()}`,
+                  name: 'Untitled Workflow',
+                  nodes: nodesWithConfigs,
+                  connections,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                };
+                const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${workflow.id}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
               className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white"
               title="Export workflow"
             >
               <Download className="w-4 h-4" />
             </button>
             <button
-              onClick={() => {/* Import */}}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const workflow = JSON.parse(text);
+                    if (workflow.nodes) {
+                      setNodes(workflow.nodes.map((n: any) => {
+                        // Get config and node type
+                        let config = n.config || n.data?.config;
+                        const nodeType = n.node_type || n.type;
+                        
+                        console.log('Importing node:', nodeType, 'with config:', config);
+                        
+                        // Ensure config has the type field required by backend
+                        if (!config?.type) {
+                          // Config is missing type field, need to add it
+                          if (config && Object.keys(config).length > 0) {
+                            // Config exists but no type field - add type without spreading
+                            // This prevents accidentally overwriting fields
+                            const newConfig: any = { type: nodeType };
+                            for (const key in config) {
+                              if (key !== 'type') {
+                                newConfig[key] = config[key];
+                              }
+                            }
+                            config = newConfig;
+                            console.log('Added type to existing config:', config);
+                          } else {
+                            // No config at all, create default with type
+                            switch (nodeType) {
+                              case 'trigger':
+                                config = { type: 'trigger', trigger_type: 'manual' };
+                                break;
+                              case 'action':
+                                config = { 
+                                  type: 'action',
+                                  action_type: {
+                                    ssh_command: {
+                                      host: 'localhost',
+                                      port: 22,
+                                      username: 'admin',
+                                      password: null,
+                                      command: 'echo "Hello from automation"'
+                                    }
+                                  }
+                                };
+                                break;
+                              case 'condition':
+                                config = { 
+                                  type: 'condition',
+                                  expression: 'true',
+                                  true_branch: '',
+                                  false_branch: ''
+                                };
+                                break;
+                              case 'notification':
+                                config = {
+                                  type: 'notification',
+                                  title: 'Workflow Notification',
+                                  message: 'Workflow executed successfully',
+                                  channel: 'in_app'
+                                };
+                                break;
+                              default:
+                                config = {};
+                            }
+                          }
+                        }
+                        
+                        return {
+                          id: n.id,
+                          type: nodeType,
+                          position: n.position,
+                          data: {
+                            label: n.name || n.data?.label || `${nodeType} Node`,
+                            config: config
+                          }
+                        };
+                      }));
+                    }
+                    if (workflow.connections) {
+                      setConnections(workflow.connections);
+                    }
+                    console.log('Workflow imported:', workflow.id);
+                  } catch (err) {
+                    console.error('Failed to import workflow:', err);
+                    alert('Failed to import workflow. Invalid file format.');
+                  }
+                };
+                input.click();
+              }}
               className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white"
               title="Import workflow"
             >

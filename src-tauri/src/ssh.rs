@@ -4,13 +4,15 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use russh::*;
 use russh::keys::*;
-use russh::client::*;
 use tokio::sync::Mutex as TokioMutex;
+use crate::vault::SshKeyManager;
 
 #[derive(Clone)]
 pub struct Client {
     id: String,
     app_handle: AppHandle,
+    host: String,
+    port: u16,
 }
 
 impl client::Handler for Client {
@@ -18,9 +20,50 @@ impl client::Handler for Client {
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKey,
     ) -> Result<bool, Self::Error> {
-        Ok(true)
+        // Get SSH key manager from app state
+        let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
+        
+        // Get key bytes and create fingerprint (hex format for simplicity)
+        let key_bytes = server_public_key.public_key_bytes();
+        let fingerprint = key_bytes[..32.min(key_bytes.len())]
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
+        let key_type = "ssh-key"; // Generic type since russh doesn't expose key type easily
+        
+        // Verify host key
+        match ssh_key_manager.verify_host_key_by_fingerprint(
+            &self.host,
+            self.port,
+            &fingerprint,
+            key_type,
+        ).await {
+            Ok(result) => {
+                if result.allowed {
+                    Ok(true)
+                } else {
+                    // Emit event to frontend for user decision
+                    let _ = self.app_handle.emit("ssh-host-key-verification", serde_json::json!({
+                        "host": self.host,
+                        "port": self.port,
+                        "fingerprint": fingerprint,
+                        "keyType": key_type,
+                        "keyBytes": key_bytes,
+                        "status": format!("{:?}", result.status),
+                        "message": result.message,
+                    }));
+                    
+                    // Reject connection - user must explicitly trust via frontend
+                    Err(russh::Error::Disconnect)
+                }
+            }
+            Err(e) => {
+                eprintln!("Host key verification error: {}", e);
+                Err(russh::Error::Disconnect)
+            }
+        }
     }
 
     async fn data(
@@ -79,6 +122,8 @@ pub async fn connect_ssh(
     let sh = Client {
         id: id.clone(),
         app_handle: app_handle.clone(),
+        host: host.clone(),
+        port,
     };
 
     let addr = format!("{}:{}", host, port);
@@ -198,7 +243,7 @@ pub async fn write_ssh(
     };
 
     if let Some(channel_arc) = conn {
-        let mut channel = channel_arc.lock().await;
+        let channel = channel_arc.lock().await;
         channel.data(data.as_bytes())
             .await
             .map_err(|_| "Failed to send data".to_string())?;
@@ -221,7 +266,7 @@ pub async fn resize_ssh(
     };
 
     if let Some(channel_arc) = conn {
-        let mut channel = channel_arc.lock().await;
+        let channel = channel_arc.lock().await;
         channel.window_change(cols, rows, 0, 0)
             .await
             .map_err(|e| e.to_string())?;

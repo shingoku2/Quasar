@@ -2,19 +2,19 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, System};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::time::interval;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMetrics {
-    pub cpu_usage: f32,
-    pub memory_used: u64,
-    pub memory_total: u64,
+    pub cpu_usage_percent: f32,
+    pub memory_used_mb: u64,
+    pub memory_total_mb: u64,
     pub memory_usage_percent: f32,
-    pub disk_read_bytes: u64,
-    pub disk_write_bytes: u64,
-    pub network_rx_bytes: u64,
-    pub network_tx_bytes: u64,
+    pub disk_read_mb: u64,
+    pub disk_write_mb: u64,
+    pub network_rx_mb: u64,
+    pub network_tx_mb: u64,
     pub timestamp: u64,
 }
 
@@ -113,10 +113,10 @@ impl MetricsCollector {
         let now = Instant::now();
         let elapsed_secs = now.duration_since(self.last_update).as_secs_f64().max(1.0);
 
-        let disk_read_rate = ((disk_read - self.last_disk_read) as f64 / elapsed_secs) as u64;
-        let disk_write_rate = ((disk_write - self.last_disk_write) as f64 / elapsed_secs) as u64;
-        let net_rx_rate = ((net_rx - self.last_network_rx) as f64 / elapsed_secs) as u64;
-        let net_tx_rate = ((net_tx - self.last_network_tx) as f64 / elapsed_secs) as u64;
+        let disk_read_rate = ((disk_read.saturating_sub(self.last_disk_read)) as f64 / elapsed_secs) as u64;
+        let disk_write_rate = ((disk_write.saturating_sub(self.last_disk_write)) as f64 / elapsed_secs) as u64;
+        let net_rx_rate = ((net_rx.saturating_sub(self.last_network_rx)) as f64 / elapsed_secs) as u64;
+        let net_tx_rate = ((net_tx.saturating_sub(self.last_network_tx)) as f64 / elapsed_secs) as u64;
 
         self.last_disk_read = disk_read;
         self.last_disk_write = disk_write;
@@ -125,14 +125,14 @@ impl MetricsCollector {
         self.last_update = now;
 
         SystemMetrics {
-            cpu_usage,
-            memory_used,
-            memory_total,
+            cpu_usage_percent: cpu_usage,
+            memory_used_mb: memory_used / 1024 / 1024, // Convert bytes to MB
+            memory_total_mb: memory_total / 1024 / 1024,
             memory_usage_percent,
-            disk_read_bytes: disk_read_rate,
-            disk_write_bytes: disk_write_rate,
-            network_rx_bytes: net_rx_rate,
-            network_tx_bytes: net_tx_rate,
+            disk_read_mb: disk_read_rate / 1024 / 1024, // Convert bytes/s to MB/s
+            disk_write_mb: disk_write_rate / 1024 / 1024,
+            network_rx_mb: net_rx_rate / 1024 / 1024,
+            network_tx_mb: net_tx_rate / 1024 / 1024,
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -198,9 +198,11 @@ impl AlertEngine {
 
         for rule in rules.iter().filter(|r| r.enabled) {
             let value = match rule.metric {
-                MetricType::CpuUsage => metrics.cpu_usage as f64,
+                MetricType::CpuUsage => metrics.cpu_usage_percent as f64,
                 MetricType::MemoryUsage => metrics.memory_usage_percent as f64,
                 MetricType::DiskUsage => {
+                    // Calculate disk usage as percentage (would need actual disk capacity info)
+                    // For now, skip as we don't have disk capacity in metrics
                     continue;
                 }
             };
@@ -261,7 +263,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     interval_secs: u64,
 ) {
     let mut collector = MetricsCollector::new();
-    let alert_engine = Arc::new(AlertEngine::new());
+    let alert_engine = app_handle.state::<Arc<AlertEngine>>();
     let mut ticker = interval(Duration::from_secs(interval_secs));
 
     loop {
@@ -270,6 +272,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
         let metrics = collector.collect();
         let alerts = alert_engine.evaluate(&metrics);
 
+        println!("Emitting system-metrics: cpu={:.1}%, mem={:.1}%", metrics.cpu_usage_percent, metrics.memory_usage_percent);
         let _ = app_handle.emit("system-metrics", metrics);
 
         if !alerts.is_empty() {
@@ -294,9 +297,9 @@ mod tests {
         std::thread::sleep(Duration::from_millis(100));
         let metrics = collector.collect();
 
-        assert!(metrics.cpu_usage >= 0.0 && metrics.cpu_usage <= 100.0);
-        assert!(metrics.memory_total > 0);
-        assert!(metrics.memory_used <= metrics.memory_total);
+        assert!(metrics.cpu_usage_percent >= 0.0 && metrics.cpu_usage_percent <= 100.0);
+        assert!(metrics.memory_total_mb > 0);
+        assert!(metrics.memory_used_mb <= metrics.memory_total_mb);
         assert!(metrics.memory_usage_percent >= 0.0 && metrics.memory_usage_percent <= 100.0);
         assert!(metrics.timestamp > 0);
     }
@@ -333,14 +336,14 @@ mod tests {
         engine.add_rule(rule);
 
         let metrics = SystemMetrics {
-            cpu_usage: 75.0,
-            memory_used: 0,
-            memory_total: 0,
+            cpu_usage_percent: 75.0,
+            memory_used_mb: 0,
+            memory_total_mb: 0,
             memory_usage_percent: 0.0,
-            disk_read_bytes: 0,
-            disk_write_bytes: 0,
-            network_rx_bytes: 0,
-            network_tx_bytes: 0,
+            disk_read_mb: 0,
+            disk_write_mb: 0,
+            network_rx_mb: 0,
+            network_tx_mb: 0,
             timestamp: 1234567890,
         };
 
@@ -363,14 +366,14 @@ mod tests {
         engine.add_rule(rule);
 
         let metrics = SystemMetrics {
-            cpu_usage: 50.0,
-            memory_used: 0,
-            memory_total: 0,
+            cpu_usage_percent: 50.0,
+            memory_used_mb: 0,
+            memory_total_mb: 0,
             memory_usage_percent: 0.0,
-            disk_read_bytes: 0,
-            disk_write_bytes: 0,
-            network_rx_bytes: 0,
-            network_tx_bytes: 0,
+            disk_read_mb: 0,
+            disk_write_mb: 0,
+            network_rx_mb: 0,
+            network_tx_mb: 0,
             timestamp: 1234567890,
         };
 
@@ -392,14 +395,14 @@ mod tests {
         engine.add_rule(rule);
 
         let metrics = SystemMetrics {
-            cpu_usage: 0.0,
-            memory_used: 100,
-            memory_total: 100,
+            cpu_usage_percent: 0.0,
+            memory_used_mb: 100,
+            memory_total_mb: 100,
             memory_usage_percent: 100.0,
-            disk_read_bytes: 0,
-            disk_write_bytes: 0,
-            network_rx_bytes: 0,
-            network_tx_bytes: 0,
+            disk_read_mb: 0,
+            disk_write_mb: 0,
+            network_rx_mb: 0,
+            network_tx_mb: 0,
             timestamp: 1234567890,
         };
 

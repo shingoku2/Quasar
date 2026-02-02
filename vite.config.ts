@@ -18,6 +18,7 @@ export default defineConfig(async () => ({
     port: 1420,
     strictPort: true,
     host: host || false,
+    origin: "http://localhost:1420",
     hmr: host
       ? {
           protocol: "ws",

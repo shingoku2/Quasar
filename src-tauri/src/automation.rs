@@ -206,8 +206,9 @@ impl Workflow {
         // Visit from trigger
         visit(&trigger.id, &adjacency, &mut visited, &mut temp_mark, &mut sorted)?;
 
-        // Map back to nodes
+        // Map back to nodes and reverse to get correct execution order
         Ok(sorted.iter()
+            .rev()
             .filter_map(|id| self.get_node(id))
             .collect())
     }
@@ -343,6 +344,11 @@ impl AutomationState {
     pub async fn list_workflows(&self) -> Vec<Workflow> {
         let workflows = self.workflows.read().await;
         workflows.values().cloned().collect()
+    }
+
+    pub async fn save_workflow(&self, workflow: Workflow) {
+        let mut workflows = self.workflows.write().await;
+        workflows.insert(workflow.id.clone(), workflow);
     }
 
     pub async fn create_execution(&self, workflow_id: &str) -> String {

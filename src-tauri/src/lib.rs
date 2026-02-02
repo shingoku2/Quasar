@@ -4,9 +4,12 @@ mod launcher;
 mod discovery;
 mod ai;
 mod ssh;
+mod ssh_exec;
+mod sftp;
 mod scanner;
 mod health;
 mod monitoring;
+mod vault;
 
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
@@ -21,12 +24,12 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn hash_password(password: String) -> String {
+fn hash_password(password: String) -> Result<String, String> {
     crypto::hash_password(&password)
 }
 
 #[tauri::command]
-fn verify_password(password: String, hashed: String) -> bool {
+fn verify_password(password: String, hashed: String) -> Result<bool, String> {
     crypto::verify_password(&password, &hashed)
 }
 
@@ -155,6 +158,15 @@ async fn get_workflow(
 }
 
 #[tauri::command]
+async fn save_workflow(
+    state: State<'_, Arc<automation::AutomationState>>,
+    workflow: automation::Workflow,
+) -> Result<(), String> {
+    state.save_workflow(workflow).await;
+    Ok(())
+}
+
+#[tauri::command]
 async fn list_workflows(
     state: State<'_, Arc<automation::AutomationState>>,
 ) -> Result<Vec<automation::Workflow>, String> {
@@ -189,10 +201,39 @@ async fn execute_workflow(
         
         let status = engine.execute_workflow(&workflow, &exec_id_for_spawn, &mut context).await;
         
-        // Update execution record
+        // Update execution record with results
         if let Some(mut record) = state_clone.get_execution(&exec_id_for_spawn).await {
             record.status = status.unwrap_or(automation::ExecutionStatus::Failed);
             record.completed_at = Some(chrono::Utc::now());
+            
+            // Convert context results to execution results
+            for (node_id, node_result) in &context.results {
+                let exec_result = match node_result {
+                    automation::NodeResult::Success { output } => automation::NodeExecutionResult {
+                        status: automation::ExecutionStatus::Completed,
+                        output: output.clone(),
+                        error: None,
+                        started_at: record.started_at,
+                        completed_at: record.completed_at,
+                    },
+                    automation::NodeResult::Failure { error } => automation::NodeExecutionResult {
+                        status: automation::ExecutionStatus::Failed,
+                        output: None,
+                        error: Some(error.clone()),
+                        started_at: record.started_at,
+                        completed_at: record.completed_at,
+                    },
+                    automation::NodeResult::Skipped => automation::NodeExecutionResult {
+                        status: automation::ExecutionStatus::Cancelled,
+                        output: None,
+                        error: None,
+                        started_at: record.started_at,
+                        completed_at: record.completed_at,
+                    },
+                };
+                record.node_results.insert(node_id.clone(), exec_result);
+            }
+            
             state_clone.update_execution(record).await;
         }
     });
@@ -209,32 +250,299 @@ async fn get_execution_status(
 }
 
 #[tauri::command]
-fn add_alert_rule(rule: monitoring::AlertRule) {
-    // AlertEngine will be managed state in setup
+async fn list_executions(
+    state: State<'_, Arc<automation::AutomationState>>,
+    workflow_id: Option<String>,
+) -> Result<Vec<automation::ExecutionRecord>, String> {
+    Ok(state.list_executions(workflow_id.as_deref()).await)
 }
 
 #[tauri::command]
-fn remove_alert_rule(rule_id: String) {
-    // AlertEngine will be managed state in setup
+fn add_alert_rule(
+    state: State<'_, Arc<monitoring::AlertEngine>>,
+    rule: monitoring::AlertRule,
+) {
+    state.add_rule(rule);
 }
 
 #[tauri::command]
-fn get_alert_rules() -> Vec<monitoring::AlertRule> {
-    Vec::new()
+fn remove_alert_rule(
+    state: State<'_, Arc<monitoring::AlertEngine>>,
+    rule_id: String,
+) {
+    state.remove_rule(&rule_id);
+}
+
+#[tauri::command]
+fn get_alert_rules(state: State<'_, Arc<monitoring::AlertEngine>>) -> Vec<monitoring::AlertRule> {
+    state.get_rules()
+}
+
+// Vault commands
+#[tauri::command]
+async fn is_vault_initialized(state: State<'_, vault::VaultState>) -> Result<bool, String> {
+    state.is_initialized().await
+}
+
+#[tauri::command]
+async fn initialize_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
+    state.initialize_vault(master_password).await
+}
+
+#[tauri::command]
+async fn unlock_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
+    state.unlock_vault(master_password).await
+}
+
+#[tauri::command]
+async fn lock_vault(state: State<'_, vault::VaultState>) -> Result<(), String> {
+    state.lock_vault().await
+}
+
+#[tauri::command]
+async fn is_vault_locked(state: State<'_, vault::VaultState>) -> Result<bool, String> {
+    Ok(state.is_locked().await)
+}
+
+#[tauri::command]
+async fn get_vault_settings(state: State<'_, vault::VaultState>) -> Result<vault::VaultSettings, String> {
+    Ok(state.get_settings().await)
+}
+
+#[tauri::command]
+async fn update_vault_settings(state: State<'_, vault::VaultState>, settings: vault::VaultSettings) -> Result<(), String> {
+    state.update_settings(settings).await
+}
+
+// Credential management commands
+#[tauri::command]
+async fn add_credential(
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    name: String,
+    username: String,
+    password: String,
+    credential_type: String,
+    metadata: Option<String>,
+) -> Result<String, String> {
+    let master_key = vault_state.get_master_key().await?;
+    credential_manager.add_credential(&master_key, name, username, password, credential_type, metadata)
+}
+
+#[tauri::command]
+async fn get_credential(
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    credential_id: String,
+) -> Result<vault::Credential, String> {
+    let master_key = vault_state.get_master_key().await?;
+    credential_manager.get_credential(&master_key, &credential_id)
+}
+
+#[tauri::command]
+async fn list_credentials(
+    credential_manager: State<'_, vault::CredentialManager>,
+) -> Result<Vec<vault::CredentialSummary>, String> {
+    credential_manager.list_credentials()
+}
+
+#[tauri::command]
+async fn update_credential(
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    credential_id: String,
+    name: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+    metadata: Option<String>,
+) -> Result<(), String> {
+    let master_key = vault_state.get_master_key().await?;
+    credential_manager.update_credential(&master_key, &credential_id, name, username, password, metadata)
+}
+
+#[tauri::command]
+async fn delete_credential(
+    credential_manager: State<'_, vault::CredentialManager>,
+    credential_id: String,
+) -> Result<(), String> {
+    credential_manager.delete_credential(&credential_id)
+}
+
+#[tauri::command]
+async fn search_credentials(
+    credential_manager: State<'_, vault::CredentialManager>,
+    query: String,
+) -> Result<Vec<vault::CredentialSummary>, String> {
+    credential_manager.search_credentials(&query)
+}
+
+#[tauri::command]
+async fn verify_ssh_host_key(
+    ssh_key_manager: State<'_, vault::SshKeyManager>,
+    host: String,
+    port: u16,
+    fingerprint: String,
+    key_type: String,
+) -> Result<vault::HostKeyVerificationResult, String> {
+    ssh_key_manager.verify_host_key_by_fingerprint(&host, port, &fingerprint, &key_type).await
+}
+
+#[tauri::command]
+async fn trust_ssh_host_key(
+    ssh_key_manager: State<'_, vault::SshKeyManager>,
+    host: String,
+    port: u16,
+    fingerprint: String,
+    key_type: String,
+    key_bytes: Vec<u8>,
+    trust_status: vault::TrustStatus,
+) -> Result<(), String> {
+    ssh_key_manager.trust_host_key(&host, port, &fingerprint, &key_type, key_bytes, trust_status).await
+}
+
+#[tauri::command]
+async fn get_known_ssh_hosts(
+    ssh_key_manager: State<'_, vault::SshKeyManager>,
+) -> Result<Vec<vault::SshHostKey>, String> {
+    ssh_key_manager.get_known_hosts().await
+}
+
+#[tauri::command]
+async fn remove_ssh_host_key(
+    ssh_key_manager: State<'_, vault::SshKeyManager>,
+    host: String,
+    port: u16,
+) -> Result<(), String> {
+    ssh_key_manager.remove_host_key(&host, port).await
+}
+
+#[tauri::command]
+async fn update_ssh_host_trust(
+    ssh_key_manager: State<'_, vault::SshKeyManager>,
+    host: String,
+    port: u16,
+    trust_status: vault::TrustStatus,
+) -> Result<(), String> {
+    ssh_key_manager.update_trust_status(&host, port, trust_status).await
+}
+
+// Change master password command
+#[tauri::command]
+async fn change_master_password(
+    state: State<'_, vault::VaultState>,
+    current_password: String,
+    new_password: String,
+) -> Result<(), String> {
+    state.change_master_password(&current_password, &new_password).await
+}
+
+// Audit log commands
+#[tauri::command]
+async fn get_audit_logs(
+    audit_manager: State<'_, vault::AuditLogManager>,
+    filter: Option<vault::AuditLogFilter>,
+) -> Result<Vec<vault::AuditLogEntry>, String> {
+    audit_manager.get_audit_logs(filter)
+}
+
+#[tauri::command]
+async fn get_audit_log_count(
+    audit_manager: State<'_, vault::AuditLogManager>,
+    filter: Option<vault::AuditLogFilter>,
+) -> Result<i64, String> {
+    audit_manager.get_audit_log_count(filter)
+}
+
+// SFTP commands
+#[tauri::command]
+async fn sftp_upload_file(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    local_path: String,
+    remote_path: String,
+) -> Result<(), String> {
+    sftp::upload_file(&host, port, &username, &password, &local_path, &remote_path, None).await
+}
+
+#[tauri::command]
+async fn sftp_download_file(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    remote_path: String,
+    local_path: String,
+) -> Result<(), String> {
+    sftp::download_file(&host, port, &username, &password, &remote_path, &local_path, None).await
+}
+
+#[tauri::command]
+async fn sftp_list_directory(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    remote_path: String,
+) -> Result<Vec<String>, String> {
+    sftp::list_directory(&host, port, &username, &password, &remote_path).await
+}
+
+#[tauri::command]
+async fn sftp_remote_exists(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    remote_path: String,
+) -> Result<bool, String> {
+    sftp::remote_exists(&host, port, &username, &password, &remote_path).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            // Get database path
+            let app_dir = app.path().app_data_dir().expect("Failed to get app data dir");
+            std::fs::create_dir_all(&app_dir).expect("Failed to create app data dir");
+            let db_path = app_dir.join("titan.db");
+            let db_path_str = db_path.to_str().expect("Invalid database path").to_string();
+            
             app.manage(ssh::SshState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
             app.manage(Arc::new(automation::AutomationState::new()));
+            app.manage(Arc::new(monitoring::AlertEngine::new()));
+            app.manage(vault::VaultState::new(db_path_str.clone()));
+            app.manage(vault::CredentialManager::new(db_path_str.clone()));
+            app.manage(vault::SshKeyManager::new(db_path_str.clone()).expect("Failed to create SSH key manager"));
+            app.manage(vault::AuditLogManager::new(db_path_str.clone()));
+            
+            // Initialize database tables
+            let conn = rusqlite::Connection::open(&db_path_str).expect("Failed to open database");
+            conn.execute_batch(include_str!("../migrations/003_security_vault.sql"))
+                .expect("Failed to run database migrations");
             
             // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                monitoring::start_monitoring_task(app_handle, 5000).await;
+                monitoring::start_monitoring_task(app_handle, 5).await;
+            });
+            
+            // Start auto-lock checker task
+            let vault_state_clone = app.state::<vault::VaultState>().inner().clone();
+            let app_handle_vault = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+                loop {
+                    interval.tick().await;
+                    if let Ok(locked) = vault_state_clone.check_auto_lock().await {
+                        if locked {
+                            let _ = app_handle_vault.emit("vault-auto-locked", ());
+                        }
+                    }
+                }
             });
             
             Ok(())
@@ -267,10 +575,37 @@ pub fn run() {
             get_alert_rules,
             create_workflow,
             get_workflow,
+            save_workflow,
             list_workflows,
             delete_workflow,
             execute_workflow,
-            get_execution_status
+            get_execution_status,
+            list_executions,
+            is_vault_initialized,
+            initialize_vault,
+            unlock_vault,
+            lock_vault,
+            is_vault_locked,
+            get_vault_settings,
+            update_vault_settings,
+            change_master_password,
+            add_credential,
+            get_credential,
+            list_credentials,
+            update_credential,
+            delete_credential,
+            search_credentials,
+            verify_ssh_host_key,
+            trust_ssh_host_key,
+            get_known_ssh_hosts,
+            remove_ssh_host_key,
+            update_ssh_host_trust,
+            get_audit_logs,
+            get_audit_log_count,
+            sftp_upload_file,
+            sftp_download_file,
+            sftp_list_directory,
+            sftp_remote_exists
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

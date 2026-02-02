@@ -41,18 +41,22 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
     let unlistenResult: UnlistenFn | null = null;
 
     const setupListeners = async () => {
-      unlistenProgress = await listen<ScanProgress>('scan_progress', (event) => {
-        setProgress(event.payload);
-      });
+      try {
+        unlistenProgress = await listen<ScanProgress>('scan_progress', (event) => {
+          setProgress(event.payload);
+        });
 
-      unlistenResult = await listen<ScanResult>('scan_result', (event) => {
-        const result = event.payload;
-        setResults(prev => [...prev, result]);
-        
-        if (result.is_alive && onHostFound) {
-          onHostFound(result);
-        }
-      });
+        unlistenResult = await listen<ScanResult>('scan_result', (event) => {
+          const result = event.payload;
+          setResults(prev => [...prev, result]);
+          
+          if (result.is_alive && onHostFound) {
+            onHostFound(result);
+          }
+        });
+      } catch (error) {
+        console.warn('Scan event listeners failed:', error);
+      }
     };
 
     setupListeners();
@@ -73,13 +77,13 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
         setIsScanning(scanning);
         
         if (!scanning) {
-          // Scan completed
           if (onResults) {
             onResults(results);
           }
         }
       } catch (err) {
-        console.error('Error checking scan status:', err);
+        console.warn('Error checking scan status:', err);
+        setIsScanning(false);
       }
     }, 1000);
 
