@@ -1,26 +1,61 @@
 use russh::*;
+use russh::keys::PublicKeyBase64;
 use std::sync::Arc;
 use std::time::Duration;
+use tauri::{AppHandle, Manager};
+use crate::vault::SshKeyManager;
 
 /// Simple SSH client for command execution (non-interactive)
 #[derive(Clone)]
-struct ExecClient;
+struct ExecClient {
+    app_handle: AppHandle,
+    host: String,
+    port: u16,
+}
 
 impl client::Handler for ExecClient {
     type Error = russh::Error;
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // For automation, we assume host keys are already verified
-        // This is safe because the vault's SSH key manager handles verification
-        Ok(true)
+        // Get SSH key manager from app state
+        let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
+        
+        // Create fingerprint using hex encoding of the full public key bytes
+        let key_bytes = server_public_key.public_key_bytes();
+        let fingerprint = key_bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
+        let key_type = "ssh-key";
+        
+        // Verify host key
+        match ssh_key_manager.verify_host_key_by_fingerprint(
+            &self.host,
+            self.port,
+            &fingerprint,
+            key_type,
+        ).await {
+            Ok(result) => {
+                if result.allowed {
+                    Ok(true)
+                } else {
+                    // Reject connection for non-interactive execution if not already trusted
+                    // Note: In non-interactive mode we can't easily prompt the user,
+                    // so we only allow already trusted hosts.
+                    Err(russh::Error::Disconnect)
+                }
+            }
+            Err(_) => Err(russh::Error::Disconnect),
+        }
     }
 }
 
 /// Execute a single SSH command and return output
 pub async fn execute_ssh_command(
+    app_handle: AppHandle,
     host: &str,
     port: u16,
     username: &str,
@@ -30,7 +65,11 @@ pub async fn execute_ssh_command(
 ) -> Result<String, String> {
     let config = russh::client::Config::default();
     let config = Arc::new(config);
-    let sh = ExecClient;
+    let sh = ExecClient {
+        app_handle,
+        host: host.to_string(),
+        port,
+    };
 
     let addr = format!("{}:{}", host, port);
     
@@ -43,117 +82,18 @@ pub async fn execute_ssh_command(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    // Authenticate
-    let auth_res = session.authenticate_password(username, password)
-        .await
-        .map_err(|e| format!("Authentication error: {}", e))?;
-    
-    let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-    if !is_success {
-        return Err("Authentication failed".to_string());
-    }
-
-    // Open channel and execute command
-    let mut channel = session.channel_open_session()
-        .await
-        .map_err(|e| format!("Failed to open channel: {}", e))?;
-    
-    channel.exec(true, command.as_bytes())
-        .await
-        .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-    // Collect output by waiting for channel messages
-    let mut output = Vec::new();
-    let mut exit_code: Option<u32> = None;
-    let wait_result = tokio::time::timeout(
-        Duration::from_secs(timeout_secs),
-        async {
-            loop {
-                match channel.wait().await {
-                    Some(russh::ChannelMsg::Data { ref data }) => {
-                        output.extend_from_slice(data);
-                    }
-                    Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
-                        output.extend_from_slice(data);
-                    }
-                    Some(russh::ChannelMsg::ExitStatus { exit_status }) => {
-                        exit_code = Some(exit_status);
-                    }
-                    Some(russh::ChannelMsg::Eof) => break,
-                    None => break,
-                    _ => {}
-                }
-            }
-            Ok(())
+    let result = async {
+        // Authenticate
+        let auth_res = session.authenticate_password(username, password)
+            .await
+            .map_err(|e| format!("Authentication error: {}", e))?;
+        
+        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
+        if !is_success {
+            return Err("Authentication failed".to_string());
         }
-    ).await;
 
-    match wait_result {
-        Ok(Ok(())) => {
-            // Check exit code after collecting all output
-            if let Some(code) = exit_code {
-                if code != 0 {
-                    return Err(format!("Command exited with status {}", code));
-                }
-            }
-        },
-        Ok(Err(e)) => return Err(e),
-        Err(_) => return Err("Command execution timed out".to_string()),
-    }
-
-    let result = String::from_utf8(output)
-        .map_err(|e| format!("Invalid UTF-8 in output: {}", e));
-
-    // Explicitly disconnect SSH session
-    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
-
-    result
-}
-
-/// Execute multiple commands in sequence on the same SSH session
-pub async fn execute_ssh_commands_batch(
-    host: &str,
-    port: u16,
-    username: &str,
-    password: &str,
-    commands: &[&str],
-    timeout_secs: u64,
-) -> Result<Vec<String>, String> {
-    // Early return for empty commands array
-    if commands.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let config = russh::client::Config::default();
-    let config = Arc::new(config);
-    let sh = ExecClient;
-
-    let addr = format!("{}:{}", host, port);
-    
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(timeout_secs),
-        russh::client::connect(config, addr, sh)
-    ).await {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
-
-    let auth_res = session.authenticate_password(username, password)
-        .await
-        .map_err(|e| format!("Authentication error: {}", e))?;
-    
-    let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-    if !is_success {
-        return Err("Authentication failed".to_string());
-    }
-
-    let mut results = Vec::new();
-    
-    // Calculate per-command timeout: divide total timeout by number of commands, with minimum of 5 seconds
-    let num_commands = commands.len() as u64;
-    let per_command_timeout = (timeout_secs / num_commands).max(5);
-
-    for command in commands {
+        // Open channel and execute command
         let mut channel = session.channel_open_session()
             .await
             .map_err(|e| format!("Failed to open channel: {}", e))?;
@@ -162,11 +102,11 @@ pub async fn execute_ssh_commands_batch(
             .await
             .map_err(|e| format!("Failed to execute command: {}", e))?;
 
+        // Collect output by waiting for channel messages
         let mut output = Vec::new();
         let mut exit_code: Option<u32> = None;
-        
         let wait_result = tokio::time::timeout(
-            Duration::from_secs(per_command_timeout),
+            Duration::from_secs(timeout_secs),
             async {
                 loop {
                     match channel.wait().await {
@@ -184,34 +124,145 @@ pub async fn execute_ssh_commands_batch(
                         _ => {}
                     }
                 }
+                Ok(())
             }
         ).await;
 
-        if wait_result.is_err() {
-            return Err(format!("Command '{}' timed out after {} seconds", command, per_command_timeout));
-        }
-        
-        // Check exit code
-        if let Some(code) = exit_code {
-            if code != 0 {
-                return Err(format!("Command '{}' exited with status {}", command, code));
-            }
+        match wait_result {
+            Ok(Ok(())) => {
+                // Check exit code after collecting all output
+                if let Some(code) = exit_code {
+                    if code != 0 {
+                        return Err(format!("Command exited with status {}", code));
+                    }
+                }
+            },
+            Ok(Err(e)) => return Err(e),
+            Err(_) => return Err("Command execution timed out".to_string()),
         }
 
-        let output_str = String::from_utf8(output)
-            .map_err(|e| format!("Invalid UTF-8 in output: {}", e))?;
-        
-        results.push(output_str);
-    }
+        String::from_utf8(output)
+            .map_err(|e| format!("Invalid UTF-8 in output: {}", e))
+    }.await;
 
-    // Explicitly disconnect SSH session
+    // Explicitly disconnect SSH session regardless of result
     let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
-    Ok(results)
+    result
+}
+
+/// Execute multiple commands in sequence on the same SSH session
+pub async fn execute_ssh_commands_batch(
+    app_handle: AppHandle,
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+    commands: &[&str],
+    timeout_secs: u64,
+) -> Result<Vec<String>, String> {
+    // Early return for empty commands array
+    if commands.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let config = russh::client::Config::default();
+    let config = Arc::new(config);
+    let sh = ExecClient {
+        app_handle,
+        host: host.to_string(),
+        port,
+    };
+
+    let addr = format!("{}:{}", host, port);
+    
+    let mut session = match tokio::time::timeout(
+        Duration::from_secs(timeout_secs),
+        russh::client::connect(config, addr, sh)
+    ).await {
+        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
+        Err(_) => return Err("Connection timed out".to_string()),
+    };
+
+    let result = async {
+        let auth_res = session.authenticate_password(username, password)
+            .await
+            .map_err(|e| format!("Authentication error: {}", e))?;
+        
+        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
+        if !is_success {
+            return Err("Authentication failed".to_string());
+        }
+
+        let mut results = Vec::new();
+        
+        // Calculate per-command timeout: divide total timeout by number of commands, with minimum of 5 seconds
+        let num_commands = commands.len() as u64;
+        let per_command_timeout = (timeout_secs / num_commands).max(5);
+
+        for command in commands {
+            let mut channel = session.channel_open_session()
+                .await
+                .map_err(|e| format!("Failed to open channel: {}", e))?;
+            
+            channel.exec(true, command.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+            let mut output = Vec::new();
+            let mut exit_code: Option<u32> = None;
+            
+            let wait_result = tokio::time::timeout(
+                Duration::from_secs(per_command_timeout),
+                async {
+                    loop {
+                        match channel.wait().await {
+                            Some(russh::ChannelMsg::Data { ref data }) => {
+                                output.extend_from_slice(data);
+                            }
+                            Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
+                                output.extend_from_slice(data);
+                            }
+                            Some(russh::ChannelMsg::ExitStatus { exit_status }) => {
+                                exit_code = Some(exit_status);
+                            }
+                            Some(russh::ChannelMsg::Eof) => break,
+                            None => break,
+                            _ => {}
+                        }
+                    }
+                }
+            ).await;
+
+            if wait_result.is_err() {
+                return Err(format!("Command '{}' timed out after {} seconds", command, per_command_timeout));
+            }
+            
+            // Check exit code
+            if let Some(code) = exit_code {
+                if code != 0 {
+                    return Err(format!("Command '{}' exited with status {}", command, code));
+                }
+            }
+
+            let output_str = String::from_utf8(output)
+                .map_err(|e| format!("Invalid UTF-8 in output: {}", e))?;
+            
+            results.push(output_str);
+        }
+        
+        Ok(results)
+    }.await;
+
+    // Explicitly disconnect SSH session regardless of result
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+
+    result
 }
 
 /// Get system metrics via SSH commands
 pub async fn get_system_metrics(
+    app_handle: AppHandle,
     host: &str,
     port: u16,
     username: &str,
@@ -230,7 +281,7 @@ pub async fn get_system_metrics(
         "cat /proc/loadavg | awk '{print $1,$2,$3}'",
     ];
 
-    let outputs = execute_ssh_commands_batch(host, port, username, password, &commands, 10).await?;
+    let outputs = execute_ssh_commands_batch(app_handle, host, port, username, password, &commands, 10).await?;
 
     // Parse outputs
     let cpu_percent = outputs.get(0)

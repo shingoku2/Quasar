@@ -13,6 +13,7 @@ mod vault;
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::sync::Arc;
+use log::error;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -124,12 +125,13 @@ async fn preflight_check(host: String) -> Result<health::HealthCheckResult, Stri
 
 #[tauri::command]
 async fn check_host_health(
+    app: AppHandle,
     host: String,
     port: u16,
     username: String,
     password: Option<String>,
 ) -> Result<health::HealthCheckResult, String> {
-    Ok(health::check_ssh_health(&host, port, &username, password.as_deref()).await)
+    Ok(health::check_ssh_health(app, &host, port, &username, password.as_deref()).await)
 }
 
 #[tauri::command]
@@ -236,7 +238,8 @@ async fn add_credential(
     metadata: Option<String>,
 ) -> Result<String, String> {
     let master_key = vault_state.get_master_key().await?;
-    credential_manager.add_credential(&master_key, name, username, password, credential_type, metadata)
+    credential_manager.add_credential(&master_key, name.clone(), username, password, credential_type, metadata)
+        .map_err(|e| format!("Failed to add credential '{}': {}", name, e))
 }
 
 #[tauri::command]
@@ -247,6 +250,7 @@ async fn get_credential(
 ) -> Result<vault::Credential, String> {
     let master_key = vault_state.get_master_key().await?;
     credential_manager.get_credential(&master_key, &credential_id)
+        .map_err(|e| format!("Failed to retrieve credential '{}': {}", credential_id, e))
 }
 
 #[tauri::command]
@@ -254,6 +258,7 @@ async fn list_credentials(
     credential_manager: State<'_, vault::CredentialManager>,
 ) -> Result<Vec<vault::CredentialSummary>, String> {
     credential_manager.list_credentials()
+        .map_err(|e| format!("Failed to list credentials: {}", e))
 }
 
 #[tauri::command]
@@ -268,6 +273,7 @@ async fn update_credential(
 ) -> Result<(), String> {
     let master_key = vault_state.get_master_key().await?;
     credential_manager.update_credential(&master_key, &credential_id, name, username, password, metadata)
+        .map_err(|e| format!("Failed to update credential '{}': {}", credential_id, e))
 }
 
 #[tauri::command]
@@ -276,6 +282,7 @@ async fn delete_credential(
     credential_id: String,
 ) -> Result<(), String> {
     credential_manager.delete_credential(&credential_id)
+        .map_err(|e| format!("Failed to delete credential '{}': {}", credential_id, e))
 }
 
 #[tauri::command]
@@ -284,6 +291,7 @@ async fn search_credentials(
     query: String,
 ) -> Result<Vec<vault::CredentialSummary>, String> {
     credential_manager.search_credentials(&query)
+        .map_err(|e| format!("Failed to search credentials with query '{}': {}", query, e))
 }
 
 #[tauri::command]
@@ -295,6 +303,7 @@ async fn verify_ssh_host_key(
     key_type: String,
 ) -> Result<vault::HostKeyVerificationResult, String> {
     ssh_key_manager.verify_host_key_by_fingerprint(&host, port, &fingerprint, &key_type).await
+        .map_err(|e| format!("Failed to verify SSH host key for {}:{}: {}", host, port, e))
 }
 
 #[tauri::command]
@@ -308,6 +317,7 @@ async fn trust_ssh_host_key(
     trust_status: vault::TrustStatus,
 ) -> Result<(), String> {
     ssh_key_manager.trust_host_key(&host, port, &fingerprint, &key_type, key_bytes, trust_status).await
+        .map_err(|e| format!("Failed to trust SSH host key for {}:{}: {}", host, port, e))
 }
 
 #[tauri::command]
@@ -315,6 +325,7 @@ async fn get_known_ssh_hosts(
     ssh_key_manager: State<'_, vault::SshKeyManager>,
 ) -> Result<Vec<vault::SshHostKey>, String> {
     ssh_key_manager.get_known_hosts().await
+        .map_err(|e| format!("Failed to retrieve known SSH hosts: {}", e))
 }
 
 #[tauri::command]
@@ -324,6 +335,7 @@ async fn remove_ssh_host_key(
     port: u16,
 ) -> Result<(), String> {
     ssh_key_manager.remove_host_key(&host, port).await
+        .map_err(|e| format!("Failed to remove SSH host key for {}:{}: {}", host, port, e))
 }
 
 #[tauri::command]
@@ -334,6 +346,7 @@ async fn update_ssh_host_trust(
     trust_status: vault::TrustStatus,
 ) -> Result<(), String> {
     ssh_key_manager.update_trust_status(&host, port, trust_status).await
+        .map_err(|e| format!("Failed to update SSH host trust for {}:{}: {}", host, port, e))
 }
 
 // Change master password command
@@ -344,6 +357,7 @@ async fn change_master_password(
     new_password: String,
 ) -> Result<(), String> {
     state.change_master_password(&current_password, &new_password).await
+        .map_err(|e| format!("Failed to change master password: {}", e))
 }
 
 // Audit log commands
@@ -353,6 +367,7 @@ async fn get_audit_logs(
     filter: Option<vault::AuditLogFilter>,
 ) -> Result<Vec<vault::AuditLogEntry>, String> {
     audit_manager.get_audit_logs(filter)
+        .map_err(|e| format!("Failed to retrieve audit logs: {}", e))
 }
 
 #[tauri::command]
@@ -361,11 +376,13 @@ async fn get_audit_log_count(
     filter: Option<vault::AuditLogFilter>,
 ) -> Result<i64, String> {
     audit_manager.get_audit_log_count(filter)
+        .map_err(|e| format!("Failed to get audit log count: {}", e))
 }
 
 // SFTP commands
 #[tauri::command]
 async fn sftp_upload_file(
+    app_handle: AppHandle,
     host: String,
     port: u16,
     username: String,
@@ -373,11 +390,12 @@ async fn sftp_upload_file(
     local_path: String,
     remote_path: String,
 ) -> Result<(), String> {
-    sftp::upload_file(&host, port, &username, &password, &local_path, &remote_path, None).await
+    sftp::upload_file(app_handle, &host, port, &username, &password, &local_path, &remote_path, None).await
 }
 
 #[tauri::command]
 async fn sftp_download_file(
+    app_handle: AppHandle,
     host: String,
     port: u16,
     username: String,
@@ -385,29 +403,31 @@ async fn sftp_download_file(
     remote_path: String,
     local_path: String,
 ) -> Result<(), String> {
-    sftp::download_file(&host, port, &username, &password, &remote_path, &local_path, None).await
+    sftp::download_file(app_handle, &host, port, &username, &password, &remote_path, &local_path, None).await
 }
 
 #[tauri::command]
 async fn sftp_list_directory(
+    app_handle: AppHandle,
     host: String,
     port: u16,
     username: String,
     password: String,
     remote_path: String,
 ) -> Result<Vec<sftp::RemoteFile>, String> {
-    sftp::list_directory(&host, port, &username, &password, &remote_path).await
+    sftp::list_directory(app_handle, &host, port, &username, &password, &remote_path).await
 }
 
 #[tauri::command]
 async fn sftp_remote_exists(
+    app_handle: AppHandle,
     host: String,
     port: u16,
     username: String,
     password: String,
     remote_path: String,
 ) -> Result<bool, String> {
-    sftp::remote_exists(&host, port, &username, &password, &remote_path).await
+    sftp::remote_exists(app_handle, &host, port, &username, &password, &remote_path).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -416,12 +436,12 @@ pub fn run() {
         .setup(|app| {
             // Get database path
             let app_dir = app.path().app_data_dir().map_err(|e| {
-                eprintln!("Failed to get app data dir: {}", e);
+                error!("Failed to get app data dir: {}", e);
                 e
             })?;
             
             std::fs::create_dir_all(&app_dir).map_err(|e| {
-                eprintln!("Failed to create app data dir: {}", e);
+                error!("Failed to create app data dir: {}", e);
                 e
             })?;
             
@@ -435,32 +455,32 @@ pub fn run() {
             app.manage(vault::VaultState::new(db_path_str.clone()));
             app.manage(vault::CredentialManager::new(db_path_str.clone()));
             app.manage(vault::SshKeyManager::new(db_path_str.clone()).map_err(|e| {
-                eprintln!("Failed to create SSH key manager: {}", e);
+                error!("Failed to create SSH key manager: {}", e);
                 e
             })?);
             app.manage(vault::AuditLogManager::new(db_path_str.clone()));
             
             // Initialize database tables
             let conn = rusqlite::Connection::open(&db_path_str).map_err(|e| {
-                eprintln!("Failed to open database: {}", e);
+                error!("Failed to open database at {}: {}", db_path_str, e);
                 e
             })?;
             
             conn.execute_batch(include_str!("../migrations/003_security_vault.sql"))
                 .map_err(|e| {
-                    eprintln!("Failed to run security vault migrations: {}", e);
+                    error!("Failed to run security vault migrations (003): {}", e);
                     e
                 })?;
             
             conn.execute_batch(include_str!("../migrations/004_monitoring.sql"))
                 .map_err(|e| {
-                    eprintln!("Failed to run monitoring migrations: {}", e);
+                    error!("Failed to run monitoring migrations (004): {}", e);
                     e
                 })?;
             
             conn.execute_batch(include_str!("../migrations/005_consolidate_credentials.sql"))
                 .map_err(|e| {
-                    eprintln!("Failed to run consolidation migrations: {}", e);
+                    error!("Failed to run consolidation migrations (005): {}", e);
                     e
                 })?;
             
@@ -484,7 +504,7 @@ pub fn run() {
                             }
                         }
                         Err(e) => {
-                            eprintln!("Auto-lock check failed: {}", e);
+                            error!("Auto-lock check failed: {}", e);
                         }
                     }
                 }
