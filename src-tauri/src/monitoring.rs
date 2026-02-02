@@ -430,11 +430,18 @@ impl AlertEngine {
 
         if !new_alerts.is_empty() {
             let mut active = self.active_alerts.lock().unwrap();
-            active.extend(new_alerts.clone());
-            let len = active.len();
-            if len > 50 {
-                active.drain(0..len - 50);
+            
+            // Check capacity before adding to prevent unbounded growth
+            let current_len = active.len();
+            let new_len = current_len + new_alerts.len();
+            
+            if new_len > 50 {
+                // Remove oldest alerts to make room
+                let to_remove = new_len - 50;
+                active.drain(0..to_remove.min(current_len));
             }
+            
+            active.extend(new_alerts.clone());
         }
 
         (new_alerts, recoveries)

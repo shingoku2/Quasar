@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS ssh_known_hosts (
 
 CREATE INDEX IF NOT EXISTS idx_known_hosts_lookup ON ssh_known_hosts(host, port);
 
+-- Indexes for credentials table to improve search performance
+CREATE INDEX IF NOT EXISTS idx_credentials_type ON credentials_new(credential_type);
+CREATE INDEX IF NOT EXISTS idx_credentials_name ON credentials_new(name);
+
 -- Security Audit Log Table
 CREATE TABLE IF NOT EXISTS security_audit_log (
     id TEXT PRIMARY KEY,

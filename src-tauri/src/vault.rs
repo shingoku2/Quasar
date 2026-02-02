@@ -108,8 +108,13 @@ impl VaultState {
         // Generate salt for key derivation
         let salt = SaltString::generate(&mut password_hash::rand_core::OsRng);
         
-        // Hash master password for verification (using default Argon2 params)
-        let password_hash = Argon2::default()
+        // Use custom Argon2 params for key derivation (64 MB memory, 3 iterations)
+        let params = Params::new(65536, 3, 4, Some(32))
+            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
+        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
+        
+        // Hash master password for verification
+        let password_hash = argon2
             .hash_password(master_password.as_bytes(), &salt)
             .map_err(|e| format!("Failed to hash password: {}", e))?
             .to_string();
@@ -171,11 +176,15 @@ impl VaultState {
             |row| row.get(0),
         ).map_err(|_| "Salt not found")?;
 
-        // Verify password
+        // Verify password using the same params as initialization
+        let params = Params::new(65536, 3, 4, Some(32))
+            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
+        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
+        
         let parsed_hash = PasswordHash::new(&stored_hash)
             .map_err(|e| format!("Failed to parse password hash: {}", e))?;
         
-        if Argon2::default().verify_password(master_password.as_bytes(), &parsed_hash).is_err() {
+        if argon2.verify_password(master_password.as_bytes(), &parsed_hash).is_err() {
             inner.failed_attempts += 1;
             
             // Implement lockout policy
@@ -193,21 +202,14 @@ impl VaultState {
             return Err(format!("Invalid master password. {} attempts remaining", 5 - inner.failed_attempts.min(5)));
         }
 
-        // Derive master key from password
+        // Derive master key from password using hash_password_into for direct key derivation
         let salt = SaltString::from_b64(&salt_str)
             .map_err(|e| format!("Failed to parse salt: {}", e))?;
         
-        // Use custom Argon2 params for key derivation (64 MB memory, 3 iterations)
-        let params = Params::new(65536, 3, 4, Some(32))
-            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
-        
-        let password_hash = argon2.hash_password(master_password.as_bytes(), &salt)
-            .map_err(|e| format!("Failed to derive key: {}", e))?;
-        
-        let hash_bytes = password_hash.hash.ok_or("No hash output")?;
         let mut master_key = [0u8; 32];
-        master_key.copy_from_slice(hash_bytes.as_bytes());
+        // Use hash_password_into to derive key directly into the buffer
+        argon2.hash_password_into(master_password.as_bytes(), salt.as_str().as_bytes(), &mut master_key)
+            .map_err(|e| format!("Failed to derive key: {}", e))?;
 
         inner.master_key = Some(MasterKey { key: master_key });
         inner.last_activity = Some(Instant::now());
@@ -285,15 +287,7 @@ impl VaultState {
             |row| row.get(0)
         ).map_err(|_| "Vault not initialized".to_string())?;
         
-        let parsed_hash = PasswordHash::new(&stored_hash)
-            .map_err(|e| format!("Invalid password hash: {}", e))?;
-        
-        Argon2::default()
-            .verify_password(current_password.as_bytes(), &parsed_hash)
-            .map_err(|_| "Invalid current password".to_string())?;
-        
-        // Generate new hash
-        let salt = SaltString::generate(&mut OsRng);
+        // Use consistent Argon2 params
         let params = Params::new(65536, 3, 4, Some(32))
             .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
         let argon2 = Argon2::new(
@@ -302,13 +296,23 @@ impl VaultState {
             params,
         );
         
-        let password_hash = argon2.hash_password(new_password.as_bytes(), &salt)
+        let parsed_hash = PasswordHash::new(&stored_hash)
+            .map_err(|e| format!("Invalid password hash: {}", e))?;
+        
+        argon2
+            .verify_password(current_password.as_bytes(), &parsed_hash)
+            .map_err(|_| "Invalid current password".to_string())?;
+        
+        // Generate new hash and salt
+        let new_salt = SaltString::generate(&mut OsRng);
+        
+        let password_hash = argon2.hash_password(new_password.as_bytes(), &new_salt)
             .map_err(|e| format!("Failed to hash password: {}", e))?
             .to_string();
         
-        // Derive new master key
+        // Derive new master key using hash_password_into with proper salt bytes
         let mut new_master_key = [0u8; 32];
-        argon2.hash_password_into(new_password.as_bytes(), salt.as_str().as_bytes(), &mut new_master_key)
+        argon2.hash_password_into(new_password.as_bytes(), new_salt.as_str().as_bytes(), &mut new_master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
         
         // Re-encrypt all credentials with new key using transaction for safety
@@ -337,9 +341,10 @@ impl VaultState {
             }
             
             // Now delete and re-add within transaction
+            let mut first_credential_id: Option<String> = None;
             for (id, name, username, password, cred_type, metadata) in re_encrypted_credentials {
                 credential_manager.delete_credential_tx(&tx, &id)?;
-                credential_manager.add_credential_tx(
+                let new_id = credential_manager.add_credential_tx(
                     &tx,
                     &new_master_key,
                     name,
@@ -348,6 +353,18 @@ impl VaultState {
                     cred_type,
                     metadata,
                 )?;
+                
+                // Store first credential ID for validation
+                if first_credential_id.is_none() {
+                    first_credential_id = Some(new_id);
+                }
+            }
+            
+            // Validate re-encryption by attempting to decrypt first credential with new key
+            if let Some(cred_id) = first_credential_id {
+                // This will fail if encryption/decryption doesn't work with new key
+                let _ = credential_manager.get_credential(&new_master_key, &cred_id)
+                    .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
             }
             
             // Update stored hash and salt within same transaction
@@ -359,7 +376,7 @@ impl VaultState {
             
             tx.execute(
                 "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
-                rusqlite::params![salt.as_str(), now],
+                rusqlite::params![new_salt.as_str(), now],
             ).map_err(|e| format!("Failed to update salt: {}", e))?;
             
             // Commit transaction (automatically rolls back on drop if not committed)
@@ -375,7 +392,7 @@ impl VaultState {
             
             conn.execute(
                 "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
-                rusqlite::params![salt.as_str(), now],
+                rusqlite::params![new_salt.as_str(), now],
             ).map_err(|e| format!("Failed to update salt: {}", e))?;
         }
         

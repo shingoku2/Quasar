@@ -64,6 +64,7 @@ pub async fn execute_ssh_command(
 
     // Collect output by waiting for channel messages
     let mut output = Vec::new();
+    let mut exit_code: Option<u32> = None;
     let wait_result = tokio::time::timeout(
         Duration::from_secs(timeout_secs),
         async {
@@ -75,13 +76,10 @@ pub async fn execute_ssh_command(
                     Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
                         output.extend_from_slice(data);
                     }
-                    Some(russh::ChannelMsg::Eof) => break,
                     Some(russh::ChannelMsg::ExitStatus { exit_status }) => {
-                        if exit_status != 0 {
-                            return Err(format!("Command exited with status {}", exit_status));
-                        }
-                        break;
+                        exit_code = Some(exit_status);
                     }
+                    Some(russh::ChannelMsg::Eof) => break,
                     None => break,
                     _ => {}
                 }
@@ -91,7 +89,14 @@ pub async fn execute_ssh_command(
     ).await;
 
     match wait_result {
-        Ok(Ok(())) => {},
+        Ok(Ok(())) => {
+            // Check exit code after collecting all output
+            if let Some(code) = exit_code {
+                if code != 0 {
+                    return Err(format!("Command exited with status {}", code));
+                }
+            }
+        },
         Ok(Err(e)) => return Err(e),
         Err(_) => return Err("Command execution timed out".to_string()),
     }
@@ -138,6 +143,14 @@ pub async fn execute_ssh_commands_batch(
     }
 
     let mut results = Vec::new();
+    
+    // Calculate per-command timeout: divide total timeout by number of commands, with minimum of 5 seconds
+    let num_commands = commands.len() as u64;
+    let per_command_timeout = if num_commands > 0 {
+        (timeout_secs / num_commands).max(5)
+    } else {
+        timeout_secs
+    };
 
     for command in commands {
         let mut channel = session.channel_open_session()
@@ -149,8 +162,8 @@ pub async fn execute_ssh_commands_batch(
             .map_err(|e| format!("Failed to execute command: {}", e))?;
 
         let mut output = Vec::new();
+        let mut exit_code: Option<u32> = None;
         
-        let per_command_timeout = (timeout_secs / commands.len() as u64).max(5);
         let wait_result = tokio::time::timeout(
             Duration::from_secs(per_command_timeout),
             async {
@@ -162,8 +175,10 @@ pub async fn execute_ssh_commands_batch(
                         Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
                             output.extend_from_slice(data);
                         }
+                        Some(russh::ChannelMsg::ExitStatus { exit_status }) => {
+                            exit_code = Some(exit_status);
+                        }
                         Some(russh::ChannelMsg::Eof) => break,
-                        Some(russh::ChannelMsg::ExitStatus { .. }) => break,
                         None => break,
                         _ => {}
                     }
@@ -172,7 +187,14 @@ pub async fn execute_ssh_commands_batch(
         ).await;
 
         if wait_result.is_err() {
-            return Err(format!("Command '{}' timed out", command));
+            return Err(format!("Command '{}' timed out after {} seconds", command, per_command_timeout));
+        }
+        
+        // Check exit code
+        if let Some(code) = exit_code {
+            if code != 0 {
+                return Err(format!("Command '{}' exited with status {}", command, code));
+            }
         }
 
         let output_str = String::from_utf8(output)
