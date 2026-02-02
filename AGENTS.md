@@ -276,6 +276,150 @@ ProjectTitan is a Tauri-based remote infrastructure management application with 
 
 ---
 
+## Comprehensive Code Review Findings (February 2, 2026)
+
+### Overview
+Conducted thorough code review of entire codebase focusing on potential bugs, security issues, and code quality. Found **8 bugs** (3 critical, 3 high severity, 2 medium severity) requiring immediate attention.
+
+### Critical Issues Identified (NOT YET FIXED)
+
+#### 1. Credential Re-encryption Transaction Bug ⚠️ **DATA LOSS RISK**
+- **Location**: `src-tauri/src/vault.rs:314-350` (`change_master_password` function)
+- **Severity**: CRITICAL
+- **Issue**: During master password change, credential re-encryption is NOT transactional
+  - `delete_credential()` and `add_credential()` open separate DB connections
+  - Operations execute OUTSIDE the transaction scope
+  - Transaction only updates password hash/salt, not actual credentials
+  - If `add_credential()` fails after `delete_credential()` succeeds, credentials are permanently lost
+- **Impact**: User data loss during password change operation
+- **Status**: Documented, fix planned for Phase 1.1
+- **Fix Required**: Refactor to use transaction-aware methods that share the same connection
+
+#### 2. SSH/SFTP Session Resource Leaks
+- **Location**: `src-tauri/src/sftp.rs` (all 4 functions), `src-tauri/src/ssh_exec.rs` (all 3 functions)
+- **Severity**: CRITICAL
+- **Issue**: SSH sessions not explicitly closed/disconnected
+  - Relies only on Drop trait for cleanup
+  - No explicit `session.disconnect()` calls
+  - Resources not freed immediately on error paths
+- **Impact**: Connection leaks under high load, server resource exhaustion
+- **Status**: Documented, fix planned for Phase 1.2
+- **Fix Required**: Add explicit session cleanup with RAII guard pattern
+
+#### 3. Monitoring Task Panic on Initialization Failure
+- **Location**: `src-tauri/src/monitoring.rs:663-727` (`start_monitoring_task` function)
+- **Severity**: CRITICAL
+- **Issue**: Uses `.expect()` for critical initialization
+  - `app_data_dir().expect()` - panics if directory unavailable
+  - `to_str().expect()` - panics on invalid UTF-8 path
+  - `MetricsStore::new().expect()` - panics if DB fails
+  - Panic kills entire monitoring task permanently
+- **Impact**: Silent failure of entire monitoring system, no metrics collection
+- **Status**: Documented, fix planned for Phase 1.3
+- **Fix Required**: Replace `.expect()` with proper error handling and graceful degradation
+
+### High Severity Issues Identified (NOT YET FIXED)
+
+#### 4. Unsafe .unwrap() in Production Code
+- **Location**: `src-tauri/src/vault.rs:91`
+- **Severity**: HIGH
+- **Issue**: `result.is_ok() && result.unwrap() == "true"` - redundant check with panic risk
+- **Impact**: Potential panic if logic changes
+- **Status**: Documented, fix planned for Phase 2.1
+- **Fix Required**: Use `matches!(result, Ok(val) if val == "true")`
+
+#### 5. SSH Metrics Tuple Unpacking Bug
+- **Location**: `src-tauri/src/ssh_exec.rs:207-231` (`get_system_metrics` function)
+- **Severity**: HIGH
+- **Issue**: `.unzip()` on `Option<(u64, u64)>` produces incorrect nested Options
+  - Creates `(Option<u64>, Option<u64>)` instead of extracting values
+  - Memory and disk metrics may be incorrectly parsed
+- **Impact**: Incorrect system metrics, potential None values when data exists
+- **Status**: Documented, fix planned for Phase 2.2
+- **Fix Required**: Remove `.unzip()`, handle tuple directly
+
+#### 6. Hardcoded Timeout Ignores Parameter
+- **Location**: `src-tauri/src/ssh_exec.rs:148-149` (`execute_ssh_commands_batch` function)
+- **Severity**: HIGH
+- **Issue**: Function accepts `timeout_secs` parameter but uses hardcoded 10 seconds
+- **Impact**: Commands may timeout prematurely, inconsistent behavior
+- **Status**: Documented, fix planned for Phase 2.3
+- **Fix Required**: Use `timeout_secs` parameter or calculate per-command timeout
+
+### Medium Severity Issues Identified (NOT YET FIXED)
+
+#### 7. Potential Integer Overflow in Disk Calculation
+- **Location**: `src-tauri/src/monitoring.rs:280-298` (`calculate_disk_space` function)
+- **Severity**: MEDIUM
+- **Issue**: Summing disk space with `+=` can overflow on extreme configurations
+- **Impact**: Incorrect disk metrics on systems with many large disks
+- **Status**: Documented, fix planned for Phase 3.1
+- **Fix Required**: Use `saturating_add()` instead of `+=`
+
+#### 8. Missing Error Context in Vault Operations
+- **Location**: `src-tauri/src/vault.rs` (multiple locations)
+- **Severity**: MEDIUM
+- **Issue**: Generic error messages lack operation context
+  - Example: "Failed to store password hash" doesn't specify which setting
+- **Impact**: Difficult to diagnose production issues
+- **Status**: Documented, fix planned for Phase 3.2
+- **Fix Required**: Add operation context to all error messages
+
+### Code Quality Issues Identified
+
+#### Production Code Using println! for Logging
+- **Location**: `src-tauri/src/monitoring.rs:690`
+- **Issue**: Uses `println!` and `eprintln!` instead of proper logging framework
+- **Impact**: No log levels, no structured logging, harder to debug production
+- **Status**: Documented, fix planned for Phase 4.1
+- **Fix Required**: Add `log` crate, replace with `log::debug!`, `log::error!`, etc.
+
+#### Test Code Quality (Acceptable)
+- **Location**: Multiple test modules
+- **Observation**: Test code appropriately uses `.unwrap()` and `.expect()` for assertions
+- **Status**: No action required - this is acceptable practice in tests
+
+### Security Observations
+
+#### Positive Security Practices ✅
+1. Password clearing in React components (`VaultUnlockDialog.tsx:28,33`)
+2. Master key zeroization with `zeroize` crate (`vault.rs:55-59`)
+3. AES-256-GCM encryption with unique nonces
+4. Vault lockout policy and rate limiting
+
+#### Security Concerns ⚠️
+1. **SSH Host Key Verification Bypassed**
+   - **Location**: `ssh_exec.rs:12-19`, `sftp.rs:16-23`
+   - **Issue**: `check_server_key()` returns `Ok(true)` for all keys
+   - **Comment**: "we assume host keys are already verified"
+   - **Reality**: These modules don't actually use `vault::SshKeyManager`
+   - **Risk**: MITM vulnerability despite having verification infrastructure
+   - **Status**: Documented, future work to integrate actual verification
+
+### Missing/Incorrect Documentation
+
+#### Automation Engine Reference
+- **Issue**: `AGENTS.md` references `src-tauri/src/automation/engine.rs`
+- **Reality**: This file/directory does not exist in current codebase
+- **Status**: Needs documentation update or implementation
+
+### Testing Gaps Identified
+
+1. No integration tests for credential re-encryption
+2. No tests for SSH session cleanup under failure scenarios
+3. No tests for monitoring task recovery from initialization failures
+4. No stress tests for connection pooling/resource management
+
+### Implementation Plan Created
+
+Comprehensive fix plan created at: `C:\Users\User\.windsurf\plans\projecttitan-bug-fixes-c78dd8.md`
+
+**Timeline**: 5-7 days across 5 phases
+**Priority**: Phase 1 (Critical) must be completed first
+**Status**: Ready to implement starting February 3, 2026
+
+---
+
 ## Bug Fixes & Code Quality Improvements (February 1, 2026)
 
 ### Critical Issues Fixed
@@ -325,25 +469,25 @@ ProjectTitan is a Tauri-based remote infrastructure management application with 
 - **Location**: `VaultInitDialog.tsx:2` - Removed unused `X` icon import
 - **Impact**: Cleaner code, no lint warnings for these files
 
-### Remaining Known Issues
-
-These issues are documented but not yet fixed:
+### Previously Documented Issues (Status Update)
 
 #### Database Schema Drift (DOCUMENTED)
 - **Location**: `db.ts:21-32` vs `003_security_vault.sql`
 - **Issue**: `credentials` table (frontend) and `credentials_new` table (backend) coexist
 - **Impact**: Potential data inconsistency if both tables are used
 - **Recommendation**: Implement migration or consolidate tables
+- **Status**: Low priority - backend uses `credentials_new` exclusively
 
-#### SSH Command Execution Stub (DOCUMENTED)
-- **Location**: `automation/engine.rs:161-166`
-- **Issue**: SSH command execution returns simulated success without actual execution
-- **Status**: Awaiting Phase 8 implementation
+#### Automation Engine (CLARIFIED)
+- **Previous Reference**: `automation/engine.rs` mentioned in older documentation
+- **Current Status**: File/directory does not exist in codebase
+- **Clarification**: SSH command execution is implemented in `ssh_exec.rs` (Phase 8A complete)
+- **Action**: Documentation corrected in February 2, 2026 code review
 
-#### Minor Issues
+#### Minor Issues (Lower Priority)
 - Potential memory leak in terminal resize observer (needs null check)
 - Missing timeout handling for vault status check
-- Inconsistent error message formatting across codebase
+- Inconsistent error message formatting across codebase (addressed in Phase 3.2 of fix plan)
 
 ---
 
