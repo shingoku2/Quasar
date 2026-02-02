@@ -1,9 +1,11 @@
+use tauri::{AppHandle, Emitter};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
+use serde::Serialize;
+use log::error;
 use std::thread;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DiscoveredHost {
     pub name: String,
     pub address: String,
@@ -23,7 +25,7 @@ pub fn start_mdns_discovery(app: AppHandle) {
         for service_type in &service_types {
             match mdns.browse(service_type) {
                 Ok(receiver) => receivers.push(receiver),
-                Err(e) => eprintln!("Failed to browse {}: {}", service_type, e),
+                Err(e) => error!("Failed to browse {}: {}", service_type, e),
             }
         }
 

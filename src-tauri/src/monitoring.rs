@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, System};
 use tauri::{Emitter, Manager};
 use tokio::time::interval;
+use log::{info, error, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMetrics {
@@ -433,11 +434,11 @@ impl AlertEngine {
             
             // Check capacity before adding to prevent unbounded growth
             let current_len = active.len();
-            let new_len = current_len + new_alerts.len();
+            let new_len = current_len.saturating_add(new_alerts.len());
             
             if new_len > 50 {
                 // Remove oldest alerts to make room
-                let to_remove = new_len - 50;
+                let to_remove = new_len.saturating_sub(50);
                 // Ensure we don't try to remove more than we have
                 if to_remove > 0 && current_len > 0 {
                     let remove_count = to_remove.min(current_len);
@@ -450,7 +451,7 @@ impl AlertEngine {
             // Final safety check: if still over limit, truncate to 50
             let final_len = active.len();
             if final_len > 50 {
-                active.drain(0..(final_len - 50));
+                active.drain(0..(final_len.saturating_sub(50)));
             }
         }
 
@@ -489,7 +490,7 @@ impl MetricsStore {
 
     pub fn save_metrics(&self, metrics: &SystemMetrics, host: &str) -> Result<(), String> {
         let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+            .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
 
         // Store core metrics and additional data as JSON
         let metadata = serde_json::json!({
@@ -529,14 +530,14 @@ impl MetricsStore {
                 metrics.uptime_seconds as i64,
                 metadata.to_string(),
             ],
-        ).map_err(|e| format!("Failed to insert metrics: {}", e))?;
+        ).map_err(|e| format!("Failed to insert metrics for host '{}' at {}: {}", host, metrics.timestamp, e))?;
 
         Ok(())
     }
 
     pub fn get_metrics_range(&self, start: u64, end: u64, host: &str) -> Result<Vec<SystemMetrics>, String> {
         let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+            .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
 
         let mut stmt = conn.prepare(
             "SELECT timestamp, cpu_usage, memory_usage, disk_usage,
@@ -545,7 +546,7 @@ impl MetricsStore {
              FROM metrics_history
              WHERE host = ?1 AND timestamp >= ?2 AND timestamp <= ?3
              ORDER BY timestamp ASC"
-        ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+        ).map_err(|e| format!("Failed to prepare metrics query: {}", e))?;
 
         let metrics_iter = stmt.query_map(
             rusqlite::params![host, start as i64, end as i64],
@@ -600,7 +601,7 @@ impl MetricsStore {
 
     pub fn cleanup_old_metrics(&self) -> Result<usize, String> {
         let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+            .map_err(|e| format!("Failed to open metrics database for cleanup at {}: {}", self.db_path, e))?;
 
         let cutoff_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -610,14 +611,14 @@ impl MetricsStore {
         let deleted = conn.execute(
             "DELETE FROM metrics_history WHERE timestamp < ?1",
             rusqlite::params![cutoff_time as i64],
-        ).map_err(|e| format!("Failed to cleanup metrics: {}", e))?;
+        ).map_err(|e| format!("Failed to cleanup old metrics (older than {}): {}", cutoff_time, e))?;
 
         Ok(deleted)
     }
 
     pub fn save_alert(&self, alert: &Alert, host: &str) -> Result<(), String> {
         let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+            .map_err(|e| format!("Failed to open alert database at {}: {}", self.db_path, e))?;
 
         conn.execute(
             "INSERT INTO alert_history (
@@ -631,21 +632,21 @@ impl MetricsStore {
                 format!("{:?}", alert.severity),
                 alert.timestamp as i64,
             ],
-        ).map_err(|e| format!("Failed to insert alert: {}", e))?;
+        ).map_err(|e| format!("Failed to insert alert '{}' for rule '{}': {}", alert.id, alert.rule_id, e))?;
 
         Ok(())
     }
 
     pub fn get_alert_history(&self, start: u64, end: u64) -> Result<Vec<Alert>, String> {
         let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+            .map_err(|e| format!("Failed to open alert database at {}: {}", self.db_path, e))?;
 
         let mut stmt = conn.prepare(
             "SELECT alert_id, rule_id, message, severity, triggered_at, acknowledged_at
              FROM alert_history
              WHERE triggered_at >= ?1 AND triggered_at <= ?2
              ORDER BY triggered_at DESC"
-        ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+        ).map_err(|e| format!("Failed to prepare alert history query: {}", e))?;
 
         let alerts_iter = stmt.query_map(
             rusqlite::params![start as i64, end as i64],
@@ -686,18 +687,31 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     let mut ticker = interval(Duration::from_secs(interval_secs));
 
     // Try to initialize metrics store, but continue without it if it fails
-    let metrics_store = app_handle.path().app_data_dir()
-        .ok()
-        .and_then(|path| path.join("titan.db").to_str().map(|s| s.to_string()))
-        .and_then(|db_path| {
-            MetricsStore::new(db_path, 30)
-                .map_err(|e| {
-                    eprintln!("Failed to create metrics store: {}", e);
-                    eprintln!("Monitoring will continue without persistence");
-                    e
-                })
-                .ok()
-        });
+    let metrics_store = match app_handle.path().app_data_dir() {
+        Ok(path) => {
+            let db_path = path.join("titan.db");
+            if let Some(db_path_str) = db_path.to_str() {
+                match MetricsStore::new(db_path_str.to_string(), 30) {
+                    Ok(store) => Some(store),
+                    Err(e) => {
+                        error!("[MONITORING] CRITICAL: Failed to initialize metrics store: {}", e);
+                        None
+                    }
+                }
+            } else {
+                error!("[MONITORING] ERROR: Invalid database path");
+                None
+            }
+        },
+        Err(e) => {
+            error!("[MONITORING] ERROR: Failed to get app data directory: {}", e);
+            None
+        }
+    };
+
+    if metrics_store.is_none() {
+        warn!("[MONITORING] WARNING: Persistence disabled. Metrics and alerts will not be saved.");
+    }
 
     let mut save_counter = 0u32;
     let mut cleanup_counter = 0u32;
@@ -710,7 +724,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
         let metrics = collector.collect();
         let (alerts, recoveries) = alert_engine.evaluate(&metrics);
 
-        println!("Emitting system-metrics: cpu={:.1}%, mem={:.1}%", metrics.cpu_usage_percent, metrics.memory_usage_percent);
+        // Emit real-time metrics
         let _ = app_handle.emit("system-metrics", metrics.clone());
 
         // Save metrics to database every 30 seconds (if store available)
@@ -719,7 +733,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
             if save_counter >= save_interval {
                 save_counter = 0;
                 if let Err(e) = store.save_metrics(&metrics, "localhost") {
-                    eprintln!("Failed to save metrics: {}", e);
+                    error!("[MONITORING] ERROR: Failed to save metrics: {}", e);
                 }
             }
 
@@ -728,8 +742,8 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
             if cleanup_counter >= cleanup_interval {
                 cleanup_counter = 0;
                 match store.cleanup_old_metrics() {
-                    Ok(deleted) => println!("Cleaned up {} old metric records", deleted),
-                    Err(e) => eprintln!("Failed to cleanup metrics: {}", e),
+                    Ok(deleted) => info!("[MONITORING] INFO: Cleaned up {} old metric records", deleted),
+                    Err(e) => error!("[MONITORING] ERROR: Failed to cleanup metrics: {}", e),
                 }
             }
         }
@@ -745,7 +759,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
             if let Some(ref store) = metrics_store {
                 for alert in &alerts {
                     if let Err(e) = store.save_alert(alert, "localhost") {
-                        eprintln!("Failed to save alert: {}", e);
+                        error!("[MONITORING] ERROR: Failed to save alert {}: {}", alert.id, e);
                     }
                 }
             }

@@ -42,8 +42,11 @@ pub async fn check_ping(host: &str) -> Result<u32, String> {
     }
 }
 
+use tauri::AppHandle;
+
 /// Check health via SSH connection and command execution
 pub async fn check_ssh_health(
+    app_handle: AppHandle,
     host: &str,
     port: u16,
     username: &str,
@@ -65,7 +68,7 @@ pub async fn check_ssh_health(
     
     // Try to get system metrics via SSH if credentials provided
     let metrics = if let Some(pass) = password {
-        match crate::ssh_exec::get_system_metrics(host, port, username, pass).await {
+        match crate::ssh_exec::get_system_metrics(app_handle, host, port, username, pass).await {
             Ok(m) => Some(m),
             Err(_) => None, // Failed to get metrics, but host is reachable
         }

@@ -6,6 +6,7 @@ use russh::*;
 use russh::keys::*;
 use tokio::sync::Mutex as TokioMutex;
 use crate::vault::SshKeyManager;
+use log::error;
 
 #[derive(Clone)]
 pub struct Client {
@@ -62,7 +63,7 @@ impl client::Handler for Client {
                 }
             }
             Err(e) => {
-                eprintln!("Host key verification error: {}", e);
+                error!("Host key verification error: {}", e);
                 Err(russh::Error::Disconnect)
             }
         }
@@ -152,7 +153,7 @@ pub async fn connect_ssh(
         return Err("No password provided".to_string());
     };
 
-    let mut channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
+    let channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
     channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;
     channel.request_shell(true).await.map_err(|e| e.to_string())?;
 
@@ -198,39 +199,47 @@ pub async fn connect_ssh(
         loop {
             tokio::select! {
                 _ = interval.tick() => {
-                    let (bytes, last_time) = {
+                    let stats_result = {
                         let state = app_handle_clone.state::<SshState>();
                         let sessions = state.sessions.lock().unwrap();
                         if let Some(c) = sessions.get(&id_clone) {
-                            let b = *c.bytes_received.lock().unwrap();
-                            let t = *c.last_stats_check.lock().unwrap();
+                            // Hold both locks for the entire read-modify-write operation
+                            let mut bytes_guard = c.bytes_received.lock().unwrap();
+                            let mut time_guard = c.last_stats_check.lock().unwrap();
                             
-                            *c.bytes_received.lock().unwrap() = 0;
-                            *c.last_stats_check.lock().unwrap() = Instant::now();
+                            let b = *bytes_guard;
+                            let t = *time_guard;
                             
-                            (b, t)
+                            *bytes_guard = 0;
+                            *time_guard = Instant::now();
+                            
+                            Some((b, t))
                         } else {
-                            break;
+                            None
                         }
                     };
 
-                    let elapsed = last_time.elapsed().as_secs_f64();
-                    let kbps = if elapsed > 0.0 {
-                        (bytes as f64 * 8.0) / (elapsed * 1024.0)
-                    } else {
-                        0.0
-                    };
+                    if let Some((bytes, last_time)) = stats_result {
+                        let elapsed = last_time.elapsed().as_secs_f64();
+                        let kbps = if elapsed > 0.0 {
+                            (bytes as f64 * 8.0) / (elapsed * 1024.0)
+                        } else {
+                            0.0
+                        };
 
-                    let bandwidth_str = if kbps > 1024.0 {
-                        format!("{:.1} Mbps", kbps / 1024.0)
-                    } else {
-                        format!("{:.1} Kbps", kbps)
-                    };
+                        let bandwidth_str = if kbps > 1024.0 {
+                            format!("{:.1} Mbps", kbps / 1024.0)
+                        } else {
+                            format!("{:.1} Kbps", kbps)
+                        };
 
-                    let _ = app_handle_clone.emit(&format!("ssh_stats_{}", id_clone), serde_json::json!({
-                        "bandwidth": bandwidth_str,
-                        "latency": 0
-                    }));
+                        let _ = app_handle_clone.emit(&format!("ssh_stats_{}", id_clone), serde_json::json!({
+                            "bandwidth": bandwidth_str,
+                            "latency": 0
+                        }));
+                    } else {
+                        break;
+                    }
                 }
                 _ = stats_cancel_rx.recv() => {
                     // Explicitly cancelled - clean exit
