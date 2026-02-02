@@ -214,9 +214,12 @@ impl VaultState {
             .map_err(|e| format!("Failed to decode salt: {}", e))?;
         
         let mut master_key = [0u8; 32];
-        // Use hash_password_into to derive key directly into the buffer
-        // Salt's as_str() returns the decoded bytes as a string, convert to bytes
-        argon2.hash_password_into(master_password.as_bytes(), salt.as_str().as_bytes(), &mut master_key)
+        // FIX: Decode base64 salt to raw bytes - binary data must not be converted through UTF-8
+        // Per NIST SP 800-132: salt is arbitrary binary data, not text
+        let mut salt_bytes = [0u8; 64]; // Max salt length
+        let salt_decoded = salt.decode_b64(&mut salt_bytes)
+            .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
+        argon2.hash_password_into(master_password.as_bytes(), salt_decoded, &mut master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
 
         inner.master_key = Some(MasterKey { key: master_key });
@@ -288,8 +291,8 @@ impl VaultState {
         // Set flag to prevent auto-lock during password change
         inner.changing_password = true;
         
-        // Verify current password
-        let conn = rusqlite::Connection::open(&inner.db_path)
+        // FIX: Use single connection for entire operation to prevent connection leak
+        let mut conn = rusqlite::Connection::open(&inner.db_path)
             .map_err(|e| format!("Failed to open database: {}", e))?;
         
         let stored_hash: String = conn.query_row(
@@ -323,10 +326,13 @@ impl VaultState {
         
         // Derive new master key using hash_password_into with proper salt bytes
         let mut new_master_key = [0u8; 32];
-        // Decode the base64 salt to get the actual salt bytes
+        // FIX: Decode base64 salt to raw bytes (not UTF-8 string)
         let new_salt_decoded = Salt::from_b64(new_salt.as_str())
-            .map_err(|e| format!("Failed to decode salt: {}", e))?;
-        argon2.hash_password_into(new_password.as_bytes(), new_salt_decoded.as_str().as_bytes(), &mut new_master_key)
+            .map_err(|e| format!("Failed to parse salt: {}", e))?;
+        let mut new_salt_bytes = [0u8; 64]; // Max salt length
+        let new_salt_raw = new_salt_decoded.decode_b64(&mut new_salt_bytes)
+            .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
+        argon2.hash_password_into(new_password.as_bytes(), new_salt_raw, &mut new_master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
         
         // Re-encrypt all credentials with new key using transaction for safety
@@ -334,10 +340,8 @@ impl VaultState {
             let credential_manager = credentials::CredentialManager::new(inner.db_path.clone());
             let summaries = credential_manager.list_credentials()?;
             
-            // Start transaction - need mutable connection
-            let mut conn_mut = rusqlite::Connection::open(&inner.db_path)
-                .map_err(|e| format!("Failed to open database: {}", e))?;
-            let tx = conn_mut.transaction()
+            // FIX: Reuse existing connection for transaction (no second connection)
+            let tx = conn.transaction()
                 .map_err(|e| format!("Failed to begin transaction: {}", e))?;
             
             // Collect all re-encrypted credentials first
