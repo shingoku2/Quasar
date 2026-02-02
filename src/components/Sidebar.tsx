@@ -6,11 +6,12 @@ import {
   Workflow, 
   Bot, 
   Settings,
-  Shield
+  Shield,
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'automation' | 'ai' | 'settings';
+export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'automation' | 'ai' | 'security' | 'settings';
 
 interface SidebarProps {
   activeView: ViewId;
@@ -23,6 +24,7 @@ const navItems = [
   { id: 'monitoring', icon: Activity, label: 'Monitoring' },
   { id: 'automation', icon: Workflow, label: 'Automation' },
   { id: 'ai', icon: Bot, label: 'AI Assistant' },
+  { id: 'security', icon: Shield, label: 'Security' },
   { id: 'settings', icon: Settings, label: 'Settings' },
 ] as const;
 
@@ -31,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
     <aside className="w-16 lg:w-64 bg-bg-sidebar border-r border-gray-800 flex flex-col h-full transition-all duration-300">
       <div className="p-4 lg:p-6 flex items-center space-x-3 border-b border-gray-800 mb-2">
         <div className="bg-accent p-1.5 rounded-lg shadow-lg shadow-accent/20">
-          <Shield className="h-6 w-6 text-white" />
+          <Lock className="h-6 w-6 text-white" />
         </div>
         <span className="font-bold text-lg tracking-tight hidden lg:block text-white">TITAN NEXUS</span>
       </div>

@@ -107,6 +107,7 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
             })}
           </div>
         ) : (
+          // Render all tabs but hide inactive ones to keep sessions alive
           tabs.map(tab => (
               <div 
                 key={tab.id} 

@@ -58,12 +58,16 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
   }, [workflowId]);
 
   const loadExecutions = async () => {
-    if (!workflowId) return;
     setLoading(true);
     try {
-      // This would call the backend to get execution history
-      // For now, we'll use an empty array
-      setExecutions([]);
+      const result = await invoke<ExecutionRecord[]>('list_executions', {
+        workflowId: workflowId || null,
+      });
+      // Sort by started_at descending (most recent first)
+      const sorted = result.sort((a, b) => 
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+      );
+      setExecutions(sorted);
     } catch (err) {
       console.error('Failed to load executions:', err);
     } finally {

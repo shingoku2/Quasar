@@ -14,14 +14,14 @@ export interface Alert {
 }
 
 export interface SystemMetrics {
-  cpu_usage: number;
-  memory_used: number;
-  memory_total: number;
+  cpu_usage_percent: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
   memory_usage_percent: number;
-  disk_read_bytes: number;
-  disk_write_bytes: number;
-  network_rx_bytes: number;
-  network_tx_bytes: number;
+  disk_read_mb: number;
+  disk_write_mb: number;
+  network_rx_mb: number;
+  network_tx_mb: number;
   timestamp: number;
 }
 
@@ -102,9 +102,9 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
               <p className="text-[10px] text-gray-500 uppercase">CPU</p>
               <p className={cn(
                 "text-xs font-mono font-bold",
-                metrics.cpu_usage > 80 ? "text-alert" : metrics.cpu_usage > 60 ? "text-warning" : "text-gray-300"
+                metrics.cpu_usage_percent > 80 ? "text-alert" : metrics.cpu_usage_percent > 60 ? "text-warning" : "text-gray-300"
               )}>
-                {metrics.cpu_usage.toFixed(1)}%
+                {metrics.cpu_usage_percent.toFixed(1)}%
               </p>
             </div>
           </div>
@@ -125,7 +125,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
             <div>
               <p className="text-[10px] text-gray-500 uppercase">Disk I/O</p>
               <p className="text-xs font-mono font-bold text-gray-300">
-                {formatBytes(metrics.disk_read_bytes + metrics.disk_write_bytes)}
+                {formatBytes((metrics.disk_read_mb + metrics.disk_write_mb) * 1024 * 1024)}
               </p>
             </div>
           </div>

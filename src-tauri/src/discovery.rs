@@ -19,31 +19,41 @@ pub fn start_mdns_discovery(app: AppHandle) {
         // Browse for SSH services and generic workstation services
         let service_types = vec!["_ssh._tcp.local.", "_workstation._tcp.local."];
 
-        for service_type in service_types {
-            let receiver = mdns.browse(service_type).expect("Failed to browse");
+        let mut receivers = Vec::new();
+        for service_type in &service_types {
+            match mdns.browse(service_type) {
+                Ok(receiver) => receivers.push(receiver),
+                Err(e) => eprintln!("Failed to browse {}: {}", service_type, e),
+            }
+        }
 
-            while let Ok(event) = receiver.recv() {
-                match event {
-                    ServiceEvent::ServiceResolved(info) => {
-                        let addresses = info.get_addresses();
-                        let port = info.get_port();
-                        let name = info.get_fullname();
-                        
-                        if let Some(addr) = addresses.iter().next() {
-                            let host = DiscoveredHost {
-                                name: name.to_string(),
-                                address: addr.to_string(),
-                                port,
-                                service_type: service_type.to_string(),
-                            };
+        // Poll all receivers with timeout
+        loop {
+            for receiver in &receivers {
+                if let Ok(event) = receiver.recv_timeout(Duration::from_millis(100)) {
+                    match event {
+                        ServiceEvent::ServiceResolved(info) => {
+                            let addresses = info.get_addresses();
+                            let port = info.get_port();
+                            let name = info.get_fullname();
                             
-                            // Emit event to frontend
-                            let _ = app.emit("host-discovered", host);
+                            if let Some(addr) = addresses.iter().next() {
+                                let host = DiscoveredHost {
+                                    name: name.to_string(),
+                                    address: addr.to_string(),
+                                    port,
+                                    service_type: "discovered".to_string(),
+                                };
+                                
+                                // Emit event to frontend
+                                let _ = app.emit("host-discovered", host);
+                            }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
+            thread::sleep(Duration::from_millis(100));
         }
     });
 }
