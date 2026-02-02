@@ -7,6 +7,7 @@ use tokio::time::interval;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMetrics {
+    // Existing metrics
     pub cpu_usage_percent: f32,
     pub memory_used_mb: u64,
     pub memory_total_mb: u64,
@@ -16,6 +17,43 @@ pub struct SystemMetrics {
     pub network_rx_mb: u64,
     pub network_tx_mb: u64,
     pub timestamp: u64,
+    
+    // System info
+    pub uptime_seconds: u64,
+    pub load_average_1m: f32,
+    pub load_average_5m: f32,
+    pub load_average_15m: f32,
+    pub process_count: usize,
+    pub boot_time: u64,
+    
+    // CPU details
+    pub cpu_count: usize,
+    pub cpu_per_core: Vec<f32>,
+    pub cpu_frequency_mhz: u64,
+    
+    // Disk details
+    pub disk_total_gb: u64,
+    pub disk_used_gb: u64,
+    pub disk_free_gb: u64,
+    pub disk_usage_percent: f32,
+    
+    // Network details
+    pub network_packets_rx: u64,
+    pub network_packets_tx: u64,
+    pub network_errors_rx: u64,
+    pub network_errors_tx: u64,
+    
+    // Top processes
+    pub top_cpu_processes: Vec<ProcessInfo>,
+    pub top_memory_processes: Vec<ProcessInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    pub cpu_usage: f32,
+    pub memory_mb: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +64,12 @@ pub struct AlertRule {
     pub threshold: f64,
     pub severity: AlertSeverity,
     pub enabled: bool,
+    #[serde(default = "default_cooldown")]
+    pub cooldown_seconds: u64,
+}
+
+fn default_cooldown() -> u64 {
+    300 // 5 minutes default cooldown
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +103,13 @@ pub struct Alert {
     pub severity: AlertSeverity,
     pub timestamp: u64,
     pub acknowledged: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlertRecovery {
+    pub rule_id: String,
+    pub message: String,
+    pub recovered_at: u64,
 }
 
 pub struct MetricsCollector {
@@ -98,6 +149,7 @@ impl MetricsCollector {
         let disks = Disks::new_with_refreshed_list();
         let networks = Networks::new_with_refreshed_list();
 
+        // Existing metrics
         let cpu_usage = self.system.global_cpu_usage();
         let memory_used = self.system.used_memory();
         let memory_total = self.system.total_memory();
@@ -124,12 +176,34 @@ impl MetricsCollector {
         self.last_network_tx = net_tx;
         self.last_update = now;
 
+        // New metrics - System info
+        let load_avg = System::load_average();
+        let uptime = System::uptime();
+        let boot_time = System::boot_time();
+        let process_count = self.system.processes().len();
+
+        // New metrics - CPU details
+        let cpu_count = self.system.cpus().len();
+        let cpu_per_core: Vec<f32> = self.system.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
+        let cpu_frequency_mhz = self.system.cpus().first().map(|cpu| cpu.frequency()).unwrap_or(0);
+
+        // New metrics - Disk details
+        let (disk_total_gb, disk_used_gb, disk_free_gb, disk_usage_percent) = Self::calculate_disk_space(&disks);
+
+        // New metrics - Network details
+        let (network_packets_rx, network_packets_tx, network_errors_rx, network_errors_tx) = Self::get_network_packets(&networks);
+
+        // New metrics - Top processes
+        let top_cpu_processes = self.get_top_processes_by_cpu(5);
+        let top_memory_processes = self.get_top_processes_by_memory(5);
+
         SystemMetrics {
+            // Existing metrics
             cpu_usage_percent: cpu_usage,
-            memory_used_mb: memory_used / 1024 / 1024, // Convert bytes to MB
+            memory_used_mb: memory_used / 1024 / 1024,
             memory_total_mb: memory_total / 1024 / 1024,
             memory_usage_percent,
-            disk_read_mb: disk_read_rate / 1024 / 1024, // Convert bytes/s to MB/s
+            disk_read_mb: disk_read_rate / 1024 / 1024,
             disk_write_mb: disk_write_rate / 1024 / 1024,
             network_rx_mb: net_rx_rate / 1024 / 1024,
             network_tx_mb: net_tx_rate / 1024 / 1024,
@@ -137,6 +211,35 @@ impl MetricsCollector {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
+            
+            // System info
+            uptime_seconds: uptime,
+            load_average_1m: load_avg.one as f32,
+            load_average_5m: load_avg.five as f32,
+            load_average_15m: load_avg.fifteen as f32,
+            process_count,
+            boot_time,
+            
+            // CPU details
+            cpu_count,
+            cpu_per_core,
+            cpu_frequency_mhz,
+            
+            // Disk details
+            disk_total_gb,
+            disk_used_gb,
+            disk_free_gb,
+            disk_usage_percent,
+            
+            // Network details
+            network_packets_rx,
+            network_packets_tx,
+            network_errors_rx,
+            network_errors_tx,
+            
+            // Top processes
+            top_cpu_processes,
+            top_memory_processes,
         }
     }
 
@@ -159,12 +262,82 @@ impl MetricsCollector {
         }
         (rx, tx)
     }
+
+    fn get_network_packets(networks: &Networks) -> (u64, u64, u64, u64) {
+        let mut packets_rx = 0u64;
+        let mut packets_tx = 0u64;
+        let mut errors_rx = 0u64;
+        let mut errors_tx = 0u64;
+        for (_, data) in networks.iter() {
+            packets_rx += data.total_packets_received();
+            packets_tx += data.total_packets_transmitted();
+            errors_rx += data.total_errors_on_received();
+            errors_tx += data.total_errors_on_transmitted();
+        }
+        (packets_rx, packets_tx, errors_rx, errors_tx)
+    }
+
+    fn calculate_disk_space(disks: &Disks) -> (u64, u64, u64, f32) {
+        let mut total = 0u64;
+        let mut available = 0u64;
+        for disk in disks.list() {
+            total += disk.total_space();
+            available += disk.available_space();
+        }
+        let used = total.saturating_sub(available);
+        let usage_percent = if total > 0 {
+            (used as f64 / total as f64 * 100.0) as f32
+        } else {
+            0.0
+        };
+        // Convert bytes to GB
+        let total_gb = total / 1024 / 1024 / 1024;
+        let used_gb = used / 1024 / 1024 / 1024;
+        let free_gb = available / 1024 / 1024 / 1024;
+        (total_gb, used_gb, free_gb, usage_percent)
+    }
+
+    fn get_top_processes_by_cpu(&self, limit: usize) -> Vec<ProcessInfo> {
+        let mut processes: Vec<_> = self.system.processes()
+            .iter()
+            .map(|(pid, process)| ProcessInfo {
+                pid: pid.as_u32(),
+                name: process.name().to_string_lossy().to_string(),
+                cpu_usage: process.cpu_usage(),
+                memory_mb: process.memory() / 1024 / 1024,
+            })
+            .collect();
+        
+        processes.sort_by(|a, b| b.cpu_usage.partial_cmp(&a.cpu_usage).unwrap_or(std::cmp::Ordering::Equal));
+        processes.truncate(limit);
+        processes
+    }
+
+    fn get_top_processes_by_memory(&self, limit: usize) -> Vec<ProcessInfo> {
+        let mut processes: Vec<_> = self.system.processes()
+            .iter()
+            .map(|(pid, process)| ProcessInfo {
+                pid: pid.as_u32(),
+                name: process.name().to_string_lossy().to_string(),
+                cpu_usage: process.cpu_usage(),
+                memory_mb: process.memory() / 1024 / 1024,
+            })
+            .collect();
+        
+        processes.sort_by(|a, b| b.memory_mb.cmp(&a.memory_mb));
+        processes.truncate(limit);
+        processes
+    }
 }
+
+use std::collections::HashMap;
 
 pub struct AlertEngine {
     rules: Arc<Mutex<Vec<AlertRule>>>,
     active_alerts: Arc<Mutex<Vec<Alert>>>,
     alert_counter: Arc<Mutex<u64>>,
+    cooldown_tracker: Arc<Mutex<HashMap<String, Instant>>>,
+    last_alert_state: Arc<Mutex<HashMap<String, bool>>>,
 }
 
 impl AlertEngine {
@@ -173,6 +346,8 @@ impl AlertEngine {
             rules: Arc::new(Mutex::new(Vec::new())),
             active_alerts: Arc::new(Mutex::new(Vec::new())),
             alert_counter: Arc::new(Mutex::new(0)),
+            cooldown_tracker: Arc::new(Mutex::new(HashMap::new())),
+            last_alert_state: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -191,20 +366,19 @@ impl AlertEngine {
         self.rules.lock().unwrap().clone()
     }
 
-    pub fn evaluate(&self, metrics: &SystemMetrics) -> Vec<Alert> {
+    pub fn evaluate(&self, metrics: &SystemMetrics) -> (Vec<Alert>, Vec<AlertRecovery>) {
         let rules = self.rules.lock().unwrap();
         let mut new_alerts = Vec::new();
+        let mut recoveries = Vec::new();
         let mut counter = self.alert_counter.lock().unwrap();
+        let mut cooldowns = self.cooldown_tracker.lock().unwrap();
+        let mut alert_states = self.last_alert_state.lock().unwrap();
 
         for rule in rules.iter().filter(|r| r.enabled) {
             let value = match rule.metric {
                 MetricType::CpuUsage => metrics.cpu_usage_percent as f64,
                 MetricType::MemoryUsage => metrics.memory_usage_percent as f64,
-                MetricType::DiskUsage => {
-                    // Calculate disk usage as percentage (would need actual disk capacity info)
-                    // For now, skip as we don't have disk capacity in metrics
-                    continue;
-                }
+                MetricType::DiskUsage => metrics.disk_usage_percent as f64,
             };
 
             let triggered = match rule.operator {
@@ -215,7 +389,31 @@ impl AlertEngine {
                 ComparisonOperator::LessThanOrEqual => value <= rule.threshold,
             };
 
+            let was_triggered = alert_states.get(&rule.id).copied().unwrap_or(false);
+
+            // Check for recovery
+            if was_triggered && !triggered {
+                recoveries.push(AlertRecovery {
+                    rule_id: rule.id.clone(),
+                    message: format!("{:?} recovered: now {:.1}% (threshold: {:.1}%)", rule.metric, value, rule.threshold),
+                    recovered_at: metrics.timestamp,
+                });
+                alert_states.insert(rule.id.clone(), false);
+                cooldowns.remove(&rule.id);
+            }
+
+            // Check if alert should be triggered
             if triggered {
+                alert_states.insert(rule.id.clone(), true);
+
+                // Check cooldown
+                if let Some(last_alert_time) = cooldowns.get(&rule.id) {
+                    if last_alert_time.elapsed().as_secs() < rule.cooldown_seconds {
+                        continue; // Still in cooldown, skip alert
+                    }
+                }
+
+                // Trigger alert
                 *counter += 1;
                 let alert = Alert {
                     id: format!("alert-{}", *counter),
@@ -226,6 +424,7 @@ impl AlertEngine {
                     acknowledged: false,
                 };
                 new_alerts.push(alert);
+                cooldowns.insert(rule.id.clone(), Instant::now());
             }
         }
 
@@ -238,7 +437,7 @@ impl AlertEngine {
             }
         }
 
-        new_alerts
+        (new_alerts, recoveries)
     }
 
     pub fn get_active_alerts(&self) -> Vec<Alert> {
@@ -258,6 +457,209 @@ impl AlertEngine {
     }
 }
 
+pub struct MetricsStore {
+    db_path: String,
+    retention_days: u32,
+}
+
+impl MetricsStore {
+    pub fn new(db_path: String, retention_days: u32) -> Result<Self, String> {
+        Ok(Self {
+            db_path,
+            retention_days,
+        })
+    }
+
+    pub fn save_metrics(&self, metrics: &SystemMetrics, host: &str) -> Result<(), String> {
+        let conn = rusqlite::Connection::open(&self.db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
+
+        // Store core metrics and additional data as JSON
+        let metadata = serde_json::json!({
+            "cpu_count": metrics.cpu_count,
+            "cpu_per_core": metrics.cpu_per_core,
+            "cpu_frequency_mhz": metrics.cpu_frequency_mhz,
+            "disk_total_gb": metrics.disk_total_gb,
+            "disk_used_gb": metrics.disk_used_gb,
+            "disk_free_gb": metrics.disk_free_gb,
+            "boot_time": metrics.boot_time,
+            "network_errors_rx": metrics.network_errors_rx,
+            "network_errors_tx": metrics.network_errors_tx,
+            "top_cpu_processes": metrics.top_cpu_processes,
+            "top_memory_processes": metrics.top_memory_processes,
+        });
+
+        conn.execute(
+            "INSERT INTO metrics_history (
+                timestamp, host, cpu_usage, memory_usage, disk_usage,
+                network_rx, network_tx, network_packets_rx, network_packets_tx,
+                load_avg_1m, load_avg_5m, load_avg_15m, process_count, uptime, metadata
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            rusqlite::params![
+                metrics.timestamp as i64,
+                host,
+                metrics.cpu_usage_percent,
+                metrics.memory_usage_percent,
+                metrics.disk_usage_percent,
+                metrics.network_rx_mb as i64,
+                metrics.network_tx_mb as i64,
+                metrics.network_packets_rx as i64,
+                metrics.network_packets_tx as i64,
+                metrics.load_average_1m,
+                metrics.load_average_5m,
+                metrics.load_average_15m,
+                metrics.process_count as i64,
+                metrics.uptime_seconds as i64,
+                metadata.to_string(),
+            ],
+        ).map_err(|e| format!("Failed to insert metrics: {}", e))?;
+
+        Ok(())
+    }
+
+    pub fn get_metrics_range(&self, start: u64, end: u64, host: &str) -> Result<Vec<SystemMetrics>, String> {
+        let conn = rusqlite::Connection::open(&self.db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
+
+        let mut stmt = conn.prepare(
+            "SELECT timestamp, cpu_usage, memory_usage, disk_usage,
+                    network_rx, network_tx, network_packets_rx, network_packets_tx,
+                    load_avg_1m, load_avg_5m, load_avg_15m, process_count, uptime, metadata
+             FROM metrics_history
+             WHERE host = ?1 AND timestamp >= ?2 AND timestamp <= ?3
+             ORDER BY timestamp ASC"
+        ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+
+        let metrics_iter = stmt.query_map(
+            rusqlite::params![host, start as i64, end as i64],
+            |row| {
+                let metadata_str: String = row.get(13)?;
+                let metadata: serde_json::Value = serde_json::from_str(&metadata_str)
+                    .unwrap_or(serde_json::json!({}));
+
+                Ok(SystemMetrics {
+                    timestamp: row.get::<_, i64>(0)? as u64,
+                    cpu_usage_percent: row.get(1)?,
+                    memory_usage_percent: row.get(2)?,
+                    disk_usage_percent: row.get(3)?,
+                    network_rx_mb: row.get::<_, i64>(4)? as u64,
+                    network_tx_mb: row.get::<_, i64>(5)? as u64,
+                    network_packets_rx: row.get::<_, i64>(6)? as u64,
+                    network_packets_tx: row.get::<_, i64>(7)? as u64,
+                    load_average_1m: row.get(8)?,
+                    load_average_5m: row.get(9)?,
+                    load_average_15m: row.get(10)?,
+                    process_count: row.get::<_, i64>(11)? as usize,
+                    uptime_seconds: row.get::<_, i64>(12)? as u64,
+                    // Defaults for fields not stored in main table
+                    memory_used_mb: 0,
+                    memory_total_mb: 0,
+                    disk_read_mb: 0,
+                    disk_write_mb: 0,
+                    boot_time: metadata["boot_time"].as_u64().unwrap_or(0),
+                    cpu_count: metadata["cpu_count"].as_u64().unwrap_or(0) as usize,
+                    cpu_per_core: metadata["cpu_per_core"].as_array()
+                        .map(|arr| arr.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect())
+                        .unwrap_or_default(),
+                    cpu_frequency_mhz: metadata["cpu_frequency_mhz"].as_u64().unwrap_or(0),
+                    disk_total_gb: metadata["disk_total_gb"].as_u64().unwrap_or(0),
+                    disk_used_gb: metadata["disk_used_gb"].as_u64().unwrap_or(0),
+                    disk_free_gb: metadata["disk_free_gb"].as_u64().unwrap_or(0),
+                    network_errors_rx: metadata["network_errors_rx"].as_u64().unwrap_or(0),
+                    network_errors_tx: metadata["network_errors_tx"].as_u64().unwrap_or(0),
+                    top_cpu_processes: serde_json::from_value(metadata["top_cpu_processes"].clone()).unwrap_or_default(),
+                    top_memory_processes: serde_json::from_value(metadata["top_memory_processes"].clone()).unwrap_or_default(),
+                })
+            }
+        ).map_err(|e| format!("Failed to query metrics: {}", e))?;
+
+        let mut results = Vec::new();
+        for metric in metrics_iter {
+            results.push(metric.map_err(|e| format!("Failed to parse metric: {}", e))?);
+        }
+
+        Ok(results)
+    }
+
+    pub fn cleanup_old_metrics(&self) -> Result<usize, String> {
+        let conn = rusqlite::Connection::open(&self.db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
+
+        let cutoff_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() - (self.retention_days as u64 * 86400);
+
+        let deleted = conn.execute(
+            "DELETE FROM metrics_history WHERE timestamp < ?1",
+            rusqlite::params![cutoff_time as i64],
+        ).map_err(|e| format!("Failed to cleanup metrics: {}", e))?;
+
+        Ok(deleted)
+    }
+
+    pub fn save_alert(&self, alert: &Alert, host: &str) -> Result<(), String> {
+        let conn = rusqlite::Connection::open(&self.db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
+
+        conn.execute(
+            "INSERT INTO alert_history (
+                alert_id, rule_id, host, message, severity, triggered_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![
+                alert.id,
+                alert.rule_id,
+                host,
+                alert.message,
+                format!("{:?}", alert.severity),
+                alert.timestamp as i64,
+            ],
+        ).map_err(|e| format!("Failed to insert alert: {}", e))?;
+
+        Ok(())
+    }
+
+    pub fn get_alert_history(&self, start: u64, end: u64) -> Result<Vec<Alert>, String> {
+        let conn = rusqlite::Connection::open(&self.db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
+
+        let mut stmt = conn.prepare(
+            "SELECT alert_id, rule_id, message, severity, triggered_at, acknowledged_at
+             FROM alert_history
+             WHERE triggered_at >= ?1 AND triggered_at <= ?2
+             ORDER BY triggered_at DESC"
+        ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+
+        let alerts_iter = stmt.query_map(
+            rusqlite::params![start as i64, end as i64],
+            |row| {
+                let severity_str: String = row.get(3)?;
+                let severity = match severity_str.as_str() {
+                    "Critical" => AlertSeverity::Critical,
+                    "Warning" => AlertSeverity::Warning,
+                    _ => AlertSeverity::Info,
+                };
+
+                Ok(Alert {
+                    id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    message: row.get(2)?,
+                    severity,
+                    timestamp: row.get::<_, i64>(4)? as u64,
+                    acknowledged: row.get::<_, Option<i64>>(5)?.is_some(),
+                })
+            }
+        ).map_err(|e| format!("Failed to query alerts: {}", e))?;
+
+        let mut results = Vec::new();
+        for alert in alerts_iter {
+            results.push(alert.map_err(|e| format!("Failed to parse alert: {}", e))?);
+        }
+
+        Ok(results)
+    }
+}
+
 pub async fn start_monitoring_task<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
     interval_secs: u64,
@@ -266,17 +668,60 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     let alert_engine = app_handle.state::<Arc<AlertEngine>>();
     let mut ticker = interval(Duration::from_secs(interval_secs));
 
+    // Get database path for persistence
+    let db_path = app_handle.path().app_data_dir()
+        .expect("Failed to get app data dir")
+        .join("titan.db");
+    let db_path_str = db_path.to_str().expect("Invalid database path").to_string();
+    let metrics_store = MetricsStore::new(db_path_str, 30)
+        .expect("Failed to create metrics store");
+
+    let mut save_counter = 0u32;
+    let mut cleanup_counter = 0u32;
+    let save_interval = 6; // Save every 30 seconds (6 * 5 seconds)
+    let cleanup_interval = 17280; // Cleanup daily (86400 / 5 seconds)
+
     loop {
         ticker.tick().await;
 
         let metrics = collector.collect();
-        let alerts = alert_engine.evaluate(&metrics);
+        let (alerts, recoveries) = alert_engine.evaluate(&metrics);
 
         println!("Emitting system-metrics: cpu={:.1}%, mem={:.1}%", metrics.cpu_usage_percent, metrics.memory_usage_percent);
-        let _ = app_handle.emit("system-metrics", metrics);
+        let _ = app_handle.emit("system-metrics", metrics.clone());
 
+        // Save metrics to database every 30 seconds
+        save_counter += 1;
+        if save_counter >= save_interval {
+            save_counter = 0;
+            if let Err(e) = metrics_store.save_metrics(&metrics, "localhost") {
+                eprintln!("Failed to save metrics: {}", e);
+            }
+        }
+
+        // Run cleanup daily
+        cleanup_counter += 1;
+        if cleanup_counter >= cleanup_interval {
+            cleanup_counter = 0;
+            match metrics_store.cleanup_old_metrics() {
+                Ok(deleted) => println!("Cleaned up {} old metric records", deleted),
+                Err(e) => eprintln!("Failed to cleanup metrics: {}", e),
+            }
+        }
+
+        // Emit recovery notifications
+        if !recoveries.is_empty() {
+            let _ = app_handle.emit("alerts-recovered", recoveries);
+        }
+
+        // Save alerts to database
         if !alerts.is_empty() {
-            let _ = app_handle.emit("alerts-triggered", alerts);
+            let _ = app_handle.emit("alerts-triggered", alerts.clone());
+            for alert in &alerts {
+                if let Err(e) = metrics_store.save_alert(alert, "localhost") {
+                    eprintln!("Failed to save alert: {}", e);
+                }
+            }
         }
     }
 }
@@ -314,6 +759,7 @@ mod tests {
             threshold: 80.0,
             severity: AlertSeverity::Warning,
             enabled: true,
+            cooldown_seconds: 300,
         };
         engine.add_rule(rule.clone());
 
@@ -332,6 +778,7 @@ mod tests {
             threshold: 50.0,
             severity: AlertSeverity::Critical,
             enabled: true,
+            cooldown_seconds: 300,
         };
         engine.add_rule(rule);
 
@@ -345,9 +792,28 @@ mod tests {
             network_rx_mb: 0,
             network_tx_mb: 0,
             timestamp: 1234567890,
+            uptime_seconds: 0,
+            load_average_1m: 0.0,
+            load_average_5m: 0.0,
+            load_average_15m: 0.0,
+            process_count: 0,
+            boot_time: 0,
+            cpu_count: 0,
+            cpu_per_core: vec![],
+            cpu_frequency_mhz: 0,
+            disk_total_gb: 0,
+            disk_used_gb: 0,
+            disk_free_gb: 0,
+            disk_usage_percent: 0.0,
+            network_packets_rx: 0,
+            network_packets_tx: 0,
+            network_errors_rx: 0,
+            network_errors_tx: 0,
+            top_cpu_processes: vec![],
+            top_memory_processes: vec![],
         };
 
-        let alerts = engine.evaluate(&metrics);
+        let (alerts, _recoveries) = engine.evaluate(&metrics);
         assert_eq!(alerts.len(), 1);
         assert!(matches!(alerts[0].severity, AlertSeverity::Critical));
     }
@@ -362,6 +828,7 @@ mod tests {
             threshold: 90.0,
             severity: AlertSeverity::Warning,
             enabled: true,
+            cooldown_seconds: 300,
         };
         engine.add_rule(rule);
 
@@ -375,9 +842,28 @@ mod tests {
             network_rx_mb: 0,
             network_tx_mb: 0,
             timestamp: 1234567890,
+            uptime_seconds: 0,
+            load_average_1m: 0.0,
+            load_average_5m: 0.0,
+            load_average_15m: 0.0,
+            process_count: 0,
+            boot_time: 0,
+            cpu_count: 0,
+            cpu_per_core: vec![],
+            cpu_frequency_mhz: 0,
+            disk_total_gb: 0,
+            disk_used_gb: 0,
+            disk_free_gb: 0,
+            disk_usage_percent: 0.0,
+            network_packets_rx: 0,
+            network_packets_tx: 0,
+            network_errors_rx: 0,
+            network_errors_tx: 0,
+            top_cpu_processes: vec![],
+            top_memory_processes: vec![],
         };
 
-        let alerts = engine.evaluate(&metrics);
+        let (alerts, _recoveries) = engine.evaluate(&metrics);
         assert!(alerts.is_empty());
     }
 
@@ -391,6 +877,7 @@ mod tests {
             threshold: 0.0,
             severity: AlertSeverity::Info,
             enabled: true,
+            cooldown_seconds: 300,
         };
         engine.add_rule(rule);
 
@@ -404,9 +891,28 @@ mod tests {
             network_rx_mb: 0,
             network_tx_mb: 0,
             timestamp: 1234567890,
+            uptime_seconds: 0,
+            load_average_1m: 0.0,
+            load_average_5m: 0.0,
+            load_average_15m: 0.0,
+            process_count: 0,
+            boot_time: 0,
+            cpu_count: 0,
+            cpu_per_core: vec![],
+            cpu_frequency_mhz: 0,
+            disk_total_gb: 0,
+            disk_used_gb: 0,
+            disk_free_gb: 0,
+            disk_usage_percent: 0.0,
+            network_packets_rx: 0,
+            network_packets_tx: 0,
+            network_errors_rx: 0,
+            network_errors_tx: 0,
+            top_cpu_processes: vec![],
+            top_memory_processes: vec![],
         };
 
-        engine.evaluate(&metrics);
+        let (_alerts, _recoveries) = engine.evaluate(&metrics);
         let alerts = engine.get_active_alerts();
         assert_eq!(alerts.len(), 1);
 

@@ -5,25 +5,40 @@ import AlertRules from './AlertRules';
 import DiscoveryWidget from './DiscoveryWidget';
 import NetworkMapWidget from './NetworkMapWidget';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
-import { Search } from 'lucide-react';
+import QuickConnectWidget from './QuickConnectWidget';
+import { ViewId } from '../Sidebar';
 
-const DashboardView: React.FC = () => {
+interface SavedHost {
+  id: number;
+  name: string;
+  address: string;
+  port: number | null;
+  username: string | null;
+  protocol: string;
+}
+
+interface DashboardViewProps {
+  onNavigate: (view: ViewId) => void;
+}
+
+const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [discoveredHosts, setDiscoveredHosts] = useState<ScanResult[]>([]);
+
+  const handleQuickConnect = async (host: SavedHost) => {
+    // Switch to Remote view
+    onNavigate('remote');
+    
+    // Store the selected host in sessionStorage so RemoteManager can pick it up
+    sessionStorage.setItem('quickConnectHost', JSON.stringify(host));
+    
+    console.log(`Quick connect: Navigating to Remote view for ${host.name}`);
+  };
 
 
   return (
     <div className="p-6 space-y-6 h-full overflow-y-auto no-scrollbar bg-bg-root animate-in fade-in duration-500">
       {/* Top Banner */}
-      <SystemHealthWidget 
-        healthScore={98} 
-        statusText="SYSTEMS NOMINAL" 
-        nodes={[
-          { id: 'DB-01', status: 'online' },
-          { id: 'WEB-01', status: 'online' },
-          { id: 'WEB-02', status: 'warning' },
-          { id: 'LB-01', status: 'online' },
-        ]}
-      />
+      <SystemHealthWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Charts Column */}
@@ -62,26 +77,8 @@ const DashboardView: React.FC = () => {
 
         {/* Right Sidebar Column */}
         <div className="space-y-6 flex flex-col h-full">
-          {/* Quick Connect Widget (Placeholder from PDF) */}
-          <div className="bg-bg-card border border-gray-800 rounded-xl p-4 shadow-sm shrink-0">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Connect</h3>
-            <div className="relative mb-3">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
-              <input 
-                type="text" 
-                placeholder="Search inventory..." 
-                className="w-full bg-zinc-900 border border-gray-800 rounded-lg py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:border-accent/50"
-              />
-            </div>
-            <div className="space-y-1">
-              {['Database-01', 'Database-02', 'Web-01', 'Web-02'].map(name => (
-                <button key={name} className="w-full text-left px-2 py-1.5 rounded hover:bg-white/5 text-[11px] text-gray-400 hover:text-gray-200 transition-colors flex items-center">
-                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 mr-2" />
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Quick Connect Widget */}
+          <QuickConnectWidget onConnect={handleQuickConnect} />
 
           <div className="flex-1 min-h-0">
             <AlertFeed />

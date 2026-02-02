@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Key, Shield, Settings, FileText } from 'lucide-react';
+import { Key, Shield, FileText } from 'lucide-react';
 import CredentialManager from './CredentialManager';
 import KnownHostsManager from './KnownHostsManager';
-import VaultSettings from './VaultSettings';
 import AuditLogViewer from './AuditLogViewer';
 
-type SecurityTab = 'credentials' | 'known-hosts' | 'settings' | 'audit-log';
+type SecurityTab = 'credentials' | 'known-hosts' | 'audit-log';
 
 const SecurityView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SecurityTab>('credentials');
@@ -16,8 +15,6 @@ const SecurityView: React.FC = () => {
         return <CredentialManager />;
       case 'known-hosts':
         return <KnownHostsManager />;
-      case 'settings':
-        return <VaultSettings />;
       case 'audit-log':
         return <AuditLogViewer />;
       default:
@@ -50,17 +47,6 @@ const SecurityView: React.FC = () => {
           >
             <Shield className="h-4 w-4" />
             <span>Known Hosts</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center space-x-2 px-4 py-3 rounded-t-lg font-medium text-sm transition-all ${
-              activeTab === 'settings'
-                ? 'bg-bg-root text-accent border-t border-l border-r border-gray-700'
-                : 'text-gray-400 hover:text-gray-300 hover:bg-bg-root/50'
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
           </button>
           <button
             onClick={() => setActiveTab('audit-log')}

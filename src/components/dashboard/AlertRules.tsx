@@ -1,78 +1,151 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Plus, Trash2, AlertTriangle, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 
 export interface AlertRule {
   id: string;
-  metric: 'cpu' | 'memory' | 'disk';
-  operator: 'gt' | 'lt' | 'eq' | 'gte' | 'lte';
+  metric: { CpuUsage?: null; MemoryUsage?: null; DiskUsage?: null };
+  operator: { GreaterThan?: null; LessThan?: null; Equals?: null; GreaterThanOrEqual?: null; LessThanOrEqual?: null };
   threshold: number;
-  severity: 'critical' | 'warning' | 'info';
+  severity: { Info?: null; Warning?: null; Critical?: null };
   enabled: boolean;
+  cooldown_seconds: number;
+}
+
+interface SimpleAlertRule {
+  id: string;
+  metric: 'CpuUsage' | 'MemoryUsage' | 'DiskUsage';
+  operator: 'GreaterThan' | 'LessThan' | 'Equals' | 'GreaterThanOrEqual' | 'LessThanOrEqual';
+  threshold: number;
+  severity: 'Info' | 'Warning' | 'Critical';
+  enabled: boolean;
+  cooldown_seconds: number;
 }
 
 const OPERATOR_LABELS: Record<string, string> = {
-  gt: '>',
-  lt: '<',
-  eq: '=',
-  gte: '≥',
-  lte: '≤'
+  GreaterThan: '>',
+  LessThan: '<',
+  Equals: '=',
+  GreaterThanOrEqual: '≥',
+  LessThanOrEqual: '≤'
 };
 
 const METRIC_LABELS: Record<string, string> = {
-  cpu: 'CPU Usage',
-  memory: 'Memory Usage',
-  disk: 'Disk Usage'
+  CpuUsage: 'CPU Usage',
+  MemoryUsage: 'Memory Usage',
+  DiskUsage: 'Disk Usage'
 };
 
 const AlertRules: React.FC = () => {
-  const [rules, setRules] = useState<AlertRule[]>([
-    { id: '1', metric: 'cpu', operator: 'gt', threshold: 80, severity: 'warning', enabled: true },
-    { id: '2', metric: 'cpu', operator: 'gt', threshold: 95, severity: 'critical', enabled: true },
-    { id: '3', metric: 'memory', operator: 'gt', threshold: 85, severity: 'warning', enabled: true },
-  ]);
+  const [rules, setRules] = useState<SimpleAlertRule[]>([]);
   const [isEditing, setIsEditing] = useState<string | null>(null);
-  const [newRule, setNewRule] = useState<Partial<AlertRule>>({
-    metric: 'cpu',
-    operator: 'gt',
+  const [newRule, setNewRule] = useState<Partial<SimpleAlertRule>>({
+    metric: 'CpuUsage',
+    operator: 'GreaterThan',
     threshold: 80,
-    severity: 'warning',
-    enabled: true
+    severity: 'Warning',
+    enabled: true,
+    cooldown_seconds: 300
   });
 
-  const toggleRule = (id: string) => {
-    setRules(prev => prev.map(rule =>
-      rule.id === id ? { ...rule, enabled: !rule.enabled } : rule
-    ));
+  useEffect(() => {
+    loadRules();
+  }, []);
+
+  const loadRules = async () => {
+    try {
+      const backendRules = await invoke<AlertRule[]>('get_alert_rules');
+      const simpleRules = backendRules.map(convertToSimpleRule);
+      setRules(simpleRules);
+    } catch (err) {
+      console.error('Failed to load alert rules:', err);
+    }
   };
 
-  const deleteRule = (id: string) => {
+  const convertToSimpleRule = (rule: AlertRule): SimpleAlertRule => {
+    const metric = Object.keys(rule.metric)[0] as 'CpuUsage' | 'MemoryUsage' | 'DiskUsage';
+    const operator = Object.keys(rule.operator)[0] as 'GreaterThan' | 'LessThan' | 'Equals' | 'GreaterThanOrEqual' | 'LessThanOrEqual';
+    const severity = Object.keys(rule.severity)[0] as 'Info' | 'Warning' | 'Critical';
+    
+    return {
+      id: rule.id,
+      metric,
+      operator,
+      threshold: rule.threshold,
+      severity,
+      enabled: rule.enabled,
+      cooldown_seconds: rule.cooldown_seconds
+    };
+  };
+
+  const convertToBackendRule = (rule: SimpleAlertRule): any => {
+    return {
+      id: rule.id,
+      metric: { [rule.metric]: null },
+      operator: { [rule.operator]: null },
+      threshold: rule.threshold,
+      severity: { [rule.severity]: null },
+      enabled: rule.enabled,
+      cooldown_seconds: rule.cooldown_seconds
+    };
+  };
+
+  const toggleRule = async (id: string) => {
+    const rule = rules.find(r => r.id === id);
+    if (!rule) return;
+
+    const updatedRule = { ...rule, enabled: !rule.enabled };
+    setRules(prev => prev.map(r => r.id === id ? updatedRule : r));
+
+    try {
+      await invoke('remove_alert_rule', { ruleId: id });
+      await invoke('add_alert_rule', { rule: convertToBackendRule(updatedRule) });
+    } catch (err) {
+      console.error('Failed to toggle rule:', err);
+      setRules(prev => prev.map(r => r.id === id ? rule : r)); // Revert on error
+    }
+  };
+
+  const deleteRule = async (id: string) => {
     setRules(prev => prev.filter(rule => rule.id !== id));
-    invoke('remove_alert_rule', { ruleId: id }).catch(console.error);
+    try {
+      await invoke('remove_alert_rule', { ruleId: id });
+    } catch (err) {
+      console.error('Failed to delete rule:', err);
+      loadRules(); // Reload on error
+    }
   };
 
-  const addRule = () => {
+  const addRule = async () => {
     if (newRule.threshold === undefined) return;
     
-    const rule: AlertRule = {
+    const rule: SimpleAlertRule = {
       id: Date.now().toString(),
-      metric: newRule.metric as 'cpu' | 'memory' | 'disk',
-      operator: newRule.operator as 'gt' | 'lt' | 'eq' | 'gte' | 'lte',
+      metric: newRule.metric as 'CpuUsage' | 'MemoryUsage' | 'DiskUsage',
+      operator: newRule.operator as 'GreaterThan' | 'LessThan' | 'Equals' | 'GreaterThanOrEqual' | 'LessThanOrEqual',
       threshold: newRule.threshold,
-      severity: newRule.severity as 'critical' | 'warning' | 'info',
-      enabled: true
+      severity: newRule.severity as 'Info' | 'Warning' | 'Critical',
+      enabled: true,
+      cooldown_seconds: newRule.cooldown_seconds || 300
     };
     
     setRules(prev => [...prev, rule]);
-    invoke('add_alert_rule', { rule }).catch(console.error);
+    
+    try {
+      await invoke('add_alert_rule', { rule: convertToBackendRule(rule) });
+    } catch (err) {
+      console.error('Failed to add rule:', err);
+      setRules(prev => prev.filter(r => r.id !== rule.id)); // Remove on error
+    }
     
     setNewRule({
-      metric: 'cpu',
-      operator: 'gt',
+      metric: 'CpuUsage',
+      operator: 'GreaterThan',
       threshold: 80,
-      severity: 'warning',
-      enabled: true
+      severity: 'Warning',
+      enabled: true,
+      cooldown_seconds: 300
     });
     setIsEditing(null);
   };
@@ -129,17 +202,19 @@ const AlertRules: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center space-x-1 mt-0.5">
-                  <AlertTriangle className={cn(
-                    "h-3 w-3",
-                    rule.severity === 'critical' ? "text-alert" :
-                    rule.severity === 'warning' ? "text-warning" : "text-accent"
-                  )} />
                   <span className={cn(
-                    "text-[10px] uppercase",
-                    rule.severity === 'critical' ? "text-alert" :
-                    rule.severity === 'warning' ? "text-warning" : "text-accent"
+                    "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
+                    rule.severity === 'Critical' ? "bg-alert/20 text-alert" : 
+                    rule.severity === 'Warning' ? "bg-warning/20 text-warning" : "bg-blue-500/20 text-blue-400"
                   )}>
                     {rule.severity}
+                  </span>
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
+                    rule.severity === 'Critical' ? "text-alert" : 
+                    rule.severity === 'Warning' ? "text-warning" : "text-blue-400"
+                  )}>
+                    {OPERATOR_LABELS[rule.operator]} {rule.threshold}%
                   </span>
                 </div>
               </div>
@@ -162,9 +237,9 @@ const AlertRules: React.FC = () => {
                 onChange={(e) => setNewRule(prev => ({ ...prev, metric: e.target.value as any }))}
                 className="bg-zinc-900 border border-gray-800 rounded px-2 py-1 text-xs text-gray-300"
               >
-                <option value="cpu">CPU</option>
-                <option value="memory">Memory</option>
-                <option value="disk">Disk</option>
+                <option value="CpuUsage">CPU</option>
+                <option value="MemoryUsage">Memory</option>
+                <option value="DiskUsage">Disk</option>
               </select>
               
               <select
@@ -172,11 +247,11 @@ const AlertRules: React.FC = () => {
                 onChange={(e) => setNewRule(prev => ({ ...prev, operator: e.target.value as any }))}
                 className="bg-zinc-900 border border-gray-800 rounded px-2 py-1 text-xs text-gray-300"
               >
-                <option value="gt">&gt;</option>
-                <option value="lt">&lt;</option>
-                <option value="gte">≥</option>
-                <option value="lte">≤</option>
-                <option value="eq">=</option>
+                <option value="GreaterThan">&gt;</option>
+                <option value="LessThan">&lt;</option>
+                <option value="GreaterThanOrEqual">≥</option>
+                <option value="LessThanOrEqual">≤</option>
+                <option value="Equals">=</option>
               </select>
               
               <input
@@ -194,9 +269,9 @@ const AlertRules: React.FC = () => {
                 onChange={(e) => setNewRule(prev => ({ ...prev, severity: e.target.value as any }))}
                 className="bg-zinc-900 border border-gray-800 rounded px-2 py-1 text-xs text-gray-300"
               >
-                <option value="info">Info</option>
-                <option value="warning">Warning</option>
-                <option value="critical">Critical</option>
+                <option value="Info">Info</option>
+                <option value="Warning">Warning</option>
+                <option value="Critical">Critical</option>
               </select>
             </div>
             
