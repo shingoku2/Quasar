@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { 
@@ -31,7 +31,7 @@ interface SshFileManagerProps {
   password?: string;
 }
 
-const SshFileManager: React.FC<SshFileManagerProps> = ({ 
+const SshFileManager: React.FC<SshFileManagerProps> = ({
   host, 
   port, 
   username, 
@@ -43,12 +43,23 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
   const [transferring, setTransferring] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const fetchFiles = useCallback(async (path: string) => {
     if (!password) return;
     
-    setLoading(true);
-    setError(null);
+    if (isMounted.current) {
+      setLoading(true);
+      setError(null);
+    }
+    
     try {
       const result = await invoke<RemoteFile[]>('sftp_list_directory', {
         host,
@@ -58,20 +69,26 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
         remotePath: path
       });
       
-      // Sort: Directories first, then alphabetically
-      const sortedFiles = result.sort((a, b) => {
-        if (a.is_dir && !b.is_dir) return -1;
-        if (!a.is_dir && b.is_dir) return 1;
-        return a.name.localeCompare(b.name);
-      });
-      
-      setFiles(sortedFiles);
-      setCurrentPath(path);
+      if (isMounted.current) {
+        // Sort: Directories first, then alphabetically
+        const sortedFiles = result.sort((a, b) => {
+          if (a.is_dir && !b.is_dir) return -1;
+          if (!a.is_dir && b.is_dir) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        setFiles(sortedFiles);
+        setCurrentPath(path);
+      }
     } catch (err) {
       console.error('Failed to list directory:', err);
-      setError(err as string);
+      if (isMounted.current) {
+        setError(err as string);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [host, port, username, password]);
 
@@ -108,7 +125,10 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
         const fileName = localPath.split(/[\\/]/).pop();
         const remotePath = currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`;
         
-        setTransferring(`Uploading ${fileName}...`);
+        if (isMounted.current) {
+          setTransferring(`Uploading ${fileName}...`);
+        }
+        
         await invoke('sftp_upload_file', {
           host,
           port,
@@ -122,9 +142,13 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
       }
     } catch (err) {
       console.error('Upload failed:', err);
-      setError(`Upload failed: ${err}`);
+      if (isMounted.current) {
+        setError(`Upload failed: ${err}`);
+      }
     } finally {
-      setTransferring(null);
+      if (isMounted.current) {
+        setTransferring(null);
+      }
     }
   };
 
@@ -139,7 +163,10 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
       if (localPath) {
         const remotePath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
         
-        setTransferring(`Downloading ${file.name}...`);
+        if (isMounted.current) {
+          setTransferring(`Downloading ${file.name}...`);
+        }
+        
         await invoke('sftp_download_file', {
           host,
           port,
@@ -151,12 +178,15 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
       }
     } catch (err) {
       console.error('Download failed:', err);
-      setError(`Download failed: ${err}`);
+      if (isMounted.current) {
+        setError(`Download failed: ${err}`);
+      }
     } finally {
-      setTransferring(null);
+      if (isMounted.current) {
+        setTransferring(null);
+      }
     }
   };
-
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;

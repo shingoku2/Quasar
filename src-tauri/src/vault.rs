@@ -291,135 +291,145 @@ impl VaultState {
         // Set flag to prevent auto-lock during password change
         inner.changing_password = true;
         
-        // FIX: Use single connection for entire operation to prevent connection leak
-        let mut conn = rusqlite::Connection::open(&inner.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
-        
-        let stored_hash: String = conn.query_row(
-            "SELECT value FROM vault_settings WHERE key = 'master_password_hash'",
-            [],
-            |row| row.get(0)
-        ).map_err(|_| "Vault not initialized".to_string())?;
-        
-        // Use consistent Argon2 params
-        let params = Params::new(65536, 3, 4, Some(32))
-            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-        let argon2 = Argon2::new(
-            argon2::Algorithm::Argon2id,
-            Version::V0x13,
-            params,
-        );
-        
-        let parsed_hash = PasswordHash::new(&stored_hash)
-            .map_err(|e| format!("Invalid password hash: {}", e))?;
-        
-        argon2
-            .verify_password(current_password.as_bytes(), &parsed_hash)
-            .map_err(|_| "Invalid current password".to_string())?;
-        
-        // Generate new hash and salt
-        let new_salt = SaltString::generate(&mut OsRng);
-        
-        let password_hash = argon2.hash_password(new_password.as_bytes(), &new_salt)
-            .map_err(|e| format!("Failed to hash password: {}", e))?
-            .to_string();
-        
-        // Derive new master key using hash_password_into with proper salt bytes
-        let mut new_master_key = [0u8; 32];
-        // FIX: Decode base64 salt to raw bytes (not UTF-8 string)
-        let new_salt_decoded = Salt::from_b64(new_salt.as_str())
-            .map_err(|e| format!("Failed to parse salt: {}", e))?;
-        let mut new_salt_bytes = [0u8; 64]; // Max salt length
-        let new_salt_raw = new_salt_decoded.decode_b64(&mut new_salt_bytes)
-            .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
-        argon2.hash_password_into(new_password.as_bytes(), new_salt_raw, &mut new_master_key)
-            .map_err(|e| format!("Failed to derive key: {}", e))?;
-        
-        // Re-encrypt all credentials with new key using transaction for safety
-        if let Some(ref old_key) = inner.master_key {
-            let credential_manager = credentials::CredentialManager::new(inner.db_path.clone());
-            let summaries = credential_manager.list_credentials()?;
+        let db_path = inner.db_path.clone();
+        let master_key_option = inner.master_key.as_ref().map(|mk| mk.key);
+        let current_password = current_password.to_string();
+        let new_password = new_password.to_string();
+
+        // Perform heavy crypto and DB operations in a blocking thread
+        let result = tauri::async_runtime::spawn_blocking(move || {
+            // FIX: Use single connection for entire operation to prevent connection leak
+            let mut conn = rusqlite::Connection::open(&db_path)
+                .map_err(|e| format!("Failed to open database: {}", e))?;
             
-            // FIX: Reuse existing connection for transaction (no second connection)
-            let tx = conn.transaction()
-                .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+            let stored_hash: String = conn.query_row(
+                "SELECT value FROM vault_settings WHERE key = 'master_password_hash'",
+                [],
+                |row| row.get(0)
+            ).map_err(|_| "Vault not initialized".to_string())?;
             
-            // Collect all re-encrypted credentials first
-            let mut re_encrypted_credentials = Vec::new();
-            for summary in &summaries {
-                let credential = credential_manager.get_credential(&old_key.key, &summary.id)?;
-                re_encrypted_credentials.push((
-                    summary.id.clone(),
-                    credential.name,
-                    credential.username,
-                    credential.password,
-                    credential.credential_type,
-                    credential.metadata,
-                ));
-            }
+            // Use consistent Argon2 params
+            let params = Params::new(65536, 3, 4, Some(32))
+                .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
+            let argon2 = Argon2::new(
+                argon2::Algorithm::Argon2id,
+                Version::V0x13,
+                params,
+            );
             
-            // Now delete and re-add within transaction
-            let mut first_credential_id: Option<String> = None;
-            for (id, name, username, password, cred_type, metadata) in re_encrypted_credentials {
-                credential_manager.delete_credential_tx(&tx, &id)?;
-                let new_id = credential_manager.add_credential_tx(
-                    &tx,
-                    &new_master_key,
-                    name,
-                    username,
-                    password,
-                    cred_type,
-                    metadata,
-                )?;
+            let parsed_hash = PasswordHash::new(&stored_hash)
+                .map_err(|e| format!("Invalid password hash: {}", e))?;
+            
+            argon2
+                .verify_password(current_password.as_bytes(), &parsed_hash)
+                .map_err(|_| "Invalid current password".to_string())?;
+            
+            // Generate new hash and salt
+            let new_salt = SaltString::generate(&mut OsRng);
+            
+            let password_hash = argon2.hash_password(new_password.as_bytes(), &new_salt)
+                .map_err(|e| format!("Failed to hash password: {}", e))?
+                .to_string();
+            
+            // Derive new master key using hash_password_into with proper salt bytes
+            let mut new_master_key = [0u8; 32];
+            // FIX: Decode base64 salt to raw bytes (not UTF-8 string)
+            let new_salt_decoded = Salt::from_b64(new_salt.as_str())
+                .map_err(|e| format!("Failed to parse salt: {}", e))?;
+            let mut new_salt_bytes = [0u8; 64]; // Max salt length
+            let new_salt_raw = new_salt_decoded.decode_b64(&mut new_salt_bytes)
+                .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
+            argon2.hash_password_into(new_password.as_bytes(), new_salt_raw, &mut new_master_key)
+                .map_err(|e| format!("Failed to derive key: {}", e))?;
+            
+            // Re-encrypt all credentials with new key using transaction for safety
+            if let Some(old_key) = master_key_option {
+                let credential_manager = credentials::CredentialManager::new(db_path.clone());
+                let summaries = credential_manager.list_credentials()?;
                 
-                // Store first credential ID for validation
-                if first_credential_id.is_none() {
-                    first_credential_id = Some(new_id);
+                // FIX: Reuse existing connection for transaction (no second connection)
+                let tx = conn.transaction()
+                    .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+                
+                // Collect all re-encrypted credentials first
+                let mut re_encrypted_credentials = Vec::new();
+                for summary in &summaries {
+                    let credential = credential_manager.get_credential(&old_key, &summary.id)?;
+                    re_encrypted_credentials.push((
+                        summary.id.clone(),
+                        credential.name,
+                        credential.username,
+                        credential.password,
+                        credential.credential_type,
+                        credential.metadata,
+                    ));
                 }
+                
+                // Now delete and re-add within transaction
+                let mut first_credential_id: Option<String> = None;
+                for (id, name, username, password, cred_type, metadata) in re_encrypted_credentials {
+                    credential_manager.delete_credential_tx(&tx, &id)?;
+                    let new_id = credential_manager.add_credential_tx(
+                        &tx,
+                        &new_master_key,
+                        name,
+                        username,
+                        password,
+                        cred_type,
+                        metadata,
+                    )?;
+                    
+                    // Store first credential ID for validation
+                    if first_credential_id.is_none() {
+                        first_credential_id = Some(new_id);
+                    }
+                }
+                
+                // Validate re-encryption by attempting to decrypt first credential with new key
+                if let Some(cred_id) = first_credential_id {
+                    // This will fail if encryption/decryption doesn't work with new key
+                    let _ = credential_manager.get_credential(&new_master_key, &cred_id)
+                        .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
+                }
+                
+                // Update stored hash and salt within same transaction
+                let now = chrono::Utc::now().timestamp();
+                tx.execute(
+                    "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'master_password_hash'",
+                    rusqlite::params![password_hash, now],
+                ).map_err(|e| format!("Failed to update password hash: {}", e))?;
+                
+                tx.execute(
+                    "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
+                    rusqlite::params![new_salt.as_str(), now],
+                ).map_err(|e| format!("Failed to update salt: {}", e))?;
+                
+                // Commit transaction (automatically rolls back on drop if not committed)
+                tx.commit()
+                    .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+            } else {
+                // No credentials to re-encrypt, just update password
+                let now = chrono::Utc::now().timestamp();
+                conn.execute(
+                    "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'master_password_hash'",
+                    rusqlite::params![password_hash, now],
+                ).map_err(|e| format!("Failed to update password hash: {}", e))?;
+                
+                conn.execute(
+                    "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
+                    rusqlite::params![new_salt.as_str(), now],
+                ).map_err(|e| format!("Failed to update salt: {}", e))?;
             }
             
-            // Validate re-encryption by attempting to decrypt first credential with new key
-            if let Some(cred_id) = first_credential_id {
-                // This will fail if encryption/decryption doesn't work with new key
-                let _ = credential_manager.get_credential(&new_master_key, &cred_id)
-                    .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
-            }
+            Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
             
-            // Update stored hash and salt within same transaction
-            let now = chrono::Utc::now().timestamp();
-            tx.execute(
-                "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'master_password_hash'",
-                rusqlite::params![password_hash, now],
-            ).map_err(|e| format!("Failed to update password hash: {}", e))?;
-            
-            tx.execute(
-                "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
-                rusqlite::params![new_salt.as_str(), now],
-            ).map_err(|e| format!("Failed to update salt: {}", e))?;
-            
-            // Commit transaction (automatically rolls back on drop if not committed)
-            tx.commit()
-                .map_err(|e| format!("Failed to commit transaction: {}", e))?;
-        } else {
-            // No credentials to re-encrypt, just update password
-            let now = chrono::Utc::now().timestamp();
-            conn.execute(
-                "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'master_password_hash'",
-                rusqlite::params![password_hash, now],
-            ).map_err(|e| format!("Failed to update password hash: {}", e))?;
-            
-            conn.execute(
-                "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
-                rusqlite::params![new_salt.as_str(), now],
-            ).map_err(|e| format!("Failed to update salt: {}", e))?;
-        }
+            Ok::<[u8; 32], String>(new_master_key)
+        }).await.map_err(|e| format!("Task failed: {}", e))??;
         
         // Update master key in memory
-        inner.master_key = Some(MasterKey { key: new_master_key });
+        inner.master_key = Some(MasterKey { key: result });
         inner.last_activity = Some(Instant::now());
         inner.changing_password = false;
-        
-        Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
         
         Ok(())
     }
