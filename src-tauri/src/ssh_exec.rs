@@ -96,8 +96,13 @@ pub async fn execute_ssh_command(
         Err(_) => return Err("Command execution timed out".to_string()),
     }
 
-    String::from_utf8(output)
-        .map_err(|e| format!("Invalid UTF-8 in output: {}", e))
+    let result = String::from_utf8(output)
+        .map_err(|e| format!("Invalid UTF-8 in output: {}", e));
+
+    // Explicitly disconnect SSH session
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+
+    result
 }
 
 /// Execute multiple commands in sequence on the same SSH session
@@ -145,8 +150,9 @@ pub async fn execute_ssh_commands_batch(
 
         let mut output = Vec::new();
         
+        let per_command_timeout = (timeout_secs / commands.len() as u64).max(5);
         let wait_result = tokio::time::timeout(
-            Duration::from_secs(10),
+            Duration::from_secs(per_command_timeout),
             async {
                 loop {
                     match channel.wait().await {
@@ -174,6 +180,9 @@ pub async fn execute_ssh_commands_batch(
         
         results.push(output_str);
     }
+
+    // Explicitly disconnect SSH session
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
     Ok(results)
 }
@@ -215,7 +224,8 @@ pub async fn get_system_metrics(
                 None
             }
         })
-        .unzip();
+        .map(|(used, total)| (Some(used), Some(total)))
+        .unwrap_or((None, None));
     
     let (disk_used_gb, disk_total_gb) = outputs.get(2)
         .and_then(|s| {
@@ -228,7 +238,8 @@ pub async fn get_system_metrics(
                 None
             }
         })
-        .unzip();
+        .map(|(used, total)| (Some(used), Some(total)))
+        .unwrap_or((None, None));
     
     let uptime_seconds = outputs.get(3)
         .and_then(|s| s.trim().parse::<u64>().ok());

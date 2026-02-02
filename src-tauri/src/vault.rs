@@ -88,7 +88,7 @@ impl VaultState {
             |row| row.get(0),
         );
 
-        Ok(result.is_ok() && result.unwrap() == "true")
+        Ok(matches!(result, Ok(val) if val == "true"))
     }
 
     pub async fn initialize_vault(&self, master_password: String) -> Result<(), String> {
@@ -338,8 +338,9 @@ impl VaultState {
             
             // Now delete and re-add within transaction
             for (id, name, username, password, cred_type, metadata) in re_encrypted_credentials {
-                credential_manager.delete_credential(&id)?;
-                credential_manager.add_credential(
+                credential_manager.delete_credential_tx(&tx, &id)?;
+                credential_manager.add_credential_tx(
+                    &tx,
                     &new_master_key,
                     name,
                     username,

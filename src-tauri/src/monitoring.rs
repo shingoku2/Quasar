@@ -281,8 +281,8 @@ impl MetricsCollector {
         let mut total = 0u64;
         let mut available = 0u64;
         for disk in disks.list() {
-            total += disk.total_space();
-            available += disk.available_space();
+            total = total.saturating_add(disk.total_space());
+            available = available.saturating_add(disk.available_space());
         }
         let used = total.saturating_sub(available);
         let usage_percent = if total > 0 {
@@ -669,12 +669,68 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     let mut ticker = interval(Duration::from_secs(interval_secs));
 
     // Get database path for persistence
-    let db_path = app_handle.path().app_data_dir()
-        .expect("Failed to get app data dir")
-        .join("titan.db");
-    let db_path_str = db_path.to_str().expect("Invalid database path").to_string();
-    let metrics_store = MetricsStore::new(db_path_str, 30)
-        .expect("Failed to create metrics store");
+    let db_path = match app_handle.path().app_data_dir() {
+        Ok(path) => path.join("titan.db"),
+        Err(e) => {
+            eprintln!("Failed to get app data dir: {}", e);
+            eprintln!("Monitoring will continue without persistence");
+            // Continue without persistence
+            loop {
+                ticker.tick().await;
+                let metrics = collector.collect();
+                let (alerts, recoveries) = alert_engine.evaluate(&metrics);
+                let _ = app_handle.emit("system-metrics", metrics.clone());
+                if !recoveries.is_empty() {
+                    let _ = app_handle.emit("alerts-recovered", recoveries);
+                }
+                if !alerts.is_empty() {
+                    let _ = app_handle.emit("alerts-triggered", alerts);
+                }
+            }
+        }
+    };
+    
+    let db_path_str = match db_path.to_str() {
+        Some(path) => path.to_string(),
+        None => {
+            eprintln!("Invalid database path encoding");
+            eprintln!("Monitoring will continue without persistence");
+            // Continue without persistence
+            loop {
+                ticker.tick().await;
+                let metrics = collector.collect();
+                let (alerts, recoveries) = alert_engine.evaluate(&metrics);
+                let _ = app_handle.emit("system-metrics", metrics.clone());
+                if !recoveries.is_empty() {
+                    let _ = app_handle.emit("alerts-recovered", recoveries);
+                }
+                if !alerts.is_empty() {
+                    let _ = app_handle.emit("alerts-triggered", alerts);
+                }
+            }
+        }
+    };
+    
+    let metrics_store = match MetricsStore::new(db_path_str, 30) {
+        Ok(store) => store,
+        Err(e) => {
+            eprintln!("Failed to create metrics store: {}", e);
+            eprintln!("Monitoring will continue without persistence");
+            // Continue without persistence
+            loop {
+                ticker.tick().await;
+                let metrics = collector.collect();
+                let (alerts, recoveries) = alert_engine.evaluate(&metrics);
+                let _ = app_handle.emit("system-metrics", metrics.clone());
+                if !recoveries.is_empty() {
+                    let _ = app_handle.emit("alerts-recovered", recoveries);
+                }
+                if !alerts.is_empty() {
+                    let _ = app_handle.emit("alerts-triggered", alerts);
+                }
+            }
+        }
+    };
 
     let mut save_counter = 0u32;
     let mut cleanup_counter = 0u32;
