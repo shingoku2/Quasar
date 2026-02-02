@@ -79,17 +79,16 @@ pub async fn scan_network(
     on_progress: impl Fn(ScanProgress) + Send + 'static,
     on_result: impl Fn(ScanResult) + Send + 'static,
 ) -> Result<(), String> {
-    // Check if already scanning
+    // FIX: Check-and-set atomically to prevent TOCTOU race condition
+    // Keep lock held during entire check-and-set operation
     {
         let mut is_scanning = state.is_scanning.lock().unwrap();
         if *is_scanning {
             return Err("Scan already in progress".to_string());
         }
         *is_scanning = true;
-    }
-    
-    // Reset stop signal
-    {
+        
+        // Reset stop signal while we have exclusive access
         let mut stop = state.stop_signal.lock().unwrap();
         *stop = false;
     }
