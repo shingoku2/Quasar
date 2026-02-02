@@ -12,7 +12,10 @@ export interface Host {
   username?: string;
 }
 
-const HostList: React.FC<{ onConnect: (host: Host) => void }> = ({ onConnect }) => {
+const HostList: React.FC<{ 
+  onConnect: (host: Host) => void;
+  onSftp: (host: Host) => void;
+}> = ({ onConnect, onSftp }) => {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -84,12 +87,22 @@ const HostList: React.FC<{ onConnect: (host: Host) => void }> = ({ onConnect }) 
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button 
-                      onClick={() => onConnect(host)}
-                      className="text-blue-400 hover:text-blue-300 font-medium"
-                    >
-                      Connect
-                    </button>
+                    <div className="flex justify-end space-x-3">
+                      {host.protocol === 'ssh' && (
+                        <button 
+                          onClick={() => onSftp(host)}
+                          className="text-gray-400 hover:text-accent font-medium transition-colors"
+                        >
+                          SFTP
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => onConnect(host)}
+                        className="text-accent hover:text-accent/80 font-medium transition-colors"
+                      >
+                        Connect
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

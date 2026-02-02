@@ -395,7 +395,7 @@ async fn sftp_list_directory(
     username: String,
     password: String,
     remote_path: String,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<sftp::RemoteFile>, String> {
     sftp::list_directory(&host, port, &username, &password, &remote_path).await
 }
 
@@ -415,25 +415,54 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             // Get database path
-            let app_dir = app.path().app_data_dir().expect("Failed to get app data dir");
-            std::fs::create_dir_all(&app_dir).expect("Failed to create app data dir");
+            let app_dir = app.path().app_data_dir().map_err(|e| {
+                eprintln!("Failed to get app data dir: {}", e);
+                e
+            })?;
+            
+            std::fs::create_dir_all(&app_dir).map_err(|e| {
+                eprintln!("Failed to create app data dir: {}", e);
+                e
+            })?;
+            
             let db_path = app_dir.join("titan.db");
-            let db_path_str = db_path.to_str().expect("Invalid database path").to_string();
+            let db_path_str = db_path.to_str().ok_or("Invalid database path")?;
+            let db_path_str = db_path_str.to_string();
             
             app.manage(ssh::SshState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
             app.manage(Arc::new(monitoring::AlertEngine::new()));
             app.manage(vault::VaultState::new(db_path_str.clone()));
             app.manage(vault::CredentialManager::new(db_path_str.clone()));
-            app.manage(vault::SshKeyManager::new(db_path_str.clone()).expect("Failed to create SSH key manager"));
+            app.manage(vault::SshKeyManager::new(db_path_str.clone()).map_err(|e| {
+                eprintln!("Failed to create SSH key manager: {}", e);
+                e
+            })?);
             app.manage(vault::AuditLogManager::new(db_path_str.clone()));
             
             // Initialize database tables
-            let conn = rusqlite::Connection::open(&db_path_str).expect("Failed to open database");
+            let conn = rusqlite::Connection::open(&db_path_str).map_err(|e| {
+                eprintln!("Failed to open database: {}", e);
+                e
+            })?;
+            
             conn.execute_batch(include_str!("../migrations/003_security_vault.sql"))
-                .expect("Failed to run security vault migrations");
+                .map_err(|e| {
+                    eprintln!("Failed to run security vault migrations: {}", e);
+                    e
+                })?;
+            
             conn.execute_batch(include_str!("../migrations/004_monitoring.sql"))
-                .expect("Failed to run monitoring migrations");
+                .map_err(|e| {
+                    eprintln!("Failed to run monitoring migrations: {}", e);
+                    e
+                })?;
+            
+            conn.execute_batch(include_str!("../migrations/005_consolidate_credentials.sql"))
+                .map_err(|e| {
+                    eprintln!("Failed to run consolidation migrations: {}", e);
+                    e
+                })?;
             
             // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
@@ -464,6 +493,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             greet,

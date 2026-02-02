@@ -8,6 +8,7 @@
     "core:event:allow-listen",
     "core:event:allow-emit",
     "opener:default",
+    "dialog:default",
     "sql:default",
     "sql:allow-load",
     "sql:allow-execute",

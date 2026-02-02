@@ -62,43 +62,6 @@
 
 ---
 
-### 2. Workflow Scheduling Daemon
-**Priority**: High  
-**Estimated Time**: 2-3 days  
-**Status**: Not started
-
-**Requirements**:
-- Cron expression parser and scheduler
-- Webhook endpoint listener
-- Persistent schedule storage
-- Background task execution
-- Schedule conflict resolution
-
-**Implementation Plan**:
-```rust
-// src-tauri/src/automation/scheduler.rs
-- CronScheduler with tokio-cron-scheduler
-- WebhookListener with axum/actix-web
-- Schedule persistence in SQLite
-- Integration with AutomationState
-```
-
-**Database Schema**:
-```sql
-CREATE TABLE workflow_schedules (
-    id TEXT PRIMARY KEY,
-    workflow_id TEXT NOT NULL,
-    schedule_type TEXT NOT NULL, -- 'cron' or 'webhook'
-    schedule_value TEXT NOT NULL, -- cron expression or webhook path
-    enabled BOOLEAN DEFAULT 1,
-    last_run INTEGER,
-    next_run INTEGER,
-    created_at INTEGER NOT NULL
-);
-```
-
----
-
 ### 3. VNC Client Integration
 **Priority**: Medium  
 **Estimated Time**: 3-5 days  
@@ -130,32 +93,17 @@ CREATE TABLE workflow_schedules (
 
 ---
 
-### 4. Database Schema Migration
+### 4. Database Schema Migration ✅ COMPLETED
 **Priority**: Low (Technical Debt)  
-**Estimated Time**: 1 day  
-**Status**: Not started
+**Completed**: February 2, 2026  
+**Status**: Fully implemented
 
-**Issue**: Old `credentials` table coexists with `credentials_new`
-
-**Migration Plan**:
-```sql
--- migrations/004_consolidate_credentials.sql
--- 1. Copy any remaining data from old table
-INSERT INTO credentials_new (id, name, username, ...)
-SELECT id, name, username, ... FROM credentials
-WHERE id NOT IN (SELECT id FROM credentials_new);
-
--- 2. Drop old table
-DROP TABLE IF EXISTS credentials;
-
--- 3. Rename new table
-ALTER TABLE credentials_new RENAME TO credentials;
-```
-
-**Frontend Updates**:
-- Update `db.ts` to use new schema
-- Remove old credential queries
-- Test all credential operations
+**Changes**:
+- ✅ Consolidated `credentials_new` into `credentials`
+- ✅ Added migration `005_consolidate_credentials.sql`
+- ✅ Updated all backend references to use the new table name
+- ✅ Improved application startup error handling in `lib.rs`
+- ✅ Added `tauri-plugin-dialog` for native file management
 
 ---
 

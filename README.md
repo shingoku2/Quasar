@@ -29,13 +29,6 @@ ProjectTitan provides a comprehensive desktop application for managing remote in
 - **Alert System** - Configurable alerts for system thresholds
 - **Historical Data** - Track metrics over time with SQLite storage
 
-### 🤖 Workflow Automation
-- **Visual Workflow Builder** - Drag-and-drop automation canvas
-- **Multi-step Workflows** - Chain SSH commands, file transfers, and health checks
-- **Conditional Logic** - If/else branching based on command output or metrics
-- **Scheduled Execution** - Run workflows on a schedule or on-demand
-- **Execution History** - Track workflow runs with detailed logs
-
 ### 🎨 Modern UI
 - **React + TypeScript** - Type-safe frontend with modern React patterns
 - **Tailwind CSS** - Beautiful, responsive design with shadcn/ui components
@@ -60,7 +53,7 @@ ProjectTitan provides a comprehensive desktop application for managing remote in
 
 ### Database Schema
 - `hosts` - Remote host configurations
-- `credentials_new` - Encrypted credential storage
+- `credentials` - Encrypted credential storage
 - `vault_settings` - Master password and vault configuration
 - `ssh_known_hosts` - SSH host key fingerprints
 - `security_audit_log` - Security event tracking
@@ -158,7 +151,6 @@ ProjectTitan/
 ├── src-tauri/                   # Rust backend
 │   ├── src/
 │   │   ├── vault/               # Credential vault module
-│   │   ├── automation/          # Workflow engine
 │   │   ├── ssh_exec.rs          # SSH command execution
 │   │   ├── sftp.rs              # SFTP file transfer
 │   │   ├── health.rs            # Health check system

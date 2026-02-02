@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
 import TerminalComponent from './TerminalComponent';
+import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
 import CredentialSelector from './vault/CredentialSelector';
@@ -9,7 +10,7 @@ import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
-import { Plus } from 'lucide-react';
+import { Plus, Folder } from 'lucide-react';
 
 interface Credential {
   id: string;
@@ -30,6 +31,7 @@ const RemoteManager: React.FC = () => {
   
   // State for credential prompt and selector
   const [pendingHost, setPendingHost] = useState<Host | null>(null);
+  const [pendingMode, setPendingMode] = useState<'ssh' | 'sftp'>('ssh');
   const [showCredentialSelector, setShowCredentialSelector] = useState(false);
   const [useManualEntry, setUseManualEntry] = useState(false);
   
@@ -81,10 +83,25 @@ const RemoteManager: React.FC = () => {
     );
   };
 
+  const startSftpSession = (host: Host, password?: string) => {
+    const sessionId = `sftp-${Math.random().toString(36).substring(7)}`;
+    addTab(
+      sessionId, 
+      `SFTP: ${host.name}`, 
+      <SshFileManager 
+        host={host.address}
+        port={host.port || 22}
+        username={host.username || 'root'}
+        password={password} 
+      />
+    );
+  };
+
   const handleConnect = async (host: Host) => {
     try {
       if (host.protocol === 'ssh') {
         setPendingHost(host);
+        setPendingMode('ssh');
         setUseManualEntry(false);
         
         try {
@@ -108,9 +125,35 @@ const RemoteManager: React.FC = () => {
     }
   };
 
+  const handleSftp = async (host: Host) => {
+    try {
+      setPendingHost(host);
+      setPendingMode('sftp');
+      setUseManualEntry(false);
+      
+      try {
+        const isLocked = await invoke<boolean>('is_vault_locked');
+        if (isLocked) {
+          setUseManualEntry(true);
+        } else {
+          setShowCredentialSelector(true);
+        }
+      } catch {
+        setUseManualEntry(true);
+      }
+    } catch (error) {
+      console.error('Failed to launch SFTP:', error);
+      alert(`Failed to launch SFTP: ${error}`);
+    }
+  };
+
   const handleCredentialSelected = (credential: Credential) => {
     if (pendingHost) {
-      startSession(pendingHost, credential.password);
+      if (pendingMode === 'sftp') {
+        startSftpSession(pendingHost, credential.password);
+      } else {
+        startSession(pendingHost, credential.password);
+      }
       setShowCredentialSelector(false);
       setPendingHost(null);
     }
@@ -177,6 +220,7 @@ const RemoteManager: React.FC = () => {
               <HostList 
                 key={refreshTrigger} 
                 onConnect={handleConnect} 
+                onSftp={handleSftp}
               />
             </div>
           </div>
@@ -231,7 +275,11 @@ const RemoteManager: React.FC = () => {
           hostName={pendingHost.name}
           username={pendingHost.username || 'root'}
           onSubmit={(password) => {
-            startSession(pendingHost, password);
+            if (pendingMode === 'sftp') {
+              startSftpSession(pendingHost, password);
+            } else {
+              startSession(pendingHost, password);
+            }
             setPendingHost(null);
             setUseManualEntry(false);
           }}

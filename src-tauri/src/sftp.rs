@@ -1,10 +1,20 @@
 use russh::*;
 use russh_sftp::client::SftpSession;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RemoteFile {
+    pub name: String,
+    pub is_dir: bool,
+    pub size: u64,
+    pub permissions: Option<u32>,
+    pub modified: Option<u64>,
+}
 
 /// Simple SSH client for SFTP operations
 #[derive(Clone)]
@@ -246,7 +256,7 @@ pub async fn list_directory(
     username: &str,
     password: &str,
     remote_path: &str,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<RemoteFile>, String> {
     // Connect to SSH
     let config = russh::client::Config::default();
     let config = Arc::new(config);
@@ -290,9 +300,18 @@ pub async fn list_directory(
         .await
         .map_err(|e| format!("Failed to read directory: {}", e))?;
 
-    let file_names: Vec<String> = entries
+    let files: Vec<RemoteFile> = entries
         .into_iter()
-        .map(|entry| entry.file_name().to_string())
+        .map(|entry| {
+            let attrs = entry.attrs();
+            RemoteFile {
+                name: entry.file_name().to_string(),
+                is_dir: attrs.is_dir().unwrap_or(false),
+                size: attrs.size.unwrap_or(0),
+                permissions: attrs.permissions,
+                modified: attrs.mtime.map(|m| m as u64),
+            }
+        })
         .collect();
 
     sftp.close()
@@ -302,7 +321,7 @@ pub async fn list_directory(
     // Explicitly disconnect SSH session
     let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
-    Ok(file_names)
+    Ok(files)
 }
 
 /// Check if a remote file or directory exists
