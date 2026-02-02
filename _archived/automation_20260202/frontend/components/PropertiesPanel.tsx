@@ -11,11 +11,25 @@ interface PropertiesPanelProps {
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ node, onClose, onUpdate }) => {
   const [label, setLabel] = useState('');
   const [config, setConfig] = useState<Record<string, any>>({});
+  const [disabled, setDisabled] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [notesInFlow, setNotesInFlow] = useState(false);
+  const [onError, setOnError] = useState<'stop_workflow' | 'continue_regular_output' | 'continue_error_output'>('stop_workflow');
+  const [retryOnFail, setRetryOnFail] = useState(false);
+  const [maxTries, setMaxTries] = useState(1);
+  const [waitBetweenTries, setWaitBetweenTries] = useState(0);
 
   useEffect(() => {
     if (node) {
       setLabel(node.data.label);
       setConfig(node.data.config || {});
+      setDisabled(node.data.disabled || false);
+      setNotes(node.data.notes || '');
+      setNotesInFlow(node.data.notesInFlow || false);
+      setOnError(node.data.onError || 'stop_workflow');
+      setRetryOnFail(node.data.retryOnFail || false);
+      setMaxTries(node.data.maxTries || 1);
+      setWaitBetweenTries(node.data.waitBetweenTries || 0);
     }
   }, [node]);
 
@@ -272,6 +286,141 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ node, onClose, onUpda
         {node.type === 'action' && renderActionConfig()}
         {node.type === 'condition' && renderConditionConfig()}
         {node.type === 'notification' && renderNotificationConfig()}
+
+        {/* Advanced Settings */}
+        <div className="border-t border-gray-800 pt-4">
+          <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Advanced</h4>
+          
+          {/* Disabled Toggle */}
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm text-gray-300">Disabled</label>
+            <button
+              onClick={() => {
+                const newValue = !disabled;
+                setDisabled(newValue);
+                onUpdate(node.id, { disabled: newValue });
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                disabled ? 'bg-red-600' : 'bg-gray-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  disabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Error Handling */}
+          <div className="mb-3">
+            <label className="text-xs font-medium text-gray-400 uppercase block mb-1">On Error</label>
+            <select
+              value={onError}
+              onChange={(e) => {
+                const value = e.target.value as typeof onError;
+                setOnError(value);
+                onUpdate(node.id, { onError: value });
+              }}
+              className="w-full bg-zinc-900 border border-gray-700 rounded px-3 py-2 text-sm"
+            >
+              <option value="stop_workflow">Stop Workflow</option>
+              <option value="continue_regular_output">Continue (Empty Output)</option>
+              <option value="continue_error_output">Continue (Error Output)</option>
+            </select>
+          </div>
+
+          {/* Retry Settings */}
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm text-gray-300">Retry on Fail</label>
+            <button
+              onClick={() => {
+                const newValue = !retryOnFail;
+                setRetryOnFail(newValue);
+                onUpdate(node.id, { retryOnFail: newValue });
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                retryOnFail ? 'bg-accent' : 'bg-gray-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  retryOnFail ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {retryOnFail && (
+            <>
+              <div className="mb-3">
+                <label className="text-xs font-medium text-gray-400 uppercase block mb-1">Max Tries</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={maxTries}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 1;
+                    setMaxTries(value);
+                    onUpdate(node.id, { maxTries: value });
+                  }}
+                  className="w-full bg-zinc-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="text-xs font-medium text-gray-400 uppercase block mb-1">Wait Between Tries (ms)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={waitBetweenTries}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setWaitBetweenTries(value);
+                    onUpdate(node.id, { waitBetweenTries: value });
+                  }}
+                  className="w-full bg-zinc-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Notes */}
+          <div className="mb-3">
+            <label className="text-xs font-medium text-gray-400 uppercase block mb-1">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                onUpdate(node.id, { notes: e.target.value });
+              }}
+              placeholder="Add notes about this node..."
+              rows={3}
+              className="w-full bg-zinc-900 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-300">Show Notes in Flow</label>
+            <button
+              onClick={() => {
+                const newValue = !notesInFlow;
+                setNotesInFlow(newValue);
+                onUpdate(node.id, { notesInFlow: newValue });
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                notesInFlow ? 'bg-accent' : 'bg-gray-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  notesInFlow ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Footer */}

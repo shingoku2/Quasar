@@ -6,6 +6,7 @@ import ActionNode from './nodes/ActionNode';
 import ConditionNode from './nodes/ConditionNode';
 import NotificationNode from './nodes/NotificationNode';
 import PropertiesPanel from './PropertiesPanel';
+import WorkflowSettings from './WorkflowSettings';
 
 export interface NodeData {
   id: string;
@@ -14,6 +15,18 @@ export interface NodeData {
   data: {
     label: string;
     config?: Record<string, any>;
+    typeVersion?: number;
+    disabled?: boolean;
+    notes?: string;
+    notesInFlow?: boolean;
+    onError?: 'stop_workflow' | 'continue_regular_output' | 'continue_error_output';
+    continueOnFail?: boolean;
+    retryOnFail?: boolean;
+    maxTries?: number;
+    waitBetweenTries?: number;
+    credentials?: Record<string, { id?: string; name: string }>;
+    parameters?: any;
+    alwaysOutputData?: boolean;
   };
 }
 
@@ -23,6 +36,9 @@ export interface ConnectionData {
   target: string;
   sourcePort?: string;
   targetPort?: string;
+  sourceIndex?: number;
+  targetIndex?: number;
+  connectionType?: 'main' | 'error' | 'ai' | string;
 }
 
 interface CanvasProps {
@@ -51,6 +67,9 @@ const Canvas: React.FC<CanvasProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; port: string } | null>(null);
   const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
+  const [workflowSettings, setWorkflowSettings] = useState<any>({});
+  const [workflowTags, setWorkflowTags] = useState<string[]>([]);
+  const [workflowMetadata, setWorkflowMetadata] = useState<any>({});
   
   const canvasRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -366,6 +385,18 @@ const Canvas: React.FC<CanvasProps> = ({
             data: {
               label: node.name,
               config: node.config,
+              typeVersion: node.type_version || 1,
+              disabled: node.disabled,
+              notes: node.notes,
+              notesInFlow: node.notes_in_flow,
+              onError: node.on_error,
+              continueOnFail: node.continue_on_fail,
+              retryOnFail: node.retry_on_fail,
+              maxTries: node.max_tries,
+              waitBetweenTries: node.wait_between_tries,
+              credentials: node.credentials,
+              parameters: node.parameters,
+              alwaysOutputData: node.always_output_data,
             },
           }));
           
@@ -375,10 +406,28 @@ const Canvas: React.FC<CanvasProps> = ({
             target: conn.target_node,
             sourcePort: conn.source_port,
             targetPort: conn.target_port,
+            sourceIndex: conn.source_index || 0,
+            targetIndex: conn.target_index || 0,
+            connectionType: conn.connection_type || 'main',
           }));
           
           setNodes(canvasNodes);
           setConnections(canvasConnections);
+          
+          // Load workflow settings and metadata
+          if (workflow.settings) {
+            setWorkflowSettings(workflow.settings);
+          }
+          if (workflow.tags) {
+            setWorkflowTags(workflow.tags);
+          }
+          if (workflow.category || workflow.author || workflow.version) {
+            setWorkflowMetadata({
+              category: workflow.category,
+              author: workflow.author,
+              version: workflow.version,
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to load workflow:', err);
@@ -426,8 +475,20 @@ const Canvas: React.FC<CanvasProps> = ({
                 id: n.id,
                 node_type: n.type,
                 name: n.data.label,
+                type_version: n.data.typeVersion || 1,
                 position: n.position,
                 config: config,
+                disabled: n.data.disabled,
+                notes: n.data.notes,
+                notes_in_flow: n.data.notesInFlow,
+                on_error: n.data.onError,
+                continue_on_fail: n.data.continueOnFail,
+                retry_on_fail: n.data.retryOnFail,
+                max_tries: n.data.maxTries,
+                wait_between_tries: n.data.waitBetweenTries,
+                credentials: n.data.credentials,
+                parameters: n.data.parameters,
+                always_output_data: n.data.alwaysOutputData,
               };
             }),
             connections: connections.map(c => ({
@@ -436,10 +497,20 @@ const Canvas: React.FC<CanvasProps> = ({
               target_node: c.target,
               source_port: c.sourcePort || 'output',
               target_port: c.targetPort || 'input',
+              source_index: c.sourceIndex || 0,
+              target_index: c.targetIndex || 0,
+              connection_type: c.connectionType || 'main',
             })),
             enabled: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            settings: workflowSettings,
+            static_data: {},
+            pin_data: null,
+            tags: workflowTags,
+            category: workflowMetadata.category,
+            author: workflowMetadata.author,
+            version: workflowMetadata.version,
           };
           
           await invoke('save_workflow', { workflow });
@@ -496,6 +567,18 @@ const Canvas: React.FC<CanvasProps> = ({
     notification: '#8b5cf6',
   };
 
+  const getConnectionColor = (type?: string) => {
+    switch (type) {
+      case 'error':
+        return '#ef4444'; // red
+      case 'ai':
+        return '#a855f7'; // purple
+      case 'main':
+      default:
+        return '#3b82f6'; // blue
+    }
+  };
+
   const renderConnection = (conn: ConnectionData) => {
     const sourceNode = nodes.find(n => n.id === conn.source);
     const targetNode = nodes.find(n => n.id === conn.target);
@@ -508,37 +591,120 @@ const Canvas: React.FC<CanvasProps> = ({
 
     const midX = (x1 + x2) / 2;
     const path = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+    const color = getConnectionColor(conn.connectionType);
 
     return (
       <g key={conn.id}>
         <path
           d={path}
           fill="none"
-          stroke="#555"
+          stroke={color}
           strokeWidth={2}
-          className="hover:stroke-accent cursor-pointer"
+          strokeOpacity={0.6}
+          className="hover:stroke-opacity-100 cursor-pointer transition-all"
           onClick={() => setConnections(prev => prev.filter(c => c.id !== conn.id))}
         />
+        {/* Connection type indicator */}
+        {conn.connectionType && conn.connectionType !== 'main' && (
+          <text
+            x={(x1 + x2) / 2}
+            y={(y1 + y2) / 2 - 10}
+            fill={color}
+            fontSize="10"
+            textAnchor="middle"
+            className="pointer-events-none"
+          >
+            {conn.connectionType}
+          </text>
+        )}
       </g>
     );
   };
 
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  const nodeLibrary = [
+    {
+      category: 'Triggers',
+      color: nodeColors.trigger,
+      nodes: [
+        { type: 'trigger' as const, label: 'Manual Trigger', icon: '▶' },
+        { type: 'trigger' as const, label: 'Webhook', icon: '🌐' },
+        { type: 'trigger' as const, label: 'Schedule', icon: '⏰' },
+      ]
+    },
+    {
+      category: 'Actions',
+      color: nodeColors.action,
+      nodes: [
+        { type: 'action' as const, label: 'SSH Command', icon: '💻' },
+        { type: 'action' as const, label: 'HTTP Request', icon: '🌐' },
+        { type: 'action' as const, label: 'Database Query', icon: '🗄️' },
+        { type: 'action' as const, label: 'File Operation', icon: '📁' },
+      ]
+    },
+    {
+      category: 'Logic',
+      color: nodeColors.condition,
+      nodes: [
+        { type: 'condition' as const, label: 'IF Condition', icon: '🔀' },
+        { type: 'condition' as const, label: 'Switch', icon: '🔄' },
+      ]
+    },
+    {
+      category: 'Notifications',
+      color: nodeColors.notification,
+      nodes: [
+        { type: 'notification' as const, label: 'Send Email', icon: '📧' },
+        { type: 'notification' as const, label: 'Slack Message', icon: '💬' },
+        { type: 'notification' as const, label: 'In-App Alert', icon: '🔔' },
+      ]
+    },
+  ];
+
   return (
     <div ref={containerRef} className="flex h-full bg-zinc-950">
       {/* Node Palette */}
-      <div className="w-16 border-r border-gray-800 bg-bg-card flex flex-col items-center py-4 space-y-4">
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Nodes</div>
-        {(['trigger', 'action', 'condition', 'notification'] as const).map(type => (
-          <button
-            key={type}
-            onClick={() => addNode(type, { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 })}
-            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110"
-            style={{ backgroundColor: nodeColors[type] + '20', border: `1px solid ${nodeColors[type]}` }}
-            title={`Add ${type} node`}
-          >
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: nodeColors[type] }} />
-          </button>
-        ))}
+      <div className="w-64 border-r border-gray-800 bg-bg-card flex flex-col overflow-y-auto">
+        <div className="p-3 border-b border-gray-800">
+          <h3 className="text-sm font-semibold text-white">Node Library</h3>
+        </div>
+        
+        <div className="flex-1 py-2">
+          {nodeLibrary.map((category) => (
+            <div key={category.category} className="mb-1">
+              <button
+                onClick={() => setExpandedCategory(
+                  expandedCategory === category.category ? null : category.category
+                )}
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-800/50 transition-colors"
+              >
+                <span className="text-sm font-medium text-gray-300">{category.category}</span>
+                <span className="text-gray-500 text-xs">
+                  {expandedCategory === category.category ? '▼' : '▶'}
+                </span>
+              </button>
+              
+              {expandedCategory === category.category && (
+                <div className="py-1 space-y-1">
+                  {category.nodes.map((node, idx) => (
+                    <button
+                      key={`${node.type}-${idx}`}
+                      onClick={() => addNode(node.type, { x: 400, y: 300 })}
+                      className="w-full px-6 py-2 flex items-center gap-2 hover:bg-gray-800 transition-colors text-left group"
+                      style={{ borderLeft: `3px solid ${category.color}` }}
+                    >
+                      <span className="text-lg">{node.icon}</span>
+                      <span className="text-sm text-gray-300 group-hover:text-white">
+                        {node.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Canvas */}
@@ -859,12 +1025,31 @@ const Canvas: React.FC<CanvasProps> = ({
         </div>
       </div>
 
-      {/* Properties Panel */}
-      <PropertiesPanel
-        node={selectedNode}
-        onClose={() => setSelectedNodes(new Set())}
-        onUpdate={handleUpdateNode}
-      />
+      {/* Right Sidebar */}
+      <div className="w-80 border-l border-gray-800 bg-bg-card overflow-y-auto">
+        {/* Workflow Settings */}
+        <div className="p-4">
+          <WorkflowSettings
+            settings={workflowSettings}
+            tags={workflowTags}
+            metadata={workflowMetadata}
+            onSettingsChange={setWorkflowSettings}
+            onTagsChange={setWorkflowTags}
+            onMetadataChange={setWorkflowMetadata}
+          />
+        </div>
+
+        {/* Properties Panel */}
+        {selectedNode && (
+          <div className="border-t border-gray-700">
+            <PropertiesPanel
+              node={selectedNode}
+              onClose={() => setSelectedNodes(new Set())}
+              onUpdate={handleUpdateNode}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
