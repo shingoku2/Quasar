@@ -1,5 +1,0 @@
-{
-	"permissions": {
-		"allow": ["Bash(find:*)", "Bash(pnpm typecheck:*)", "Bash(pnpm build)", "Bash(pnpm lint:*)"]
-	}
-}
