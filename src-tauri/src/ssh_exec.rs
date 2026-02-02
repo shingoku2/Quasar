@@ -119,6 +119,11 @@ pub async fn execute_ssh_commands_batch(
     commands: &[&str],
     timeout_secs: u64,
 ) -> Result<Vec<String>, String> {
+    // Early return for empty commands array
+    if commands.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let config = russh::client::Config::default();
     let config = Arc::new(config);
     let sh = ExecClient;
@@ -146,11 +151,7 @@ pub async fn execute_ssh_commands_batch(
     
     // Calculate per-command timeout: divide total timeout by number of commands, with minimum of 5 seconds
     let num_commands = commands.len() as u64;
-    let per_command_timeout = if num_commands > 0 {
-        (timeout_secs / num_commands).max(5)
-    } else {
-        timeout_secs
-    };
+    let per_command_timeout = (timeout_secs / num_commands).max(5);
 
     for command in commands {
         let mut channel = session.channel_open_session()

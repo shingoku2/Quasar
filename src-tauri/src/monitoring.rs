@@ -438,10 +438,20 @@ impl AlertEngine {
             if new_len > 50 {
                 // Remove oldest alerts to make room
                 let to_remove = new_len - 50;
-                active.drain(0..to_remove.min(current_len));
+                // Ensure we don't try to remove more than we have
+                if to_remove > 0 && current_len > 0 {
+                    let remove_count = to_remove.min(current_len);
+                    active.drain(0..remove_count);
+                }
             }
             
             active.extend(new_alerts.clone());
+            
+            // Final safety check: if still over limit, truncate to 50
+            let final_len = active.len();
+            if final_len > 50 {
+                active.drain(0..(final_len - 50));
+            }
         }
 
         (new_alerts, recoveries)
@@ -675,69 +685,19 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     let alert_engine = app_handle.state::<Arc<AlertEngine>>();
     let mut ticker = interval(Duration::from_secs(interval_secs));
 
-    // Get database path for persistence
-    let db_path = match app_handle.path().app_data_dir() {
-        Ok(path) => path.join("titan.db"),
-        Err(e) => {
-            eprintln!("Failed to get app data dir: {}", e);
-            eprintln!("Monitoring will continue without persistence");
-            // Continue without persistence
-            loop {
-                ticker.tick().await;
-                let metrics = collector.collect();
-                let (alerts, recoveries) = alert_engine.evaluate(&metrics);
-                let _ = app_handle.emit("system-metrics", metrics.clone());
-                if !recoveries.is_empty() {
-                    let _ = app_handle.emit("alerts-recovered", recoveries);
-                }
-                if !alerts.is_empty() {
-                    let _ = app_handle.emit("alerts-triggered", alerts);
-                }
-            }
-        }
-    };
-    
-    let db_path_str = match db_path.to_str() {
-        Some(path) => path.to_string(),
-        None => {
-            eprintln!("Invalid database path encoding");
-            eprintln!("Monitoring will continue without persistence");
-            // Continue without persistence
-            loop {
-                ticker.tick().await;
-                let metrics = collector.collect();
-                let (alerts, recoveries) = alert_engine.evaluate(&metrics);
-                let _ = app_handle.emit("system-metrics", metrics.clone());
-                if !recoveries.is_empty() {
-                    let _ = app_handle.emit("alerts-recovered", recoveries);
-                }
-                if !alerts.is_empty() {
-                    let _ = app_handle.emit("alerts-triggered", alerts);
-                }
-            }
-        }
-    };
-    
-    let metrics_store = match MetricsStore::new(db_path_str, 30) {
-        Ok(store) => store,
-        Err(e) => {
-            eprintln!("Failed to create metrics store: {}", e);
-            eprintln!("Monitoring will continue without persistence");
-            // Continue without persistence
-            loop {
-                ticker.tick().await;
-                let metrics = collector.collect();
-                let (alerts, recoveries) = alert_engine.evaluate(&metrics);
-                let _ = app_handle.emit("system-metrics", metrics.clone());
-                if !recoveries.is_empty() {
-                    let _ = app_handle.emit("alerts-recovered", recoveries);
-                }
-                if !alerts.is_empty() {
-                    let _ = app_handle.emit("alerts-triggered", alerts);
-                }
-            }
-        }
-    };
+    // Try to initialize metrics store, but continue without it if it fails
+    let metrics_store = app_handle.path().app_data_dir()
+        .ok()
+        .and_then(|path| path.join("titan.db").to_str().map(|s| s.to_string()))
+        .and_then(|db_path| {
+            MetricsStore::new(db_path, 30)
+                .map_err(|e| {
+                    eprintln!("Failed to create metrics store: {}", e);
+                    eprintln!("Monitoring will continue without persistence");
+                    e
+                })
+                .ok()
+        });
 
     let mut save_counter = 0u32;
     let mut cleanup_counter = 0u32;
@@ -753,22 +713,24 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
         println!("Emitting system-metrics: cpu={:.1}%, mem={:.1}%", metrics.cpu_usage_percent, metrics.memory_usage_percent);
         let _ = app_handle.emit("system-metrics", metrics.clone());
 
-        // Save metrics to database every 30 seconds
-        save_counter += 1;
-        if save_counter >= save_interval {
-            save_counter = 0;
-            if let Err(e) = metrics_store.save_metrics(&metrics, "localhost") {
-                eprintln!("Failed to save metrics: {}", e);
+        // Save metrics to database every 30 seconds (if store available)
+        if let Some(ref store) = metrics_store {
+            save_counter += 1;
+            if save_counter >= save_interval {
+                save_counter = 0;
+                if let Err(e) = store.save_metrics(&metrics, "localhost") {
+                    eprintln!("Failed to save metrics: {}", e);
+                }
             }
-        }
 
-        // Run cleanup daily
-        cleanup_counter += 1;
-        if cleanup_counter >= cleanup_interval {
-            cleanup_counter = 0;
-            match metrics_store.cleanup_old_metrics() {
-                Ok(deleted) => println!("Cleaned up {} old metric records", deleted),
-                Err(e) => eprintln!("Failed to cleanup metrics: {}", e),
+            // Run cleanup daily
+            cleanup_counter += 1;
+            if cleanup_counter >= cleanup_interval {
+                cleanup_counter = 0;
+                match store.cleanup_old_metrics() {
+                    Ok(deleted) => println!("Cleaned up {} old metric records", deleted),
+                    Err(e) => eprintln!("Failed to cleanup metrics: {}", e),
+                }
             }
         }
 
@@ -777,12 +739,14 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
             let _ = app_handle.emit("alerts-recovered", recoveries);
         }
 
-        // Save alerts to database
+        // Save alerts to database (if store available)
         if !alerts.is_empty() {
             let _ = app_handle.emit("alerts-triggered", alerts.clone());
-            for alert in &alerts {
-                if let Err(e) = metrics_store.save_alert(alert, "localhost") {
-                    eprintln!("Failed to save alert: {}", e);
+            if let Some(ref store) = metrics_store {
+                for alert in &alerts {
+                    if let Err(e) = store.save_alert(alert, "localhost") {
+                        eprintln!("Failed to save alert: {}", e);
+                    }
                 }
             }
         }
