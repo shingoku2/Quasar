@@ -128,6 +128,9 @@ pub async fn upload_file(
         .await
         .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
 
+    // Explicitly disconnect SSH session
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+
     Ok(())
 }
 
@@ -230,6 +233,9 @@ pub async fn download_file(
         .await
         .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
 
+    // Explicitly disconnect SSH session
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+
     Ok(())
 }
 
@@ -293,6 +299,9 @@ pub async fn list_directory(
         .await
         .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
 
+    // Explicitly disconnect SSH session
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+
     Ok(file_names)
 }
 
@@ -348,6 +357,9 @@ pub async fn remote_exists(
     sftp.close()
         .await
         .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+
+    // Explicitly disconnect SSH session
+    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
     Ok(exists)
 }

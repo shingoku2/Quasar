@@ -328,6 +328,74 @@ impl CredentialManager {
         Ok(())
     }
 
+    pub fn delete_credential_tx(&self, tx: &rusqlite::Transaction, credential_id: &str) -> Result<(), String> {
+        tx.execute(
+            "DELETE FROM credentials_new WHERE id = ?1",
+            [credential_id],
+        ).map_err(|e| format!("Failed to delete credential: {}", e))?;
+
+        // Log audit event
+        Self::log_audit_event_tx(
+            tx,
+            "credential_delete",
+            Some(credential_id),
+            Some("credential"),
+            "delete",
+            "success",
+            None,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn add_credential_tx(
+        &self,
+        tx: &rusqlite::Transaction,
+        master_key: &[u8; 32],
+        name: String,
+        username: String,
+        password: String,
+        credential_type: String,
+        metadata: Option<String>,
+    ) -> Result<String, String> {
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        // Encrypt password
+        let password_bytes = password.as_bytes();
+        let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
+
+        tx.execute(
+            "INSERT INTO credentials_new (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            rusqlite::params![
+                id,
+                name,
+                username,
+                ciphertext,
+                nonce.to_vec(),
+                tag.to_vec(),
+                credential_type,
+                metadata,
+                now,
+                now
+            ],
+        ).map_err(|e| format!("Failed to insert credential: {}", e))?;
+
+        // Log audit event
+        Self::log_audit_event_tx(
+            tx,
+            "credential_create",
+            Some(&id),
+            Some("credential"),
+            "create",
+            "success",
+            None,
+        )?;
+
+        Ok(id)
+    }
+
     pub fn search_credentials(&self, query: &str) -> Result<Vec<CredentialSummary>, String> {
         let conn = Connection::open(&self.db_path)
             .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -386,6 +454,36 @@ impl CredentialManager {
         let timestamp = chrono::Utc::now().timestamp();
 
         conn.execute(
+            "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![
+                id,
+                timestamp,
+                event_type,
+                resource_id,
+                resource_type,
+                action,
+                result,
+                details
+            ],
+        ).map_err(|e| format!("Failed to log audit event: {}", e))?;
+
+        Ok(())
+    }
+
+    fn log_audit_event_tx(
+        tx: &rusqlite::Transaction,
+        event_type: &str,
+        resource_id: Option<&str>,
+        resource_type: Option<&str>,
+        action: &str,
+        result: &str,
+        details: Option<&str>,
+    ) -> Result<(), String> {
+        let id = Uuid::new_v4().to_string();
+        let timestamp = chrono::Utc::now().timestamp();
+
+        tx.execute(
             "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             rusqlite::params![
