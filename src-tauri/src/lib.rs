@@ -448,9 +448,14 @@ pub fn run() {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
                 loop {
                     interval.tick().await;
-                    if let Ok(locked) = vault_state_clone.check_auto_lock().await {
-                        if locked {
-                            let _ = app_handle_vault.emit("vault-auto-locked", ());
+                    match vault_state_clone.check_auto_lock().await {
+                        Ok(locked) => {
+                            if locked {
+                                let _ = app_handle_vault.emit("vault-auto-locked", ());
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Auto-lock check failed: {}", e);
                         }
                     }
                 }

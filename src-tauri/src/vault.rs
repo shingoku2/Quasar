@@ -46,6 +46,7 @@ struct VaultStateInner {
     failed_attempts: u32,
     lockout_until: Option<Instant>,
     db_path: String,
+    changing_password: bool,
 }
 
 struct MasterKey {
@@ -68,6 +69,7 @@ impl VaultState {
                 failed_attempts: 0,
                 lockout_until: None,
                 db_path,
+                changing_password: false,
             })),
         }
     }
@@ -199,7 +201,7 @@ impl VaultState {
                 return Err("Too many failed attempts. Vault locked for 5 minutes".to_string());
             }
             
-            return Err(format!("Invalid master password. {} attempts remaining", 5 - inner.failed_attempts.min(5)));
+            return Err(format!("Invalid master password. {} attempts remaining before lockout", 5 - inner.failed_attempts));
         }
 
         // Derive master key from password using hash_password_into for direct key derivation
@@ -238,7 +240,7 @@ impl VaultState {
     pub async fn check_auto_lock(&self) -> Result<bool, String> {
         let mut inner = self.inner.write().await;
         
-        if inner.master_key.is_none() {
+        if inner.master_key.is_none() || inner.changing_password {
             return Ok(false);
         }
 
@@ -276,6 +278,9 @@ impl VaultState {
 
     pub async fn change_master_password(&self, current_password: &str, new_password: &str) -> Result<(), String> {
         let mut inner = self.inner.write().await;
+        
+        // Set flag to prevent auto-lock during password change
+        inner.changing_password = true;
         
         // Verify current password
         let conn = rusqlite::Connection::open(&inner.db_path)
@@ -399,6 +404,7 @@ impl VaultState {
         // Update master key in memory
         inner.master_key = Some(MasterKey { key: new_master_key });
         inner.last_activity = Some(Instant::now());
+        inner.changing_password = false;
         
         Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
         

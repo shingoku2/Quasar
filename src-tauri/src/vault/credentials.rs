@@ -241,17 +241,18 @@ impl CredentialManager {
 
         let now = chrono::Utc::now().timestamp();
 
-        // Build dynamic update query
+        // Build dynamic update query with validated field names
+        // SAFETY: All field names are hardcoded constants, not user input
         let mut updates = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
         if let Some(n) = name {
-            updates.push("name = ?");
+            updates.push("name = ?"); // Hardcoded field name
             params.push(Box::new(n));
         }
 
         if let Some(u) = username {
-            updates.push("username = ?");
+            updates.push("username = ?"); // Hardcoded field name
             params.push(Box::new(u));
         }
 
@@ -260,16 +261,16 @@ impl CredentialManager {
             let password_bytes = p.as_bytes();
             let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
-            updates.push("encrypted_password = ?");
-            updates.push("nonce = ?");
-            updates.push("tag = ?");
+            updates.push("encrypted_password = ?"); // Hardcoded field name
+            updates.push("nonce = ?"); // Hardcoded field name
+            updates.push("tag = ?"); // Hardcoded field name
             params.push(Box::new(ciphertext));
             params.push(Box::new(nonce.to_vec()));
             params.push(Box::new(tag.to_vec()));
         }
 
         if let Some(m) = metadata {
-            updates.push("metadata = ?");
+            updates.push("metadata = ?"); // Hardcoded field name
             params.push(Box::new(m));
         }
 
@@ -277,9 +278,10 @@ impl CredentialManager {
             return Ok(());
         }
 
-        updates.push("updated_at = ?");
+        updates.push("updated_at = ?"); // Hardcoded field name
         params.push(Box::new(now));
 
+        // SAFETY: Query is constructed from hardcoded field names only
         let query = format!(
             "UPDATE credentials_new SET {} WHERE id = ?",
             updates.join(", ")

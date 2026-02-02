@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog from './AddHostDialog';
 import TerminalComponent from './TerminalComponent';
@@ -33,8 +33,11 @@ const RemoteManager: React.FC = () => {
   const [showCredentialSelector, setShowCredentialSelector] = useState(false);
   const [useManualEntry, setUseManualEntry] = useState(false);
   
+  // Track if quick connect has been processed to prevent duplicate executions
+  const quickConnectProcessed = useRef(false);
+  
   // SSH host key verification
-  const { promptData, verifyHostKey, handleTrust, handleReject } = useSshHostKeyVerification();
+  const { promptData, handleTrust, handleReject } = useSshHostKeyVerification();
 
   const addTab = (id: string, title: string, content: React.ReactNode) => {
     setTabs(prev => [...prev, { id, title, content, closable: true }]);
@@ -118,14 +121,16 @@ const RemoteManager: React.FC = () => {
     setUseManualEntry(true);
   };
 
-  // Check for quick connect on every render (when view becomes visible)
+  // Check for quick connect only once when component mounts or becomes visible
   useEffect(() => {
     const quickConnectData = sessionStorage.getItem('quickConnectHost');
-    if (quickConnectData) {
+    if (quickConnectData && !quickConnectProcessed.current) {
       try {
         const host = JSON.parse(quickConnectData);
         // Clear the stored data immediately
         sessionStorage.removeItem('quickConnectHost');
+        // Mark as processed
+        quickConnectProcessed.current = true;
         
         console.log('Quick Connect: Triggering connection to', host.name);
         
@@ -147,7 +152,7 @@ const RemoteManager: React.FC = () => {
         console.error('Failed to parse quick connect host:', err);
       }
     }
-  }); // Run on every render to catch when view becomes visible
+  }, []); // Run only once on mount
 
   useEffect(() => {
     initDatabase().catch(console.error);

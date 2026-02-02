@@ -25,9 +25,11 @@ impl client::Handler for Client {
         // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
         
-        // Get key bytes and create fingerprint (hex format for simplicity)
+        // Get key bytes and create fingerprint using full key (hex format)
+        // NOTE: This uses hex encoding of the full public key bytes
+        // For production, consider adding sha2 and base64 crates for SHA256:base64 format
         let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = key_bytes[..32.min(key_bytes.len())]
+        let fingerprint = key_bytes
             .iter()
             .map(|b| format!("{:02x}", b))
             .collect::<String>();
@@ -93,6 +95,7 @@ pub struct SshConnection {
     pub disconnect_tx: tokio::sync::mpsc::Sender<()>,
     pub bytes_received: Arc<Mutex<u64>>,
     pub last_stats_check: Arc<Mutex<Instant>>,
+    pub stats_cancel_tx: tokio::sync::mpsc::Sender<()>,
 }
 
 pub struct SshState {
@@ -159,6 +162,7 @@ pub async fn connect_ssh(
     let last_stats_check = Arc::new(Mutex::new(Instant::now()));
 
     let (disconnect_tx, mut disconnect_rx) = tokio::sync::mpsc::channel(1);
+    let (stats_cancel_tx, mut stats_cancel_rx) = tokio::sync::mpsc::channel::<()>(1);
 
     // Spawn session driver
     let id_for_closure = id.clone();
@@ -181,50 +185,58 @@ pub async fn connect_ssh(
         disconnect_tx,
         bytes_received: bytes_received.clone(),
         last_stats_check: last_stats_check.clone(),
+        stats_cancel_tx,
     };
 
     state.sessions.lock().unwrap().insert(id.clone(), conn);
 
-    // Spawn stats reporter
+    // Spawn stats reporter with cancellation support
     let app_handle_clone = app_handle.clone();
     let id_clone = id.clone();
     tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
         loop {
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            
-            let (bytes, last_time) = {
-                let state = app_handle_clone.state::<SshState>();
-                let sessions = state.sessions.lock().unwrap();
-                if let Some(c) = sessions.get(&id_clone) {
-                    let b = *c.bytes_received.lock().unwrap();
-                    let t = *c.last_stats_check.lock().unwrap();
-                    
-                    *c.bytes_received.lock().unwrap() = 0;
-                    *c.last_stats_check.lock().unwrap() = Instant::now();
-                    
-                    (b, t)
-                } else {
+            tokio::select! {
+                _ = interval.tick() => {
+                    let (bytes, last_time) = {
+                        let state = app_handle_clone.state::<SshState>();
+                        let sessions = state.sessions.lock().unwrap();
+                        if let Some(c) = sessions.get(&id_clone) {
+                            let b = *c.bytes_received.lock().unwrap();
+                            let t = *c.last_stats_check.lock().unwrap();
+                            
+                            *c.bytes_received.lock().unwrap() = 0;
+                            *c.last_stats_check.lock().unwrap() = Instant::now();
+                            
+                            (b, t)
+                        } else {
+                            break;
+                        }
+                    };
+
+                    let elapsed = last_time.elapsed().as_secs_f64();
+                    let kbps = if elapsed > 0.0 {
+                        (bytes as f64 * 8.0) / (elapsed * 1024.0)
+                    } else {
+                        0.0
+                    };
+
+                    let bandwidth_str = if kbps > 1024.0 {
+                        format!("{:.1} Mbps", kbps / 1024.0)
+                    } else {
+                        format!("{:.1} Kbps", kbps)
+                    };
+
+                    let _ = app_handle_clone.emit(&format!("ssh_stats_{}", id_clone), serde_json::json!({
+                        "bandwidth": bandwidth_str,
+                        "latency": 0
+                    }));
+                }
+                _ = stats_cancel_rx.recv() => {
+                    // Explicitly cancelled - clean exit
                     break;
                 }
-            };
-
-            let elapsed = last_time.elapsed().as_secs_f64();
-            let kbps = if elapsed > 0.0 {
-                (bytes as f64 * 8.0) / (elapsed * 1024.0)
-            } else {
-                0.0
-            };
-
-            let bandwidth_str = if kbps > 1024.0 {
-                format!("{:.1} Mbps", kbps / 1024.0)
-            } else {
-                format!("{:.1} Kbps", kbps)
-            };
-
-            let _ = app_handle_clone.emit(&format!("ssh_stats_{}", id_clone), serde_json::json!({
-                "bandwidth": bandwidth_str,
-                "latency": 0
-            }));
+            }
         }
     });
 
@@ -289,6 +301,8 @@ pub async fn disconnect_ssh(
     if let Some(conn) = conn {
         // Send disconnect signal to background driver
         let _ = conn.disconnect_tx.send(()).await;
+        // Cancel stats reporter task
+        let _ = conn.stats_cancel_tx.send(()).await;
         Ok(())
     } else {
         Err("Session not found".to_string())
