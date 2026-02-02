@@ -77,7 +77,7 @@ impl CredentialManager {
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
         conn.execute(
-            "INSERT INTO credentials_new (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
                 id,
@@ -117,7 +117,7 @@ impl CredentialManager {
 
         let mut stmt = conn.prepare(
             "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at, last_used_at
-             FROM credentials_new WHERE id = ?1"
+             FROM credentials WHERE id = ?1"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
         let credential = stmt.query_row([credential_id], |row| {
@@ -168,7 +168,7 @@ impl CredentialManager {
         // Update last_used_at
         let now = chrono::Utc::now().timestamp();
         conn.execute(
-            "UPDATE credentials_new SET last_used_at = ?1 WHERE id = ?2",
+            "UPDATE credentials SET last_used_at = ?1 WHERE id = ?2",
             rusqlite::params![now, credential_id],
         ).map_err(|e| format!("Failed to update last_used_at: {}", e))?;
 
@@ -192,7 +192,7 @@ impl CredentialManager {
 
         let mut stmt = conn.prepare(
             "SELECT id, name, username, credential_type, metadata, created_at, updated_at, last_used_at
-             FROM credentials_new ORDER BY name ASC"
+             FROM credentials ORDER BY name ASC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
         let credentials = stmt.query_map([], |row| {
@@ -283,7 +283,7 @@ impl CredentialManager {
 
         // SAFETY: Query is constructed from hardcoded field names only
         let query = format!(
-            "UPDATE credentials_new SET {} WHERE id = ?",
+            "UPDATE credentials SET {} WHERE id = ?",
             updates.join(", ")
         );
 
@@ -312,7 +312,7 @@ impl CredentialManager {
             .map_err(|e| format!("Failed to open database: {}", e))?;
 
         conn.execute(
-            "DELETE FROM credentials_new WHERE id = ?1",
+            "DELETE FROM credentials WHERE id = ?1",
             [credential_id],
         ).map_err(|e| format!("Failed to delete credential: {}", e))?;
 
@@ -332,7 +332,7 @@ impl CredentialManager {
 
     pub fn delete_credential_tx(&self, tx: &rusqlite::Transaction, credential_id: &str) -> Result<(), String> {
         tx.execute(
-            "DELETE FROM credentials_new WHERE id = ?1",
+            "DELETE FROM credentials WHERE id = ?1",
             [credential_id],
         ).map_err(|e| format!("Failed to delete credential: {}", e))?;
 
@@ -368,7 +368,7 @@ impl CredentialManager {
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
         tx.execute(
-            "INSERT INTO credentials_new (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
                 id,
@@ -406,7 +406,7 @@ impl CredentialManager {
 
         let mut stmt = conn.prepare(
             "SELECT id, name, username, credential_type, metadata, created_at, updated_at, last_used_at
-             FROM credentials_new 
+             FROM credentials 
              WHERE name LIKE ?1 OR username LIKE ?1 OR credential_type LIKE ?1
              ORDER BY name ASC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
@@ -517,7 +517,7 @@ mod tests {
         let conn = Connection::open(&db_path).expect("Failed to open test database");
 
         conn.execute(
-            "CREATE TABLE credentials_new (
+            "CREATE TABLE credentials (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 username TEXT NOT NULL,

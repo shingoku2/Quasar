@@ -17,19 +17,14 @@ vi.mock('@tauri-apps/plugin-sql', () => {
 
 describe('Database Initialization', () => {
   it('should call execute with correct table schemas', async () => {
-    const db = await initDatabase();
+    const queries = (Database.prototype.execute as any).mock.calls.map((call: any) => call[0]);
     
-    // Should be called twice (one for hosts, one for credentials)
-    expect(db.execute).toHaveBeenCalledTimes(2);
+    // Should be called once for hosts
+    expect(Database.prototype.execute).toHaveBeenCalledTimes(1);
     
-    // @ts-ignore
-    const hostsQuery = db.execute.mock.calls[0][0];
-    expect(hostsQuery).toContain('CREATE TABLE IF NOT EXISTS hosts');
-    expect(hostsQuery).toContain('protocol TEXT NOT NULL');
-
-    // @ts-ignore
-    const credsQuery = db.execute.mock.calls[1][0];
-    expect(credsQuery).toContain('CREATE TABLE IF NOT EXISTS credentials');
-    expect(credsQuery).toContain('password_encrypted BLOB NOT NULL');
+    const hostsQuery = queries.find((q: string) => q.includes('CREATE TABLE IF NOT EXISTS hosts'));
+    
+    expect(hostsQuery).toBeDefined();
+    expect(hostsQuery).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
   });
 });
