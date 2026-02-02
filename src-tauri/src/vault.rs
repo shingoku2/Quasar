@@ -10,6 +10,7 @@ use argon2::{
     password_hash::{PasswordHash, PasswordVerifier, SaltString, PasswordHasher, rand_core::OsRng},
     Argon2, Params, Version,
 };
+use password_hash::Salt;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -205,11 +206,16 @@ impl VaultState {
         }
 
         // Derive master key from password using hash_password_into for direct key derivation
-        let salt = SaltString::from_b64(&salt_str)
+        let salt_string = SaltString::from_b64(&salt_str)
             .map_err(|e| format!("Failed to parse salt: {}", e))?;
+        
+        // Decode the base64 salt to raw bytes
+        let salt = Salt::from_b64(salt_string.as_str())
+            .map_err(|e| format!("Failed to decode salt: {}", e))?;
         
         let mut master_key = [0u8; 32];
         // Use hash_password_into to derive key directly into the buffer
+        // Salt's as_str() returns the decoded bytes as a string, convert to bytes
         argon2.hash_password_into(master_password.as_bytes(), salt.as_str().as_bytes(), &mut master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
 
@@ -317,7 +323,10 @@ impl VaultState {
         
         // Derive new master key using hash_password_into with proper salt bytes
         let mut new_master_key = [0u8; 32];
-        argon2.hash_password_into(new_password.as_bytes(), new_salt.as_str().as_bytes(), &mut new_master_key)
+        // Decode the base64 salt to get the actual salt bytes
+        let new_salt_decoded = Salt::from_b64(new_salt.as_str())
+            .map_err(|e| format!("Failed to decode salt: {}", e))?;
+        argon2.hash_password_into(new_password.as_bytes(), new_salt_decoded.as_str().as_bytes(), &mut new_master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
         
         // Re-encrypt all credentials with new key using transaction for safety
