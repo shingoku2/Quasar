@@ -1,5 +1,6 @@
-use crate::automation::{ActionType, ExecutionContext, ExecutionStatus, Node, NodeConfig, NodeResult, NodeType, Workflow, WorkflowError};
+use crate::automation::{ActionType, ConnectionType, ErrorBehavior, ExecutionContext, ExecutionStatus, Node, NodeConfig, NodeResult, NodeType, Workflow, WorkflowError};
 use std::collections::HashMap;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 /// Executes a workflow node by node
@@ -19,6 +20,11 @@ impl WorkflowEngine {
         execution_id: &str,
         context: &mut ExecutionContext,
     ) -> Result<ExecutionStatus, WorkflowError> {
+        // Update context with workflow metadata if not already set
+        if context.workflow_id == "default" {
+            context.workflow_id = workflow.id.clone();
+            context.execution_id = execution_id.to_string();
+        }
         // Emit execution started event
         let _ = self.app_handle.emit(
             "workflow-execution-started",
@@ -59,6 +65,12 @@ impl WorkflowEngine {
         let node = workflow.get_node(node_id)
             .ok_or_else(|| WorkflowError::NodeNotFound(node_id.to_string()))?;
 
+        // Skip disabled nodes
+        if node.disabled.unwrap_or(false) {
+            context.set_result(node_id, NodeResult::Skipped);
+            return Ok(ExecutionStatus::Cancelled);
+        }
+
         // Emit node started event
         let _ = self.app_handle.emit(
             "workflow-node-started",
@@ -69,17 +81,69 @@ impl WorkflowEngine {
             }),
         );
 
-        // Execute the node
-        let result = self.execute_node(node, context).await;
+        // Execute the node with retry logic
+        let result = self.execute_node_with_retry(node, context).await;
 
         // Store result in context
-        let status = match &result {
+        let mut status = match &result {
             NodeResult::Success { .. } => ExecutionStatus::Completed,
             NodeResult::Failure { .. } => ExecutionStatus::Failed,
             NodeResult::Skipped => ExecutionStatus::Cancelled,
         };
 
         context.set_result(node_id, result.clone());
+
+        // Handle errors based on node's error behavior
+        if let NodeResult::Failure { error: _ } = &result {
+            let error_behavior = node.on_error.as_ref().unwrap_or(&ErrorBehavior::StopWorkflow);
+            
+            match error_behavior {
+                ErrorBehavior::StopWorkflow => {
+                    // Emit node completed event
+                    let _ = self.app_handle.emit(
+                        "workflow-node-completed",
+                        serde_json::json!({
+                            "execution_id": execution_id,
+                            "node_id": node_id,
+                            "status": serde_json::to_string(&status).unwrap(),
+                        }),
+                    );
+                    return Ok(ExecutionStatus::Failed);
+                }
+                ErrorBehavior::ContinueRegularOutput => {
+                    // Continue with empty output
+                    context.set_result(node_id, NodeResult::Success { output: None });
+                    status = ExecutionStatus::Completed;
+                }
+                ErrorBehavior::ContinueErrorOutput => {
+                    // Route to error branch
+                    let error_connections = workflow.get_error_connections(node_id);
+                    
+                    // Emit node completed event
+                    let _ = self.app_handle.emit(
+                        "workflow-node-completed",
+                        serde_json::json!({
+                            "execution_id": execution_id,
+                            "node_id": node_id,
+                            "status": "error_routed",
+                        }),
+                    );
+                    
+                    // Execute error branch nodes
+                    for conn in error_connections {
+                        Box::pin(self.execute_node_recursive(
+                            workflow,
+                            &conn.target_node,
+                            execution_id,
+                            context
+                        )).await?;
+                    }
+                    
+                    // Don't continue with regular connections
+                    return Ok(ExecutionStatus::Completed);
+                }
+            }
+        }
 
         // Emit node completed event
         let _ = self.app_handle.emit(
@@ -90,11 +154,6 @@ impl WorkflowEngine {
                 "status": serde_json::to_string(&status).unwrap(),
             }),
         );
-
-        // If node failed, stop execution
-        if matches!(result, NodeResult::Failure { .. }) {
-            return Ok(ExecutionStatus::Failed);
-        }
 
         // Get outgoing connections and execute next nodes
         let connections = workflow.get_outgoing_connections(node_id);
@@ -117,6 +176,52 @@ impl WorkflowEngine {
         }
 
         Ok(ExecutionStatus::Completed)
+    }
+
+    /// Execute a node with retry logic
+    async fn execute_node_with_retry(
+        &self,
+        node: &Node,
+        context: &mut ExecutionContext,
+    ) -> NodeResult {
+        let max_tries = node.max_tries.unwrap_or(1).max(1);
+        let wait_ms = node.wait_between_tries.unwrap_or(0);
+        let retry_enabled = node.retry_on_fail.unwrap_or(false);
+
+        for attempt in 1..=max_tries {
+            let result = self.execute_node(node, context).await;
+
+            // If successful or skipped, return immediately
+            if !matches!(result, NodeResult::Failure { .. }) {
+                return result;
+            }
+
+            // If this was the last attempt or retry is disabled, return the failure
+            if attempt >= max_tries || !retry_enabled {
+                return result;
+            }
+
+            // Wait before retrying
+            if wait_ms > 0 {
+                tokio::time::sleep(Duration::from_millis(wait_ms as u64)).await;
+            }
+
+            // Emit retry event
+            let _ = self.app_handle.emit(
+                "workflow-node-retry",
+                serde_json::json!({
+                    "node_id": node.id,
+                    "node_name": &node.name,
+                    "attempt": attempt,
+                    "max_tries": max_tries,
+                }),
+            );
+        }
+
+        // Should never reach here, but return failure as fallback
+        NodeResult::Failure {
+            error: "Max retries exceeded".to_string(),
+        }
     }
 
     /// Execute a single node based on its type
@@ -309,11 +414,16 @@ mod tests {
 
     #[test]
     fn test_expand_variables() {
-        let mut context = ExecutionContext::new();
+        let mut context = ExecutionContext::new("test-workflow".to_string(), "test-exec".to_string());
         context.set_variable("host", "192.168.1.1");
         context.set_variable("status", "success");
 
-        let engine = WorkflowEngine::new;
-        // Test would need proper mocking
+        // Test expression evaluation
+        let result = context.evaluate_expression("Host: ${host}, Status: ${status}");
+        assert_eq!(result, "Host: 192.168.1.1, Status: success");
+        
+        // Test workflow metadata
+        assert_eq!(context.workflow_id, "test-workflow");
+        assert_eq!(context.execution_id, "test-exec");
     }
 }

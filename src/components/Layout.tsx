@@ -4,7 +4,6 @@ import TopBar from './TopBar';
 import RemoteManager from './RemoteManager';
 import AIAssistant from './AIAssistant';
 import DashboardView from './dashboard/DashboardView';
-import Automation from './Automation';
 import MonitoringView from './MonitoringView';
 import SecurityView from './vault/SecurityView';
 
@@ -31,9 +30,6 @@ const Layout: React.FC = () => {
           </div>
           <div className={`absolute inset-0 ${activeView === 'ai' ? 'block' : 'hidden'}`}>
             <AIAssistant />
-          </div>
-          <div className={`absolute inset-0 ${activeView === 'automation' ? 'block' : 'hidden'}`}>
-            <Automation />
           </div>
           <div className={`absolute inset-0 ${activeView === 'monitoring' ? 'block' : 'hidden'}`}>
             <MonitoringView />

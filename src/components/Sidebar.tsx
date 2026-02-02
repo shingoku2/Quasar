@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   Terminal, 
   Activity, 
-  Workflow, 
   Bot, 
   Settings,
   Shield,
@@ -11,7 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'automation' | 'ai' | 'security' | 'settings';
+export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'ai' | 'security' | 'settings';
 
 interface SidebarProps {
   activeView: ViewId;
@@ -22,7 +21,6 @@ const navItems = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'remote', icon: Terminal, label: 'Remote' },
   { id: 'monitoring', icon: Activity, label: 'Monitoring' },
-  { id: 'automation', icon: Workflow, label: 'Automation' },
   { id: 'ai', icon: Bot, label: 'AI Assistant' },
   { id: 'security', icon: Shield, label: 'Security' },
   { id: 'settings', icon: Settings, label: 'Settings' },
