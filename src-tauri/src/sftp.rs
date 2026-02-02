@@ -66,82 +66,86 @@ pub async fn upload_file(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    // Authenticate
-    let auth_res = session.authenticate_password(username, password)
-        .await
-        .map_err(|e| format!("Authentication error: {}", e))?;
-    
-    let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-    if !is_success {
-        return Err("Authentication failed".to_string());
-    }
-
-    // Open SFTP channel
-    let channel = session.channel_open_session()
-        .await
-        .map_err(|e| format!("Failed to open channel: {}", e))?;
-    
-    channel.request_subsystem(true, "sftp")
-        .await
-        .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
-
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
-
-    // Read local file
-    let mut local_file = fs::File::open(local_path)
-        .await
-        .map_err(|e| format!("Failed to open local file: {}", e))?;
-    
-    let file_size = local_file.metadata()
-        .await
-        .map_err(|e| format!("Failed to get file metadata: {}", e))?
-        .len();
-
-    // Create remote file
-    let mut remote_file = sftp.create(remote_path)
-        .await
-        .map_err(|e| format!("Failed to create remote file: {}", e))?;
-
-    // Transfer data in chunks
-    let mut buffer = vec![0u8; 32768]; // 32KB chunks
-    let mut bytes_transferred = 0u64;
-
-    loop {
-        let bytes_read = local_file.read(&mut buffer)
+    let result = async {
+        // Authenticate
+        let auth_res = session.authenticate_password(username, password)
             .await
-            .map_err(|e| format!("Failed to read local file: {}", e))?;
+            .map_err(|e| format!("Authentication error: {}", e))?;
         
-        if bytes_read == 0 {
-            break;
+        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
+        if !is_success {
+            return Err("Authentication failed".to_string());
         }
 
-        remote_file.write_all(&buffer[..bytes_read])
+        // Open SFTP channel
+        let channel = session.channel_open_session()
             .await
-            .map_err(|e| format!("Failed to write to remote file: {}", e))?;
+            .map_err(|e| format!("Failed to open channel: {}", e))?;
+        
+        channel.request_subsystem(true, "sftp")
+            .await
+            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
-        bytes_transferred += bytes_read as u64;
+        let sftp = SftpSession::new(channel.into_stream())
+            .await
+            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
-        // Call progress callback if provided
-        if let Some(ref callback) = progress_callback {
-            callback(bytes_transferred, file_size);
+        // Read local file
+        let mut local_file = fs::File::open(local_path)
+            .await
+            .map_err(|e| format!("Failed to open local file: {}", e))?;
+        
+        let file_size = local_file.metadata()
+            .await
+            .map_err(|e| format!("Failed to get file metadata: {}", e))?
+            .len();
+
+        // Create remote file
+        let mut remote_file = sftp.create(remote_path)
+            .await
+            .map_err(|e| format!("Failed to create remote file: {}", e))?;
+
+        // Transfer data in chunks
+        let mut buffer = vec![0u8; 32768]; // 32KB chunks
+        let mut bytes_transferred = 0u64;
+
+        loop {
+            let bytes_read = local_file.read(&mut buffer)
+                .await
+                .map_err(|e| format!("Failed to read local file: {}", e))?;
+            
+            if bytes_read == 0 {
+                break;
+            }
+
+            remote_file.write_all(&buffer[..bytes_read])
+                .await
+                .map_err(|e| format!("Failed to write to remote file: {}", e))?;
+
+            bytes_transferred += bytes_read as u64;
+
+            // Call progress callback if provided
+            if let Some(ref callback) = progress_callback {
+                callback(bytes_transferred, file_size);
+            }
         }
-    }
 
-    // Close files
-    remote_file.shutdown()
-        .await
-        .map_err(|e| format!("Failed to close remote file: {}", e))?;
+        // Close files
+        remote_file.shutdown()
+            .await
+            .map_err(|e| format!("Failed to close remote file: {}", e))?;
 
-    sftp.close()
-        .await
-        .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+        sftp.close()
+            .await
+            .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+            
+        Ok(())
+    }.await;
 
-    // Explicitly disconnect SSH session
+    // Explicitly disconnect SSH session regardless of result
     let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
-    Ok(())
+    result
 }
 
 /// Download a file from a remote host via SFTP
@@ -169,84 +173,88 @@ pub async fn download_file(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    // Authenticate
-    let auth_res = session.authenticate_password(username, password)
-        .await
-        .map_err(|e| format!("Authentication error: {}", e))?;
-    
-    let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-    if !is_success {
-        return Err("Authentication failed".to_string());
-    }
-
-    // Open SFTP channel
-    let channel = session.channel_open_session()
-        .await
-        .map_err(|e| format!("Failed to open channel: {}", e))?;
-    
-    channel.request_subsystem(true, "sftp")
-        .await
-        .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
-
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
-
-    // Open remote file
-    let mut remote_file = sftp.open(remote_path)
-        .await
-        .map_err(|e| format!("Failed to open remote file: {}", e))?;
-
-    // Get file size
-    let file_attrs = sftp.metadata(remote_path)
-        .await
-        .map_err(|e| format!("Failed to get remote file metadata: {}", e))?;
-    
-    let file_size = file_attrs.size.unwrap_or(0);
-
-    // Create local file
-    let mut local_file = fs::File::create(local_path)
-        .await
-        .map_err(|e| format!("Failed to create local file: {}", e))?;
-
-    // Transfer data in chunks
-    let mut buffer = vec![0u8; 32768]; // 32KB chunks
-    let mut bytes_transferred = 0u64;
-
-    loop {
-        let bytes_read = remote_file.read(&mut buffer)
+    let result = async {
+        // Authenticate
+        let auth_res = session.authenticate_password(username, password)
             .await
-            .map_err(|e| format!("Failed to read remote file: {}", e))?;
+            .map_err(|e| format!("Authentication error: {}", e))?;
         
-        if bytes_read == 0 {
-            break;
+        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
+        if !is_success {
+            return Err("Authentication failed".to_string());
         }
 
-        local_file.write_all(&buffer[..bytes_read])
+        // Open SFTP channel
+        let channel = session.channel_open_session()
             .await
-            .map_err(|e| format!("Failed to write to local file: {}", e))?;
+            .map_err(|e| format!("Failed to open channel: {}", e))?;
+        
+        channel.request_subsystem(true, "sftp")
+            .await
+            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
-        bytes_transferred += bytes_read as u64;
+        let sftp = SftpSession::new(channel.into_stream())
+            .await
+            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
-        // Call progress callback if provided
-        if let Some(ref callback) = progress_callback {
-            callback(bytes_transferred, file_size);
+        // Open remote file
+        let mut remote_file = sftp.open(remote_path)
+            .await
+            .map_err(|e| format!("Failed to open remote file: {}", e))?;
+
+        // Get file size
+        let file_attrs = sftp.metadata(remote_path)
+            .await
+            .map_err(|e| format!("Failed to get remote file metadata: {}", e))?;
+        
+        let file_size = file_attrs.size.unwrap_or(0);
+
+        // Create local file
+        let mut local_file = fs::File::create(local_path)
+            .await
+            .map_err(|e| format!("Failed to create local file: {}", e))?;
+
+        // Transfer data in chunks
+        let mut buffer = vec![0u8; 32768]; // 32KB chunks
+        let mut bytes_transferred = 0u64;
+
+        loop {
+            let bytes_read = remote_file.read(&mut buffer)
+                .await
+                .map_err(|e| format!("Failed to read remote file: {}", e))?;
+            
+            if bytes_read == 0 {
+                break;
+            }
+
+            local_file.write_all(&buffer[..bytes_read])
+                .await
+                .map_err(|e| format!("Failed to write to local file: {}", e))?;
+
+            bytes_transferred += bytes_read as u64;
+
+            // Call progress callback if provided
+            if let Some(ref callback) = progress_callback {
+                callback(bytes_transferred, file_size);
+            }
         }
-    }
 
-    // Close files
-    local_file.sync_all()
-        .await
-        .map_err(|e| format!("Failed to sync local file: {}", e))?;
+        // Close files
+        local_file.sync_all()
+            .await
+            .map_err(|e| format!("Failed to sync local file: {}", e))?;
 
-    sftp.close()
-        .await
-        .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+        sftp.close()
+            .await
+            .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+            
+        Ok(())
+    }.await;
 
     // Explicitly disconnect SSH session
     let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
-    Ok(())
+    result
 }
 
 /// List files in a remote directory via SFTP
@@ -272,56 +280,60 @@ pub async fn list_directory(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    // Authenticate
-    let auth_res = session.authenticate_password(username, password)
-        .await
-        .map_err(|e| format!("Authentication error: {}", e))?;
-    
-    let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-    if !is_success {
-        return Err("Authentication failed".to_string());
-    }
+    let result = async {
+        // Authenticate
+        let auth_res = session.authenticate_password(username, password)
+            .await
+            .map_err(|e| format!("Authentication error: {}", e))?;
+        
+        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
+        if !is_success {
+            return Err("Authentication failed".to_string());
+        }
 
-    // Open SFTP channel
-    let channel = session.channel_open_session()
-        .await
-        .map_err(|e| format!("Failed to open channel: {}", e))?;
-    
-    channel.request_subsystem(true, "sftp")
-        .await
-        .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
+        // Open SFTP channel
+        let channel = session.channel_open_session()
+            .await
+            .map_err(|e| format!("Failed to open channel: {}", e))?;
+        
+        channel.request_subsystem(true, "sftp")
+            .await
+            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
+        let sftp = SftpSession::new(channel.into_stream())
+            .await
+            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
-    // Read directory - russh-sftp returns a Vec of entries
-    let entries = sftp.read_dir(remote_path)
-        .await
-        .map_err(|e| format!("Failed to read directory: {}", e))?;
+        // Read directory - russh-sftp returns a Vec of entries
+        let entries = sftp.read_dir(remote_path)
+            .await
+            .map_err(|e| format!("Failed to read directory: {}", e))?;
 
-    let files: Vec<RemoteFile> = entries
-        .into_iter()
-        .map(|entry| {
-            let attrs = entry.attrs();
-            RemoteFile {
-                name: entry.file_name().to_string(),
-                is_dir: attrs.is_dir().unwrap_or(false),
-                size: attrs.size.unwrap_or(0),
-                permissions: attrs.permissions,
-                modified: attrs.mtime.map(|m| m as u64),
-            }
-        })
-        .collect();
+        let files: Vec<RemoteFile> = entries
+            .into_iter()
+            .map(|entry| {
+                let attrs = entry.attrs();
+                RemoteFile {
+                    name: entry.file_name().to_string(),
+                    is_dir: attrs.is_dir().unwrap_or(false),
+                    size: attrs.size.unwrap_or(0),
+                    permissions: attrs.permissions,
+                    modified: attrs.mtime.map(|m| m as u64),
+                }
+            })
+            .collect();
 
-    sftp.close()
-        .await
-        .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+        sftp.close()
+            .await
+            .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+            
+        Ok(files)
+    }.await;
 
     // Explicitly disconnect SSH session
     let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
-    Ok(files)
+    result
 }
 
 /// Check if a remote file or directory exists
@@ -347,40 +359,44 @@ pub async fn remote_exists(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    // Authenticate
-    let auth_res = session.authenticate_password(username, password)
-        .await
-        .map_err(|e| format!("Authentication error: {}", e))?;
-    
-    let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-    if !is_success {
-        return Err("Authentication failed".to_string());
-    }
+    let result = async {
+        // Authenticate
+        let auth_res = session.authenticate_password(username, password)
+            .await
+            .map_err(|e| format!("Authentication error: {}", e))?;
+        
+        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
+        if !is_success {
+            return Err("Authentication failed".to_string());
+        }
 
-    // Open SFTP channel
-    let channel = session.channel_open_session()
-        .await
-        .map_err(|e| format!("Failed to open channel: {}", e))?;
-    
-    channel.request_subsystem(true, "sftp")
-        .await
-        .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
+        // Open SFTP channel
+        let channel = session.channel_open_session()
+            .await
+            .map_err(|e| format!("Failed to open channel: {}", e))?;
+        
+        channel.request_subsystem(true, "sftp")
+            .await
+            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
-    let sftp = SftpSession::new(channel.into_stream())
-        .await
-        .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
+        let sftp = SftpSession::new(channel.into_stream())
+            .await
+            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
-    // Try to get metadata
-    let exists = sftp.metadata(remote_path).await.is_ok();
+        // Try to get metadata
+        let exists = sftp.metadata(remote_path).await.is_ok();
 
-    sftp.close()
-        .await
-        .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+        sftp.close()
+            .await
+            .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
+            
+        Ok(exists)
+    }.await;
 
     // Explicitly disconnect SSH session
     let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
 
-    Ok(exists)
+    result
 }
 
 #[cfg(test)]
