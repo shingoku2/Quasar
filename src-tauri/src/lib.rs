@@ -139,6 +139,35 @@ fn get_system_metrics() -> monitoring::SystemMetrics {
 }
 
 #[tauri::command]
+async fn get_metrics_history(
+    start: u64,
+    end: u64,
+    host: Option<String>,
+    app: AppHandle,
+) -> Result<Vec<monitoring::SystemMetrics>, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join("titan.db");
+    let db_path_str = db_path.to_str().ok_or("Invalid database path")?.to_string();
+    
+    let store = monitoring::MetricsStore::new(db_path_str, 30)?;
+    store.get_metrics_range(start, end, &host.unwrap_or_else(|| "localhost".to_string()))
+}
+
+#[tauri::command]
+async fn get_alert_history(
+    start: u64,
+    end: u64,
+    app: AppHandle,
+) -> Result<Vec<monitoring::Alert>, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join("titan.db");
+    let db_path_str = db_path.to_str().ok_or("Invalid database path")?.to_string();
+    
+    let store = monitoring::MetricsStore::new(db_path_str, 30)?;
+    store.get_alert_history(start, end)
+}
+
+#[tauri::command]
 fn add_alert_rule(
     state: State<'_, Arc<monitoring::AlertEngine>>,
     rule: monitoring::AlertRule,
@@ -402,7 +431,9 @@ pub fn run() {
             // Initialize database tables
             let conn = rusqlite::Connection::open(&db_path_str).expect("Failed to open database");
             conn.execute_batch(include_str!("../migrations/003_security_vault.sql"))
-                .expect("Failed to run database migrations");
+                .expect("Failed to run security vault migrations");
+            conn.execute_batch(include_str!("../migrations/004_monitoring.sql"))
+                .expect("Failed to run monitoring migrations");
             
             // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
@@ -433,6 +464,8 @@ pub fn run() {
             greet,
             hash_password,
             verify_password,
+            get_metrics_history,
+            get_alert_history,
             launch_ssh_external,
             connect_rdp,
             start_discovery,

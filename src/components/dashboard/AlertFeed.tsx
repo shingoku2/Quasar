@@ -13,7 +13,15 @@ export interface Alert {
   acknowledged?: boolean;
 }
 
+interface ProcessInfo {
+  pid: number;
+  name: string;
+  cpu_usage: number;
+  memory_mb: number;
+}
+
 export interface SystemMetrics {
+  // Existing metrics
   cpu_usage_percent: number;
   memory_used_mb: number;
   memory_total_mb: number;
@@ -23,6 +31,35 @@ export interface SystemMetrics {
   network_rx_mb: number;
   network_tx_mb: number;
   timestamp: number;
+  
+  // System info
+  uptime_seconds: number;
+  load_average_1m: number;
+  load_average_5m: number;
+  load_average_15m: number;
+  process_count: number;
+  boot_time: number;
+  
+  // CPU details
+  cpu_count: number;
+  cpu_per_core: number[];
+  cpu_frequency_mhz: number;
+  
+  // Disk details
+  disk_total_gb: number;
+  disk_used_gb: number;
+  disk_free_gb: number;
+  disk_usage_percent: number;
+  
+  // Network details
+  network_packets_rx: number;
+  network_packets_tx: number;
+  network_errors_rx: number;
+  network_errors_tx: number;
+  
+  // Top processes
+  top_cpu_processes: ProcessInfo[];
+  top_memory_processes: ProcessInfo[];
 }
 
 interface AlertFeedProps {

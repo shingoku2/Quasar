@@ -118,8 +118,40 @@ const RemoteManager: React.FC = () => {
     setUseManualEntry(true);
   };
 
+  // Check for quick connect on every render (when view becomes visible)
+  useEffect(() => {
+    const quickConnectData = sessionStorage.getItem('quickConnectHost');
+    if (quickConnectData) {
+      try {
+        const host = JSON.parse(quickConnectData);
+        // Clear the stored data immediately
+        sessionStorage.removeItem('quickConnectHost');
+        
+        console.log('Quick Connect: Triggering connection to', host.name);
+        
+        // Convert to Host format and trigger connection
+        const hostToConnect = {
+          id: host.id,
+          name: host.name,
+          address: host.address,
+          protocol: host.protocol,
+          port: host.port || 22,
+          username: host.username || undefined
+        };
+        
+        // Trigger connection after a short delay to ensure tabs are set
+        setTimeout(() => {
+          handleConnect(hostToConnect);
+        }, 200);
+      } catch (err) {
+        console.error('Failed to parse quick connect host:', err);
+      }
+    }
+  }); // Run on every render to catch when view becomes visible
+
   useEffect(() => {
     initDatabase().catch(console.error);
+    
     setTabs([
       { 
         id: 'inventory', 

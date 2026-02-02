@@ -6,6 +6,7 @@ import AIAssistant from './AIAssistant';
 import DashboardView from './dashboard/DashboardView';
 import MonitoringView from './MonitoringView';
 import SecurityView from './vault/SecurityView';
+import SettingsView from './SettingsView';
 
 const Layout: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewId>('dashboard');
@@ -23,7 +24,7 @@ const Layout: React.FC = () => {
         {/* Content Container - Render all views but hide inactive ones */}
         <main className="flex-1 overflow-hidden relative">
           <div className={`absolute inset-0 ${activeView === 'dashboard' ? 'block' : 'hidden'}`}>
-            <DashboardView />
+            <DashboardView onNavigate={setActiveView} />
           </div>
           <div className={`absolute inset-0 ${activeView === 'remote' ? 'block' : 'hidden'}`}>
             <RemoteManager />
@@ -38,10 +39,7 @@ const Layout: React.FC = () => {
             <SecurityView />
           </div>
           <div className={`absolute inset-0 ${activeView === 'settings' ? 'block' : 'hidden'}`}>
-            <div className="p-12 flex flex-col items-center justify-center opacity-20 grayscale">
-              <h2 className="text-2xl font-bold uppercase tracking-widest">Settings Module</h2>
-              <p className="mt-2 font-mono">Status: Locked (Phase 4+)</p>
-            </div>
+            <SettingsView />
           </div>
         </main>
       </div>
