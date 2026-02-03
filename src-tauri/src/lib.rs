@@ -477,28 +477,16 @@ pub fn run() {
             app.manage(vault::AuditLogManager::new(db_path_str.clone()));
             
             // Initialize database tables
-            let conn = rusqlite::Connection::open(&db_path_str).map_err(|e| {
+            let mut conn = rusqlite::Connection::open(&db_path_str).map_err(|e| {
                 error!("Failed to open database at {}: {}", db_path_str, e);
                 e
             })?;
             
-            conn.execute_batch(include_str!("../migrations/003_security_vault.sql"))
-                .map_err(|e| {
-                    error!("Failed to run security vault migrations (003): {}", e);
-                    e
-                })?;
-            
-            conn.execute_batch(include_str!("../migrations/004_monitoring.sql"))
-                .map_err(|e| {
-                    error!("Failed to run monitoring migrations (004): {}", e);
-                    e
-                })?;
-            
-            conn.execute_batch(include_str!("../migrations/005_consolidate_credentials.sql"))
-                .map_err(|e| {
-                    error!("Failed to run consolidation migrations (005): {}", e);
-                    e
-                })?;
+            // Run migrations using rusqlite_migration
+            MIGRATIONS.to_latest(&mut conn).map_err(|e| {
+                error!("Failed to run migrations: {}", e);
+                e
+            })?;
             
             // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
