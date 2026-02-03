@@ -14,6 +14,20 @@ use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::sync::Arc;
 use log::error;
+use rusqlite_migration::{Migrations, M};
+
+// Define migrations
+// Note: Migration 005 is intentionally omitted as it was a one-time consolidation
+// that is no longer needed for fresh installs or correctly migrated databases.
+// The rusqlite_migration crate will track applied migrations in user_version.
+const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
+    Migrations::new(vec![
+        M::up(include_str!("../migrations/003_security_vault.sql")),
+        M::up(include_str!("../migrations/004_monitoring.sql")),
+    ])
+});
+
+use once_cell::sync::Lazy;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -235,10 +249,12 @@ async fn add_credential(
     username: String,
     password: String,
     credential_type: String,
+    host: Option<String>,
+    port: Option<u16>,
     metadata: Option<String>,
 ) -> Result<String, String> {
     let master_key = vault_state.get_master_key().await?;
-    credential_manager.add_credential(&master_key, name.clone(), username, password, credential_type, metadata)
+    credential_manager.add_credential(&master_key, name.clone(), username, password, credential_type, host, port, metadata)
         .map_err(|e| format!("Failed to add credential '{}': {}", name, e))
 }
 
