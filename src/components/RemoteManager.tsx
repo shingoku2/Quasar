@@ -35,8 +35,8 @@ const RemoteManager: React.FC = () => {
   const [showCredentialSelector, setShowCredentialSelector] = useState(false);
   const [useManualEntry, setUseManualEntry] = useState(false);
   
-  // Track if quick connect has been processed to prevent duplicate executions
-  const quickConnectProcessed = useRef(false);
+  // Track processed quick connect host IDs to prevent duplicate executions
+  const processedQuickConnects = useRef(new Set<string>());
   
   // SSH host key verification
   const { promptData, handleTrust, handleReject } = useSshHostKeyVerification();
@@ -164,38 +164,54 @@ const RemoteManager: React.FC = () => {
     setUseManualEntry(true);
   };
 
-  // Check for quick connect only once when component mounts or becomes visible
+  // Check for quick connect continuously (component stays mounted but hidden)
   useEffect(() => {
-    const quickConnectData = sessionStorage.getItem('quickConnectHost');
-    if (quickConnectData && !quickConnectProcessed.current) {
-      try {
-        const host = JSON.parse(quickConnectData);
-        // Clear the stored data immediately
-        sessionStorage.removeItem('quickConnectHost');
-        // Mark as processed
-        quickConnectProcessed.current = true;
-        
-        console.log('Quick Connect: Triggering connection to', host.name);
-        
-        // Convert to Host format and trigger connection
-        const hostToConnect = {
-          id: host.id,
-          name: host.name,
-          address: host.address,
-          protocol: host.protocol,
-          port: host.port || 22,
-          username: host.username || undefined
-        };
-        
-        // Trigger connection after a short delay to ensure tabs are set
-        setTimeout(() => {
-          handleConnect(hostToConnect);
-        }, 200);
-      } catch (err) {
-        console.error('Failed to parse quick connect host:', err);
+    const checkQuickConnect = () => {
+      const quickConnectData = sessionStorage.getItem('quickConnectHost');
+      if (quickConnectData) {
+        try {
+          const host = JSON.parse(quickConnectData);
+          // Create unique key for this quick connect attempt
+          const quickConnectKey = `${host.id}-${Date.now()}`;
+          
+          // Check if this specific quick connect has been processed
+          if (!processedQuickConnects.current.has(quickConnectKey)) {
+            // Clear the stored data immediately
+            sessionStorage.removeItem('quickConnectHost');
+            // Mark as processed
+            processedQuickConnects.current.add(quickConnectKey);
+            
+            console.log('Quick Connect: Triggering connection to', host.name);
+            
+            // Convert to Host format and trigger connection
+            const hostToConnect = {
+              id: host.id,
+              name: host.name,
+              address: host.address,
+              protocol: host.protocol,
+              port: host.port || 22,
+              username: host.username || undefined
+            };
+            
+            // Trigger connection after a short delay to ensure tabs are set
+            setTimeout(() => {
+              handleConnect(hostToConnect);
+            }, 200);
+          }
+        } catch (err) {
+          console.error('Failed to parse quick connect host:', err);
+        }
       }
-    }
-  }, []); // Run only once on mount
+    };
+
+    // Check immediately
+    checkQuickConnect();
+
+    // Check periodically in case view was hidden when data was set
+    const interval = setInterval(checkQuickConnect, 100);
+
+    return () => clearInterval(interval);
+  }, [])
 
   useEffect(() => {
     initDatabase().catch(console.error);

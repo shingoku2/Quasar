@@ -64,6 +64,8 @@ impl CredentialManager {
         username: String,
         password: String,
         credential_type: String,
+        host: Option<String>,
+        port: Option<u16>,
         metadata: Option<String>,
     ) -> Result<String, String> {
         let conn = Connection::open(&self.db_path)
@@ -77,8 +79,8 @@ impl CredentialManager {
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
         conn.execute(
-            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
                 id,
                 name,
@@ -87,6 +89,8 @@ impl CredentialManager {
                 nonce.to_vec(),
                 tag.to_vec(),
                 credential_type,
+                host,
+                port,
                 metadata,
                 now,
                 now
@@ -116,7 +120,7 @@ impl CredentialManager {
             .map_err(|e| format!("Failed to open database: {}", e))?;
 
         let mut stmt = conn.prepare(
-            "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at, last_used_at
+            "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at
              FROM credentials WHERE id = ?1"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
@@ -137,31 +141,18 @@ impl CredentialManager {
             let password = String::from_utf8(decrypted)
                 .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
-            let metadata: Option<String> = row.get(7)?;
-            let (host, port) = if let Some(ref meta) = metadata {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(meta) {
-                    let host = parsed.get("host").and_then(|v| v.as_str()).map(|s| s.to_string());
-                    let port = parsed.get("port").and_then(|v| v.as_u64()).map(|p| p as u16);
-                    (host, port)
-                } else {
-                    (None, None)
-                }
-            } else {
-                (None, None)
-            };
-
             Ok(Credential {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 username: row.get(2)?,
                 password,
                 credential_type: row.get(6)?,
-                host,
-                port,
-                metadata,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                last_used_at: row.get(10)?,
+                host: row.get(7)?,
+                port: row.get(8)?,
+                metadata: row.get(9)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
+                last_used_at: row.get(12)?,
             })
         }).map_err(|e| format!("Failed to get credential: {}", e))?;
 
@@ -191,34 +182,21 @@ impl CredentialManager {
             .map_err(|e| format!("Failed to open database: {}", e))?;
 
         let mut stmt = conn.prepare(
-            "SELECT id, name, username, credential_type, metadata, created_at, updated_at, last_used_at
+            "SELECT id, name, username, credential_type, host, port, created_at, updated_at, last_used_at
              FROM credentials ORDER BY name ASC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
         let credentials = stmt.query_map([], |row| {
-            let metadata: Option<String> = row.get(4)?;
-            let (host, port) = if let Some(ref meta) = metadata {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(meta) {
-                    let host = parsed.get("host").and_then(|v| v.as_str()).map(|s| s.to_string());
-                    let port = parsed.get("port").and_then(|v| v.as_u64()).map(|p| p as u16);
-                    (host, port)
-                } else {
-                    (None, None)
-                }
-            } else {
-                (None, None)
-            };
-
             Ok(CredentialSummary {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 username: row.get(2)?,
                 credential_type: row.get(3)?,
-                host,
-                port,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-                last_used_at: row.get(7)?,
+                host: row.get(4)?,
+                port: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+                last_used_at: row.get(8)?,
             })
         }).map_err(|e| format!("Failed to query credentials: {}", e))?
         .collect::<Result<Vec<_>, _>>()
@@ -358,6 +336,8 @@ impl CredentialManager {
         username: String,
         password: String,
         credential_type: String,
+        host: Option<String>,
+        port: Option<u16>,
         metadata: Option<String>,
     ) -> Result<String, String> {
         let id = Uuid::new_v4().to_string();
@@ -368,8 +348,8 @@ impl CredentialManager {
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
         tx.execute(
-            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, metadata, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
                 id,
                 name,
@@ -378,6 +358,8 @@ impl CredentialManager {
                 nonce.to_vec(),
                 tag.to_vec(),
                 credential_type,
+                host,
+                port,
                 metadata,
                 now,
                 now
@@ -405,36 +387,23 @@ impl CredentialManager {
         let search_pattern = format!("%{}%", query);
 
         let mut stmt = conn.prepare(
-            "SELECT id, name, username, credential_type, metadata, created_at, updated_at, last_used_at
+            "SELECT id, name, username, credential_type, host, port, created_at, updated_at, last_used_at
              FROM credentials 
              WHERE name LIKE ?1 OR username LIKE ?1 OR credential_type LIKE ?1
              ORDER BY name ASC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
         let credentials = stmt.query_map([&search_pattern], |row| {
-            let metadata: Option<String> = row.get(4)?;
-            let (host, port) = if let Some(ref meta) = metadata {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(meta) {
-                    let host = parsed.get("host").and_then(|v| v.as_str()).map(|s| s.to_string());
-                    let port = parsed.get("port").and_then(|v| v.as_u64()).map(|p| p as u16);
-                    (host, port)
-                } else {
-                    (None, None)
-                }
-            } else {
-                (None, None)
-            };
-
             Ok(CredentialSummary {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 username: row.get(2)?,
                 credential_type: row.get(3)?,
-                host,
-                port,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-                last_used_at: row.get(7)?,
+                host: row.get(4)?,
+                port: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+                last_used_at: row.get(8)?,
             })
         }).map_err(|e| format!("Failed to query credentials: {}", e))?
         .collect::<Result<Vec<_>, _>>()
@@ -567,6 +536,8 @@ mod tests {
             "SecurePassword123!".to_string(),
             "password".to_string(),
             None,
+            None,
+            None,
         ).expect("Failed to add credential");
 
         let credential = manager.get_credential(&master_key, &cred_id)
@@ -585,8 +556,8 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        manager.add_credential(&master_key, "Cred 1".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None).unwrap();
-        manager.add_credential(&master_key, "Cred 2".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None).unwrap();
+        manager.add_credential(&master_key, "Cred 1".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None).unwrap();
+        manager.add_credential(&master_key, "Cred 2".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None).unwrap();
 
         let credentials = manager.list_credentials().expect("Failed to list credentials");
 
@@ -602,7 +573,7 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(&master_key, "Original".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None).unwrap();
+        let cred_id = manager.add_credential(&master_key, "Original".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None).unwrap();
 
         manager.update_credential(
             &master_key,
@@ -627,7 +598,7 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(&master_key, "To Delete".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None).unwrap();
+        let cred_id = manager.add_credential(&master_key, "To Delete".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None).unwrap();
 
         manager.delete_credential(&cred_id).expect("Failed to delete credential");
 
@@ -642,9 +613,9 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        manager.add_credential(&master_key, "GitHub Account".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None).unwrap();
-        manager.add_credential(&master_key, "GitLab Account".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None).unwrap();
-        manager.add_credential(&master_key, "AWS Console".to_string(), "user3".to_string(), "pass3".to_string(), "password".to_string(), None).unwrap();
+        manager.add_credential(&master_key, "GitHub Account".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None).unwrap();
+        manager.add_credential(&master_key, "GitLab Account".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None).unwrap();
+        manager.add_credential(&master_key, "AWS Console".to_string(), "user3".to_string(), "pass3".to_string(), "password".to_string(), None, None, None).unwrap();
 
         let results = manager.search_credentials("Git").expect("Failed to search credentials");
 

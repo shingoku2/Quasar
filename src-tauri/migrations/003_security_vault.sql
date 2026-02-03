@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS credentials_new (
     nonce BLOB NOT NULL,
     tag BLOB NOT NULL,
     credential_type TEXT NOT NULL DEFAULT 'password',
+    host TEXT,
+    port INTEGER,
     metadata TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,

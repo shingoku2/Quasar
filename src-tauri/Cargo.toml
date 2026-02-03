@@ -47,4 +47,5 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 regex = "1"
 log = "0.4"
 env_logger = "0.11"
+rusqlite_migration = "1.2.0"
 

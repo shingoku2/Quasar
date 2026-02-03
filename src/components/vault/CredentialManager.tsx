@@ -304,16 +304,14 @@ const CredentialDialog: React.FC<{
           metadata,
         });
       } else {
-        const metadata = JSON.stringify({
-          host: formData.host || null,
-          port: formData.port || null,
-        });
         await invoke('add_credential', {
           name: formData.name,
           username: formData.username,
           password: formData.password,
           credentialType: formData.credential_type,
-          metadata,
+          host: formData.host || null,
+          port: formData.port ? Number(formData.port) : null,
+          metadata: null,
         });
       }
       onSaved();

@@ -145,6 +145,27 @@ impl VaultState {
 
         inner.settings.vault_initialized = true;
 
+        // Derive master key and unlock vault immediately after initialization
+        let salt_string = SaltString::from_b64(salt.as_str())
+            .map_err(|e| format!("Failed to parse salt: {}", e))?;
+
+        let salt_decoded = Salt::from_b64(salt_string.as_str())
+            .map_err(|e| format!("Failed to decode salt: {}", e))?;
+
+        let mut master_key = [0u8; 32];
+        let mut salt_bytes = [0u8; 64];
+        let salt_decoded_bytes = salt_decoded.decode_b64(&mut salt_bytes)
+            .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
+
+        argon2.hash_password_into(master_password.as_bytes(), salt_decoded_bytes, &mut master_key)
+            .map_err(|e| format!("Failed to derive key: {}", e))?;
+
+        inner.master_key = Some(MasterKey { key: master_key });
+        inner.last_activity = Some(Instant::now());
+
+        // Log audit event
+        Self::log_audit_event(&conn, "vault_initialize", None, None, "vault", "initialize", "success", None)?;
+
         Ok(())
     }
 
@@ -361,13 +382,15 @@ impl VaultState {
                         credential.username,
                         credential.password,
                         credential.credential_type,
+                        credential.host,
+                        credential.port,
                         credential.metadata,
                     ));
                 }
                 
                 // Now delete and re-add within transaction
                 let mut first_credential_id: Option<String> = None;
-                for (id, name, username, password, cred_type, metadata) in re_encrypted_credentials {
+                for (id, name, username, password, cred_type, host, port, metadata) in re_encrypted_credentials {
                     credential_manager.delete_credential_tx(&tx, &id)?;
                     let new_id = credential_manager.add_credential_tx(
                         &tx,
@@ -376,6 +399,8 @@ impl VaultState {
                         username,
                         password,
                         cred_type,
+                        host,
+                        port,
                         metadata,
                     )?;
                     
