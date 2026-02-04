@@ -5,7 +5,83 @@ ProjectTitan is a Tauri-based remote infrastructure management application with 
 
 ---
 
-## Recent Implementations (January 31, 2026)
+## Recent Implementations
+
+### Network Scanner Enhancement - Complete (February 2, 2026)
+
+#### Phase 1: Backend Enhancement ✅
+- **Location**: `src-tauri/src/scanner.rs`, `src-tauri/src/host_tracker.rs`
+- **Implementation**: Enhanced network discovery with comprehensive host data collection
+- **Enhanced Data Structures**:
+  - `ServiceInfo` - Port, protocol, service name, version detection
+  - `ScanResult` - Expanded with hostname, device_type, services[], mac_address, vendor, last_seen
+  - Port scanning expanded from 5 to 13 common ports (SSH, Telnet, HTTP, HTTPS, SMB, MySQL, RDP, PostgreSQL, Redis, HTTP-Alt, Printer ports)
+- **Features**:
+  - Device type detection (server, router, printer, workstation, unknown) based on port patterns
+  - Service identification for all scanned ports
+  - Hostname resolution via reverse DNS (for alive hosts)
+  - Automatic host persistence to database
+- **Database Migration**: `migrations/006_discovered_hosts.sql`
+  - `discovered_hosts` - IP, hostname, MAC, device type, vendor, timestamps, scan count
+  - `host_services` - Port, protocol, service, version per host with detection timestamps
+- **HostTracker Module**: Full CRUD operations for discovered hosts
+  - `save_host()` - Auto-saves/updates hosts during scans
+  - `get_host()`, `list_hosts()`, `search_hosts()`, `delete_host()`
+  - Service tracking with first/last detected timestamps
+- **Tauri Commands**: 
+  - `get_discovered_hosts`, `get_host_details`, `search_discovered_hosts`, `delete_discovered_host`
+
+#### Phase 2: Frontend Host Detail Components ✅
+- **Location**: `src/components/NetworkScanner.tsx`, `src/components/HostDetailDialog.tsx`
+- **Enhanced NetworkScanner**:
+  - Updated interface with all new ScanResult fields
+  - Device type icons (Server, Router, Printer, Laptop, Unknown)
+  - Rich host cards with device icon, hostname, service count, latency
+  - Clickable hosts with hover effects
+  - Limited port display (first 3 + count)
+- **HostDetailDialog Component**: Comprehensive modal with 3 tabs
+  - **Overview Tab**: IP, hostname, MAC, device type, vendor, status, timestamps, open ports
+  - **Services Tab**: Detailed service list with port, protocol, service name, version, risk color-coding
+  - **Actions Tab**: Connect, save to hosts, delete from discovered hosts, quick copy actions
+  - Copy-to-clipboard functionality with visual feedback
+- **Dashboard Integration**: `src/components/dashboard/DashboardView.tsx`
+  - State management for selected host
+  - Handlers for click, connect, save, delete actions
+  - Seamless integration with existing quick connect flow
+
+#### Phase 3: Network Topology Visualization ✅
+- **Location**: `src/components/NetworkTopologyView.tsx`
+- **Library**: vis-network + vis-data (MIT licensed)
+- **Interactive Force-Directed Graph**:
+  - Gateway node (center) in cyan
+  - Host nodes color-coded by device type (Blue: Server, Purple: Router, Pink: Printer, Green: Workstation, Gray: Unknown)
+  - Node size scales with service count
+  - Edge thickness based on latency (thinner = faster)
+- **Features**:
+  - Zoom controls (in/out, fit to screen)
+  - Physics toggle (freeze/unfreeze layout)
+  - Search with auto-focus and highlight
+  - Hover tooltips with host details
+  - Click → Opens HostDetailDialog
+  - Double-click → Quick connect
+  - Legend showing device types
+  - Info panel with host count and instructions
+- **Dashboard Integration**:
+  - View mode toggle buttons (List / Topology)
+  - Conditional rendering between NetworkScanner and NetworkTopologyView
+  - Shared state for discovered hosts
+  - Consistent interactions across both views
+
+#### Impact
+- **Network Discovery**: Comprehensive host information collection with 13-port scanning
+- **Persistence**: All discovered hosts stored in database with history tracking
+- **Visualization**: Interactive network topology with force-directed graph layout
+- **User Experience**: Toggle between list and topology views, click for details, double-click to connect
+- **Data Richness**: Device type classification, service detection, hostname resolution
+
+---
+
+## Previous Implementations (January 31, 2026)
 
 ### Security & Credential Vault - Phase 1, 2 & 3 Complete
 

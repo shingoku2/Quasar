@@ -1,13 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { Play, Square, RefreshCw, Network, Search, Loader2 } from 'lucide-react';
+import { Play, Square, RefreshCw, Network, Search, Loader2, Server, Laptop, Router, Printer, HelpCircle } from 'lucide-react';
+
+export interface ServiceInfo {
+  port: number;
+  protocol: string;
+  service: string;
+  version?: string;
+}
 
 export interface ScanResult {
   ip: string;
   is_alive: boolean;
   latency_ms?: number;
   open_ports: number[];
+  hostname?: string;
+  mac_address?: string;
+  device_type: string;
+  services: ServiceInfo[];
+  vendor?: string;
+  last_seen: number;
 }
 
 export interface ScanProgress {
@@ -19,6 +32,7 @@ export interface ScanProgress {
 interface NetworkScannerProps {
   onResults?: (results: ScanResult[]) => void;
   onHostFound?: (host: ScanResult) => void;
+  onHostClick?: (host: ScanResult) => void;
   className?: string;
 }
 
@@ -27,6 +41,7 @@ const DEFAULT_CIDR = "192.168.1.0/24";
 const NetworkScanner: React.FC<NetworkScannerProps> = ({
   onResults,
   onHostFound,
+  onHostClick,
   className = ''
 }) => {
   const [cidr, setCidr] = useState(DEFAULT_CIDR);
@@ -124,6 +139,21 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
     : 0;
 
   const aliveHosts = results.filter(r => r.is_alive);
+
+  const getDeviceIcon = (deviceType: string) => {
+    switch (deviceType) {
+      case 'server':
+        return <Server className="h-4 w-4" />;
+      case 'router':
+        return <Router className="h-4 w-4" />;
+      case 'printer':
+        return <Printer className="h-4 w-4" />;
+      case 'workstation':
+        return <Laptop className="h-4 w-4" />;
+      default:
+        return <HelpCircle className="h-4 w-4" />;
+    }
+  };
 
   return (
     <div className={`bg-bg-root border border-gray-800 rounded-lg p-6 ${className}`}>
@@ -243,20 +273,41 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
             {aliveHosts.map((host) => (
               <div 
                 key={host.ip}
-                className="bg-bg-sidebar rounded-lg p-3 flex items-center justify-between"
+                onClick={() => onHostClick?.(host)}
+                className="bg-bg-sidebar rounded-lg p-3 flex items-center justify-between hover:bg-bg-sidebar/80 cursor-pointer transition-colors"
               >
-                <div>
-                  <p className="text-sm font-medium text-white">{host.ip}</p>
-                  {host.latency_ms && (
-                    <p className="text-xs text-gray-500">
-                      Latency: {host.latency_ms}ms
-                    </p>
-                  )}
+                <div className="flex items-center space-x-3 flex-1">
+                  <div className="text-gray-400">
+                    {getDeviceIcon(host.device_type)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-white">{host.ip}</p>
+                      {host.hostname && (
+                        <span className="text-xs text-gray-500">({host.hostname})</span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className="text-xs text-gray-500 capitalize">{host.device_type}</span>
+                      {host.latency_ms && (
+                        <>
+                          <span className="text-gray-700">•</span>
+                          <span className="text-xs text-gray-500">{host.latency_ms}ms</span>
+                        </>
+                      )}
+                      {host.services.length > 0 && (
+                        <>
+                          <span className="text-gray-700">•</span>
+                          <span className="text-xs text-gray-500">{host.services.length} services</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   {host.open_ports && host.open_ports.length > 0 && (
                     <div className="flex space-x-1">
-                      {host.open_ports.map(port => (
+                      {host.open_ports.slice(0, 3).map(port => (
                         <span 
                           key={port}
                           className="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded"
@@ -264,6 +315,11 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
                           :{port}
                         </span>
                       ))}
+                      {host.open_ports.length > 3 && (
+                        <span className="text-[10px] text-gray-500 px-2 py-0.5">
+                          +{host.open_ports.length - 3}
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className="w-2 h-2 rounded-full bg-green-500" title="Alive" />
