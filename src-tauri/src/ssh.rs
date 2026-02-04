@@ -10,7 +10,6 @@ use sha2::{Sha256, Digest};
 
 use crate::vault::SshKeyManager;
 use crate::validation;
-use crate::errors;
 
 #[derive(Clone)]
 pub struct Client {

@@ -26,8 +26,10 @@ use rusqlite_migration::{Migrations, M};
 // The rusqlite_migration crate will track applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
+        M::up(include_str!("../migrations/001_initial_schema.sql")),
         M::up(include_str!("../migrations/003_security_vault.sql")),
         M::up(include_str!("../migrations/004_monitoring.sql")),
+        M::up(include_str!("../migrations/005_consolidate_credentials.sql")),
         M::up(include_str!("../migrations/006_discovered_hosts.sql")),
     ])
 });

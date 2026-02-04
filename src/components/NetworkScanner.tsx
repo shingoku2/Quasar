@@ -68,7 +68,9 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
         unlistenResult = await listen<ScanResult>('scan_result', (event) => {
           const result = event.payload;
           setResults(prev => {
-            const next = [...prev, result];
+            // Deduplicate by IP address - keep the latest result
+            const filtered = prev.filter(r => r.ip !== result.ip);
+            const next = [...filtered, result];
             resultsRef.current = next;
             return next;
           });
