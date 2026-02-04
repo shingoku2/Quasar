@@ -430,7 +430,10 @@ impl AlertEngine {
         }
 
         if !new_alerts.is_empty() {
-            let mut active = self.active_alerts.lock().unwrap();
+            let mut active = match self.active_alerts.lock() {
+                Ok(a) => a,
+                Err(_) => return (new_alerts, recoveries),
+            };
             
             // Check capacity before adding to prevent unbounded growth
             let current_len = active.len();
@@ -459,19 +462,23 @@ impl AlertEngine {
     }
 
     pub fn get_active_alerts(&self) -> Vec<Alert> {
-        self.active_alerts.lock().unwrap().clone()
+        self.active_alerts.lock()
+            .map(|a| a.clone())
+            .unwrap_or_default()
     }
 
     pub fn acknowledge_alert(&self, alert_id: &str) {
-        let mut alerts = self.active_alerts.lock().unwrap();
-        if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
-            alert.acknowledged = true;
+        if let Ok(mut alerts) = self.active_alerts.lock() {
+            if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
+                alert.acknowledged = true;
+            }
         }
     }
 
     pub fn dismiss_alert(&self, alert_id: &str) {
-        let mut alerts = self.active_alerts.lock().unwrap();
-        alerts.retain(|a| a.id != alert_id);
+        if let Ok(mut alerts) = self.active_alerts.lock() {
+            alerts.retain(|a| a.id != alert_id);
+        }
     }
 }
 

@@ -1,7 +1,13 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm, Nonce
+};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
+use chrono::Utc;
+use crate::db;
 use crate::crypto;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,8 +74,7 @@ impl CredentialManager {
         port: Option<u16>,
         metadata: Option<String>,
     ) -> Result<String, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().timestamp();
@@ -116,8 +121,7 @@ impl CredentialManager {
         master_key: &[u8; 32],
         credential_id: &str,
     ) -> Result<Credential, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let mut stmt = conn.prepare(
             "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at
@@ -178,8 +182,7 @@ impl CredentialManager {
     }
 
     pub fn list_credentials(&self) -> Result<Vec<CredentialSummary>, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let mut stmt = conn.prepare(
             "SELECT id, name, username, credential_type, host, port, created_at, updated_at, last_used_at
@@ -214,8 +217,7 @@ impl CredentialManager {
         password: Option<String>,
         metadata: Option<String>,
     ) -> Result<(), String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let now = chrono::Utc::now().timestamp();
 
@@ -269,8 +271,7 @@ impl CredentialManager {
     }
 
     pub fn delete_credential(&self, credential_id: &str) -> Result<(), String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         conn.execute(
             "DELETE FROM credentials WHERE id = ?1",
@@ -364,8 +365,7 @@ impl CredentialManager {
     }
 
     pub fn search_credentials(&self, query: &str) -> Result<Vec<CredentialSummary>, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let search_pattern = format!("%{}%", query);
 
@@ -477,6 +477,8 @@ mod tests {
                 nonce BLOB NOT NULL,
                 tag BLOB NOT NULL,
                 credential_type TEXT NOT NULL DEFAULT 'password',
+                host TEXT,
+                port INTEGER,
                 metadata TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,

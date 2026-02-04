@@ -1,5 +1,7 @@
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use chrono::Utc;
+use crate::db;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLogEntry {
@@ -33,8 +35,7 @@ impl AuditLogManager {
     }
 
     pub fn get_audit_logs(&self, filter: Option<AuditLogFilter>) -> Result<Vec<AuditLogEntry>, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let filter = filter.unwrap_or(AuditLogFilter {
             event_type: None,
@@ -106,8 +107,7 @@ impl AuditLogManager {
     }
 
     pub fn get_audit_log_count(&self, filter: Option<AuditLogFilter>) -> Result<i64, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&self.db_path)?;
 
         let filter = filter.unwrap_or(AuditLogFilter {
             event_type: None,

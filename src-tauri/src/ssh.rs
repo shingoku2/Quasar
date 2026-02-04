@@ -9,6 +9,8 @@ use log::error;
 use sha2::{Sha256, Digest};
 
 use crate::vault::SshKeyManager;
+use crate::validation;
+use crate::errors;
 
 #[derive(Clone)]
 pub struct Client {
@@ -107,6 +109,7 @@ pub struct SshConnection {
     pub disconnect_tx: tokio::sync::mpsc::Sender<()>,
     pub bytes_received: Arc<Mutex<u64>>,
     pub last_stats_check: Arc<Mutex<Instant>>,
+    pub last_activity: Arc<Mutex<Instant>>,
     pub stats_cancel_tx: tokio::sync::mpsc::Sender<()>,
 }
 
@@ -132,6 +135,15 @@ pub async fn connect_ssh(
     port: u16,
     password: Option<String>,
 ) -> Result<(), String> {
+    // Input validation
+    validation::validate_port(port)?;
+    validation::validate_username(&user)?;
+    
+    // Validate host (can be IP or hostname)
+    if validation::validate_ip(&host).is_err() && validation::validate_hostname(&host).is_err() {
+        return Err(format!("Invalid host format: {}", host));
+    }
+    
     let config = russh::client::Config::default();
     let config = Arc::new(config);
     let sh = Client {
@@ -197,10 +209,13 @@ pub async fn connect_ssh(
         disconnect_tx,
         bytes_received: bytes_received.clone(),
         last_stats_check: last_stats_check.clone(),
+        last_activity: Arc::new(Mutex::new(Instant::now())),
         stats_cancel_tx,
     };
 
-    state.sessions.lock().unwrap().insert(id.clone(), conn);
+    state.sessions.lock()
+        .map_err(|e| format!("Failed to acquire session lock: {}", e))?
+        .insert(id.clone(), conn);
 
     // Spawn stats reporter with cancellation support
     let app_handle_clone = app_handle.clone();
@@ -212,11 +227,20 @@ pub async fn connect_ssh(
                 _ = interval.tick() => {
                     let stats_result = {
                         let state = app_handle_clone.state::<SshState>();
-                        let sessions = state.sessions.lock().unwrap();
+                        let sessions = match state.sessions.lock() {
+                            Ok(s) => s,
+                            Err(_) => break,
+                        };
                         if let Some(c) = sessions.get(&id_clone) {
                             // Hold both locks for the entire read-modify-write operation
-                            let mut bytes_guard = c.bytes_received.lock().unwrap();
-                            let mut time_guard = c.last_stats_check.lock().unwrap();
+                            let mut bytes_guard = match c.bytes_received.lock() {
+                                Ok(g) => g,
+                                Err(_) => continue,
+                            };
+                            let mut time_guard = match c.last_stats_check.lock() {
+                                Ok(g) => g,
+                                Err(_) => continue,
+                            };
                             
                             let b = *bytes_guard;
                             let t = *time_guard;
@@ -269,20 +293,22 @@ pub async fn write_ssh(
     id: String,
     data: String,
 ) -> Result<(), String> {
-    let conn = {
-        let sessions = state.sessions.lock().unwrap();
-        sessions.get(&id).map(|c| c.channel.clone())
+    let (channel_arc, last_activity) = {
+        let sessions = state.sessions.lock()
+            .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
+        sessions.get(&id).map(|c| (c.channel.clone(), c.last_activity.clone())).ok_or("Session not found")?
     };
 
-    if let Some(channel_arc) = conn {
-        let channel = channel_arc.lock().await;
-        channel.data(data.as_bytes())
-            .await
-            .map_err(|_| "Failed to send data".to_string())?;
-        Ok(())
-    } else {
-        Err("Session not found".to_string())
+    // Update last activity timestamp
+    if let Ok(mut activity) = last_activity.lock() {
+        *activity = Instant::now();
     }
+
+    let channel = channel_arc.lock().await;
+    channel.data(data.as_bytes())
+        .await
+        .map_err(|_| "Failed to send data".to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -293,7 +319,8 @@ pub async fn resize_ssh(
     cols: u32,
 ) -> Result<(), String> {
     let conn = {
-        let sessions = state.sessions.lock().unwrap();
+        let sessions = state.sessions.lock()
+            .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
         sessions.get(&id).map(|c| c.channel.clone())
     };
 
@@ -314,7 +341,8 @@ pub async fn disconnect_ssh(
     id: String,
 ) -> Result<(), String> {
     let conn = {
-        let mut sessions = state.sessions.lock().unwrap();
+        let mut sessions = state.sessions.lock()
+            .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
         sessions.remove(&id)
     };
 

@@ -1,6 +1,9 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use chrono::Utc;
 use std::sync::{Arc, Mutex};
+use crate::db;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TrustStatus {
@@ -62,8 +65,7 @@ pub struct SshKeyManager {
 
 impl SshKeyManager {
     pub fn new(db_path: String) -> Result<Self, String> {
-        let conn = Connection::open(&db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&db_path)?;
         
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -332,11 +334,28 @@ mod tests {
     use super::*;
 
     async fn create_test_manager() -> SshKeyManager {
-        let db_path = ":memory:".to_string();
+        use std::time::{SystemTime, UNIX_EPOCH};
+        
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let db_path = format!("test_ssh_keys_{}.db", timestamp);
         
         let conn = Connection::open(&db_path).unwrap();
-        conn.execute_batch(include_str!("../../migrations/003_security_vault.sql"))
-            .unwrap();
+        // Create only the ssh_known_hosts table needed for these tests
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS ssh_known_hosts (
+                id TEXT PRIMARY KEY,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 22,
+                key_type TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                public_key BLOB NOT NULL,
+                first_seen_at INTEGER NOT NULL,
+                last_seen_at INTEGER NOT NULL,
+                trust_status TEXT NOT NULL DEFAULT 'trusted',
+                UNIQUE(host, port)
+            );
+            CREATE INDEX IF NOT EXISTS idx_known_hosts_lookup ON ssh_known_hosts(host, port);"
+        ).unwrap();
         drop(conn);
 
         SshKeyManager::new(db_path).unwrap()
