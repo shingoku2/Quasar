@@ -7,6 +7,39 @@ ProjectTitan is a Tauri-based remote infrastructure management application with 
 
 ## Recent Implementations
 
+### Critical Bug Fixes - Complete (February 3, 2026)
+
+#### React Duplicate Key Warning Fix ✅
+- **Issue**: NetworkScanner showing duplicate key warnings for hosts with same IP
+- **Root Cause**: `scan_result` event listener appending results without deduplication
+- **Location**: `src/components/NetworkScanner.tsx:68-81`
+- **Fix**: Filter existing entries with same IP before adding new results
+- **Impact**: Eliminated React console warnings, improved component stability
+
+#### Database Migration System Fix ✅
+- **Issue**: Fresh installations failing with "no such table: hosts" and "no such table: credentials"
+- **Root Cause**: Missing initial schema migration (001), migration 005 incorrectly excluded
+- **Fixes**:
+  - Created `migrations/001_initial_schema.sql` with base schema for `hosts` and `credentials_new` tables
+  - Re-enabled migration 005 in migration chain (needed for credentials consolidation)
+  - Updated `src-tauri/src/lib.rs:27-35` with complete migration sequence
+- **Migration Order**: 001 (initial) → 003 (vault) → 004 (monitoring) → 005 (consolidate) → 006 (discovered hosts)
+- **System**: Uses `rusqlite_migration` crate for proper version tracking (migrations run once per database)
+- **Impact**: Fresh installations now work correctly, all required tables created
+
+#### Code Cleanup ✅
+- **Location**: `src-tauri/src/ssh.rs:13`
+- **Fix**: Removed unused `crate::errors` import
+- **Impact**: Reduced compiler warnings
+
+#### Testing
+- ✅ Application compiles successfully
+- ✅ Database migrations run correctly on fresh installations
+- ✅ React duplicate key warnings resolved
+- ✅ Only minor unused function warnings remain (future features)
+
+---
+
 ### Network Scanner Enhancement - Complete (February 2, 2026)
 
 #### Phase 1: Backend Enhancement ✅

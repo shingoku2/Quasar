@@ -29,6 +29,14 @@ ProjectTitan provides a comprehensive desktop application for managing remote in
 - **Alert System** - Configurable alerts for system thresholds
 - **Historical Data** - Track metrics over time with SQLite storage
 
+### 🔍 Network Discovery & Scanning
+- **Network Scanner** - Comprehensive CIDR-based network discovery with 13-port scanning
+- **Device Detection** - Automatic classification (server, router, printer, workstation)
+- **Service Identification** - Detect running services (SSH, HTTP, MySQL, RDP, etc.)
+- **Network Topology** - Interactive force-directed graph visualization
+- **Host Tracking** - Persistent storage of discovered hosts with history
+- **Hostname Resolution** - Automatic reverse DNS lookup for discovered hosts
+
 ### 🎨 Modern UI
 - **React + TypeScript** - Type-safe frontend with modern React patterns
 - **Tailwind CSS** - Beautiful, responsive design with shadcn/ui components
@@ -59,6 +67,8 @@ ProjectTitan provides a comprehensive desktop application for managing remote in
 - `security_audit_log` - Security event tracking
 - `monitoring_metrics` - System metrics history
 - `monitoring_alerts` - Alert configurations
+- `discovered_hosts` - Network scan results and host tracking
+- `host_services` - Detected services per discovered host
 - `workflows` - Automation workflow definitions
 - `workflow_executions` - Workflow execution history
 
@@ -186,6 +196,21 @@ See `conductor/code_styleguides/` for detailed coding standards:
 3. Write tests for new features
 4. Update documentation as needed
 5. Submit a pull request
+
+## Recent Updates
+
+### February 3, 2026 - Critical Bug Fixes
+- ✅ Fixed React duplicate key warnings in NetworkScanner component
+- ✅ Fixed database migration system for fresh installations
+- ✅ Created initial schema migration (001) for base tables
+- ✅ Re-enabled migration 005 for proper credentials consolidation
+- ✅ Cleaned up unused imports to reduce compiler warnings
+
+### February 2, 2026 - Network Scanner Enhancement
+- ✅ Comprehensive network discovery with 13-port scanning
+- ✅ Device type detection and service identification
+- ✅ Interactive network topology visualization
+- ✅ Persistent host tracking with history
 
 ## Documentation
 
