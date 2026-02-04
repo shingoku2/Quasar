@@ -100,27 +100,34 @@ async fn scan_port(ip: IpAddr, port: u16) -> bool {
 }
 
 async fn resolve_hostname(ip: IpAddr) -> Option<String> {
-    use tokio::net::lookup_host;
-    
-    match timeout(Duration::from_secs(2), lookup_host((ip, 0))).await {
-        Ok(Ok(mut addrs)) => {
-            if let Some(addr) = addrs.next() {
-                // Try reverse DNS lookup
-                match timeout(Duration::from_secs(2), tokio::task::spawn_blocking(move || {
-                    use std::net::ToSocketAddrs;
-                    addr.to_string().to_socket_addrs().ok()
-                })).await {
-                    Ok(Ok(_)) => {
-                        // Simple approach: return IP as hostname for now
-                        // Full DNS reverse lookup would require additional dependencies
+    // Perform reverse DNS lookup using blocking DNS resolution
+    let ip_clone = ip;
+    match timeout(
+        Duration::from_secs(2),
+        tokio::task::spawn_blocking(move || {
+            use std::net::ToSocketAddrs;
+            // Create a socket address for reverse lookup
+            let socket_addr = format!("{}:0", ip_clone);
+            
+            // Try to resolve the hostname
+            // Note: This uses the system's DNS resolver
+            match socket_addr.to_socket_addrs() {
+                Ok(mut addrs) => {
+                    if let Some(addr) = addrs.next() {
+                        // Try reverse lookup using DNS
+                        match dns_lookup::lookup_addr(&addr.ip()) {
+                            Ok(hostname) => Some(hostname),
+                            Err(_) => None,
+                        }
+                    } else {
                         None
-                    },
-                    _ => None,
-                }
-            } else {
-                None
+                    }
+                },
+                Err(_) => None,
             }
-        },
+        })
+    ).await {
+        Ok(Ok(result)) => result,
         _ => None,
     }
 }

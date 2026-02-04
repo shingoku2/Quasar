@@ -478,6 +478,7 @@ impl AlertEngine {
 pub struct MetricsStore {
     db_path: String,
     retention_days: u32,
+    conn: std::sync::Mutex<Option<rusqlite::Connection>>,
 }
 
 impl MetricsStore {
@@ -485,12 +486,28 @@ impl MetricsStore {
         Ok(Self {
             db_path,
             retention_days,
+            conn: std::sync::Mutex::new(None),
         })
+    }
+    
+    fn get_connection(&self) -> Result<std::sync::MutexGuard<'_, Option<rusqlite::Connection>>, String> {
+        let mut conn_guard = self.conn.lock()
+            .map_err(|e| format!("Failed to acquire connection lock: {}", e))?;
+        
+        // Check if connection exists and is valid
+        if conn_guard.is_none() {
+            let new_conn = rusqlite::Connection::open(&self.db_path)
+                .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
+            *conn_guard = Some(new_conn);
+        }
+        
+        Ok(conn_guard)
     }
 
     pub fn save_metrics(&self, metrics: &SystemMetrics, host: &str) -> Result<(), String> {
-        let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
+        let mut conn_guard = self.get_connection()?;
+        let conn = conn_guard.as_mut()
+            .ok_or_else(|| "Database connection not available".to_string())?;
 
         // Store core metrics and additional data as JSON
         let metadata = serde_json::json!({
@@ -536,8 +553,9 @@ impl MetricsStore {
     }
 
     pub fn get_metrics_range(&self, start: u64, end: u64, host: &str) -> Result<Vec<SystemMetrics>, String> {
-        let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
+        let mut conn_guard = self.get_connection()?;
+        let conn = conn_guard.as_mut()
+            .ok_or_else(|| "Database connection not available".to_string())?;
 
         let mut stmt = conn.prepare(
             "SELECT timestamp, cpu_usage, memory_usage, disk_usage,
@@ -600,8 +618,9 @@ impl MetricsStore {
     }
 
     pub fn cleanup_old_metrics(&self) -> Result<usize, String> {
-        let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open metrics database for cleanup at {}: {}", self.db_path, e))?;
+        let mut conn_guard = self.get_connection()?;
+        let conn = conn_guard.as_mut()
+            .ok_or_else(|| "Database connection not available".to_string())?;
 
         let cutoff_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -617,8 +636,9 @@ impl MetricsStore {
     }
 
     pub fn save_alert(&self, alert: &Alert, host: &str) -> Result<(), String> {
-        let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open alert database at {}: {}", self.db_path, e))?;
+        let mut conn_guard = self.get_connection()?;
+        let conn = conn_guard.as_mut()
+            .ok_or_else(|| "Database connection not available".to_string())?;
 
         conn.execute(
             "INSERT INTO alert_history (
@@ -638,8 +658,9 @@ impl MetricsStore {
     }
 
     pub fn get_alert_history(&self, start: u64, end: u64) -> Result<Vec<Alert>, String> {
-        let conn = rusqlite::Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open alert database at {}: {}", self.db_path, e))?;
+        let mut conn_guard = self.get_connection()?;
+        let conn = conn_guard.as_mut()
+            .ok_or_else(|| "Database connection not available".to_string())?;
 
         let mut stmt = conn.prepare(
             "SELECT alert_id, rule_id, message, severity, triggered_at, acknowledged_at

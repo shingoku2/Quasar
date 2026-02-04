@@ -96,26 +96,20 @@ async fn send_ai_chat(app: AppHandle, model: String, messages: Vec<FrontendMessa
 
 #[tauri::command]
 async fn scan_network(
-    state: State<'_, Arc<scanner::ScannerState>>,
     app: AppHandle,
+    state: State<'_, Arc<scanner::ScannerState>>,
+    tracker_state: State<'_, host_tracker::HostTracker>,
     cidr: String,
 ) -> Result<(), String> {
-    let state = Arc::clone(&state);
+    let scanner_state = Arc::clone(state.inner());
     let app_for_progress = app.clone();
     let app_for_result = app.clone();
     let app_for_events = app.clone();
     
-    // Get db path from app
-    let db_path = app.path().app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("titan.db");
-    let db_path_str = db_path.to_str()
-        .ok_or("Invalid database path")?
-        .to_string();
+    // Clone the managed HostTracker to use in the spawned task
+    let tracker = tracker_state.inner().clone();
     
     tokio::spawn(async move {
-        let tracker = host_tracker::HostTracker::new(db_path_str);
-
         let on_progress = move |progress: scanner::ScanProgress| {
             let _ = app_for_progress.emit("scan_progress", progress);
         };
@@ -130,7 +124,7 @@ async fn scan_network(
             let _ = app_for_result.emit("scan_result", result);
         };
 
-        match scanner::scan_network(state, cidr, on_progress, on_result).await {
+        match scanner::scan_network(scanner_state, cidr, on_progress, on_result).await {
             Ok(()) => {
                 let _ = app_for_events.emit("scan_complete", ());
             }
