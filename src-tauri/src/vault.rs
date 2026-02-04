@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{Duration, Instant};
 use zeroize::Zeroize;
+use secrecy::{Secret, ExposeSecret};
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier, SaltString, PasswordHasher, rand_core::OsRng},
     Argon2, Params, Version,
@@ -13,6 +14,7 @@ use argon2::{
 use password_hash::Salt;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::db;
 
 pub use credentials::{Credential, CredentialSummary, CredentialManager};
 pub use ssh_keys::{SshKeyManager, SshHostKey, TrustStatus, HostKeyVerificationResult};
@@ -82,8 +84,7 @@ impl VaultState {
 
     pub async fn is_initialized(&self) -> Result<bool, String> {
         let inner = self.inner.read().await;
-        let conn = rusqlite::Connection::open(&inner.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&inner.db_path)?;
         
         let result: Result<String, rusqlite::Error> = conn.query_row(
             "SELECT value FROM vault_settings WHERE key = 'vault_initialized'",
@@ -94,31 +95,30 @@ impl VaultState {
         Ok(matches!(result, Ok(val) if val == "true"))
     }
 
-    pub async fn initialize_vault(&self, master_password: String) -> Result<(), String> {
+    pub async fn initialize_vault(&self, master_password: Secret<String>) -> Result<(), String> {
         if self.is_initialized().await? {
             return Err("Vault is already initialized".to_string());
         }
 
         // Validate password strength
-        if master_password.len() < 12 {
+        if master_password.expose_secret().len() < 12 {
             return Err("Master password must be at least 12 characters".to_string());
         }
 
         let mut inner = self.inner.write().await;
-        let conn = rusqlite::Connection::open(&inner.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&inner.db_path)?;
 
         // Generate salt for key derivation
         let salt = SaltString::generate(&mut password_hash::rand_core::OsRng);
         
-        // Use custom Argon2 params for key derivation (64 MB memory, 3 iterations)
-        let params = Params::new(65536, 3, 4, Some(32))
+        // OWASP-recommended Argon2id params for key derivation (47 MiB memory, 2 iterations, 1 parallelism)
+        let params = Params::new(47104, 2, 1, Some(32))
             .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
         let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
         
         // Hash master password for verification
         let password_hash = argon2
-            .hash_password(master_password.as_bytes(), &salt)
+            .hash_password(master_password.expose_secret().as_bytes(), &salt)
             .map_err(|e| format!("Failed to hash password: {}", e))?
             .to_string();
 
@@ -157,7 +157,7 @@ impl VaultState {
         let salt_decoded_bytes = salt_decoded.decode_b64(&mut salt_bytes)
             .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
 
-        argon2.hash_password_into(master_password.as_bytes(), salt_decoded_bytes, &mut master_key)
+        argon2.hash_password_into(master_password.expose_secret().as_bytes(), salt_decoded_bytes, &mut master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
 
         inner.master_key = Some(MasterKey { key: master_key });
@@ -169,7 +169,7 @@ impl VaultState {
         Ok(())
     }
 
-    pub async fn unlock_vault(&self, master_password: String) -> Result<(), String> {
+    pub async fn unlock_vault(&self, master_password: Secret<String>) -> Result<(), String> {
         let mut inner = self.inner.write().await;
 
         // Check if locked out
@@ -183,8 +183,7 @@ impl VaultState {
             }
         }
 
-        let conn = rusqlite::Connection::open(&inner.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&inner.db_path)?;
 
         // Get stored password hash
         let stored_hash: String = conn.query_row(
@@ -200,15 +199,15 @@ impl VaultState {
             |row| row.get(0),
         ).map_err(|_| "Salt not found")?;
 
-        // Verify password using the same params as initialization
-        let params = Params::new(65536, 3, 4, Some(32))
+        // Verify password using OWASP-recommended params
+        let params = Params::new(47104, 2, 1, Some(32))
             .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
         let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
         
         let parsed_hash = PasswordHash::new(&stored_hash)
             .map_err(|e| format!("Failed to parse password hash: {}", e))?;
         
-        if argon2.verify_password(master_password.as_bytes(), &parsed_hash).is_err() {
+        if argon2.verify_password(master_password.expose_secret().as_bytes(), &parsed_hash).is_err() {
             inner.failed_attempts += 1;
             
             // Implement lockout policy
@@ -240,7 +239,7 @@ impl VaultState {
         let mut salt_bytes = [0u8; 64]; // Max salt length
         let salt_decoded = salt.decode_b64(&mut salt_bytes)
             .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
-        argon2.hash_password_into(master_password.as_bytes(), salt_decoded, &mut master_key)
+        argon2.hash_password_into(master_password.expose_secret().as_bytes(), salt_decoded, &mut master_key)
             .map_err(|e| format!("Failed to derive key: {}", e))?;
 
         inner.master_key = Some(MasterKey { key: master_key });
@@ -259,8 +258,7 @@ impl VaultState {
         inner.master_key = None;
         inner.last_activity = None;
 
-        let conn = rusqlite::Connection::open(&inner.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&inner.db_path)?;
         
         Self::log_audit_event(&conn, "vault_lock", None, None, "vault", "lock", "success", None)?;
 
@@ -320,8 +318,7 @@ impl VaultState {
         // Perform heavy crypto and DB operations in a blocking thread
         let result = tauri::async_runtime::spawn_blocking(move || {
             // FIX: Use single connection for entire operation to prevent connection leak
-            let mut conn = rusqlite::Connection::open(&db_path)
-                .map_err(|e| format!("Failed to open database: {}", e))?;
+            let mut conn = db::open_connection(&db_path)?;
             
             let stored_hash: String = conn.query_row(
                 "SELECT value FROM vault_settings WHERE key = 'master_password_hash'",
@@ -329,8 +326,8 @@ impl VaultState {
                 |row| row.get(0)
             ).map_err(|_| "Vault not initialized".to_string())?;
             
-            // Use consistent Argon2 params
-            let params = Params::new(65536, 3, 4, Some(32))
+            // Use OWASP-recommended Argon2 params
+            let params = Params::new(47104, 2, 1, Some(32))
                 .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
             let argon2 = Argon2::new(
                 argon2::Algorithm::Argon2id,
@@ -461,8 +458,7 @@ impl VaultState {
 
     pub async fn update_settings(&self, settings: VaultSettings) -> Result<(), String> {
         let mut inner = self.inner.write().await;
-        let conn = rusqlite::Connection::open(&inner.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = db::open_connection(&inner.db_path)?;
 
         conn.execute(
             "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'auto_lock_timeout'",
@@ -559,7 +555,7 @@ mod tests {
         assert!(!vault.is_initialized().await.unwrap());
         
         // Initialize vault
-        let result = vault.initialize_vault("TestPassword123!".to_string()).await;
+        let result = vault.initialize_vault(Secret::new("TestPassword123!".to_string())).await;
         assert!(result.is_ok(), "Failed to initialize vault: {:?}", result);
         
         // Should now be initialized
@@ -573,14 +569,9 @@ mod tests {
         let db_path = setup_test_db();
         let vault = VaultState::new(db_path.clone());
         
-        vault.initialize_vault("TestPassword123!".to_string()).await.unwrap();
+        vault.initialize_vault(Secret::new("TestPassword123!".to_string())).await.unwrap();
         
-        // Should be locked initially
-        assert!(vault.is_locked().await);
-        
-        // Unlock with correct password
-        let result = vault.unlock_vault("TestPassword123!".to_string()).await;
-        assert!(result.is_ok(), "Failed to unlock vault: {:?}", result);
+        // Vault is unlocked after initialization
         assert!(!vault.is_locked().await);
         
         // Lock vault
@@ -595,10 +586,14 @@ mod tests {
         let db_path = setup_test_db();
         let vault = VaultState::new(db_path.clone());
         
-        vault.initialize_vault("TestPassword123!".to_string()).await.unwrap();
+        vault.initialize_vault(Secret::new("TestPassword123!".to_string())).await.unwrap();
+        
+        // Lock the vault first
+        vault.lock_vault().await.unwrap();
+        assert!(vault.is_locked().await);
         
         // Try to unlock with wrong password
-        let result = vault.unlock_vault("WrongPassword".to_string()).await;
+        let result = vault.unlock_vault(Secret::new("WrongPassword".to_string())).await;
         assert!(result.is_err());
         assert!(vault.is_locked().await);
         

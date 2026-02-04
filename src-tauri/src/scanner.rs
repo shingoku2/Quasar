@@ -6,6 +6,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use serde::Serialize;
 use surge_ping::{Client, Config, PingIdentifier, PingSequence};
 use tokio::time::timeout;
+use crate::validation;
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ServiceInfo {
@@ -188,17 +189,22 @@ pub async fn scan_network(
     on_progress: impl Fn(ScanProgress) + Send + 'static,
     on_result: impl Fn(ScanResult) + Send + 'static,
 ) -> Result<(), String> {
+    // Input validation
+    validation::validate_cidr(&cidr)?;
+    
     // FIX: Check-and-set atomically to prevent TOCTOU race condition
     // Keep lock held during entire check-and-set operation
     {
-        let mut is_scanning = state.is_scanning.lock().unwrap();
+        let mut is_scanning = state.is_scanning.lock()
+            .map_err(|e| format!("Failed to acquire scanning lock: {}", e))?;
         if *is_scanning {
             return Err("Scan already in progress".to_string());
         }
         *is_scanning = true;
         
         // Reset stop signal while we have exclusive access
-        let mut stop = state.stop_signal.lock().unwrap();
+        let mut stop = state.stop_signal.lock()
+            .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
         *stop = false;
     }
 
@@ -208,7 +214,8 @@ pub async fn scan_network(
     
     // Clear previous results
     {
-        let mut results = state.results.lock().unwrap();
+        let mut results = state.results.lock()
+            .map_err(|e| format!("Failed to acquire results lock: {}", e))?;
         results.clear();
     }
     
@@ -217,7 +224,8 @@ pub async fn scan_network(
     
     // Update total in progress
     {
-        let mut progress = state.progress.lock().unwrap();
+        let mut progress = state.progress.lock()
+            .map_err(|e| format!("Failed to acquire progress lock: {}", e))?;
         progress.total = total;
         progress.completed = 0;
     }
@@ -233,7 +241,8 @@ pub async fn scan_network(
     for (idx, ip) in ips.iter().enumerate() {
         // Check stop signal
         {
-            let stop = state.stop_signal.lock().unwrap();
+            let stop = state.stop_signal.lock()
+                .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
             if *stop {
                 break;
             }
@@ -246,8 +255,9 @@ pub async fn scan_network(
         futures.push(tokio::spawn(async move {
             // Update current IP in progress
             {
-                let mut progress = state_for_task.progress.lock().unwrap();
-                progress.current_ip = Some(ip.to_string());
+                if let Ok(mut progress) = state_for_task.progress.lock() {
+                    progress.current_ip = Some(ip.to_string());
+                }
             }
             
             let ping_result = ping_host(&client, ip).await;
@@ -302,18 +312,22 @@ pub async fn scan_network(
                 if let Ok(scan_result) = result {
                     // Store result
                     {
-                        let mut results = state.results.lock().unwrap();
-                        results.push(scan_result.clone());
+                        if let Ok(mut results) = state.results.lock() {
+                            results.push(scan_result.clone());
+                        }
                     }
                     // Emit result
                     on_result(scan_result);
                     
                     completed += 1;
                     {
-                        let mut progress = state.progress.lock().unwrap();
-                        progress.completed = completed;
+                        if let Ok(mut progress) = state.progress.lock() {
+                            progress.completed = completed;
+                        }
                     }
-                    on_progress(state.progress.lock().unwrap().clone());
+                    if let Ok(progress) = state.progress.lock() {
+                        on_progress(progress.clone());
+                    }
                 }
             }
         }
@@ -323,23 +337,35 @@ pub async fn scan_network(
 }
 
 pub fn stop_scan(state: &ScannerState) {
-    let mut stop = state.stop_signal.lock().unwrap();
-    *stop = true;
+    if let Ok(mut stop) = state.stop_signal.lock() {
+        *stop = true;
+    }
     
-    let mut is_scanning = state.is_scanning.lock().unwrap();
-    *is_scanning = false;
+    if let Ok(mut is_scanning) = state.is_scanning.lock() {
+        *is_scanning = false;
+    }
 }
 
 pub fn get_scan_progress(state: &ScannerState) -> ScanProgress {
-    state.progress.lock().unwrap().clone()
+    state.progress.lock()
+        .map(|p| p.clone())
+        .unwrap_or_else(|_| ScanProgress {
+            total: 0,
+            completed: 0,
+            current_ip: None,
+        })
 }
 
 pub fn get_scan_results(state: &ScannerState) -> Vec<ScanResult> {
-    state.results.lock().unwrap().clone()
+    state.results.lock()
+        .map(|r| r.clone())
+        .unwrap_or_default()
 }
 
 pub fn is_scanning(state: &ScannerState) -> bool {
-    *state.is_scanning.lock().unwrap()
+    state.is_scanning.lock()
+        .map(|s| *s)
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

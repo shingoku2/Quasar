@@ -10,6 +10,9 @@ mod health;
 mod monitoring;
 mod vault;
 mod host_tracker;
+mod errors;
+mod db;
+mod validation;
 
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
@@ -265,12 +268,14 @@ async fn is_vault_initialized(state: State<'_, vault::VaultState>) -> Result<boo
 
 #[tauri::command]
 async fn initialize_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
-    state.initialize_vault(master_password).await
+    use secrecy::Secret;
+    state.initialize_vault(Secret::new(master_password)).await
 }
 
 #[tauri::command]
 async fn unlock_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
-    state.unlock_vault(master_password).await
+    use secrecy::Secret;
+    state.unlock_vault(Secret::new(master_password)).await
 }
 
 #[tauri::command]
@@ -530,8 +535,8 @@ pub fn run() {
             app.manage(vault::AuditLogManager::new(db_path_str.clone()));
             app.manage(host_tracker::HostTracker::new(db_path_str.clone()));
             
-            // Initialize database tables
-            let mut conn = rusqlite::Connection::open(&db_path_str).map_err(|e| {
+            // Initialize database tables with foreign key constraints enabled
+            let mut conn = db::open_connection(&db_path_str).map_err(|e| {
                 error!("Failed to open database at {}: {}", db_path_str, e);
                 e
             })?;
@@ -564,6 +569,42 @@ pub fn run() {
                         Err(e) => {
                             error!("Auto-lock check failed: {}", e);
                         }
+                    }
+                }
+            });
+            
+            // Start SSH session timeout checker (30 minute idle timeout)
+            let ssh_state_ref = app.state::<ssh::SshState>();
+            let ssh_sessions = ssh_state_ref.sessions.clone();
+            let app_handle_ssh = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+                let timeout_duration = std::time::Duration::from_secs(30 * 60); // 30 minutes
+                
+                loop {
+                    interval.tick().await;
+                    
+                    let sessions_to_disconnect: Vec<(String, tokio::sync::mpsc::Sender<()>)> = {
+                        let sessions = match ssh_sessions.lock() {
+                            Ok(s) => s,
+                            Err(_) => continue,
+                        };
+                        
+                        sessions.iter()
+                            .filter_map(|(id, conn)| {
+                                if let Ok(last_activity) = conn.last_activity.lock() {
+                                    if last_activity.elapsed() > timeout_duration {
+                                        return Some((id.clone(), conn.disconnect_tx.clone()));
+                                    }
+                                }
+                                None
+                            })
+                            .collect()
+                    };
+                    
+                    for (session_id, disconnect_tx) in sessions_to_disconnect {
+                        let _ = disconnect_tx.send(()).await;
+                        let _ = app_handle_ssh.emit(&format!("ssh_timeout_{}", session_id), ());
                     }
                 }
             });

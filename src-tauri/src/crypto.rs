@@ -3,7 +3,7 @@ use argon2::{
         rand_core::OsRng,
         PasswordHash, PasswordHasher, PasswordVerifier, SaltString
     },
-    Argon2
+    Argon2, Algorithm, Params, Version
 };
 use aes_gcm::{
     aead::{Aead, KeyInit},
@@ -13,7 +13,12 @@ use rand::RngCore;
 
 pub fn hash_password(password: &str) -> Result<String, String> {
     let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
+    
+    // OWASP-recommended Argon2id parameters: 47 MiB memory, 2 iterations, 1 parallelism
+    let params = Params::new(47104, 2, 1, Some(32))
+        .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    
     let password_hash = argon2.hash_password(password.as_bytes(), &salt)
         .map_err(|e| format!("Failed to hash password: {}", e))?
         .to_string();
@@ -23,7 +28,13 @@ pub fn hash_password(password: &str) -> Result<String, String> {
 pub fn verify_password(password: &str, hashed_password: &str) -> Result<bool, String> {
     let parsed_hash = PasswordHash::new(hashed_password)
         .map_err(|e| format!("Failed to parse password hash: {}", e))?;
-    Ok(Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok())
+    
+    // Use same params for verification (though Argon2 will use params from hash)
+    let params = Params::new(47104, 2, 1, Some(32))
+        .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    
+    Ok(argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok())
 }
 
 pub fn encrypt(data: &[u8], key: &[u8; 32]) -> Result<(Vec<u8>, [u8; 12], [u8; 16]), String> {
