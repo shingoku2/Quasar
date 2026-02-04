@@ -27,9 +27,16 @@ impl HostTracker {
         Self { db_path }
     }
 
+     fn open_connection(&self) -> Result<Connection, String> {
+         let conn = Connection::open(&self.db_path)
+             .map_err(|e| format!("Failed to open database: {}", e))?;
+         conn.execute_batch("PRAGMA foreign_keys = ON;")
+             .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
+         Ok(conn)
+     }
+
     pub fn save_host(&self, scan_result: &ScanResult) -> Result<String, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = self.open_connection()?;
 
         // Check if host already exists
         let existing: Result<(String, i64, i32), rusqlite::Error> = conn.query_row(
@@ -39,7 +46,7 @@ impl HostTracker {
         );
 
         let host_id = match existing {
-            Ok((id, first_seen, scan_count)) => {
+            Ok((id, _first_seen, scan_count)) => {
                 // Update existing host
                 conn.execute(
                     "UPDATE discovered_hosts SET 
@@ -107,7 +114,7 @@ impl HostTracker {
         );
 
         match existing {
-            Ok((id, first_detected)) => {
+            Ok((id, _first_detected)) => {
                 // Update existing service
                 conn.execute(
                     "UPDATE host_services SET service = ?1, version = ?2, last_detected = ?3 WHERE id = ?4",
@@ -138,8 +145,7 @@ impl HostTracker {
     }
 
     pub fn get_host(&self, ip: &str) -> Result<Option<DiscoveredHost>, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = self.open_connection()?;
 
         let host_result: Result<DiscoveredHost, rusqlite::Error> = conn.query_row(
             "SELECT id, ip, hostname, mac_address, device_type, vendor, first_seen, last_seen, scan_count
@@ -192,8 +198,7 @@ impl HostTracker {
     }
 
     pub fn list_hosts(&self, limit: Option<usize>) -> Result<Vec<DiscoveredHost>, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = self.open_connection()?;
 
         let query = if let Some(limit) = limit {
             format!(
@@ -237,8 +242,7 @@ impl HostTracker {
     }
 
     pub fn search_hosts(&self, query: &str) -> Result<Vec<DiscoveredHost>, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = self.open_connection()?;
 
         let search_pattern = format!("%{}%", query);
 
@@ -277,8 +281,7 @@ impl HostTracker {
     }
 
     pub fn delete_host(&self, ip: &str) -> Result<(), String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn = self.open_connection()?;
 
         conn.execute(
             "DELETE FROM discovered_hosts WHERE ip = ?1",

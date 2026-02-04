@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { Play, Square, RefreshCw, Network, Search, Loader2, Server, Laptop, Router, Printer, HelpCircle } from 'lucide-react';
@@ -49,11 +49,15 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
   const [progress, setProgress] = useState<ScanProgress>({ total: 0, completed: 0 });
   const [results, setResults] = useState<ScanResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [scanCompleted, setScanCompleted] = useState(false);
+  const resultsRef = useRef<ScanResult[]>([]);
 
   // Listen for scan events
   useEffect(() => {
     let unlistenProgress: UnlistenFn | null = null;
     let unlistenResult: UnlistenFn | null = null;
+    let unlistenComplete: UnlistenFn | null = null;
+    let unlistenError: UnlistenFn | null = null;
 
     const setupListeners = async () => {
       try {
@@ -63,11 +67,24 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
 
         unlistenResult = await listen<ScanResult>('scan_result', (event) => {
           const result = event.payload;
-          setResults(prev => [...prev, result]);
+          setResults(prev => {
+            const next = [...prev, result];
+            resultsRef.current = next;
+            return next;
+          });
           
           if (result.is_alive && onHostFound) {
             onHostFound(result);
           }
+        });
+
+        unlistenComplete = await listen('scan_complete', () => {
+          setScanCompleted(true);
+          setIsScanning(false);
+        });
+
+        unlistenError = await listen<string>('scan_error', (event) => {
+          setError(event.payload);
         });
       } catch (error) {
         console.warn('Scan event listeners failed:', error);
@@ -79,37 +96,27 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
     return () => {
       if (unlistenProgress) unlistenProgress();
       if (unlistenResult) unlistenResult();
+      if (unlistenComplete) unlistenComplete();
+      if (unlistenError) unlistenError();
     };
   }, [onHostFound]);
 
-  // Check scanning status periodically
+  // Finalize results on completion
   useEffect(() => {
-    if (!isScanning) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const scanning = await invoke<boolean>('is_scanning');
-        setIsScanning(scanning);
-        
-        if (!scanning) {
-          if (onResults) {
-            onResults(results);
-          }
-        }
-      } catch (err) {
-        console.warn('Error checking scan status:', err);
-        setIsScanning(false);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isScanning, results, onResults]);
+    if (!scanCompleted) return;
+    if (onResults) {
+      onResults(resultsRef.current);
+    }
+    setScanCompleted(false);
+  }, [scanCompleted, onResults]);
 
   const handleStartScan = async () => {
     try {
       setError(null);
       setResults([]);
+      resultsRef.current = [];
       setProgress({ total: 0, completed: 0 });
+      setScanCompleted(false);
       
       await invoke('scan_network', { cidr });
       setIsScanning(true);
