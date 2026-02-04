@@ -7,12 +7,26 @@ use serde::Serialize;
 use surge_ping::{Client, Config, PingIdentifier, PingSequence};
 use tokio::time::timeout;
 
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct ServiceInfo {
+    pub port: u16,
+    pub protocol: String,
+    pub service: String,
+    pub version: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ScanResult {
     pub ip: String,
     pub is_alive: bool,
     pub latency_ms: Option<u32>,
     pub open_ports: Vec<u16>,
+    pub hostname: Option<String>,
+    pub mac_address: Option<String>,
+    pub device_type: String,
+    pub services: Vec<ServiceInfo>,
+    pub vendor: Option<String>,
+    pub last_seen: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -70,6 +84,82 @@ async fn scan_port(ip: IpAddr, port: u16) -> bool {
     match timeout(Duration::from_secs(1), TcpStream::connect(&addr)).await {
         Ok(Ok(_)) => true,
         _ => false,
+    }
+}
+
+async fn resolve_hostname(ip: IpAddr) -> Option<String> {
+    use tokio::net::lookup_host;
+    
+    match timeout(Duration::from_secs(2), lookup_host((ip, 0))).await {
+        Ok(Ok(mut addrs)) => {
+            if let Some(addr) = addrs.next() {
+                // Try reverse DNS lookup
+                match timeout(Duration::from_secs(2), tokio::task::spawn_blocking(move || {
+                    use std::net::ToSocketAddrs;
+                    addr.to_string().to_socket_addrs().ok()
+                })).await {
+                    Ok(Ok(_)) => {
+                        // Simple approach: return IP as hostname for now
+                        // Full DNS reverse lookup would require additional dependencies
+                        None
+                    },
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        },
+        _ => None,
+    }
+}
+
+fn detect_device_type(open_ports: &[u16]) -> String {
+    // Router detection: common management ports
+    if open_ports.contains(&80) && open_ports.contains(&443) && open_ports.len() <= 3 {
+        return "router".to_string();
+    }
+    
+    // Printer detection
+    if open_ports.contains(&9100) || open_ports.contains(&515) || open_ports.contains(&631) {
+        return "printer".to_string();
+    }
+    
+    // Server detection: multiple services
+    if open_ports.len() >= 3 || open_ports.contains(&3389) || open_ports.contains(&445) {
+        return "server".to_string();
+    }
+    
+    // Workstation: SSH or RDP
+    if open_ports.contains(&22) || open_ports.contains(&3389) {
+        return "workstation".to_string();
+    }
+    
+    "unknown".to_string()
+}
+
+fn identify_service(port: u16) -> ServiceInfo {
+    let (service, protocol) = match port {
+        22 => ("SSH", "tcp"),
+        23 => ("Telnet", "tcp"),
+        80 => ("HTTP", "tcp"),
+        443 => ("HTTPS", "tcp"),
+        445 => ("SMB", "tcp"),
+        3306 => ("MySQL", "tcp"),
+        3389 => ("RDP", "tcp"),
+        5432 => ("PostgreSQL", "tcp"),
+        6379 => ("Redis", "tcp"),
+        8080 => ("HTTP-Alt", "tcp"),
+        9100 => ("Printer", "tcp"),
+        515 => ("LPD", "tcp"),
+        631 => ("IPP", "tcp"),
+        _ => ("Unknown", "tcp"),
+    };
+    
+    ServiceInfo {
+        port,
+        protocol: protocol.to_string(),
+        service: service.to_string(),
+        version: None,
     }
 }
 
@@ -143,21 +233,43 @@ pub async fn scan_network(
             
             let mut open_ports = Vec::new();
             
+            let mut services = Vec::new();
+            
             if is_alive {
-                // Scan common ports for alive hosts
-                let common_ports = [22, 80, 443, 445, 3389];
+                // Scan expanded port list for alive hosts
+                let common_ports = [22, 23, 80, 443, 445, 3306, 3389, 5432, 6379, 8080, 9100, 515, 631];
                 for port in common_ports {
                     if scan_port(ip, port).await {
                         open_ports.push(port);
+                        services.push(identify_service(port));
                     }
                 }
             }
+            
+            // Resolve hostname (only for alive hosts to save time)
+            let hostname = if is_alive {
+                resolve_hostname(ip).await
+            } else {
+                None
+            };
+            
+            // Detect device type based on open ports
+            let device_type = detect_device_type(&open_ports);
+            
+            // Get current timestamp
+            let last_seen = chrono::Utc::now().timestamp();
             
             ScanResult {
                 ip: ip.to_string(),
                 is_alive,
                 latency_ms,
                 open_ports,
+                hostname,
+                mac_address: None, // MAC address detection requires raw sockets/ARP
+                device_type,
+                services,
+                vendor: None, // Vendor lookup would require MAC address
+                last_seen,
             }
         }));
         
@@ -248,6 +360,12 @@ mod tests {
             is_alive: true,
             latency_ms: Some(10),
             open_ports: vec![22, 80],
+            hostname: Some("test-host".to_string()),
+            mac_address: None,
+            device_type: "workstation".to_string(),
+            services: vec![],
+            vendor: None,
+            last_seen: 1234567890,
         };
         
         let json = serde_json::to_string(&result).unwrap();
@@ -307,6 +425,12 @@ mod tests {
             is_alive: true,
             latency_ms: Some(5),
             open_ports: vec![22, 443],
+            hostname: None,
+            mac_address: None,
+            device_type: "workstation".to_string(),
+            services: vec![],
+            vendor: None,
+            last_seen: 1234567890,
         };
         
         assert_eq!(result.ip, "10.0.0.1");
@@ -322,6 +446,12 @@ mod tests {
             is_alive: false,
             latency_ms: None,
             open_ports: vec![],
+            hostname: None,
+            mac_address: None,
+            device_type: "unknown".to_string(),
+            services: vec![],
+            vendor: None,
+            last_seen: 1234567890,
         };
         
         assert!(!result.is_alive);

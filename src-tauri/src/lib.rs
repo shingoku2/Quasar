@@ -9,6 +9,7 @@ mod scanner;
 mod health;
 mod monitoring;
 mod vault;
+mod host_tracker;
 
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
@@ -24,6 +25,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
         M::up(include_str!("../migrations/003_security_vault.sql")),
         M::up(include_str!("../migrations/004_monitoring.sql")),
+        M::up(include_str!("../migrations/006_discovered_hosts.sql")),
     ])
 });
 
@@ -102,12 +104,26 @@ async fn scan_network(
     let app_for_progress = app.clone();
     let app_for_result = app.clone();
     
+    // Get db path from app
+    let db_path = app.path().app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("titan.db");
+    let db_path_str = db_path.to_str()
+        .ok_or("Invalid database path")?
+        .to_string();
+    
     tokio::spawn(async move {
+        let tracker = host_tracker::HostTracker::new(db_path_str);
+        
         let on_progress = move |progress: scanner::ScanProgress| {
             let _ = app_for_progress.emit("scan_progress", progress);
         };
         
         let on_result = move |result: scanner::ScanResult| {
+            // Save host to database if alive
+            if result.is_alive {
+                let _ = tracker.save_host(&result);
+            }
             let _ = app_for_result.emit("scan_result", result);
         };
         
@@ -130,6 +146,38 @@ fn get_scan_progress(state: State<'_, Arc<scanner::ScannerState>>) -> scanner::S
 #[tauri::command]
 fn is_scanning(state: State<'_, Arc<scanner::ScannerState>>) -> bool {
     scanner::is_scanning(&state)
+}
+
+#[tauri::command]
+fn get_discovered_hosts(
+    host_tracker: State<'_, host_tracker::HostTracker>,
+    limit: Option<usize>,
+) -> Result<Vec<host_tracker::DiscoveredHost>, String> {
+    host_tracker.list_hosts(limit)
+}
+
+#[tauri::command]
+fn get_host_details(
+    host_tracker: State<'_, host_tracker::HostTracker>,
+    ip: String,
+) -> Result<Option<host_tracker::DiscoveredHost>, String> {
+    host_tracker.get_host(&ip)
+}
+
+#[tauri::command]
+fn search_discovered_hosts(
+    host_tracker: State<'_, host_tracker::HostTracker>,
+    query: String,
+) -> Result<Vec<host_tracker::DiscoveredHost>, String> {
+    host_tracker.search_hosts(&query)
+}
+
+#[tauri::command]
+fn delete_discovered_host(
+    host_tracker: State<'_, host_tracker::HostTracker>,
+    ip: String,
+) -> Result<(), String> {
+    host_tracker.delete_host(&ip)
 }
 
 #[tauri::command]
@@ -475,6 +523,7 @@ pub fn run() {
                 e
             })?);
             app.manage(vault::AuditLogManager::new(db_path_str.clone()));
+            app.manage(host_tracker::HostTracker::new(db_path_str.clone()));
             
             // Initialize database tables
             let mut conn = rusqlite::Connection::open(&db_path_str).map_err(|e| {
@@ -539,6 +588,10 @@ pub fn run() {
             stop_scan,
             get_scan_progress,
             is_scanning,
+            get_discovered_hosts,
+            get_host_details,
+            search_discovered_hosts,
+            delete_discovered_host,
             preflight_check,
             check_host_health,
             get_system_metrics,
