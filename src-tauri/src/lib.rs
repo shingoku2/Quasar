@@ -103,6 +103,7 @@ async fn scan_network(
     let state = Arc::clone(&state);
     let app_for_progress = app.clone();
     let app_for_result = app.clone();
+    let app_for_events = app.clone();
     
     // Get db path from app
     let db_path = app.path().app_data_dir()
@@ -114,20 +115,30 @@ async fn scan_network(
     
     tokio::spawn(async move {
         let tracker = host_tracker::HostTracker::new(db_path_str);
-        
+
         let on_progress = move |progress: scanner::ScanProgress| {
             let _ = app_for_progress.emit("scan_progress", progress);
         };
-        
+
         let on_result = move |result: scanner::ScanResult| {
             // Save host to database if alive
             if result.is_alive {
-                let _ = tracker.save_host(&result);
+                if let Err(e) = tracker.save_host(&result) {
+                    let _ = app_for_result.emit("scan_error", format!("Failed to save discovered host {}: {}", result.ip, e));
+                }
             }
             let _ = app_for_result.emit("scan_result", result);
         };
-        
-        let _ = scanner::scan_network(state, cidr, on_progress, on_result).await;
+
+        match scanner::scan_network(state, cidr, on_progress, on_result).await {
+            Ok(()) => {
+                let _ = app_for_events.emit("scan_complete", ());
+            }
+            Err(e) => {
+                let _ = app_for_events.emit("scan_error", e);
+                let _ = app_for_events.emit("scan_complete", ());
+            }
+        }
     });
     
     Ok(())

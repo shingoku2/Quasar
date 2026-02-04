@@ -58,6 +58,18 @@ impl ScannerState {
     }
 }
 
+ struct ScanRunningGuard {
+     is_scanning: Arc<Mutex<bool>>,
+ }
+
+ impl Drop for ScanRunningGuard {
+     fn drop(&mut self) {
+         if let Ok(mut is_scanning) = self.is_scanning.lock() {
+             *is_scanning = false;
+         }
+     }
+ }
+
 fn parse_cidr(cidr_str: &str) -> Result<Vec<IpAddr>, String> {
     let cidr: Ipv4Cidr = cidr_str.parse().map_err(|e| format!("Invalid CIDR: {}", e))?;
     Ok(cidr.iter().map(|ip_u32| IpAddr::from(std::net::Ipv4Addr::from(ip_u32))).collect())
@@ -182,6 +194,10 @@ pub async fn scan_network(
         let mut stop = state.stop_signal.lock().unwrap();
         *stop = false;
     }
+
+     let _guard = ScanRunningGuard {
+         is_scanning: Arc::clone(&state.is_scanning),
+     };
     
     // Clear previous results
     {
@@ -294,12 +310,6 @@ pub async fn scan_network(
                 }
             }
         }
-    }
-    
-    // Mark scanning as complete
-    {
-        let mut is_scanning = state.is_scanning.lock().unwrap();
-        *is_scanning = false;
     }
     
     Ok(())
