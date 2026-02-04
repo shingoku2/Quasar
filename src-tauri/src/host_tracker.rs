@@ -18,6 +18,7 @@ pub struct DiscoveredHost {
     pub services: Vec<ServiceInfo>,
 }
 
+#[derive(Clone)]
 pub struct HostTracker {
     db_path: String,
 }

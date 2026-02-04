@@ -219,19 +219,21 @@ impl CredentialManager {
 
         let now = chrono::Utc::now().timestamp();
 
-        // Build dynamic update query with validated field names
-        // SAFETY: All field names are hardcoded constants, not user input
-        let mut updates = Vec::new();
-        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
-
+        // Update fields individually with explicit SQL statements
+        // This avoids dynamic query construction and is safer/clearer
+        
         if let Some(n) = name {
-            updates.push("name = ?"); // Hardcoded field name
-            params.push(Box::new(n));
+            conn.execute(
+                "UPDATE credentials SET name = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![n, now, credential_id],
+            ).map_err(|e| format!("Failed to update credential name: {}", e))?;
         }
 
         if let Some(u) = username {
-            updates.push("username = ?"); // Hardcoded field name
-            params.push(Box::new(u));
+            conn.execute(
+                "UPDATE credentials SET username = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![u, now, credential_id],
+            ).map_err(|e| format!("Failed to update credential username: {}", e))?;
         }
 
         if let Some(p) = password {
@@ -239,37 +241,18 @@ impl CredentialManager {
             let password_bytes = p.as_bytes();
             let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
-            updates.push("encrypted_password = ?"); // Hardcoded field name
-            updates.push("nonce = ?"); // Hardcoded field name
-            updates.push("tag = ?"); // Hardcoded field name
-            params.push(Box::new(ciphertext));
-            params.push(Box::new(nonce.to_vec()));
-            params.push(Box::new(tag.to_vec()));
+            conn.execute(
+                "UPDATE credentials SET encrypted_password = ?1, nonce = ?2, tag = ?3, updated_at = ?4 WHERE id = ?5",
+                rusqlite::params![ciphertext, nonce.to_vec(), tag.to_vec(), now, credential_id],
+            ).map_err(|e| format!("Failed to update credential password: {}", e))?;
         }
 
         if let Some(m) = metadata {
-            updates.push("metadata = ?"); // Hardcoded field name
-            params.push(Box::new(m));
+            conn.execute(
+                "UPDATE credentials SET metadata = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![m, now, credential_id],
+            ).map_err(|e| format!("Failed to update credential metadata: {}", e))?;
         }
-
-        if updates.is_empty() {
-            return Ok(());
-        }
-
-        updates.push("updated_at = ?"); // Hardcoded field name
-        params.push(Box::new(now));
-
-        // SAFETY: Query is constructed from hardcoded field names only
-        let query = format!(
-            "UPDATE credentials SET {} WHERE id = ?",
-            updates.join(", ")
-        );
-
-        params.push(Box::new(credential_id.to_string()));
-
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
-        conn.execute(&query, params_refs.as_slice())
-            .map_err(|e| format!("Failed to update credential: {}", e))?;
 
         // Log audit event
         Self::log_audit_event(

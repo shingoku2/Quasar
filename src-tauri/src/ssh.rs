@@ -3,10 +3,12 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use russh::*;
-use russh::keys::*;
+use russh::keys::PublicKeyBase64;
 use tokio::sync::Mutex as TokioMutex;
-use crate::vault::SshKeyManager;
 use log::error;
+use sha2::{Sha256, Digest};
+
+use crate::vault::SshKeyManager;
 
 #[derive(Clone)]
 pub struct Client {
@@ -26,14 +28,23 @@ impl client::Handler for Client {
         // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
         
-        // Get key bytes and create fingerprint using full key (hex format)
-        // NOTE: This uses hex encoding of the full public key bytes
-        // For production, consider adding sha2 and base64 crates for SHA256:base64 format
+        // Create SHA256 fingerprint (standard SSH format)
         let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = key_bytes
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect::<String>();
+        let mut hasher = Sha256::new();
+        hasher.update(&key_bytes);
+        let hash = hasher.finalize();
+        
+        // Format as SHA256:hex (colon-separated pairs like OpenSSH)
+        let fingerprint = format!(
+            "SHA256:{}",
+            hash.iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<Vec<_>>()
+                .chunks(2)
+                .map(|chunk| chunk.join(""))
+                .collect::<Vec<_>>()
+                .join(":")
+        );
         let key_type = "ssh-key"; // Generic type since russh doesn't expose key type easily
         
         // Verify host key
