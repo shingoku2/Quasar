@@ -1,4 +1,4 @@
-# ProjectTitan Codebase Audit Report
+# Quasar Codebase Audit Report
 **Date:** February 1, 2026  
 **Auditor:** Cascade AI  
 **Scope:** Comprehensive codebase review for errors, bugs, and potential issues
@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-Completed extensive audit of ProjectTitan codebase covering:
+Completed extensive audit of Quasar codebase covering:
 - Database schema and migrations
 - Rust backend (16 modules, ~3,500 lines)
 - TypeScript/React frontend (57+ components)

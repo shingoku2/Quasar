@@ -1,11 +1,98 @@
-# ProjectTitan - Agent Context & Bug Fixes
+# Quasar - Agent Context & Bug Fixes
 
 ## Overview
-ProjectTitan is a Tauri-based remote infrastructure management application with React frontend and Rust backend. This document tracks major bug fixes, architectural decisions, and context for AI agents working on this codebase.
+Quasar is a Tauri-based remote infrastructure management application with React frontend and Rust backend. This document tracks major bug fixes, architectural decisions, and context for AI agents working on this codebase.
 
 ---
 
 ## Recent Implementations
+
+### UI Refactor - Complete (February 12, 2026)
+
+#### Overview
+Complete visual overhaul to match new Quasar design mockup. Shifted from gray/blue palette to dark navy/cyan aesthetic across all components. No functional changes — purely visual and layout restructuring.
+
+#### Phase 1: Theme & Color Palette ✅
+- **Location**: `src/App.css`
+- **Changes**: Updated CSS custom properties to new navy/cyan palette
+  - `--color-bg-root: #0f1923` (dark navy)
+  - `--color-bg-card: #1a2332` (card background)
+  - `--color-bg-sidebar: #0a1628` (sidebar)
+  - `--color-accent: #00d4ff` (cyan accent)
+  - `--color-border: #1e3a5f` (navy border)
+  - Scrollbar thumb hover updated to `#2a3f5f`
+
+#### Phase 2: Sidebar Restyle ✅
+- **Location**: `src/components/Sidebar.tsx`, `src/assets/quasar-logo.svg`
+- **Changes**:
+  - Created custom Quasar SVG logo (orbital rings + core sphere + jet beam)
+  - Replaced Lock icon branding with logo image + "QUASAR" text
+  - Active nav style changed from `bg-accent/10 text-accent` to filled `bg-accent text-white` pill
+  - Footer replaced: "Admin Nexus" user info → Vault status badge using `useVault` hook
+  - All `border-gray-800` → `border-border`
+
+#### Phase 3: Top Bar Restyle ✅
+- **Location**: `src/components/TopBar.tsx`
+- **Changes**:
+  - Replaced breadcrumb navigation with bold view title (`viewLabels` map)
+  - Updated search placeholder to "Search hosts, credentials..."
+  - Restyled action buttons with new palette (bell notification, user avatar)
+  - All borders/backgrounds updated to theme variables
+
+#### Phase 4: Dashboard Layout Restructure ✅
+- **Location**: `src/components/dashboard/DashboardView.tsx`, `src/components/dashboard/SystemHealthWidget.tsx`
+- **Changes**:
+  - Hero section: Network Topology card (~60% height) with inline List/Topology toggle
+  - Bottom row: 4 equal cards (Real-time Metrics, Active Sessions, Recent Activity, System Health)
+  - Removed `DiscoveryWidget` and `NetworkMapWidget` from dashboard rendering
+  - `SystemHealthWidget` now accepts `variant` prop: `'metrics'` (CPU/Memory/Disk progress bars) or `'summary'` (hosts online, alerts, vault auto-lock status rows)
+- **Location**: `src/components/dashboard/QuickConnectWidget.tsx`
+  - Renamed header to "Active Sessions", updated palette
+- **Location**: `src/components/dashboard/AlertFeed.tsx`
+  - Renamed header to "Recent Activity", updated palette, added `max-h-56`
+
+#### Phase 5: Topology View Restyle ✅
+- **Location**: `src/components/NetworkTopologyView.tsx`
+- **Changes**:
+  - Device colors updated: Server→sky, Router→violet, Printer→pink, Workstation→teal, Unknown→slate
+  - Edge color updated to `#1e3a5f` (navy)
+  - Controls/search/legend/info panels: `bg-bg-card border-border` with `backdrop-blur-sm`
+  - Container changed from fixed `h-[600px]` to `h-full` (fills parent)
+  - Removed outer border (parent card provides it)
+
+#### Phase 6: Status Bar Footer ✅
+- **Location**: `src/components/Layout.tsx`
+- **Changes**:
+  - Added `<footer>` status bar (h-7) at bottom of main content area
+  - Shows connection status indicator (green dot + "Connected")
+  - Shows "Last scan: --" placeholder on right side
+  - Styled with `bg-bg-sidebar border-t border-border`
+
+#### Phase 7: Test Updates ✅
+- **Files Updated**: `Sidebar.test.tsx`, `Dashboard.test.tsx`, `Layout.test.tsx`, `App.test.tsx`
+- **Changes**:
+  - Added `useVault` mock to Sidebar, Layout, and App tests
+  - Added `NetworkTopologyView` component mock to Dashboard, Layout, and App tests (vis-network can't render in JSDOM)
+  - Updated assertions: active nav class `bg-accent`, "Vault: Unlocked" branding, "Network Topology" header, "List"/"Topology" toggle labels, "Real-time Metrics" widget
+- **Result**: All 69 tests passing
+
+#### Files Modified
+- `src/App.css` — Theme palette
+- `src/assets/quasar-logo.svg` — New logo (created)
+- `src/components/Sidebar.tsx` — Logo, nav style, vault footer
+- `src/components/TopBar.tsx` — View title, search, buttons
+- `src/components/Layout.tsx` — Status bar footer
+- `src/components/dashboard/DashboardView.tsx` — Hero + 4-card layout
+- `src/components/dashboard/SystemHealthWidget.tsx` — Variant prop, progress bars
+- `src/components/dashboard/QuickConnectWidget.tsx` — Palette update
+- `src/components/dashboard/AlertFeed.tsx` — Palette update
+- `src/components/NetworkTopologyView.tsx` — Colors, sizing, controls
+- `src/App.test.tsx` — Mocks added
+- `src/components/Sidebar.test.tsx` — Mocks + assertions updated
+- `src/components/dashboard/Dashboard.test.tsx` — Mocks + assertions updated
+- `src/components/Layout.test.tsx` — Mocks added
+
+---
 
 ### Critical Bug Fixes - Complete (February 3, 2026)
 
@@ -207,7 +294,7 @@ ProjectTitan is a Tauri-based remote infrastructure management application with 
   - RemoteManager checks vault status before showing credential selector
   - Automatic fallback to manual entry if vault unavailable
 - **UI/UX**:
-  - Consistent design with existing ProjectTitan aesthetic
+  - Consistent design with existing Quasar aesthetic
   - Modal dialogs with backdrop blur and animations
   - Responsive grid layout for credential cards
   - Color-coded credential types (SSH, RDP, Database, API, Other)
@@ -264,7 +351,7 @@ ProjectTitan is a Tauri-based remote infrastructure management application with 
   - Comprehensive settings with helpful descriptions
   - Security warnings and recommendations
   - Success/error feedback for all operations
-  - Consistent design with ProjectTitan aesthetic
+  - Consistent design with Quasar aesthetic
 
 #### Phase 7: Security Hardening & Polish ✅
 - **Location**: `src-tauri/src/vault/audit.rs`, `src-tauri/src/lib.rs`, `src/components/vault/AuditLogViewer.tsx`
@@ -521,7 +608,7 @@ Conducted thorough code review of entire codebase focusing on potential bugs, se
 
 ### Implementation Plan Created
 
-Comprehensive fix plan created at: `C:\Users\User\.windsurf\plans\projecttitan-bug-fixes-c78dd8.md`
+Comprehensive fix plan created at: `C:\Users\User\.windsurf\plans\quasar-bug-fixes-c78dd8.md`
 
 **Timeline**: 5-7 days across 5 phases
 **Priority**: Phase 1 (Critical) must be completed first
@@ -792,7 +879,7 @@ cd src-tauri && cargo test
 ## File Structure
 
 ```
-ProjectTitan/
+Quasar/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
 │   │   ├── dashboard/      # Dashboard widgets
@@ -841,5 +928,5 @@ When working on this codebase:
 
 ---
 
-*Last Updated: January 31, 2026*
+*Last Updated: February 12, 2026*
 *Agent: Cascade (Windsurf IDE)*

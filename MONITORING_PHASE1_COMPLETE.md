@@ -5,7 +5,7 @@
 
 ## Summary
 
-Phase 1 of the monitoring enhancements has been successfully implemented, adding comprehensive system metrics collection to ProjectTitan.
+Phase 1 of the monitoring enhancements has been successfully implemented, adding comprehensive system metrics collection to Quasar.
 
 ## What Was Added
 

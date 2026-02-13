@@ -6,9 +6,12 @@ import {
   Bot, 
   Settings,
   Shield,
-  Lock
+  Lock,
+  LockOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useVault } from './vault/VaultProvider';
+import quasarLogo from '../assets/quasar-logo.svg';
 
 export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'ai' | 'security' | 'settings';
 
@@ -27,13 +30,13 @@ const navItems = [
 ] as const;
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+  const { isVaultLocked } = useVault();
+
   return (
-    <aside className="w-16 lg:w-64 bg-bg-sidebar border-r border-gray-800 flex flex-col h-full transition-all duration-300">
-      <div className="p-4 lg:p-6 flex items-center space-x-3 border-b border-gray-800 mb-2">
-        <div className="bg-accent p-1.5 rounded-lg shadow-lg shadow-accent/20">
-          <Lock className="h-6 w-6 text-white" />
-        </div>
-        <span className="font-bold text-lg tracking-tight hidden lg:block text-white">QUASAR</span>
+    <aside className="w-16 lg:w-64 bg-bg-sidebar border-r border-border flex flex-col h-full transition-all duration-300">
+      <div className="p-4 lg:p-5 flex flex-col items-center border-b border-border mb-2">
+        <img src={quasarLogo} alt="Quasar" className="h-12 w-12 lg:h-16 lg:w-16" />
+        <span className="font-bold text-base tracking-widest hidden lg:block text-white mt-2">QUASAR</span>
       </div>
 
       <nav className="flex-1 px-2 space-y-1 py-4 overflow-y-auto no-scrollbar">
@@ -46,14 +49,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
               className={cn(
                 "w-full flex items-center rounded-lg px-3 py-2.5 transition-all group relative",
                 isActive 
-                  ? "bg-accent/10 text-accent font-medium shadow-sm" 
-                  : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                  ? "bg-accent text-white font-medium shadow-lg shadow-accent/20" 
+                  : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
               )}
               title={item.label}
             >
               <item.icon className={cn(
                 "h-5 w-5 shrink-0",
-                isActive ? "text-accent" : "text-gray-400 group-hover:text-gray-200"
+                isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"
               )} />
               <span className="ml-3 text-sm hidden lg:block truncate">{item.label}</span>
               
@@ -65,15 +68,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-800 hidden lg:block">
-        <div className="flex items-center space-x-3 px-2 py-2">
-          <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center border border-gray-700">
-            <span className="text-xs font-bold text-accent">Sys</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-white truncate leading-none">Admin Nexus</p>
-            <p className="text-[10px] text-gray-500 mt-1 truncate">v0.1.0-alpha</p>
-          </div>
+      <div className="p-3 border-t border-border hidden lg:block">
+        <div className={cn(
+          "flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium",
+          isVaultLocked 
+            ? "bg-alert/10 text-alert" 
+            : "bg-success/10 text-success"
+        )}>
+          {isVaultLocked ? (
+            <Lock className="h-4 w-4 shrink-0" />
+          ) : (
+            <LockOpen className="h-4 w-4 shrink-0" />
+          )}
+          <span>Vault: {isVaultLocked ? 'Locked' : 'Unlocked'}</span>
         </div>
       </div>
     </aside>

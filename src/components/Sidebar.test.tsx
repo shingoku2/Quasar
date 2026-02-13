@@ -3,6 +3,10 @@ import { describe, it, expect, vi } from 'vitest';
 import Sidebar from './Sidebar';
 import '@testing-library/jest-dom';
 
+vi.mock('./vault/VaultProvider', () => ({
+  useVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
+}));
+
 describe('Sidebar', () => {
   const mockOnViewChange = vi.fn();
 
@@ -21,7 +25,7 @@ describe('Sidebar', () => {
     render(<Sidebar activeView="monitoring" onViewChange={mockOnViewChange} />);
 
     const monitoringButton = screen.getByText('Monitoring').closest('button');
-    expect(monitoringButton?.className).toContain('text-accent');
+    expect(monitoringButton?.className).toContain('bg-accent');
   });
 
   it('calls onViewChange when a nav item is clicked', () => {
@@ -38,6 +42,6 @@ describe('Sidebar', () => {
     render(<Sidebar activeView="dashboard" onViewChange={mockOnViewChange} />);
 
     expect(screen.getByText('QUASAR')).toBeInTheDocument();
-    expect(screen.getByText('v0.1.0-alpha')).toBeInTheDocument();
+    expect(screen.getByText('Vault: Unlocked')).toBeInTheDocument();
   });
 });

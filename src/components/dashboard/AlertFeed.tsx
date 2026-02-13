@@ -124,15 +124,15 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
   };
 
   return (
-    <div className="bg-bg-card border border-gray-800 rounded-xl flex flex-col h-full overflow-hidden shadow-sm">
-      <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-bg-card/50">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">System Monitor</h3>
-        <span className="text-[10px] bg-zinc-800 text-accent px-2 py-0.5 rounded-full font-mono animate-pulse">LIVE</span>
+    <div className="bg-bg-card border border-border rounded-xl flex flex-col overflow-hidden shadow-sm max-h-56">
+      <div className="p-4 border-b border-border flex justify-between items-center">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Activity</h3>
+        <span className="text-[10px] bg-bg-root text-accent px-2 py-0.5 rounded-full font-mono animate-pulse">LIVE</span>
       </div>
 
       {/* Metrics Summary */}
       {metrics && (
-        <div className="grid grid-cols-3 gap-2 p-3 border-b border-gray-800/50 bg-black/20">
+        <div className="grid grid-cols-3 gap-2 p-3 border-b border-border/50 bg-black/20">
           <div className="flex items-center space-x-2">
             <Cpu className="h-3 w-3 text-accent" />
             <div>
@@ -179,7 +179,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
             <p className="text-[10px] text-gray-600 mt-1">No active alerts</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-800/50">
+          <div className="divide-y divide-border/50">
             {alerts.map((alert) => (
               <div 
                 key={alert.id} 
@@ -232,7 +232,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
         )}
       </div>
       
-      <div className="p-2 border-t border-gray-800 bg-bg-card/30">
+      <div className="p-2 border-t border-border bg-bg-card/30">
         <div className="flex justify-between items-center">
           <span className="text-[10px] text-gray-600">
             {alerts.filter(a => !a.acknowledged).length} unacknowledged

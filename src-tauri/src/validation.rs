@@ -1,4 +1,4 @@
-//! Input validation utilities for ProjectTitan
+//! Input validation utilities for Quasar
 //! 
 //! This module provides validation functions for user inputs to prevent
 //! injection attacks and ensure data integrity (OWASP ASVS v4.0 5.1.3).

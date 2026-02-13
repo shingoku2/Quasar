@@ -42,6 +42,19 @@ const Layout: React.FC = () => {
             <SettingsView />
           </div>
         </main>
+
+        {/* Status Bar */}
+        <footer className="h-7 bg-bg-sidebar border-t border-border flex items-center justify-between px-4 text-[11px] text-gray-500 shrink-0">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              <span>Connected</span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Last scan: --</span>
+          </div>
+        </footer>
       </div>
     </div>
   );

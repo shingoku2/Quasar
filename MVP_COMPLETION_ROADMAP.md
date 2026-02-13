@@ -1,4 +1,4 @@
-# ProjectTitan v0.1 MVP Completion Roadmap
+# Quasar v0.1 MVP Completion Roadmap
 
 **Status**: ~85% Complete (Updated: February 1, 2026 - 8:50 PM)
 
@@ -265,7 +265,7 @@ tokio-tungstenite = "0.21"    # WebSocket for VNC proxy
 
 ## Conclusion
 
-With the completion of real SSH command execution and health checks, ProjectTitan is now **~80% complete** for the v0.1 MVP. The remaining work focuses on:
+With the completion of real SSH command execution and health checks, Quasar is now **~80% complete** for the v0.1 MVP. The remaining work focuses on:
 
 1. **SFTP** - Essential for file management workflows
 2. **Scheduling** - Enables automation without manual triggers

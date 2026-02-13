@@ -1,6 +1,6 @@
 # Phase 4: Rich Execution Context Implementation
 
-Enhance ProjectTitan's execution context with powerful helper functions, expression evaluation, data transformation utilities, and advanced features inspired by n8n's context-based execution model.
+Enhance Quasar's execution context with powerful helper functions, expression evaluation, data transformation utilities, and advanced features inspired by n8n's context-based execution model.
 
 ## Overview
 
