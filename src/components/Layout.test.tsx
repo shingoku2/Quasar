@@ -3,6 +3,15 @@ import { describe, it, expect, vi } from 'vitest';
 import Layout from './Layout';
 import '@testing-library/jest-dom';
 
+vi.mock('./vault/VaultProvider', () => ({
+  useVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
+  VaultProvider: ({ children }: any) => children,
+}));
+
+vi.mock('./NetworkTopologyView', () => ({
+  default: () => <div data-testid="topology-mock">Topology Mock</div>,
+}));
+
 // Override invoke for Layout-specific commands
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => {

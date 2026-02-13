@@ -63,17 +63,17 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
   };
 
   return (
-    <div className="bg-bg-card border border-gray-800 rounded-xl p-4 shadow-sm shrink-0">
-      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Connect</h3>
+    <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm shrink-0">
+      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Active Sessions</h3>
       
       <div className="relative mb-3">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
         <input 
           type="text" 
-          placeholder="Search inventory..." 
+          placeholder="Search hosts..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-zinc-900 border border-gray-800 rounded-lg py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:border-accent/50 text-gray-300 placeholder-gray-600"
+          className="w-full bg-bg-root border border-border rounded-lg py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:border-accent/50 text-gray-300 placeholder-gray-500"
         />
       </div>
 
@@ -91,13 +91,13 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
               <button 
                 key={host.id} 
                 onClick={() => onConnect(host)}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-white/5 text-[11px] text-gray-400 hover:text-gray-200 transition-colors flex items-center group"
+                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 text-[11px] text-gray-400 hover:text-gray-200 transition-colors flex items-center group"
               >
                 <div className={`h-1.5 w-1.5 rounded-full ${getStatusColor(host)} mr-2 shrink-0`} />
-                <Icon className="h-3 w-3 mr-1.5 text-gray-600 group-hover:text-accent transition-colors shrink-0" />
+                <Icon className="h-3 w-3 mr-1.5 text-gray-500 group-hover:text-accent transition-colors shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-medium">{host.name}</div>
-                  <div className="text-[9px] text-gray-600 truncate">
+                  <div className="text-[9px] text-gray-500 truncate">
                     {host.username ? `${host.username}@` : ''}{host.address}
                   </div>
                 </div>
@@ -108,8 +108,8 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
       </div>
 
       {hosts.length > 6 && !searchQuery && (
-        <div className="mt-2 pt-2 border-t border-gray-800 text-center">
-          <span className="text-[9px] text-gray-600">+{hosts.length - 6} more hosts</span>
+        <div className="mt-2 pt-2 border-t border-border text-center">
+          <span className="text-[9px] text-gray-500">+{hosts.length - 6} more hosts</span>
         </div>
       )}
     </div>

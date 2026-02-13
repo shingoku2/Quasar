@@ -3,6 +3,10 @@ import { describe, it, expect, vi } from 'vitest';
 import DashboardView from './DashboardView';
 import '@testing-library/jest-dom';
 
+vi.mock('../NetworkTopologyView', () => ({
+  default: () => <div data-testid="topology-mock">Topology Mock</div>,
+}));
+
 // Mock Recharts because it uses DOM measurements that JSDOM doesn't support
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
@@ -19,20 +23,19 @@ vi.mock('recharts', () => ({
 describe('DashboardView', () => {
   const mockNavigate = vi.fn();
 
-  it('renders system health widget', () => {
+  it('renders real-time metrics widget', () => {
     render(<DashboardView onNavigate={mockNavigate} />);
-    // System health widget renders with status text
-    expect(screen.getByText(/system health/i)).toBeInTheDocument();
+    expect(screen.getByText(/real-time metrics/i)).toBeInTheDocument();
   });
 
-  it('renders network scanner section', () => {
+  it('renders network topology section', () => {
     render(<DashboardView onNavigate={mockNavigate} />);
-    expect(screen.getByText('Network Scanner')).toBeInTheDocument();
+    expect(screen.getByText('Network Topology')).toBeInTheDocument();
   });
 
   it('renders view mode toggle', () => {
     render(<DashboardView onNavigate={mockNavigate} />);
-    expect(screen.getByText('List View')).toBeInTheDocument();
-    expect(screen.getByText('Topology View')).toBeInTheDocument();
+    expect(screen.getByText('List')).toBeInTheDocument();
+    expect(screen.getByText('Topology')).toBeInTheDocument();
   });
 });

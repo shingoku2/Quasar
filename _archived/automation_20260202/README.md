@@ -1,6 +1,6 @@
 # Automation Feature - Archived February 2, 2026
 
-This folder contains the complete automation/workflow system that was removed from ProjectTitan.
+This folder contains the complete automation/workflow system that was removed from Quasar.
 
 ## What's Included
 

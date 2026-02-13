@@ -1,4 +1,4 @@
-//! Database connection utilities for ProjectTitan
+//! Database connection utilities for Quasar
 //! 
 //! This module provides centralized database connection management with
 //! automatic foreign key constraint enforcement.

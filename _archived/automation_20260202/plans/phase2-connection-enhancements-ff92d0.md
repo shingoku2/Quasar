@@ -1,6 +1,6 @@
 # Phase 2: Connection Enhancements Implementation
 
-Enhance ProjectTitan's connection model with typed connections, multiple ports, indices, and bidirectional indexing inspired by n8n's sophisticated connection system.
+Enhance Quasar's connection model with typed connections, multiple ports, indices, and bidirectional indexing inspired by n8n's sophisticated connection system.
 
 ## Overview
 

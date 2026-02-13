@@ -1,10 +1,10 @@
-# ProjectTitan
+# Quasar
 
 A powerful Tauri-based remote infrastructure management application for monitoring, managing, and automating remote servers and infrastructure.
 
 ## Overview
 
-ProjectTitan provides a comprehensive desktop application for managing remote infrastructure with features including SSH/SFTP connectivity, real-time monitoring, workflow automation, and secure credential management.
+Quasar provides a comprehensive desktop application for managing remote infrastructure with features including SSH/SFTP connectivity, real-time monitoring, workflow automation, and secure credential management.
 
 ## Features
 
@@ -40,7 +40,9 @@ ProjectTitan provides a comprehensive desktop application for managing remote in
 ### 🎨 Modern UI
 - **React + TypeScript** - Type-safe frontend with modern React patterns
 - **Tailwind CSS** - Beautiful, responsive design with shadcn/ui components
-- **Dark Theme** - Professional dark theme optimized for long sessions
+- **Dark Navy/Cyan Theme** - Professional dark theme with custom Quasar branding
+- **Dashboard Layout** - Hero topology view with real-time metrics, active sessions, and system health cards
+- **Status Bar** - Connection status and scan information footer
 - **Real-time Updates** - Live data updates without page refreshes
 
 ## Architecture
@@ -83,8 +85,8 @@ ProjectTitan provides a comprehensive desktop application for managing remote in
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/ProjectTitan.git
-cd ProjectTitan
+git clone https://github.com/yourusername/Quasar.git
+cd Quasar
 ```
 
 2. Install frontend dependencies:
@@ -149,7 +151,7 @@ This creates platform-specific installers in `src-tauri/target/release/bundle/`.
 ## Project Structure
 
 ```
-ProjectTitan/
+Quasar/
 ├── src/                          # React frontend
 │   ├── components/               # React components
 │   │   ├── dashboard/           # Dashboard widgets
@@ -198,6 +200,15 @@ See `conductor/code_styleguides/` for detailed coding standards:
 5. Submit a pull request
 
 ## Recent Updates
+
+### February 12, 2026 - UI Refactor
+- ✅ Complete visual overhaul to dark navy/cyan aesthetic
+- ✅ Custom Quasar SVG logo and sidebar restyle with vault status badge
+- ✅ Dashboard restructured: hero topology card + 4-card bottom row
+- ✅ SystemHealthWidget supports metrics and summary variants
+- ✅ Topology view restyled with new device color palette
+- ✅ Status bar footer with connection indicator
+- ✅ All 69 tests passing with updated mocks and assertions
 
 ### February 3, 2026 - Critical Bug Fixes
 - ✅ Fixed React duplicate key warnings in NetworkScanner component

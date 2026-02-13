@@ -1,6 +1,6 @@
 # Phase 1: Enhanced Node Model Implementation
 
-Enhance ProjectTitan's node structure with versioning, flexible parameters, credentials support, and advanced error handling options inspired by n8n's architecture.
+Enhance Quasar's node structure with versioning, flexible parameters, credentials support, and advanced error handling options inspired by n8n's architecture.
 
 ## Overview
 

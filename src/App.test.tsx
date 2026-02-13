@@ -3,6 +3,15 @@ import { describe, it, expect, vi } from 'vitest';
 import App from './App';
 import '@testing-library/jest-dom';
 
+vi.mock('./components/vault/VaultProvider', () => ({
+  useVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
+  VaultProvider: ({ children }: any) => children,
+}));
+
+vi.mock('./components/NetworkTopologyView', () => ({
+  default: () => <div data-testid="topology-mock">Topology Mock</div>,
+}));
+
 // Override invoke to return proper data for all commands the full app tree calls
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => {

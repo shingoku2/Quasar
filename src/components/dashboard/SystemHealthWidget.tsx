@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server, AlertTriangle, Cpu, HardDrive } from 'lucide-react';
+import { Server, AlertTriangle, Cpu, HardDrive, Shield, MoreHorizontal } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '../../lib/utils';
@@ -7,7 +7,11 @@ import { cn } from '../../lib/utils';
 interface SystemMetrics {
   cpu_usage_percent: number;
   memory_usage_percent: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
   disk_usage_percent: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
   uptime_seconds: number;
 }
 
@@ -16,22 +20,23 @@ interface Alert {
   severity: string;
 }
 
-const SystemHealthWidget: React.FC = () => {
+interface SystemHealthWidgetProps {
+  variant?: 'metrics' | 'summary';
+}
+
+const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metrics' }) => {
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
-    // Listen for system metrics
     const unlistenMetrics = listen<SystemMetrics>('system-metrics', (event) => {
       setMetrics(event.payload);
     });
 
-    // Listen for alerts
     const unlistenAlerts = listen<Alert[]>('alerts-triggered', (event) => {
       setAlerts(prev => [...event.payload, ...prev].slice(0, 50));
     });
 
-    // Initial fetch
     invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
 
     return () => {
@@ -40,124 +45,105 @@ const SystemHealthWidget: React.FC = () => {
     };
   }, []);
 
-  // Calculate health score based on metrics (inverted - lower usage = better health)
-  const calculateHealthScore = (): number => {
-    if (!metrics) return 100;
-    
-    // Calculate how "healthy" each metric is (100% - usage%)
-    const cpuHealth = Math.max(0, 100 - metrics.cpu_usage_percent);
-    const memHealth = Math.max(0, 100 - metrics.memory_usage_percent);
-    const diskHealth = Math.max(0, 100 - metrics.disk_usage_percent);
-    
-    // Average the health scores
-    return Math.round((cpuHealth + memHealth + diskHealth) / 3);
-  };
-
-  const healthScore = calculateHealthScore();
-  
-  // Determine status based on health score (higher is better)
-  const statusText = healthScore >= 80 ? 'SYSTEMS NOMINAL' : 
-                     healthScore >= 60 ? 'DEGRADED PERFORMANCE' : 
-                     'CRITICAL STATUS';
-
-  // Generate detailed status reason
-  const getStatusReason = (): string => {
-    if (!metrics) return 'Waiting for metrics...';
-    
-    const issues: string[] = [];
-    
-    if (metrics.cpu_usage_percent > 80) {
-      issues.push(`CPU at ${metrics.cpu_usage_percent.toFixed(0)}%`);
-    }
-    if (metrics.memory_usage_percent > 85) {
-      issues.push(`Memory at ${metrics.memory_usage_percent.toFixed(0)}%`);
-    }
-    if (metrics.disk_usage_percent > 90) {
-      issues.push(`Disk at ${metrics.disk_usage_percent.toFixed(0)}%`);
-    }
-    
-    if (issues.length > 0) {
-      return issues.join(' • ');
-    }
-    
-    // If no critical issues but health is degraded, show moderate usage
-    if (healthScore < 80) {
-      const moderateIssues: string[] = [];
-      if (metrics.cpu_usage_percent > 40) {
-        moderateIssues.push(`CPU ${metrics.cpu_usage_percent.toFixed(0)}%`);
-      }
-      if (metrics.memory_usage_percent > 50) {
-        moderateIssues.push(`Memory ${metrics.memory_usage_percent.toFixed(0)}%`);
-      }
-      if (metrics.disk_usage_percent > 60) {
-        moderateIssues.push(`Disk ${metrics.disk_usage_percent.toFixed(0)}%`);
-      }
-      
-      if (moderateIssues.length > 0) {
-        return moderateIssues.join(' • ');
-      }
-    }
-    
-    return 'All systems operating normally';
-  };
-
-  const statusReason = getStatusReason();
   const activeAlertCount = alerts.filter(a => !a.id.includes('acknowledged')).length;
 
-  // Create metric-based "nodes" for display
-  const nodes = [
-    { 
-      id: 'CPU', 
-      status: (metrics?.cpu_usage_percent || 0) > 80 ? 'warning' : 'online',
-      icon: Cpu,
-      value: `${(metrics?.cpu_usage_percent || 0).toFixed(0)}%`
-    },
-    { 
-      id: 'RAM', 
-      status: (metrics?.memory_usage_percent || 0) > 85 ? 'warning' : 'online',
-      icon: Server,
-      value: `${(metrics?.memory_usage_percent || 0).toFixed(0)}%`
-    },
-    { 
-      id: 'Disk', 
-      status: (metrics?.disk_usage_percent || 0) > 90 ? 'warning' : 'online',
-      icon: HardDrive,
-      value: `${(metrics?.disk_usage_percent || 0).toFixed(0)}%`
-    },
-  ];
-
-  return (
-    <div className="bg-bg-card border border-gray-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
-      <div className="flex items-center space-x-4">
-        <div className={cn(
-          "h-12 w-12 rounded-full flex items-center justify-center border-4 shadow-inner transition-all duration-1000",
-          healthScore >= 80 ? "border-green-500/20 text-green-500" : 
-          healthScore >= 60 ? "border-warning/20 text-warning" : "border-alert/20 text-alert"
-        )}>
-          <span className="text-lg font-black">{healthScore}%</span>
+  if (variant === 'summary') {
+    return (
+      <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">System Health</h3>
+          <button className="p-1 text-gray-500 hover:text-gray-300 transition-colors">
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
         </div>
-        <div className="flex flex-col">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider leading-none">System Health</h3>
-          <p className={cn(
-            "text-xl font-black mt-1 tracking-tight leading-tight",
-            healthScore >= 80 ? "text-green-500" : 
-            healthScore >= 60 ? "text-warning" : "text-alert"
-          )}>{statusText}</p>
-          <p className="text-sm text-gray-100 mt-2 leading-tight font-normal">
-            {statusReason}
-          </p>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
+            <Server className="h-4 w-4 text-accent" />
+            <span className="text-xs text-gray-300 flex-1">Hosts Online</span>
+            <span className="text-xs font-bold text-white">--</span>
+          </div>
+          <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
+            <AlertTriangle className={cn("h-4 w-4", activeAlertCount > 0 ? "text-warning" : "text-gray-500")} />
+            <span className="text-xs text-gray-300 flex-1">Alerts</span>
+            <span className={cn("text-xs font-bold", activeAlertCount > 0 ? "text-warning" : "text-white")}>{activeAlertCount}</span>
+          </div>
+          <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
+            <Shield className="h-4 w-4 text-success" />
+            <span className="text-xs text-gray-300 flex-1">Vault Auto-lock</span>
+            <span className="text-xs font-bold text-white">15:00</span>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      <div className="hidden md:flex items-center">
-        <div className="text-right border-l border-gray-800 pl-6">
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Active Alerts</p>
-          <div className={cn(
-            "flex items-center mt-1",
-            activeAlertCount > 0 ? "text-alert" : "text-gray-500"
-          )}>
-            <AlertTriangle className="h-4 w-4 mr-1.5" />
-            <span className="text-lg font-black leading-none">{activeAlertCount}</span>
+  const cpuPercent = metrics?.cpu_usage_percent ?? 0;
+  const memUsed = metrics?.memory_used_mb ? (metrics.memory_used_mb / 1024).toFixed(1) : '0';
+  const memTotal = metrics?.memory_total_mb ? (metrics.memory_total_mb / 1024).toFixed(0) : '0';
+  const diskUsed = metrics?.disk_used_gb?.toFixed(0) ?? '0';
+  const diskTotal = metrics?.disk_total_gb?.toFixed(0) ?? '0';
+
+  return (
+    <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Real-time Metrics</h3>
+        <button className="p-1 text-gray-500 hover:text-gray-300 transition-colors">
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="space-y-3">
+        {/* CPU */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center space-x-2">
+              <Cpu className="h-3.5 w-3.5 text-accent" />
+              <span className="text-xs text-gray-300">CPU</span>
+            </div>
+            <span className={cn(
+              "text-xs font-bold",
+              cpuPercent > 80 ? "text-alert" : cpuPercent > 60 ? "text-warning" : "text-white"
+            )}>{cpuPercent.toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 bg-bg-root rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
+                cpuPercent > 80 ? "bg-alert" : cpuPercent > 60 ? "bg-warning" : "bg-accent"
+              )}
+              style={{ width: `${Math.min(cpuPercent, 100)}%` }}
+            />
+          </div>
+        </div>
+        {/* Memory */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center space-x-2">
+              <Server className="h-3.5 w-3.5 text-accent" />
+              <span className="text-xs text-gray-300">Memory</span>
+            </div>
+            <span className="text-xs font-bold text-white">{memUsed}GB/{memTotal}GB</span>
+          </div>
+          <div className="h-1.5 bg-bg-root rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full bg-accent transition-all duration-500"
+              style={{ width: `${Math.min(metrics?.memory_usage_percent ?? 0, 100)}%` }}
+            />
+          </div>
+        </div>
+        {/* Disk */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center space-x-2">
+              <HardDrive className="h-3.5 w-3.5 text-accent" />
+              <span className="text-xs text-gray-300">Disk</span>
+            </div>
+            <span className="text-xs font-bold text-white">{diskUsed}GB/{diskTotal}GB</span>
+          </div>
+          <div className="h-1.5 bg-bg-root rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full bg-accent transition-all duration-500"
+              style={{ width: `${Math.min(metrics?.disk_usage_percent ?? 0, 100)}%` }}
+            />
           </div>
         </div>
       </div>
