@@ -17,21 +17,22 @@ vi.mock('recharts', () => ({
 }));
 
 describe('DashboardView', () => {
+  const mockNavigate = vi.fn();
+
   it('renders system health widget', () => {
-    render(<DashboardView />);
-    expect(screen.getByText('SYSTEMS NOMINAL')).toBeInTheDocument();
-    expect(screen.getByText('98%')).toBeInTheDocument();
+    render(<DashboardView onNavigate={mockNavigate} />);
+    // System health widget renders with status text
+    expect(screen.getByText(/system health/i)).toBeInTheDocument();
   });
 
-  it('renders metric cards', () => {
-    render(<DashboardView />);
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-    expect(screen.getByText('Memory Utilization')).toBeInTheDocument();
+  it('renders network scanner section', () => {
+    render(<DashboardView onNavigate={mockNavigate} />);
+    expect(screen.getByText('Network Scanner')).toBeInTheDocument();
   });
 
-  it('renders alert feed', () => {
-    render(<DashboardView />);
-    expect(screen.getByText('Recent Alerts')).toBeInTheDocument();
-    expect(screen.getAllByText('Database-01').length).toBeGreaterThan(0);
+  it('renders view mode toggle', () => {
+    render(<DashboardView onNavigate={mockNavigate} />);
+    expect(screen.getByText('List View')).toBeInTheDocument();
+    expect(screen.getByText('Topology View')).toBeInTheDocument();
   });
 });

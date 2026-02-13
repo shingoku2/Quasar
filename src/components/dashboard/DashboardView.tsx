@@ -36,6 +36,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     
     // Store the selected host in sessionStorage so RemoteManager can pick it up
     sessionStorage.setItem('quickConnectHost', JSON.stringify(host));
+    // Notify same-window listeners (storage event only fires cross-window)
+    window.dispatchEvent(new Event('quickConnectTriggered'));
     
     console.log(`Quick connect: Navigating to Remote view for ${host.name}`);
   };
@@ -50,7 +52,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       id: Date.now(), // Temporary ID
       name: host.hostname || host.ip,
       address: host.ip,
-      port: host.open_ports[0] || 22,
+      port: host.open_ports?.[0] ?? 22,
       username: null,
       protocol: host.open_ports.includes(3389) ? 'rdp' : 'ssh',
     };
@@ -137,7 +139,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               hosts={discoveredHosts.map(h => ({
                 name: `Host ${h.ip}`,
                 address: h.ip,
-                port: h.open_ports[0] || 22,
+                port: h.open_ports?.[0] ?? 22,
                 protocol: h.open_ports.includes(3389) ? 'rdp' : 'ssh',
                 discoveredAt: new Date()
               }))}

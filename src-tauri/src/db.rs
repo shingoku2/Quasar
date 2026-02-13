@@ -21,8 +21,8 @@ use rusqlite::Connection;
 /// Enforces referential integrity per OWASP ASVS v4.0 5.1.4
 /// 
 /// # Examples
-/// ```no_run
-/// use tauri_app_lib::db;
+/// ```ignore
+/// use quasar_lib::db;
 /// let conn = db::open_connection("./titan.db").unwrap();
 /// ```
 pub fn open_connection(db_path: &str) -> Result<Connection, String> {

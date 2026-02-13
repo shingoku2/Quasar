@@ -1,7 +1,5 @@
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use crate::db;
 
@@ -333,7 +331,7 @@ impl SshKeyManager {
 mod tests {
     use super::*;
 
-    async fn create_test_manager() -> SshKeyManager {
+    async fn create_test_manager() -> (SshKeyManager, String) {
         use std::time::{SystemTime, UNIX_EPOCH};
         
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
@@ -358,17 +356,25 @@ mod tests {
         ).unwrap();
         drop(conn);
 
-        SshKeyManager::new(db_path).unwrap()
+        let manager = SshKeyManager::new(db_path.clone()).unwrap();
+        (manager, db_path)
+    }
+
+    fn cleanup_test_db(db_path: &str) {
+        if let Err(e) = std::fs::remove_file(db_path) {
+            eprintln!("Warning: Failed to cleanup test DB {}: {}", db_path, e);
+        }
     }
 
     #[tokio::test]
     async fn test_manager_creation() {
-        let _manager = create_test_manager().await;
+        let (_manager, db_path) = create_test_manager().await;
+        cleanup_test_db(&db_path);
     }
 
     #[tokio::test]
     async fn test_unknown_host() {
-        let manager = create_test_manager().await;
+        let (manager, db_path) = create_test_manager().await;
         
         let result = manager
             .verify_host_key_by_fingerprint("example.com", 22, "SHA256:abc123", "ssh-ed25519")
@@ -377,11 +383,12 @@ mod tests {
         
         assert!(!result.allowed);
         assert!(matches!(result.status, TrustStatus::Unknown));
+        cleanup_test_db(&db_path);
     }
 
     #[tokio::test]
     async fn test_trust_and_verify() {
-        let manager = create_test_manager().await;
+        let (manager, db_path) = create_test_manager().await;
         
         manager
             .trust_host_key(
@@ -402,11 +409,12 @@ mod tests {
         
         assert!(result.allowed);
         assert!(matches!(result.status, TrustStatus::Trusted));
+        cleanup_test_db(&db_path);
     }
 
     #[tokio::test]
     async fn test_key_changed_detection() {
-        let manager = create_test_manager().await;
+        let (manager, db_path) = create_test_manager().await;
         
         manager
             .trust_host_key(
@@ -427,5 +435,6 @@ mod tests {
         
         assert!(!result.allowed);
         assert!(matches!(result.status, TrustStatus::Changed));
+        cleanup_test_db(&db_path);
     }
 }

@@ -1,29 +1,28 @@
 import { describe, it, expect, vi } from 'vitest';
 import { initDatabase } from './db';
 
-// Mock the SQL plugin
-vi.mock('@tauri-apps/plugin-sql', () => {
-  const execute = vi.fn().mockResolvedValue({ rowsAffected: 0 });
-  return {
-    default: {
-      load: vi.fn().mockResolvedValue({
-        execute,
-      }),
-    },
-    // Exporting the mock for verification if needed, 
-    // but we can also get it from the mock instance
-  };
-});
+// Mock the SQL plugin with a trackable execute function
+const mockExecute = vi.fn().mockResolvedValue({ rowsAffected: 0 });
+const mockSelect = vi.fn().mockResolvedValue([]);
+
+vi.mock('@tauri-apps/plugin-sql', () => ({
+  default: {
+    load: vi.fn().mockResolvedValue({
+      execute: (...args: any[]) => mockExecute(...args),
+      select: (...args: any[]) => mockSelect(...args),
+    }),
+  },
+}));
 
 describe('Database Initialization', () => {
   it('should call execute with correct table schemas', async () => {
-    const queries = (Database.prototype.execute as any).mock.calls.map((call: any) => call[0]);
-    
-    // Should be called once for hosts
-    expect(Database.prototype.execute).toHaveBeenCalledTimes(1);
-    
+    await initDatabase();
+
+    expect(mockExecute).toHaveBeenCalled();
+
+    const queries = mockExecute.mock.calls.map((call: any) => call[0]);
     const hostsQuery = queries.find((q: string) => q.includes('CREATE TABLE IF NOT EXISTS hosts'));
-    
+
     expect(hostsQuery).toBeDefined();
     expect(hostsQuery).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
   });

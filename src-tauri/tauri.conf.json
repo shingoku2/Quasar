@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-app",
+  "productName": "Quasar",
   "version": "0.1.0",
-  "identifier": "com.user.tauri-app",
+  "identifier": "com.quasar.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "tauri-app",
+        "title": "Quasar",
         "width": 800,
         "height": 600
       }
@@ -31,6 +31,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": "v1Compatible"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/user/Quasar/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
+    }
   }
 }

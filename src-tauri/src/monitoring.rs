@@ -461,12 +461,14 @@ impl AlertEngine {
         (new_alerts, recoveries)
     }
 
+    #[allow(dead_code)]
     pub fn get_active_alerts(&self) -> Vec<Alert> {
         self.active_alerts.lock()
             .map(|a| a.clone())
             .unwrap_or_default()
     }
 
+    #[allow(dead_code)]
     pub fn acknowledge_alert(&self, alert_id: &str) {
         if let Ok(mut alerts) = self.active_alerts.lock() {
             if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
@@ -475,6 +477,7 @@ impl AlertEngine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn dismiss_alert(&self, alert_id: &str) {
         if let Ok(mut alerts) = self.active_alerts.lock() {
             alerts.retain(|a| a.id != alert_id);

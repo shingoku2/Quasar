@@ -134,7 +134,7 @@ async fn resolve_hostname(ip: IpAddr) -> Option<String> {
 }
 
 fn detect_device_type(open_ports: &[u16]) -> String {
-    // Router detection: common management ports
+    // Router detection: common management ports only
     if open_ports.contains(&80) && open_ports.contains(&443) && open_ports.len() <= 3 {
         return "router".to_string();
     }
@@ -144,12 +144,13 @@ fn detect_device_type(open_ports: &[u16]) -> String {
         return "printer".to_string();
     }
     
-    // Server detection: multiple services
-    if open_ports.len() >= 3 || open_ports.contains(&3389) || open_ports.contains(&445) {
+    // Server detection: multiple services or SMB file sharing
+    // Note: RDP alone does NOT indicate a server (could be a workstation)
+    if open_ports.len() >= 3 || open_ports.contains(&445) {
         return "server".to_string();
     }
     
-    // Workstation: SSH or RDP
+    // Workstation: SSH or RDP (with fewer than 3 open ports)
     if open_ports.contains(&22) || open_ports.contains(&3389) {
         return "workstation".to_string();
     }
@@ -337,12 +338,11 @@ pub async fn scan_network(
 }
 
 pub fn stop_scan(state: &ScannerState) {
+    // Only set the stop signal. The ScanRunningGuard (RAII) is the sole owner
+    // of the is_scanning flag and will reset it when the scan task exits.
+    // Manually resetting is_scanning here would race with a new scan's guard.
     if let Ok(mut stop) = state.stop_signal.lock() {
         *stop = true;
-    }
-    
-    if let Ok(mut is_scanning) = state.is_scanning.lock() {
-        *is_scanning = false;
     }
 }
 
@@ -356,6 +356,7 @@ pub fn get_scan_progress(state: &ScannerState) -> ScanProgress {
         })
 }
 
+#[allow(dead_code)]
 pub fn get_scan_results(state: &ScannerState) -> Vec<ScanResult> {
     state.results.lock()
         .map(|r| r.clone())
@@ -446,19 +447,63 @@ mod tests {
     }
 
     #[test]
-    fn test_stop_scan() {
+    fn test_stop_scan_only_sets_signal() {
         let state = ScannerState::new();
         
-        // Set scanning state
+        // Set scanning state manually (simulating an active scan)
         *state.is_scanning.lock().unwrap() = true;
         assert!(is_scanning(&state));
         
-        // Stop scan
+        // stop_scan should only set the stop signal, NOT reset is_scanning.
+        // The ScanRunningGuard (RAII) is the sole owner of is_scanning.
         stop_scan(&state);
+        assert!(is_scanning(&state), "stop_scan must not reset is_scanning; only the guard should");
+        assert!(*state.stop_signal.lock().unwrap(), "stop signal must be set");
+    }
+
+    #[test]
+    fn test_scan_running_guard_resets_on_drop() {
+        let state = ScannerState::new();
+        *state.is_scanning.lock().unwrap() = true;
+
+        {
+            let _guard = ScanRunningGuard {
+                is_scanning: Arc::clone(&state.is_scanning),
+            };
+            assert!(is_scanning(&state));
+        } // guard drops here
+
+        assert!(!is_scanning(&state), "Guard drop must reset is_scanning to false");
+    }
+
+    #[test]
+    fn test_guard_no_race_on_stop_start() {
+        // Simulate: scan1 running → stop_scan → scan2 starts → scan1 guard drops
+        // scan2's is_scanning must remain true after scan1's guard drops.
+        let state = ScannerState::new();
+
+        // Scan 1 starts
+        *state.is_scanning.lock().unwrap() = true;
+        let guard1 = ScanRunningGuard {
+            is_scanning: Arc::clone(&state.is_scanning),
+        };
+
+        // User calls stop_scan (only sets signal, does NOT touch is_scanning)
+        stop_scan(&state);
+        assert!(is_scanning(&state), "stop_scan must not reset is_scanning");
+
+        // Scan 1 detects stop signal and exits — guard1 drops, resetting is_scanning
+        drop(guard1);
         assert!(!is_scanning(&state));
-        
-        // Verify stop signal is set
-        assert!(*state.stop_signal.lock().unwrap());
+
+        // Scan 2 starts with its own guard
+        *state.is_scanning.lock().unwrap() = true;
+        let _guard2 = ScanRunningGuard {
+            is_scanning: Arc::clone(&state.is_scanning),
+        };
+
+        // is_scanning must still be true — no stale guard can interfere
+        assert!(is_scanning(&state), "Scan 2 must remain active after scan 1's guard dropped");
     }
 
     #[test]
@@ -500,5 +545,43 @@ mod tests {
         assert!(!result.is_alive);
         assert!(result.open_ports.is_empty());
         assert_eq!(result.latency_ms, None);
+    }
+
+    #[test]
+    fn test_detect_device_type_rdp_only_is_workstation() {
+        assert_eq!(detect_device_type(&[3389]), "workstation");
+    }
+
+    #[test]
+    fn test_detect_device_type_ssh_only_is_workstation() {
+        assert_eq!(detect_device_type(&[22]), "workstation");
+    }
+
+    #[test]
+    fn test_detect_device_type_many_ports_is_server() {
+        // 3+ ports (without matching router pattern) → server
+        assert_eq!(detect_device_type(&[22, 80, 3306]), "server");
+        // RDP + multiple other ports → server (not workstation)
+        assert_eq!(detect_device_type(&[22, 3389, 80]), "server");
+    }
+
+    #[test]
+    fn test_detect_device_type_smb_is_server() {
+        assert_eq!(detect_device_type(&[445]), "server");
+    }
+
+    #[test]
+    fn test_detect_device_type_router() {
+        assert_eq!(detect_device_type(&[80, 443]), "router");
+    }
+
+    #[test]
+    fn test_detect_device_type_printer() {
+        assert_eq!(detect_device_type(&[9100]), "printer");
+    }
+
+    #[test]
+    fn test_detect_device_type_empty_is_unknown() {
+        assert_eq!(detect_device_type(&[]), "unknown");
     }
 }

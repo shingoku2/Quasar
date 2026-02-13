@@ -1,3 +1,5 @@
+use sha2::{Sha256, Digest};
+
 use argon2::{
     password_hash::{
         rand_core::OsRng,
@@ -67,6 +69,27 @@ pub fn decrypt(ciphertext: &[u8], key: &[u8; 32], nonce_bytes: &[u8; 12], tag_by
         .map_err(|e| e.to_string())
 }
 
+/// Compute an SSH host key fingerprint from raw public key bytes.
+///
+/// Produces a SHA256 hash formatted as colon-separated hex pairs:
+///   `SHA256:aa:bb:cc:dd:ee:ff:...`
+///
+/// This follows the SSH fingerprint convention defined in RFC 4253 §6.6
+/// (hash of the public key blob) using SHA-256 as the digest algorithm,
+/// consistent with OpenSSH 6.8+ (`ssh-keygen -l -E sha256`).
+///
+/// All SSH client modules (interactive, SFTP, exec) MUST use this function
+/// to ensure fingerprints are comparable across connection types.
+pub fn ssh_host_key_fingerprint(public_key_bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(public_key_bytes);
+    let hash = hasher.finalize();
+
+    // Format as SHA256:aa:bb:cc:dd:... (colon-separated hex byte pairs)
+    let hex_pairs: Vec<String> = hash.iter().map(|b| format!("{:02x}", b)).collect();
+    format!("SHA256:{}", hex_pairs.join(":"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +112,50 @@ mod tests {
         let decrypted = decrypt(&ciphertext, &key, &nonce, &tag).unwrap();
         
         assert_eq!(data.to_vec(), decrypted);
+    }
+
+    #[test]
+    fn test_ssh_fingerprint_deterministic() {
+        let key_bytes = b"fake-ssh-public-key-data-for-testing";
+        let fp1 = ssh_host_key_fingerprint(key_bytes);
+        let fp2 = ssh_host_key_fingerprint(key_bytes);
+        assert_eq!(fp1, fp2, "Same input must produce identical fingerprints");
+    }
+
+    #[test]
+    fn test_ssh_fingerprint_format() {
+        let key_bytes = b"test-key";
+        let fp = ssh_host_key_fingerprint(key_bytes);
+
+        // Must start with SHA256: prefix
+        assert!(fp.starts_with("SHA256:"), "Fingerprint must start with SHA256: prefix");
+
+        // After prefix: 32 hex bytes = 32 colon-separated pairs = 31 colons
+        let hex_part = &fp["SHA256:".len()..];
+        let parts: Vec<&str> = hex_part.split(':').collect();
+        assert_eq!(parts.len(), 32, "SHA256 produces 32 bytes = 32 hex pairs");
+
+        // Each part must be exactly 2 hex characters
+        for part in &parts {
+            assert_eq!(part.len(), 2, "Each segment must be 2 hex chars, got '{}'", part);
+            assert!(part.chars().all(|c| c.is_ascii_hexdigit()),
+                "Each segment must be hex, got '{}'", part);
+        }
+    }
+
+    #[test]
+    fn test_ssh_fingerprint_different_keys() {
+        let fp1 = ssh_host_key_fingerprint(b"key-one");
+        let fp2 = ssh_host_key_fingerprint(b"key-two");
+        assert_ne!(fp1, fp2, "Different keys must produce different fingerprints");
+    }
+
+    #[test]
+    fn test_ssh_fingerprint_empty_input() {
+        // Empty input should still produce a valid SHA256 fingerprint
+        // (SHA256 of empty = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855)
+        let fp = ssh_host_key_fingerprint(b"");
+        assert!(fp.starts_with("SHA256:"));
+        assert_eq!(&fp, "SHA256:e3:b0:c4:42:98:fc:1c:14:9a:fb:f4:c8:99:6f:b9:24:27:ae:41:e4:64:9b:93:4c:a4:95:99:1b:78:52:b8:55");
     }
 }

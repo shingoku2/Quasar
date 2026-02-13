@@ -6,8 +6,7 @@ use russh::*;
 use russh::keys::PublicKeyBase64;
 use tokio::sync::Mutex as TokioMutex;
 use log::error;
-use sha2::{Sha256, Digest};
-
+use crate::crypto;
 use crate::vault::SshKeyManager;
 use crate::validation;
 
@@ -29,23 +28,9 @@ impl client::Handler for Client {
         // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
         
-        // Create SHA256 fingerprint (standard SSH format)
+        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
         let key_bytes = server_public_key.public_key_bytes();
-        let mut hasher = Sha256::new();
-        hasher.update(&key_bytes);
-        let hash = hasher.finalize();
-        
-        // Format as SHA256:hex (colon-separated pairs like OpenSSH)
-        let fingerprint = format!(
-            "SHA256:{}",
-            hash.iter()
-                .map(|b| format!("{:02x}", b))
-                .collect::<Vec<_>>()
-                .chunks(2)
-                .map(|chunk| chunk.join(""))
-                .collect::<Vec<_>>()
-                .join(":")
-        );
+        let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key"; // Generic type since russh doesn't expose key type easily
         
         // Verify host key

@@ -17,8 +17,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 describe('HealthCheckBadge', () => {
   it('renders loading state initially', () => {
-    render(<HealthCheckBadge host="192.168.1.1" />);
-    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument();
+    const { container } = render(<HealthCheckBadge host="192.168.1.1" />);
+    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
   it('shows reachable status with latency', async () => {
