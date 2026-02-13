@@ -19,11 +19,11 @@ use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::sync::Arc;
 use log::error;
 use rusqlite_migration::{Migrations, M};
+use errors::sanitize_error;
+use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
 
-// Define migrations
-// Note: Migration 005 is intentionally omitted as it was a one-time consolidation
-// that is no longer needed for fresh installs or correctly migrated databases.
-// The rusqlite_migration crate will track applied migrations in user_version.
+// Define migrations (001 → 003 → 004 → 005 → 006)
+// The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
         M::up(include_str!("../migrations/001_initial_schema.sql")),
@@ -45,21 +45,34 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn hash_password(password: String) -> Result<String, String> {
     crypto::hash_password(&password)
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
 fn verify_password(password: String, hashed: String) -> Result<bool, String> {
     crypto::verify_password(&password, &hashed)
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
 async fn launch_ssh_external(address: String, username: Option<String>) -> Result<(), String> {
+    if validate_ip(&address).is_err() && validate_hostname(&address).is_err() {
+        return Err("Invalid host address format".to_string());
+    }
+    if let Some(ref u) = username {
+        validate_username(u)?;
+    }
     launcher::launch_ssh(&address, username.as_deref())
+        .map_err(|e| sanitize_error(e, "ssh"))
 }
 
 #[tauri::command]
 async fn connect_rdp(address: String) -> Result<(), String> {
+    if validate_ip(&address).is_err() && validate_hostname(&address).is_err() {
+        return Err("Invalid host address format".to_string());
+    }
     launcher::launch_rdp(&address)
+        .map_err(|e| sanitize_error(e, "network"))
 }
 
 #[tauri::command]
@@ -75,6 +88,7 @@ async fn check_ai_status() -> bool {
 #[tauri::command]
 async fn list_ai_models() -> Result<Vec<String>, String> {
     ai::list_models().await
+        .map_err(|e| sanitize_error(e, "network"))
 }
 
 // Simple struct to receive messages from frontend
@@ -97,6 +111,7 @@ async fn send_ai_chat(app: AppHandle, model: String, messages: Vec<FrontendMessa
     }).collect();
 
     ai::chat_request(app, model, chat_messages).await
+        .map_err(|e| sanitize_error(e, "network"))
 }
 
 #[tauri::command]
@@ -106,6 +121,7 @@ async fn scan_network(
     tracker_state: State<'_, host_tracker::HostTracker>,
     cidr: String,
 ) -> Result<(), String> {
+    validate_cidr(&cidr)?;
     let scanner_state = Arc::clone(state.inner());
     let app_for_progress = app.clone();
     let app_for_result = app.clone();
@@ -164,6 +180,7 @@ fn get_discovered_hosts(
     limit: Option<usize>,
 ) -> Result<Vec<host_tracker::DiscoveredHost>, String> {
     host_tracker.list_hosts(limit)
+        .map_err(|e| sanitize_error(e, "database"))
 }
 
 #[tauri::command]
@@ -171,7 +188,9 @@ fn get_host_details(
     host_tracker: State<'_, host_tracker::HostTracker>,
     ip: String,
 ) -> Result<Option<host_tracker::DiscoveredHost>, String> {
+    validate_ip(&ip)?;
     host_tracker.get_host(&ip)
+        .map_err(|e| sanitize_error(e, "database"))
 }
 
 #[tauri::command]
@@ -180,6 +199,7 @@ fn search_discovered_hosts(
     query: String,
 ) -> Result<Vec<host_tracker::DiscoveredHost>, String> {
     host_tracker.search_hosts(&query)
+        .map_err(|e| sanitize_error(e, "database"))
 }
 
 #[tauri::command]
@@ -187,11 +207,16 @@ fn delete_discovered_host(
     host_tracker: State<'_, host_tracker::HostTracker>,
     ip: String,
 ) -> Result<(), String> {
+    validate_ip(&ip)?;
     host_tracker.delete_host(&ip)
+        .map_err(|e| sanitize_error(e, "database"))
 }
 
 #[tauri::command]
 async fn preflight_check(host: String) -> Result<health::HealthCheckResult, String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
     Ok(health::preflight_check(&host).await)
 }
 
@@ -203,13 +228,21 @@ async fn check_host_health(
     username: String,
     password: Option<String>,
 ) -> Result<health::HealthCheckResult, String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
+    validate_username(&username)?;
     Ok(health::check_ssh_health(app, &host, port, &username, password.as_deref()).await)
 }
 
 #[tauri::command]
-fn get_system_metrics() -> monitoring::SystemMetrics {
-    let mut collector = monitoring::MetricsCollector::new();
-    collector.collect()
+fn get_system_metrics(
+    collector: State<'_, Arc<std::sync::Mutex<monitoring::MetricsCollector>>>,
+) -> Result<monitoring::SystemMetrics, String> {
+    let mut collector = collector.lock()
+        .map_err(|e| sanitize_error(format!("Failed to acquire metrics collector lock: {}", e), "monitoring"))?;
+    Ok(collector.collect())
 }
 
 #[tauri::command]
@@ -219,12 +252,13 @@ async fn get_metrics_history(
     host: Option<String>,
     app: AppHandle,
 ) -> Result<Vec<monitoring::SystemMetrics>, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
     let db_path = app_dir.join("titan.db");
-    let db_path_str = db_path.to_str().ok_or("Invalid database path")?.to_string();
+    let db_path_str = db_path.to_str().ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?.to_string();
     
-    let store = monitoring::MetricsStore::new(db_path_str, 30)?;
+    let store = monitoring::MetricsStore::new(db_path_str, 30).map_err(|e| sanitize_error(e, "monitoring"))?;
     store.get_metrics_range(start, end, &host.unwrap_or_else(|| "localhost".to_string()))
+        .map_err(|e| sanitize_error(e, "monitoring"))
 }
 
 #[tauri::command]
@@ -233,12 +267,13 @@ async fn get_alert_history(
     end: u64,
     app: AppHandle,
 ) -> Result<Vec<monitoring::Alert>, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
     let db_path = app_dir.join("titan.db");
-    let db_path_str = db_path.to_str().ok_or("Invalid database path")?.to_string();
+    let db_path_str = db_path.to_str().ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?.to_string();
     
-    let store = monitoring::MetricsStore::new(db_path_str, 30)?;
+    let store = monitoring::MetricsStore::new(db_path_str, 30).map_err(|e| sanitize_error(e, "monitoring"))?;
     store.get_alert_history(start, end)
+        .map_err(|e| sanitize_error(e, "monitoring"))
 }
 
 #[tauri::command]
@@ -266,23 +301,31 @@ fn get_alert_rules(state: State<'_, Arc<monitoring::AlertEngine>>) -> Vec<monito
 #[tauri::command]
 async fn is_vault_initialized(state: State<'_, vault::VaultState>) -> Result<bool, String> {
     state.is_initialized().await
+        .map_err(|e| sanitize_error(e, "vault"))
 }
 
 #[tauri::command]
 async fn initialize_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
     use secrecy::Secret;
+    validate_master_password(&master_password)?;
     state.initialize_vault(Secret::new(master_password)).await
+        .map_err(|e| sanitize_error(e, "vault"))
 }
 
 #[tauri::command]
 async fn unlock_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
     use secrecy::Secret;
+    if master_password.is_empty() {
+        return Err("Password cannot be empty".to_string());
+    }
     state.unlock_vault(Secret::new(master_password)).await
+        .map_err(|e| sanitize_error(e, "vault"))
 }
 
 #[tauri::command]
 async fn lock_vault(state: State<'_, vault::VaultState>) -> Result<(), String> {
     state.lock_vault().await
+        .map_err(|e| sanitize_error(e, "vault"))
 }
 
 #[tauri::command]
@@ -298,6 +341,7 @@ async fn get_vault_settings(state: State<'_, vault::VaultState>) -> Result<vault
 #[tauri::command]
 async fn update_vault_settings(state: State<'_, vault::VaultState>, settings: vault::VaultSettings) -> Result<(), String> {
     state.update_settings(settings).await
+        .map_err(|e| sanitize_error(e, "vault"))
 }
 
 // Credential management commands
@@ -313,9 +357,19 @@ async fn add_credential(
     port: Option<u16>,
     metadata: Option<String>,
 ) -> Result<String, String> {
-    let master_key = vault_state.get_master_key().await?;
+    validate_credential_name(&name)?;
+    validate_username(&username)?;
+    if let Some(ref h) = host {
+        if validate_ip(h).is_err() && validate_hostname(h).is_err() {
+            return Err("Invalid host format".to_string());
+        }
+    }
+    if let Some(p) = port {
+        validate_port(p)?;
+    }
+    let master_key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager.add_credential(&master_key, name.clone(), username, password, credential_type, host, port, metadata)
-        .map_err(|e| format!("Failed to add credential '{}': {}", name, e))
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
@@ -324,9 +378,9 @@ async fn get_credential(
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
 ) -> Result<vault::Credential, String> {
-    let master_key = vault_state.get_master_key().await?;
+    let master_key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager.get_credential(&master_key, &credential_id)
-        .map_err(|e| format!("Failed to retrieve credential '{}': {}", credential_id, e))
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
@@ -334,7 +388,7 @@ async fn list_credentials(
     credential_manager: State<'_, vault::CredentialManager>,
 ) -> Result<Vec<vault::CredentialSummary>, String> {
     credential_manager.list_credentials()
-        .map_err(|e| format!("Failed to list credentials: {}", e))
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
@@ -347,9 +401,9 @@ async fn update_credential(
     password: Option<String>,
     metadata: Option<String>,
 ) -> Result<(), String> {
-    let master_key = vault_state.get_master_key().await?;
+    let master_key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager.update_credential(&master_key, &credential_id, name, username, password, metadata)
-        .map_err(|e| format!("Failed to update credential '{}': {}", credential_id, e))
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
@@ -358,7 +412,7 @@ async fn delete_credential(
     credential_id: String,
 ) -> Result<(), String> {
     credential_manager.delete_credential(&credential_id)
-        .map_err(|e| format!("Failed to delete credential '{}': {}", credential_id, e))
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
@@ -367,7 +421,7 @@ async fn search_credentials(
     query: String,
 ) -> Result<Vec<vault::CredentialSummary>, String> {
     credential_manager.search_credentials(&query)
-        .map_err(|e| format!("Failed to search credentials with query '{}': {}", query, e))
+        .map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
@@ -378,8 +432,12 @@ async fn verify_ssh_host_key(
     fingerprint: String,
     key_type: String,
 ) -> Result<vault::HostKeyVerificationResult, String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
     ssh_key_manager.verify_host_key_by_fingerprint(&host, port, &fingerprint, &key_type).await
-        .map_err(|e| format!("Failed to verify SSH host key for {}:{}: {}", host, port, e))
+        .map_err(|e| sanitize_error(e, "ssh"))
 }
 
 #[tauri::command]
@@ -392,8 +450,12 @@ async fn trust_ssh_host_key(
     key_bytes: Vec<u8>,
     trust_status: vault::TrustStatus,
 ) -> Result<(), String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
     ssh_key_manager.trust_host_key(&host, port, &fingerprint, &key_type, key_bytes, trust_status).await
-        .map_err(|e| format!("Failed to trust SSH host key for {}:{}: {}", host, port, e))
+        .map_err(|e| sanitize_error(e, "ssh"))
 }
 
 #[tauri::command]
@@ -401,7 +463,7 @@ async fn get_known_ssh_hosts(
     ssh_key_manager: State<'_, vault::SshKeyManager>,
 ) -> Result<Vec<vault::SshHostKey>, String> {
     ssh_key_manager.get_known_hosts().await
-        .map_err(|e| format!("Failed to retrieve known SSH hosts: {}", e))
+        .map_err(|e| sanitize_error(e, "ssh"))
 }
 
 #[tauri::command]
@@ -410,8 +472,12 @@ async fn remove_ssh_host_key(
     host: String,
     port: u16,
 ) -> Result<(), String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
     ssh_key_manager.remove_host_key(&host, port).await
-        .map_err(|e| format!("Failed to remove SSH host key for {}:{}: {}", host, port, e))
+        .map_err(|e| sanitize_error(e, "ssh"))
 }
 
 #[tauri::command]
@@ -421,8 +487,12 @@ async fn update_ssh_host_trust(
     port: u16,
     trust_status: vault::TrustStatus,
 ) -> Result<(), String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
     ssh_key_manager.update_trust_status(&host, port, trust_status).await
-        .map_err(|e| format!("Failed to update SSH host trust for {}:{}: {}", host, port, e))
+        .map_err(|e| sanitize_error(e, "ssh"))
 }
 
 // Change master password command
@@ -432,8 +502,12 @@ async fn change_master_password(
     current_password: String,
     new_password: String,
 ) -> Result<(), String> {
+    if current_password.is_empty() {
+        return Err("Current password cannot be empty".to_string());
+    }
+    validate_master_password(&new_password)?;
     state.change_master_password(&current_password, &new_password).await
-        .map_err(|e| format!("Failed to change master password: {}", e))
+        .map_err(|e| sanitize_error(e, "vault"))
 }
 
 // Audit log commands
@@ -443,7 +517,7 @@ async fn get_audit_logs(
     filter: Option<vault::AuditLogFilter>,
 ) -> Result<Vec<vault::AuditLogEntry>, String> {
     audit_manager.get_audit_logs(filter)
-        .map_err(|e| format!("Failed to retrieve audit logs: {}", e))
+        .map_err(|e| sanitize_error(e, "database"))
 }
 
 #[tauri::command]
@@ -452,7 +526,7 @@ async fn get_audit_log_count(
     filter: Option<vault::AuditLogFilter>,
 ) -> Result<i64, String> {
     audit_manager.get_audit_log_count(filter)
-        .map_err(|e| format!("Failed to get audit log count: {}", e))
+        .map_err(|e| sanitize_error(e, "database"))
 }
 
 // SFTP commands
@@ -466,7 +540,13 @@ async fn sftp_upload_file(
     local_path: String,
     remote_path: String,
 ) -> Result<(), String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
+    validate_username(&username)?;
     sftp::upload_file(app_handle, &host, port, &username, &password, &local_path, &remote_path, None).await
+        .map_err(|e| sanitize_error(e, "sftp"))
 }
 
 #[tauri::command]
@@ -479,7 +559,13 @@ async fn sftp_download_file(
     remote_path: String,
     local_path: String,
 ) -> Result<(), String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
+    validate_username(&username)?;
     sftp::download_file(app_handle, &host, port, &username, &password, &remote_path, &local_path, None).await
+        .map_err(|e| sanitize_error(e, "sftp"))
 }
 
 #[tauri::command]
@@ -491,7 +577,13 @@ async fn sftp_list_directory(
     password: String,
     remote_path: String,
 ) -> Result<Vec<sftp::RemoteFile>, String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
+    validate_username(&username)?;
     sftp::list_directory(app_handle, &host, port, &username, &password, &remote_path).await
+        .map_err(|e| sanitize_error(e, "sftp"))
 }
 
 #[tauri::command]
@@ -503,7 +595,13 @@ async fn sftp_remote_exists(
     password: String,
     remote_path: String,
 ) -> Result<bool, String> {
+    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
+        return Err("Invalid host format".to_string());
+    }
+    validate_port(port)?;
+    validate_username(&username)?;
     sftp::remote_exists(app_handle, &host, port, &username, &password, &remote_path).await
+        .map_err(|e| sanitize_error(e, "sftp"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -536,6 +634,7 @@ pub fn run() {
             })?);
             app.manage(vault::AuditLogManager::new(db_path_str.clone()));
             app.manage(host_tracker::HostTracker::new(db_path_str.clone()));
+            app.manage(Arc::new(std::sync::Mutex::new(monitoring::MetricsCollector::new())));
             
             // Initialize database tables with foreign key constraints enabled
             let mut conn = db::open_connection(&db_path_str).map_err(|e| {
@@ -616,6 +715,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             hash_password,

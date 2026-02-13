@@ -41,7 +41,7 @@ const SettingsView: React.FC = () => {
             <Settings className="h-6 w-6 text-accent" />
             <h1 className="text-xl font-bold text-white">Settings</h1>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Configure ProjectTitan</p>
+          <p className="text-sm text-gray-400 mt-1">Configure Quasar</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -305,7 +305,7 @@ const AboutSettings: React.FC = () => {
             <div className="inline-flex items-center justify-center w-20 h-20 bg-accent/10 rounded-2xl mb-4">
               <Shield className="h-10 w-10 text-accent" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">ProjectTitan</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Quasar</h2>
             <p className="text-accent font-mono text-sm mb-4">v0.1.0-alpha</p>
             <p className="text-gray-400 text-sm">
               Remote Infrastructure Management Platform

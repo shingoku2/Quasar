@@ -164,53 +164,63 @@ const RemoteManager: React.FC = () => {
     setUseManualEntry(true);
   };
 
-  // Check for quick connect continuously (component stays mounted but hidden)
+  // Check for quick connect via event-driven approach (no polling)
   useEffect(() => {
-    const checkQuickConnect = () => {
+    const processQuickConnect = () => {
       const quickConnectData = sessionStorage.getItem('quickConnectHost');
-      if (quickConnectData) {
-        try {
-          const host = JSON.parse(quickConnectData);
-          // Create unique key for this quick connect attempt
-          const quickConnectKey = `${host.id}-${Date.now()}`;
-          
-          // Check if this specific quick connect has been processed
-          if (!processedQuickConnects.current.has(quickConnectKey)) {
-            // Clear the stored data immediately
-            sessionStorage.removeItem('quickConnectHost');
-            // Mark as processed
-            processedQuickConnects.current.add(quickConnectKey);
-            
-            console.log('Quick Connect: Triggering connection to', host.name);
-            
-            // Convert to Host format and trigger connection
-            const hostToConnect = {
-              id: host.id,
-              name: host.name,
-              address: host.address,
-              protocol: host.protocol,
-              port: host.port || 22,
-              username: host.username || undefined
-            };
-            
-            // Trigger connection after a short delay to ensure tabs are set
-            setTimeout(() => {
-              handleConnect(hostToConnect);
-            }, 200);
-          }
-        } catch (err) {
-          console.error('Failed to parse quick connect host:', err);
-        }
+      if (!quickConnectData) return;
+
+      try {
+        const host = JSON.parse(quickConnectData);
+        // Deduplicate by host ID only (not timestamp)
+        if (processedQuickConnects.current.has(host.id)) return;
+
+        // Clear the stored data immediately
+        sessionStorage.removeItem('quickConnectHost');
+        // Mark as processed
+        processedQuickConnects.current.add(host.id);
+
+        console.log('Quick Connect: Triggering connection to', host.name);
+
+        const hostToConnect = {
+          id: host.id,
+          name: host.name,
+          address: host.address,
+          protocol: host.protocol,
+          port: host.port || 22,
+          username: host.username || undefined
+        };
+
+        // Trigger connection after a short delay to ensure tabs are set
+        setTimeout(() => {
+          handleConnect(hostToConnect);
+          // Allow re-connecting to the same host after processing
+          processedQuickConnects.current.delete(host.id);
+        }, 200);
+      } catch (err) {
+        console.error('Failed to parse quick connect host:', err);
       }
     };
 
-    // Check immediately
-    checkQuickConnect();
+    // Check once on mount (in case data was set before this component rendered)
+    processQuickConnect();
 
-    // Check periodically in case view was hidden when data was set
-    const interval = setInterval(checkQuickConnect, 100);
+    // Listen for cross-window storage events
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'quickConnectHost' && e.newValue) {
+        processQuickConnect();
+      }
+    };
+    window.addEventListener('storage', onStorage);
 
-    return () => clearInterval(interval);
+    // Listen for same-window custom event (storage event doesn't fire in same window)
+    const onQuickConnect = () => processQuickConnect();
+    window.addEventListener('quickConnectTriggered', onQuickConnect);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('quickConnectTriggered', onQuickConnect);
+    };
   }, [])
 
   useEffect(() => {

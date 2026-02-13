@@ -22,22 +22,47 @@ pub fn sanitize_error(internal_error: String, context: &str) -> String {
     }
 }
 
-/// Sanitizes database-related errors specifically
-pub fn sanitize_db_error(internal_error: String) -> String {
-    sanitize_error(internal_error, "database")
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Sanitizes vault-related errors specifically
-pub fn sanitize_vault_error(internal_error: String) -> String {
-    sanitize_error(internal_error, "vault")
-}
+    #[test]
+    fn test_sanitize_error_does_not_leak_internal_details() {
+        let internal = "SQLITE error: no such table: credentials at /home/user/.local/titan.db".to_string();
+        let result = sanitize_error(internal.clone(), "database");
+        assert!(!result.contains("SQLITE"));
+        assert!(!result.contains("/home/user"));
+        assert!(!result.contains("credentials"));
+        assert!(result.contains("Database operation failed"));
+    }
 
-/// Sanitizes SSH-related errors specifically
-pub fn sanitize_ssh_error(internal_error: String) -> String {
-    sanitize_error(internal_error, "ssh")
-}
+    #[test]
+    fn test_sanitize_error_all_contexts() {
+        let cases = vec![
+            ("database", "Database operation failed"),
+            ("vault", "Vault operation failed"),
+            ("ssh", "SSH operation failed"),
+            ("network", "Network operation failed"),
+            ("sftp", "File transfer failed"),
+            ("monitoring", "Monitoring operation failed"),
+            ("scanner", "Network scan operation failed"),
+            ("credential", "Credential operation failed"),
+        ];
 
-/// Sanitizes network-related errors specifically
-pub fn sanitize_network_error(internal_error: String) -> String {
-    sanitize_error(internal_error, "network")
+        for (context, expected_prefix) in cases {
+            let result = sanitize_error("internal error".to_string(), context);
+            assert!(
+                result.starts_with(expected_prefix),
+                "Context '{}' should produce message starting with '{}', got '{}'",
+                context, expected_prefix, result
+            );
+        }
+    }
+
+    #[test]
+    fn test_sanitize_error_unknown_context_returns_generic() {
+        let result = sanitize_error("something broke".to_string(), "unknown_context");
+        assert_eq!(result, "Operation failed. Check logs for details.");
+        assert!(!result.contains("something broke"));
+    }
 }

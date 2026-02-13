@@ -201,21 +201,16 @@ impl HostTracker {
     pub fn list_hosts(&self, limit: Option<usize>) -> Result<Vec<DiscoveredHost>, String> {
         let conn = self.open_connection()?;
 
-        let query = if let Some(limit) = limit {
-            format!(
-                "SELECT id, ip, hostname, mac_address, device_type, vendor, first_seen, last_seen, scan_count
-                 FROM discovered_hosts ORDER BY last_seen DESC LIMIT {}",
-                limit
-            )
-        } else {
+        // Use parameterized LIMIT binding (defense-in-depth per OWASP SQL Injection Prevention)
+        // SQLite treats -1 as "no limit" when used with LIMIT, so we always bind a parameter.
+        let effective_limit: i64 = limit.map(|l| l as i64).unwrap_or(-1);
+
+        let mut stmt = conn.prepare(
             "SELECT id, ip, hostname, mac_address, device_type, vendor, first_seen, last_seen, scan_count
-             FROM discovered_hosts ORDER BY last_seen DESC".to_string()
-        };
+             FROM discovered_hosts ORDER BY last_seen DESC LIMIT ?1"
+        ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let mut stmt = conn.prepare(&query)
-            .map_err(|e| format!("Failed to prepare statement: {}", e))?;
-
-        let hosts = stmt.query_map([], |row| {
+        let hosts = stmt.query_map(rusqlite::params![effective_limit], |row| {
             Ok(DiscoveredHost {
                 id: row.get(0)?,
                 ip: row.get(1)?,
@@ -290,5 +285,131 @@ impl HostTracker {
         ).map_err(|e| format!("Failed to delete host: {}", e))?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn setup_test_tracker() -> (HostTracker, String) {
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let db_path = format!("test_host_tracker_{}.db", timestamp);
+
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        conn.execute_batch(include_str!("../migrations/006_discovered_hosts.sql")).unwrap();
+        drop(conn);
+
+        (HostTracker::new(db_path.clone()), db_path)
+    }
+
+    fn cleanup(db_path: &str) {
+        let _ = std::fs::remove_file(db_path);
+    }
+
+    fn make_scan_result(ip: &str) -> ScanResult {
+        ScanResult {
+            ip: ip.to_string(),
+            is_alive: true,
+            latency_ms: Some(5),
+            open_ports: vec![22, 80],
+            hostname: Some("test-host".to_string()),
+            mac_address: None,
+            device_type: "server".to_string(),
+            services: vec![
+                ServiceInfo { port: 22, protocol: "tcp".to_string(), service: "ssh".to_string(), version: Some("OpenSSH 8.9".to_string()) },
+                ServiceInfo { port: 80, protocol: "tcp".to_string(), service: "http".to_string(), version: None },
+            ],
+            vendor: None,
+            last_seen: 1700000000,
+        }
+    }
+
+    #[test]
+    fn test_save_and_get_host() {
+        let (tracker, db_path) = setup_test_tracker();
+        let scan = make_scan_result("192.168.1.10");
+
+        let id = tracker.save_host(&scan).unwrap();
+        assert!(!id.is_empty());
+
+        let host = tracker.get_host("192.168.1.10").unwrap().unwrap();
+        assert_eq!(host.ip, "192.168.1.10");
+        assert_eq!(host.hostname, Some("test-host".to_string()));
+        assert_eq!(host.device_type, "server");
+        assert_eq!(host.services.len(), 2);
+        assert_eq!(host.scan_count, 1);
+
+        cleanup(&db_path);
+    }
+
+    #[test]
+    fn test_save_host_updates_on_rescan() {
+        let (tracker, db_path) = setup_test_tracker();
+        let scan = make_scan_result("192.168.1.10");
+
+        tracker.save_host(&scan).unwrap();
+        tracker.save_host(&scan).unwrap();
+
+        let host = tracker.get_host("192.168.1.10").unwrap().unwrap();
+        assert_eq!(host.scan_count, 2);
+
+        cleanup(&db_path);
+    }
+
+    #[test]
+    fn test_list_hosts() {
+        let (tracker, db_path) = setup_test_tracker();
+
+        tracker.save_host(&make_scan_result("192.168.1.10")).unwrap();
+        tracker.save_host(&make_scan_result("192.168.1.11")).unwrap();
+        tracker.save_host(&make_scan_result("192.168.1.12")).unwrap();
+
+        let all = tracker.list_hosts(None).unwrap();
+        assert_eq!(all.len(), 3);
+
+        let limited = tracker.list_hosts(Some(2)).unwrap();
+        assert_eq!(limited.len(), 2);
+
+        cleanup(&db_path);
+    }
+
+    #[test]
+    fn test_search_hosts() {
+        let (tracker, db_path) = setup_test_tracker();
+
+        tracker.save_host(&make_scan_result("192.168.1.10")).unwrap();
+        tracker.save_host(&make_scan_result("10.0.0.1")).unwrap();
+
+        let results = tracker.search_hosts("192.168").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].ip, "192.168.1.10");
+
+        cleanup(&db_path);
+    }
+
+    #[test]
+    fn test_delete_host() {
+        let (tracker, db_path) = setup_test_tracker();
+
+        tracker.save_host(&make_scan_result("192.168.1.10")).unwrap();
+        assert!(tracker.get_host("192.168.1.10").unwrap().is_some());
+
+        tracker.delete_host("192.168.1.10").unwrap();
+        assert!(tracker.get_host("192.168.1.10").unwrap().is_none());
+
+        cleanup(&db_path);
+    }
+
+    #[test]
+    fn test_get_nonexistent_host() {
+        let (tracker, db_path) = setup_test_tracker();
+
+        let result = tracker.get_host("10.0.0.99").unwrap();
+        assert!(result.is_none());
+
+        cleanup(&db_path);
     }
 }

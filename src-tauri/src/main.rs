@@ -3,5 +3,5 @@
 
 fn main() {
     env_logger::init();
-    tauri_app_lib::run()
+    quasar_lib::run()
 }

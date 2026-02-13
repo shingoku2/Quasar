@@ -1,6 +1,4 @@
-use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use chrono::Utc;
 use crate::db;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

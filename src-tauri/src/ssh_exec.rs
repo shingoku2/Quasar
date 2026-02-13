@@ -3,6 +3,7 @@ use russh::keys::PublicKeyBase64;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
+use crate::crypto;
 use crate::vault::SshKeyManager;
 
 /// Simple SSH client for command execution (non-interactive)
@@ -23,12 +24,9 @@ impl client::Handler for ExecClient {
         // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
         
-        // Create fingerprint using hex encoding of the full public key bytes
+        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
         let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = key_bytes
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect::<String>();
+        let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key";
         
         // Verify host key
@@ -54,6 +52,7 @@ impl client::Handler for ExecClient {
 }
 
 /// Execute a single SSH command and return output
+#[allow(dead_code)]
 pub async fn execute_ssh_command(
     app_handle: AppHandle,
     host: &str,

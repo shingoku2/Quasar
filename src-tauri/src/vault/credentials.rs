@@ -1,12 +1,6 @@
-use rusqlite::{Connection, params};
-use aes_gcm::{
-    aead::{Aead, KeyInit},
-    Aes256Gcm, Nonce
-};
-use rand::RngCore;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::Utc;
 use crate::db;
 use crate::crypto;
 
@@ -506,7 +500,9 @@ mod tests {
     }
 
     fn cleanup_test_db(db_path: &str) {
-        let _ = std::fs::remove_file(db_path);
+        if let Err(e) = std::fs::remove_file(db_path) {
+            eprintln!("Warning: Failed to cleanup test DB {}: {}", db_path, e);
+        }
     }
 
     #[test]

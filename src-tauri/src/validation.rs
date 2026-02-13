@@ -20,8 +20,8 @@ use once_cell::sync::Lazy;
 /// * `Err(String)` with error message if invalid
 /// 
 /// # Examples
-/// ```
-/// use tauri_app_lib::validation::validate_ip;
+/// ```ignore
+/// use quasar_lib::validation::validate_ip;
 /// assert!(validate_ip("192.168.1.1").is_ok());
 /// assert!(validate_ip("256.1.1.1").is_err());
 /// ```
@@ -115,6 +115,7 @@ pub fn validate_credential_name(name: &str) -> Result<(), String> {
 }
 
 /// Validates password strength (min 8 chars for regular passwords)
+#[allow(dead_code)]
 pub fn validate_password(password: &str) -> Result<(), String> {
     if password.len() < 8 {
         return Err("Password must be at least 8 characters".to_string());

@@ -33,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
         <div className="bg-accent p-1.5 rounded-lg shadow-lg shadow-accent/20">
           <Lock className="h-6 w-6 text-white" />
         </div>
-        <span className="font-bold text-lg tracking-tight hidden lg:block text-white">TITAN NEXUS</span>
+        <span className="font-bold text-lg tracking-tight hidden lg:block text-white">QUASAR</span>
       </div>
 
       <nav className="flex-1 px-2 space-y-1 py-4 overflow-y-auto no-scrollbar">

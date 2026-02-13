@@ -8,6 +8,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use crate::crypto;
 use crate::vault::SshKeyManager;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -37,12 +38,9 @@ impl client::Handler for SftpClient {
         // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
         
-        // Create fingerprint using hex encoding of the full public key bytes
+        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
         let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = key_bytes
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect::<String>();
+        let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key";
         
         // Verify host key

@@ -222,7 +222,7 @@ impl VaultState {
                 return Err("Too many failed attempts. Vault locked for 5 minutes".to_string());
             }
             
-            return Err(format!("Invalid master password. {} attempts remaining before lockout", 5 - inner.failed_attempts));
+            return Err(format!("Invalid master password. {} attempts remaining before lockout", 5u32.saturating_sub(inner.failed_attempts)));
         }
 
         // Derive master key from password using hash_password_into for direct key derivation
@@ -446,12 +446,20 @@ impl VaultState {
             Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
             
             Ok::<[u8; 32], String>(new_master_key)
-        }).await.map_err(|e| format!("Task failed: {}", e))??;
+        }).await
+            .map_err(|e| format!("Task failed: {}", e))
+            .and_then(|inner_result| inner_result);
+        
+        // CRITICAL: Always reset changing_password on ALL code paths (success, error, panic).
+        // If this flag stays true, auto-lock is permanently disabled (security vulnerability).
+        inner.changing_password = false;
+        
+        // Now propagate the error (flag is already reset)
+        let new_master_key = result?;
         
         // Update master key in memory
-        inner.master_key = Some(MasterKey { key: result });
+        inner.master_key = Some(MasterKey { key: new_master_key });
         inner.last_activity = Some(Instant::now());
-        inner.changing_password = false;
         
         Ok(())
     }
@@ -543,7 +551,9 @@ mod tests {
     }
     
     fn cleanup_test_db(db_path: &str) {
-        let _ = std::fs::remove_file(db_path);
+        if let Err(e) = std::fs::remove_file(db_path) {
+            eprintln!("Warning: Failed to cleanup test DB {}: {}", db_path, e);
+        }
     }
 
     #[tokio::test]
