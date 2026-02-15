@@ -6,14 +6,14 @@ export async function initDatabase() {
   // Initialize Hosts table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS hosts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       address TEXT NOT NULL,
-      protocol TEXT NOT NULL,
-      port INTEGER,
+      port INTEGER NOT NULL DEFAULT 22,
       username TEXT,
-      last_connected DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      protocol TEXT NOT NULL DEFAULT 'ssh',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
   `);
 

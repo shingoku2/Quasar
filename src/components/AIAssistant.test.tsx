@@ -43,7 +43,7 @@ describe('AIAssistant Component', () => {
     // Wait for load
     await waitFor(() => expect(screen.getByText('Ollama Online')).toBeInTheDocument());
 
-    const input = screen.getByPlaceholderText('Ask Titan AI...');
+    const input = screen.getByPlaceholderText('Ask Quasar AI...');
     fireEvent.change(input, { target: { value: 'Hi' } });
     
     const sendButton = screen.getByText('Send');

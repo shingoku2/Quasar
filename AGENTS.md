@@ -7,6 +7,60 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Systematic Audit Fixes - Complete (February 15, 2026)
+
+#### Overview
+Completed a strict issue-by-issue remediation pass from comprehensive code review findings. Each issue was fixed and validated before proceeding to the next.
+
+#### 1) Scanner stop semantics and detached task leak ✅
+- **Location**: `src-tauri/src/scanner.rs`
+- **Root Cause**: `scan_network` could break on `stop_signal` and return before awaiting already-spawned scan tasks, leaving detached background work.
+- **Fix**:
+  - Added shared `drain_scan_futures(...)` helper to centralize result draining/progress updates.
+  - Ensured all pending futures are drained before function return, including stop path.
+  - Kept concurrency batching behavior (`>= 50`) while preserving final drain guarantee.
+- **Verification**:
+  - Added regression test `test_drain_scan_futures_drains_pending_tasks`.
+  - Ran `cargo test scanner::tests::` (all scanner tests passing).
+
+#### 2) SSH idle timeout stale session cleanup ✅
+- **Location**: `src-tauri/src/lib.rs` (background SSH timeout task)
+- **Root Cause**: Timeout path sent disconnect signals but did not remove sessions from `SshState.sessions`, leaving stale state and repeated timeout handling.
+- **Fix**:
+  - Timeout loop now acquires mutable session map, identifies timed-out IDs, removes those sessions, and collects both `disconnect_tx` and `stats_cancel_tx`.
+  - Sends stats cancellation and disconnect after removal, then emits timeout event.
+- **Verification**:
+  - Ran full Rust test suite: `cargo test` (all tests passing).
+
+#### 3) Credential nonce/tag malformed data panic hardening ✅
+- **Location**: `src-tauri/src/vault/credentials.rs`
+- **Root Cause**: `copy_from_slice` on nonce/tag vectors could panic when persisted DB data length was invalid.
+- **Fix**:
+  - Added explicit nonce length check (`12`) and auth tag length check (`16`) before copy.
+  - Returns structured error instead of panicking on malformed encrypted rows.
+- **Verification**:
+  - Added tests:
+    - `test_get_credential_invalid_nonce_length_returns_error`
+    - `test_get_credential_invalid_tag_length_returns_error`
+  - Ran `cargo test vault::credentials::tests::test_get_credential_invalid_` (both passing).
+
+#### 4) Vault initialization error rendering quality ✅
+- **Location**: `src/components/vault/VaultProvider.tsx`, `src/components/vault/VaultProvider.test.tsx`
+- **Root Cause**: Error handling cast unknown errors directly to string, causing poor user-facing messages and inconsistent error UI transitions.
+- **Fix**:
+  - Added `getErrorMessage(error: unknown)` normalizer for string/Error/object-with-message cases.
+  - Preserved `isInitialized = null` on init-check failure so explicit error screen renders reliably.
+  - Added frontend regression test for Error-object rejection message rendering.
+- **Verification**:
+  - Ran `npm test -- src/components/vault/VaultProvider.test.tsx` (all 7 tests passing).
+
+#### Files Modified
+- `src-tauri/src/scanner.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/vault/credentials.rs`
+- `src/components/vault/VaultProvider.tsx`
+- `src/components/vault/VaultProvider.test.tsx`
+
 ### UI Refactor - Complete (February 12, 2026)
 
 #### Overview

@@ -2,40 +2,104 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-interface DiscoveredHost {
+export interface DiscoveredHost {
   name: string;
   address: string;
   port: number;
   service_type: string;
 }
 
-const Discovery: React.FC = () => {
-  const [discoveredHosts, setDiscoveredHosts] = useState<DiscoveredHost[]>([]);
+interface TrackedDiscoveredHost {
+  ip: string;
+  hostname?: string;
+  services: Array<{ port: number }>;
+}
+
+interface DiscoveryProps {
+  onAddHost?: (host: DiscoveredHost) => void;
+}
+
+const hostKey = (host: DiscoveredHost) => `${host.address}:${host.port}`;
+
+const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
+  const [mdnsHosts, setMdnsHosts] = useState<DiscoveredHost[]>([]);
+  const [scanHosts, setScanHosts] = useState<DiscoveredHost[]>([]);
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
-    let unlisten: () => void;
+    let unlistenMdns: (() => void) | undefined;
+    let unlistenScanComplete: (() => void) | undefined;
+
+    const mergeHosts = (hosts: DiscoveredHost[]) => {
+      const deduped = new Map<string, DiscoveredHost>();
+      hosts.forEach((host) => {
+        deduped.set(hostKey(host), host);
+      });
+      return Array.from(deduped.values());
+    };
+
+    const refreshScanHosts = async () => {
+      try {
+        const discovered = await invoke<TrackedDiscoveredHost[] | undefined>('get_discovered_hosts', { limit: 100 });
+        const safeDiscovered = Array.isArray(discovered) ? discovered : [];
+        const mapped = safeDiscovered.map<DiscoveredHost>((host) => {
+          const fallbackPort = host.services[0]?.port ?? 22;
+          const preferredPort = host.services.find((service) => service.port === 22)?.port ?? fallbackPort;
+          return {
+            name: host.hostname || host.ip,
+            address: host.ip,
+            port: preferredPort,
+            service_type: 'network-scan',
+          };
+        });
+        setScanHosts(mergeHosts(mapped));
+      } catch (error) {
+        console.warn('Failed to load discovered_hosts from scanner persistence:', error);
+      }
+    };
 
     const startScan = async () => {
+      await refreshScanHosts();
+
       setScanning(true);
       await invoke('start_discovery');
       
-      unlisten = await listen<DiscoveredHost>('host-discovered', (event) => {
-        setDiscoveredHosts(prev => {
+      unlistenMdns = await listen<DiscoveredHost>('host-discovered', (event) => {
+        setMdnsHosts(prev => {
           // Avoid duplicates
           if (prev.some(h => h.address === event.payload.address)) return prev;
-          return [...prev, event.payload];
+          return mergeHosts([...prev, event.payload]);
         });
+      });
+
+      unlistenScanComplete = await listen('scan_complete', async () => {
+        await refreshScanHosts();
       });
     };
 
-    startScan();
+    startScan().catch((error) => {
+      setScanning(false);
+      console.warn('Failed to start LAN discovery:', error);
+    });
 
     return () => {
-      if (unlisten) unlisten();
+      if (unlistenMdns) unlistenMdns();
+      if (unlistenScanComplete) unlistenScanComplete();
       setScanning(false);
     };
   }, []);
+
+  const discoveredHosts = (() => {
+    const merged = new Map<string, DiscoveredHost>();
+    scanHosts.forEach((host) => merged.set(hostKey(host), host));
+    mdnsHosts.forEach((host) => {
+      const key = hostKey(host);
+      if (!merged.has(key)) {
+        merged.set(key, host);
+      }
+    });
+    return Array.from(merged.values());
+  })();
 
   return (
     <div className="p-4 bg-gray-800 rounded mt-4">
@@ -47,14 +111,19 @@ const Discovery: React.FC = () => {
       {discoveredHosts.length === 0 ? (
         <p className="text-xs text-gray-500 italic">No devices found yet.</p>
       ) : (
-        <ul className="space-y-2">
-          {discoveredHosts.map((host, idx) => (
-            <li key={idx} className="flex justify-between items-center bg-gray-900 p-2 rounded">
+        <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
+          {discoveredHosts.map((host) => (
+            <li key={hostKey(host)} className="flex justify-between items-center bg-gray-900 p-2 rounded">
               <div>
                 <div className="text-sm font-medium text-white">{host.name}</div>
                 <div className="text-xs text-gray-400">{host.address}:{host.port}</div>
               </div>
-              <button className="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded hover:bg-blue-800">
+              <button
+                type="button"
+                onClick={() => onAddHost?.(host)}
+                disabled={!onAddHost}
+                className="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Add
               </button>
             </li>

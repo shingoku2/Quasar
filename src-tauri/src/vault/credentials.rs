@@ -127,6 +127,20 @@ impl CredentialManager {
             let nonce_vec: Vec<u8> = row.get(4)?;
             let tag_vec: Vec<u8> = row.get(5)?;
 
+            if nonce_vec.len() != 12 {
+                return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Invalid nonce length: expected 12, got {}", nonce_vec.len()),
+                ))));
+            }
+
+            if tag_vec.len() != 16 {
+                return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Invalid auth tag length: expected 16, got {}", tag_vec.len()),
+                ))));
+            }
+
             let mut nonce = [0u8; 12];
             let mut tag = [0u8; 16];
             nonce.copy_from_slice(&nonce_vec);
@@ -603,6 +617,70 @@ mod tests {
         assert_eq!(results.len(), 2);
         assert!(results.iter().any(|c| c.name == "GitHub Account"));
         assert!(results.iter().any(|c| c.name == "GitLab Account"));
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[test]
+    fn test_get_credential_invalid_nonce_length_returns_error() {
+        let (db_path, master_key) = setup_test_db();
+        let manager = CredentialManager::new(db_path.clone());
+
+        let conn = Connection::open(&db_path).expect("Failed to open test database");
+        conn.execute(
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            rusqlite::params![
+                "malformed-nonce",
+                "Bad Cred",
+                "user",
+                vec![1u8, 2, 3],
+                vec![1u8, 2, 3], // invalid nonce length (must be 12)
+                vec![0u8; 16],
+                "password",
+                Option::<String>::None,
+                Option::<u16>::None,
+                Option::<String>::None,
+                1i64,
+                1i64,
+                Option::<i64>::None,
+            ],
+        ).expect("Failed to insert malformed credential");
+
+        let result = manager.get_credential(&master_key, "malformed-nonce");
+        assert!(result.is_err(), "Malformed nonce must return an error instead of panicking");
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[test]
+    fn test_get_credential_invalid_tag_length_returns_error() {
+        let (db_path, master_key) = setup_test_db();
+        let manager = CredentialManager::new(db_path.clone());
+
+        let conn = Connection::open(&db_path).expect("Failed to open test database");
+        conn.execute(
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            rusqlite::params![
+                "malformed-tag",
+                "Bad Cred 2",
+                "user",
+                vec![1u8, 2, 3],
+                vec![0u8; 12],
+                vec![1u8, 2, 3], // invalid tag length (must be 16)
+                "password",
+                Option::<String>::None,
+                Option::<u16>::None,
+                Option::<String>::None,
+                1i64,
+                1i64,
+                Option::<i64>::None,
+            ],
+        ).expect("Failed to insert malformed credential");
+
+        let result = manager.get_credential(&master_key, "malformed-tag");
+        assert!(result.is_err(), "Malformed auth tag must return an error instead of panicking");
 
         cleanup_test_db(&db_path);
     }

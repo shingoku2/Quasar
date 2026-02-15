@@ -104,6 +104,21 @@ describe('VaultProvider', () => {
       expect(hasError || hasInit || hasChildren).toBeTruthy();
     });
   });
+
+  it('renders Error.message when vault check rejects with Error object', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('Backend unavailable'));
+
+    render(
+      <VaultProvider>
+        <div>App Content</div>
+      </VaultProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Vault Initialization Error')).toBeInTheDocument();
+      expect(screen.getByText('Backend unavailable')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('useVault', () => {

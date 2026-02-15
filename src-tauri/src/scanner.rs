@@ -184,6 +184,42 @@ fn identify_service(port: u16) -> ServiceInfo {
     }
 }
 
+async fn drain_scan_futures<P, R>(
+    futures: &mut FuturesUnordered<tokio::task::JoinHandle<ScanResult>>,
+    state: &Arc<ScannerState>,
+    completed: &mut usize,
+    on_progress: &P,
+    on_result: &R,
+)
+where
+    P: Fn(ScanProgress) + Send + 'static,
+    R: Fn(ScanResult) + Send + 'static,
+{
+    while let Some(result) = futures.next().await {
+        if let Ok(scan_result) = result {
+            // Store result
+            {
+                if let Ok(mut results) = state.results.lock() {
+                    results.push(scan_result.clone());
+                }
+            }
+
+            // Emit result
+            on_result(scan_result);
+
+            *completed += 1;
+            {
+                if let Ok(mut progress) = state.progress.lock() {
+                    progress.completed = *completed;
+                }
+            }
+            if let Ok(progress) = state.progress.lock() {
+                on_progress(progress.clone());
+            }
+        }
+    }
+}
+
 pub async fn scan_network(
     state: Arc<ScannerState>,
     cidr: String,
@@ -239,7 +275,7 @@ pub async fn scan_network(
     let mut futures = FuturesUnordered::new();
     let mut completed = 0;
     
-    for (idx, ip) in ips.iter().enumerate() {
+    for ip in ips.iter() {
         // Check stop signal
         {
             let stop = state.stop_signal.lock()
@@ -308,30 +344,15 @@ pub async fn scan_network(
         }));
         
         // Process completed futures when we hit concurrency limit
-        if futures.len() >= 50 || idx == ips.len() - 1 {
-            while let Some(result) = futures.next().await {
-                if let Ok(scan_result) = result {
-                    // Store result
-                    {
-                        if let Ok(mut results) = state.results.lock() {
-                            results.push(scan_result.clone());
-                        }
-                    }
-                    // Emit result
-                    on_result(scan_result);
-                    
-                    completed += 1;
-                    {
-                        if let Ok(mut progress) = state.progress.lock() {
-                            progress.completed = completed;
-                        }
-                    }
-                    if let Ok(progress) = state.progress.lock() {
-                        on_progress(progress.clone());
-                    }
-                }
-            }
+        if futures.len() >= 50 {
+            drain_scan_futures(&mut futures, &state_arc, &mut completed, &on_progress, &on_result).await;
         }
+    }
+
+    // Always drain any already spawned tasks before returning.
+    // This guarantees stop requests do not leave detached scan work running in background.
+    if !futures.is_empty() {
+        drain_scan_futures(&mut futures, &state_arc, &mut completed, &on_progress, &on_result).await;
     }
     
     Ok(())
@@ -372,6 +393,7 @@ pub fn is_scanning(state: &ScannerState) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::time::{sleep, Duration as TokioDuration};
 
     #[test]
     fn test_parse_cidr() {
@@ -583,5 +605,59 @@ mod tests {
     #[test]
     fn test_detect_device_type_empty_is_unknown() {
         assert_eq!(detect_device_type(&[]), "unknown");
+    }
+
+    fn build_test_scan_result(ip: &str) -> ScanResult {
+        ScanResult {
+            ip: ip.to_string(),
+            is_alive: true,
+            latency_ms: Some(1),
+            open_ports: vec![22],
+            hostname: None,
+            mac_address: None,
+            device_type: "workstation".to_string(),
+            services: vec![ServiceInfo {
+                port: 22,
+                protocol: "tcp".to_string(),
+                service: "SSH".to_string(),
+                version: None,
+            }],
+            vendor: None,
+            last_seen: 1,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_drain_scan_futures_drains_pending_tasks() {
+        let state = Arc::new(ScannerState::new());
+        let mut futures = FuturesUnordered::new();
+
+        futures.push(tokio::spawn(async {
+            sleep(TokioDuration::from_millis(15)).await;
+            build_test_scan_result("10.0.0.1")
+        }));
+        futures.push(tokio::spawn(async {
+            sleep(TokioDuration::from_millis(5)).await;
+            build_test_scan_result("10.0.0.2")
+        }));
+        futures.push(tokio::spawn(async {
+            sleep(TokioDuration::from_millis(1)).await;
+            build_test_scan_result("10.0.0.3")
+        }));
+
+        let mut completed = 0;
+        let on_progress = |_p: ScanProgress| {};
+        let on_result = |_r: ScanResult| {};
+
+        drain_scan_futures(&mut futures, &state, &mut completed, &on_progress, &on_result).await;
+
+        assert!(futures.is_empty(), "All spawned futures must be drained before returning");
+        assert_eq!(completed, 3, "Completed count must include all pending tasks");
+
+        let stored = state.results.lock().unwrap();
+        assert_eq!(stored.len(), 3, "All drained task results must be persisted");
+
+        let progress = state.progress.lock().unwrap();
+        assert_eq!(progress.completed, 3, "Progress must reflect drained tasks");
     }
 }

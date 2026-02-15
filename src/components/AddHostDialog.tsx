@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
 import { initDatabase } from '../db';
 
+export interface AddHostInitialValues {
+  name?: string;
+  address?: string;
+  protocol?: 'ssh' | 'rdp';
+  port?: number | null;
+  username?: string;
+}
+
 interface AddHostDialogProps {
   onClose: () => void;
   onAdded: () => void;
+  initialValues?: AddHostInitialValues;
 }
 
-const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded }) => {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [protocol, setProtocol] = useState('ssh');
-  const [port, setPort] = useState('');
-  const [username, setUsername] = useState('');
+const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initialValues }) => {
+  const [name, setName] = useState(initialValues?.name ?? '');
+  const [address, setAddress] = useState(initialValues?.address ?? '');
+  const [protocol, setProtocol] = useState<'ssh' | 'rdp'>(initialValues?.protocol ?? 'ssh');
+  const [port, setPort] = useState(initialValues?.port != null ? String(initialValues.port) : '');
+  const [username, setUsername] = useState(initialValues?.username ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,12 +30,33 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded }) => {
       // Use initDatabase to ensure tables exist and get connection
       const db = await initDatabase();
       
-      const portVal = port.trim() ? parseInt(port) : null;
-      
-      await db.execute(
-        "INSERT INTO hosts (name, address, protocol, port, username) VALUES (?, ?, ?, ?, ?)",
-        [name, address, protocol, portVal, username || null]
+      const parsedPort = port.trim() ? parseInt(port, 10) : null;
+      const portVal = Number.isFinite(parsedPort)
+        ? parsedPort
+        : (protocol === 'rdp' ? 3389 : 22);
+      const now = Math.floor(Date.now() / 1000);
+      const existing = await db.select<{ id: string }[]>(
+        "SELECT id FROM hosts WHERE address = ? AND protocol = ? AND port = ? LIMIT 1",
+        [address, protocol, portVal]
       );
+
+      if (existing.length > 0) {
+        await db.execute(
+          "UPDATE hosts SET name = ?, username = ?, updated_at = ? WHERE id = ?",
+          [name, username || null, now, existing[0].id]
+        );
+      } else {
+        const hostId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `host-${now}-${Math.random().toString(36).slice(2, 10)}`;
+
+        await db.execute(
+          "INSERT INTO hosts (id, name, address, protocol, port, username, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [hostId, name, address, protocol, portVal, username || null, now, now]
+        );
+      }
+
+      window.dispatchEvent(new Event('hostsUpdated'));
       onAdded();
       onClose();
     } catch (err) {
@@ -67,7 +97,7 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded }) => {
               <select 
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                 value={protocol}
-                onChange={(e) => setProtocol(e.target.value)}
+                onChange={(e) => setProtocol(e.target.value as 'ssh' | 'rdp')}
               >
                 <option value="ssh">SSH</option>
                 <option value="rdp">RDP</option>

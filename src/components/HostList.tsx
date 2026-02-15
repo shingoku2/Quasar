@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Database from "@tauri-apps/plugin-sql";
-import Discovery from './Discovery';
+import Discovery, { DiscoveredHost } from './Discovery';
 import HealthCheckBadge from './HealthCheckBadge';
+import { AddHostInitialValues } from './AddHostDialog';
 
 export interface Host {
-  id: number;
+  id: string;
   name: string;
   address: string;
   protocol: string;
@@ -15,7 +16,8 @@ export interface Host {
 const HostList: React.FC<{ 
   onConnect: (host: Host) => void;
   onSftp: (host: Host) => void;
-}> = ({ onConnect, onSftp }) => {
+  onAddHost?: (values: AddHostInitialValues) => void;
+}> = ({ onConnect, onSftp, onAddHost }) => {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,9 +34,88 @@ const HostList: React.FC<{
     }
   };
 
+  const getDuplicateHostIds = (items: Host[]) => {
+    const firstByKey = new Map<string, string>();
+    const duplicateIds: string[] = [];
+
+    items.forEach((host) => {
+      const key = `${host.address}|${host.protocol}|${host.port ?? ''}`;
+      if (firstByKey.has(key)) {
+        duplicateIds.push(host.id);
+      } else {
+        firstByKey.set(key, host.id);
+      }
+    });
+
+    return duplicateIds;
+  };
+
+  const duplicateHostIds = getDuplicateHostIds(hosts);
+
+  const handleRemoveDuplicates = async () => {
+    if (duplicateHostIds.length === 0) {
+      return;
+    }
+
+    if (!confirm(`Remove ${duplicateHostIds.length} duplicate saved host(s)?`)) {
+      return;
+    }
+
+    try {
+      const db = await Database.load("sqlite:titan.db");
+      for (const id of duplicateHostIds) {
+        await db.execute("DELETE FROM hosts WHERE id = ?", [id]);
+      }
+      await fetchHosts();
+      window.dispatchEvent(new Event('hostsUpdated'));
+    } catch (err) {
+      console.error('Failed to remove duplicate hosts:', err);
+      alert(`Failed to remove duplicate hosts: ${err}`);
+    }
+  };
+
   useEffect(() => {
     fetchHosts();
+
+    const handleHostsUpdated = () => {
+      fetchHosts();
+    };
+
+    window.addEventListener('hostsUpdated', handleHostsUpdated);
+
+    return () => {
+      window.removeEventListener('hostsUpdated', handleHostsUpdated);
+    };
   }, []);
+
+  const handleAddDiscoveredHost = (host: DiscoveredHost) => {
+    if (!onAddHost) return;
+
+    const isRdp = host.port === 3389 || host.service_type.toLowerCase().includes('rdp');
+    onAddHost({
+      name: host.name,
+      address: host.address,
+      protocol: isRdp ? 'rdp' : 'ssh',
+      port: host.port,
+      username: '',
+    });
+  };
+
+  const handleRemoveHost = async (host: Host) => {
+    if (!confirm(`Remove ${host.name} from saved hosts?`)) {
+      return;
+    }
+
+    try {
+      const db = await Database.load("sqlite:titan.db");
+      await db.execute("DELETE FROM hosts WHERE id = ?", [host.id]);
+      await fetchHosts();
+      window.dispatchEvent(new Event('hostsUpdated'));
+    } catch (err) {
+      console.error('Failed to remove host:', err);
+      alert(`Failed to remove host: ${err}`);
+    }
+  };
 
   const filteredHosts = hosts.filter(h => 
     h.name.toLowerCase().includes(filter.toLowerCase()) || 
@@ -45,7 +126,7 @@ const HostList: React.FC<{
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4 border-b border-gray-700 space-y-3">
         <input 
           type="text" 
           placeholder="Filter hosts..." 
@@ -53,6 +134,21 @@ const HostList: React.FC<{
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
+        <div className="flex justify-end items-center gap-2">
+          {duplicateHostIds.length > 0 && (
+            <span className="text-xs text-amber-300/90">
+              {duplicateHostIds.length} duplicate{duplicateHostIds.length === 1 ? '' : 's'} detected
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleRemoveDuplicates}
+            disabled={duplicateHostIds.length === 0}
+            className="text-xs px-3 py-1.5 rounded border border-gray-700 text-gray-300 hover:border-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Remove duplicates{duplicateHostIds.length > 0 ? ` (${duplicateHostIds.length})` : ''}
+          </button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
         {filteredHosts.length === 0 ? (
@@ -88,6 +184,12 @@ const HostList: React.FC<{
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={() => handleRemoveHost(host)}
+                        className="text-gray-400 hover:text-red-400 font-medium transition-colors"
+                      >
+                        Remove
+                      </button>
                       {host.protocol === 'ssh' && (
                         <button 
                           onClick={() => onSftp(host)}
@@ -113,7 +215,7 @@ const HostList: React.FC<{
       
       {/* LAN Discovery Section */}
       <div className="border-t border-gray-700 bg-gray-850 p-4">
-        <Discovery />
+        <Discovery onAddHost={handleAddDiscoveredHost} />
       </div>
     </div>
   );

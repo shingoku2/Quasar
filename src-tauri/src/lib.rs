@@ -685,25 +685,40 @@ pub fn run() {
                 loop {
                     interval.tick().await;
                     
-                    let sessions_to_disconnect: Vec<(String, tokio::sync::mpsc::Sender<()>)> = {
-                        let sessions = match ssh_sessions.lock() {
+                    let sessions_to_disconnect: Vec<(
+                        String,
+                        tokio::sync::mpsc::Sender<()>,
+                        tokio::sync::mpsc::Sender<()>
+                    )> = {
+                        let mut sessions = match ssh_sessions.lock() {
                             Ok(s) => s,
                             Err(_) => continue,
                         };
-                        
-                        sessions.iter()
+
+                        let timed_out_ids: Vec<String> = sessions
+                            .iter()
                             .filter_map(|(id, conn)| {
                                 if let Ok(last_activity) = conn.last_activity.lock() {
                                     if last_activity.elapsed() > timeout_duration {
-                                        return Some((id.clone(), conn.disconnect_tx.clone()));
+                                        return Some(id.clone());
                                     }
                                 }
                                 None
                             })
-                            .collect()
+                            .collect();
+
+                        let mut timed_out_sessions = Vec::with_capacity(timed_out_ids.len());
+                        for session_id in timed_out_ids {
+                            if let Some(conn) = sessions.remove(&session_id) {
+                                timed_out_sessions.push((session_id, conn.disconnect_tx, conn.stats_cancel_tx));
+                            }
+                        }
+
+                        timed_out_sessions
                     };
                     
-                    for (session_id, disconnect_tx) in sessions_to_disconnect {
+                    for (session_id, disconnect_tx, stats_cancel_tx) in sessions_to_disconnect {
+                        let _ = stats_cancel_tx.send(()).await;
                         let _ = disconnect_tx.send(()).await;
                         let _ = app_handle_ssh.emit(&format!("ssh_timeout_{}", session_id), ());
                     }
