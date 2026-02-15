@@ -30,6 +30,25 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
+  const getErrorMessage = (error: unknown): string => {
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error;
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    if (error && typeof error === 'object' && 'message' in error) {
+      const message = (error as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim().length > 0) {
+        return message;
+      }
+    }
+
+    return 'Failed to initialize security vault';
+  };
+
   const checkVaultStatus = async () => {
     try {
       const initialized = await invoke<boolean>('is_vault_initialized');
@@ -46,8 +65,8 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('Failed to check vault status:', error);
-      setInitError(error as string || 'Failed to initialize security vault');
-      setIsInitialized(false);
+      setInitError(getErrorMessage(error));
+      setIsInitialized(null);
     }
   };
 

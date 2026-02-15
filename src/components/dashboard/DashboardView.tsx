@@ -6,8 +6,9 @@ import NetworkScanner, { ScanResult } from '../NetworkScanner';
 import NetworkTopologyView from '../NetworkTopologyView';
 import HostDetailDialog from '../HostDetailDialog';
 import QuickConnectWidget from './QuickConnectWidget';
+import AddHostDialog, { AddHostInitialValues } from '../AddHostDialog';
 import { ViewId } from '../Sidebar';
-import { List, Network as NetworkIcon, MoreHorizontal } from 'lucide-react';
+import { List, Network as NetworkIcon } from 'lucide-react';
 
 interface SavedHost {
   id: number;
@@ -26,6 +27,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [discoveredHosts, setDiscoveredHosts] = useState<ScanResult[]>([]);
   const [selectedHost, setSelectedHost] = useState<ScanResult | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'topology'>('topology');
+  const [hostToSave, setHostToSave] = useState<AddHostInitialValues | null>(null);
 
   const handleQuickConnect = async (host: SavedHost) => {
     onNavigate('remote');
@@ -52,8 +54,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   };
 
   const handleHostSave = async (host: ScanResult) => {
-    console.log('Save host:', host);
-    alert('Save to hosts feature coming soon!');
+    const protocol: 'ssh' | 'rdp' = host.open_ports.includes(3389) ? 'rdp' : 'ssh';
+    const defaultPort = protocol === 'rdp'
+      ? (host.open_ports.includes(3389) ? 3389 : null)
+      : (host.open_ports.includes(22) ? 22 : host.open_ports[0] ?? 22);
+
+    setHostToSave({
+      name: host.hostname || host.ip,
+      address: host.ip,
+      protocol,
+      port: defaultPort,
+      username: '',
+    });
   };
 
   const handleHostDelete = async (ip: string) => {
@@ -74,34 +86,28 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           {/* Card Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <h2 className="text-sm font-bold text-white">Network Topology</h2>
-            <div className="flex items-center space-x-2">
-              {/* Inline View Toggle */}
-              <div className="flex bg-bg-root rounded-lg p-0.5">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                    viewMode === 'list'
-                      ? 'bg-accent text-white shadow-sm'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  <List className="h-3.5 w-3.5" />
-                  <span>List</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('topology')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                    viewMode === 'topology'
-                      ? 'bg-accent text-white shadow-sm'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  <NetworkIcon className="h-3.5 w-3.5" />
-                  <span>Topology</span>
-                </button>
-              </div>
-              <button className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors">
-                <MoreHorizontal className="h-4 w-4" />
+            <div className="flex bg-bg-root rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center space-x-1.5 ${
+                  viewMode === 'list'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+                <span>List</span>
+              </button>
+              <button
+                onClick={() => setViewMode('topology')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center space-x-1.5 ${
+                  viewMode === 'topology'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <NetworkIcon className="h-3.5 w-3.5" />
+                <span>Topology</span>
               </button>
             </div>
           </div>
@@ -156,6 +162,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         onSave={handleHostSave}
         onDelete={handleHostDelete}
       />
+
+      {hostToSave && (
+        <AddHostDialog
+          initialValues={hostToSave}
+          onClose={() => setHostToSave(null)}
+          onAdded={() => {
+            setHostToSave(null);
+            setSelectedHost(null);
+          }}
+        />
+      )}
     </div>
   );
 };

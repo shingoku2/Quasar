@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import Database from '@tauri-apps/plugin-sql';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -10,6 +11,38 @@ interface Message {
 interface ChatResponse {
   content: string;
   done: boolean;
+}
+
+interface ScanProgress {
+  scanned: number;
+  total: number;
+  found: number;
+  current_ip?: string;
+  status?: string;
+}
+
+interface ServiceInfo {
+  port: number;
+  protocol: string;
+  service: string;
+  version?: string | null;
+}
+
+interface DiscoveredHost {
+  ip: string;
+  hostname?: string | null;
+  device_type: string;
+  vendor?: string | null;
+  scan_count: number;
+  services: ServiceInfo[];
+}
+
+interface SavedHost {
+  id: string;
+  name: string;
+  address: string;
+  protocol: string;
+  port?: number | null;
 }
 
 const AIAssistant: React.FC = () => {
@@ -29,6 +62,66 @@ const AIAssistant: React.FC = () => {
       if (unlistenRef.current) unlistenRef.current();
     };
   }, []);
+
+  const buildNetworkContextMessage = async (): Promise<Message> => {
+    try {
+      const [isScanningResult, progressResult, discoveredHostsResult, savedHostsResult] = await Promise.allSettled([
+        invoke<boolean>('is_scanning'),
+        invoke<ScanProgress>('get_scan_progress'),
+        invoke<DiscoveredHost[]>('get_discovered_hosts', { limit: 50 }),
+        (async () => {
+          const db = await Database.load('sqlite:titan.db');
+          return db.select<SavedHost[]>('SELECT id, name, address, protocol, port FROM hosts ORDER BY name ASC LIMIT 100');
+        })(),
+      ]);
+
+      const isScanning = isScanningResult.status === 'fulfilled' ? isScanningResult.value : false;
+      const progress = progressResult.status === 'fulfilled' ? progressResult.value : undefined;
+      const discoveredHosts = discoveredHostsResult.status === 'fulfilled' ? discoveredHostsResult.value : [];
+      const savedHosts = savedHostsResult.status === 'fulfilled' ? savedHostsResult.value : [];
+
+      const safeHosts = Array.isArray(discoveredHosts) ? discoveredHosts : [];
+      const hostSummary = safeHosts.slice(0, 10).map((host) => ({
+        ip: host.ip,
+        hostname: host.hostname ?? null,
+        deviceType: host.device_type,
+        vendor: host.vendor ?? null,
+        scanCount: host.scan_count,
+        services: (host.services ?? []).slice(0, 6).map((service) => `${service.service}:${service.port}/${service.protocol}`),
+      }));
+
+      const safeSavedHosts = Array.isArray(savedHosts) ? savedHosts : [];
+      const savedSummary = safeSavedHosts.slice(0, 15).map((host) => ({
+        name: host.name,
+        address: host.address,
+        protocol: host.protocol,
+        port: host.port ?? null,
+      }));
+
+      const discoveredAddressSet = new Set(safeHosts.map((host) => host.ip));
+      const overlapCount = safeSavedHosts.filter((host) => discoveredAddressSet.has(host.address)).length;
+
+      return {
+        role: 'system',
+        content: [
+          'Quasar network context (auto-generated):',
+          `- Scan status: ${isScanning ? 'running' : 'idle'}`,
+          `- Scan progress: ${progress?.scanned ?? 0}/${progress?.total ?? 0} scanned, ${progress?.found ?? 0} alive`,
+          `- Discovered hosts in database: ${safeHosts.length}`,
+          `- Saved remote hosts: ${safeSavedHosts.length}`,
+          `- Saved/discovered address overlap: ${overlapCount}`,
+          `- Top discovered hosts snapshot: ${JSON.stringify(hostSummary)}`,
+          `- Top saved hosts snapshot: ${JSON.stringify(savedSummary)}`,
+          'Use this context when troubleshooting network setup, connectivity, ports, and host-level issues.',
+        ].join('\n'),
+      };
+    } catch {
+      return {
+        role: 'system',
+        content: 'Quasar network context is currently unavailable. Continue responding normally and ask the user to run a network scan if needed.',
+      };
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,9 +186,11 @@ const AIAssistant: React.FC = () => {
       });
       unlistenRef.current = unlisten;
 
+      const networkContext = await buildNetworkContextMessage();
+
       await invoke('send_ai_chat', {
         model: selectedModel,
-        messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+        messages: [networkContext, ...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
       });
     } catch (err) {
       console.error('Failed to send chat:', err);
@@ -113,7 +208,7 @@ const AIAssistant: React.FC = () => {
     <div className="flex flex-col h-full bg-gray-900 text-white">
       {/* Header */}
       <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-        <h2 className="text-lg font-bold">Titan AI Assistant</h2>
+        <h2 className="text-lg font-bold">Quasar AI Assistant</h2>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className={`h-2 w-2 rounded-full ${status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
@@ -168,7 +263,7 @@ const AIAssistant: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={status !== 'connected' || generating}
-            placeholder={status === 'connected' ? "Ask Titan AI..." : "AI Unavailable"}
+            placeholder={status === 'connected' ? "Ask Quasar AI..." : "AI Unavailable"}
             className="flex-1 bg-gray-800 border border-gray-700 rounded px-4 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50"
           />
           <button

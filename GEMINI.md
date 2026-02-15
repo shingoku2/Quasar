@@ -4,8 +4,36 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **Monitoring & Alerts Track Complete**. Starting Automation Canvas.
-- **Last Action:** Fixed real-time metrics display in DashboardView. Now beginning Automation Canvas track.
+- **Status:** **Systematic audit remediation complete (Feb 15, 2026)**.
+- **Last Action:** Fixed scanner stop drain semantics, SSH timeout stale session cleanup, credential nonce/tag panic hardening, and vault init error rendering quality.
+
+## Latest Audit Remediation (2026-02-15)
+
+### Fixed Issues
+1. **Scanner stop semantics / detached task leak**
+   - Added `drain_scan_futures(...)` and guaranteed final drain before scan return.
+   - Regression test: `scanner::tests::test_drain_scan_futures_drains_pending_tasks`.
+
+2. **SSH idle timeout stale session cleanup**
+   - Timeout task now removes timed-out sessions from `SshState.sessions` and cancels stats tasks before disconnect.
+
+3. **Credential malformed nonce/tag panic hardening**
+   - Added explicit nonce/tag length checks before `copy_from_slice`.
+   - Regression tests:
+     - `test_get_credential_invalid_nonce_length_returns_error`
+     - `test_get_credential_invalid_tag_length_returns_error`
+
+4. **Vault initialization error rendering**
+   - Added robust `getErrorMessage(error: unknown)` normalizer.
+   - Kept `isInitialized = null` on init failure so explicit error screen renders.
+   - Regression test added in `VaultProvider.test.tsx` for Error-object message rendering.
+
+### Verification
+- `cargo test scanner::tests::`
+- `cargo test vault::credentials::tests::test_get_credential_invalid_`
+- `cargo test`
+- `npm test -- src/components/vault/VaultProvider.test.tsx`
+- `npm test`
 
 ## Progress Summary (2026-01-30)
 

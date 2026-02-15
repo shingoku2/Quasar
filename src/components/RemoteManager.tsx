@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import HostList, { Host } from './HostList';
-import AddHostDialog from './AddHostDialog';
+import AddHostDialog, { AddHostInitialValues } from './AddHostDialog';
 import TerminalComponent from './TerminalComponent';
 import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
@@ -10,7 +10,7 @@ import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
-import { Plus, Folder } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface Credential {
   id: string;
@@ -24,6 +24,7 @@ interface Credential {
 
 const RemoteManager: React.FC = () => {
   const [showAddHost, setShowAddHost] = useState(false);
+  const [addHostInitialValues, setAddHostInitialValues] = useState<AddHostInitialValues | undefined>(undefined);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tabs, setTabs] = useState<SessionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState('inventory');
@@ -34,6 +35,7 @@ const RemoteManager: React.FC = () => {
   const [pendingMode, setPendingMode] = useState<'ssh' | 'sftp'>('ssh');
   const [showCredentialSelector, setShowCredentialSelector] = useState(false);
   const [useManualEntry, setUseManualEntry] = useState(false);
+  const [allowCredentialSave, setAllowCredentialSave] = useState(false);
   
   // Track processed quick connect host IDs to prevent duplicate executions
   const processedQuickConnects = useRef(new Set<string>());
@@ -68,7 +70,13 @@ const RemoteManager: React.FC = () => {
     setActiveTabId(id);
   };
 
-  const startSession = (host: Host, password?: string) => {
+  const startSession = (host: Host, password?: string, usernameOverride?: string) => {
+    const sessionUsername = usernameOverride ?? host.username;
+    if (!sessionUsername) {
+      alert('Username is required to start an SSH session.');
+      return;
+    }
+
     const sessionId = Math.random().toString(36).substring(7);
     addTab(
       sessionId, 
@@ -77,13 +85,19 @@ const RemoteManager: React.FC = () => {
         sessionId={sessionId}
         host={host.address}
         port={host.port || 22}
-        username={host.username || 'root'}
+        username={sessionUsername}
         password={password} 
       />
     );
   };
 
-  const startSftpSession = (host: Host, password?: string) => {
+  const startSftpSession = (host: Host, password?: string, usernameOverride?: string) => {
+    const sessionUsername = usernameOverride ?? host.username;
+    if (!sessionUsername) {
+      alert('Username is required to start an SFTP session.');
+      return;
+    }
+
     const sessionId = `sftp-${Math.random().toString(36).substring(7)}`;
     addTab(
       sessionId, 
@@ -91,7 +105,7 @@ const RemoteManager: React.FC = () => {
       <SshFileManager 
         host={host.address}
         port={host.port || 22}
-        username={host.username || 'root'}
+        username={sessionUsername}
         password={password} 
       />
     );
@@ -107,11 +121,13 @@ const RemoteManager: React.FC = () => {
         try {
           const isLocked = await invoke<boolean>('is_vault_locked');
           if (isLocked) {
+            setAllowCredentialSave(false);
             setUseManualEntry(true);
           } else {
             setShowCredentialSelector(true);
           }
         } catch {
+          setAllowCredentialSave(false);
           setUseManualEntry(true);
         }
       } else if (host.protocol === 'rdp') {
@@ -134,11 +150,13 @@ const RemoteManager: React.FC = () => {
       try {
         const isLocked = await invoke<boolean>('is_vault_locked');
         if (isLocked) {
+          setAllowCredentialSave(false);
           setUseManualEntry(true);
         } else {
           setShowCredentialSelector(true);
         }
       } catch {
+        setAllowCredentialSave(false);
         setUseManualEntry(true);
       }
     } catch (error) {
@@ -149,10 +167,17 @@ const RemoteManager: React.FC = () => {
 
   const handleCredentialSelected = (credential: Credential) => {
     if (pendingHost) {
+      const selectedUsername = credential.username || pendingHost.username;
+      if (!selectedUsername) {
+        setShowCredentialSelector(false);
+        setUseManualEntry(true);
+        return;
+      }
+
       if (pendingMode === 'sftp') {
-        startSftpSession(pendingHost, credential.password);
+        startSftpSession(pendingHost, credential.password, selectedUsername);
       } else {
-        startSession(pendingHost, credential.password);
+        startSession(pendingHost, credential.password, selectedUsername);
       }
       setShowCredentialSelector(false);
       setPendingHost(null);
@@ -161,6 +186,7 @@ const RemoteManager: React.FC = () => {
 
   const handleManualEntry = () => {
     setShowCredentialSelector(false);
+    setAllowCredentialSave(true);
     setUseManualEntry(true);
   };
 
@@ -235,7 +261,10 @@ const RemoteManager: React.FC = () => {
             <div className="p-6 border-b border-gray-800 flex justify-between items-center">
               <h1 className="text-xl font-bold text-white">Remote Hosts</h1>
               <button 
-                onClick={() => setShowAddHost(true)}
+                onClick={() => {
+                  setAddHostInitialValues(undefined);
+                  setShowAddHost(true);
+                }}
                 className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center shadow-lg shadow-accent/10"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -247,6 +276,10 @@ const RemoteManager: React.FC = () => {
                 key={refreshTrigger} 
                 onConnect={handleConnect} 
                 onSftp={handleSftp}
+                onAddHost={(values) => {
+                  setAddHostInitialValues(values);
+                  setShowAddHost(true);
+                }}
               />
             </div>
           </div>
@@ -279,8 +312,15 @@ const RemoteManager: React.FC = () => {
 
       {showAddHost && (
         <AddHostDialog 
-          onClose={() => setShowAddHost(false)} 
-          onAdded={() => setRefreshTrigger(prev => prev + 1)} 
+          initialValues={addHostInitialValues}
+          onClose={() => {
+            setShowAddHost(false);
+            setAddHostInitialValues(undefined);
+          }} 
+          onAdded={() => {
+            setRefreshTrigger(prev => prev + 1);
+            setAddHostInitialValues(undefined);
+          }} 
         />
       )}
 
@@ -299,19 +339,41 @@ const RemoteManager: React.FC = () => {
       {useManualEntry && pendingHost && (
         <CredentialPrompt 
           hostName={pendingHost.name}
-          username={pendingHost.username || 'root'}
-          onSubmit={(password) => {
+          initialUsername={pendingHost.username}
+          allowSaveCredential={allowCredentialSave}
+          onSubmit={async (enteredUsername, password, options) => {
             if (pendingMode === 'sftp') {
-              startSftpSession(pendingHost, password);
+              startSftpSession(pendingHost, password, enteredUsername);
             } else {
-              startSession(pendingHost, password);
+              startSession(pendingHost, password, enteredUsername);
             }
+
+            if (options?.saveCredential) {
+              const credentialName = options.credentialName || `${pendingHost.name} (${enteredUsername})`;
+              try {
+                await invoke('add_credential', {
+                  name: credentialName,
+                  username: enteredUsername,
+                  password,
+                  credentialType: 'ssh',
+                  host: pendingHost.address,
+                  port: pendingHost.port || 22,
+                  metadata: null,
+                });
+              } catch (error) {
+                console.error('Failed to save credential to vault:', error);
+                alert(`Connected, but failed to save credential: ${error}`);
+              }
+            }
+
             setPendingHost(null);
             setUseManualEntry(false);
+            setAllowCredentialSave(false);
           }}
           onCancel={() => {
             setPendingHost(null);
             setUseManualEntry(false);
+            setAllowCredentialSave(false);
           }}
         />
       )}

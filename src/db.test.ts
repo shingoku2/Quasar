@@ -24,6 +24,8 @@ describe('Database Initialization', () => {
     const hostsQuery = queries.find((q: string) => q.includes('CREATE TABLE IF NOT EXISTS hosts'));
 
     expect(hostsQuery).toBeDefined();
-    expect(hostsQuery).toContain('id INTEGER PRIMARY KEY AUTOINCREMENT');
+    expect(hostsQuery).toContain('id TEXT PRIMARY KEY');
+    expect(hostsQuery).toContain('created_at INTEGER NOT NULL');
+    expect(hostsQuery).toContain('updated_at INTEGER NOT NULL');
   });
 });
