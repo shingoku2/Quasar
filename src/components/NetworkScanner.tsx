@@ -30,6 +30,8 @@ export interface ScanProgress {
 }
 
 interface NetworkScannerProps {
+  /** Persisted / last-scan results to show when not scanning (e.g. from get_discovered_hosts on load). */
+  initialResults?: ScanResult[];
   onResults?: (results: ScanResult[]) => void;
   onHostFound?: (host: ScanResult) => void;
   onHostClick?: (host: ScanResult) => void;
@@ -39,6 +41,7 @@ interface NetworkScannerProps {
 const DEFAULT_CIDR = "192.168.1.0/24";
 
 const NetworkScanner: React.FC<NetworkScannerProps> = ({
+  initialResults,
   onResults,
   onHostFound,
   onHostClick,
@@ -102,6 +105,15 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
       if (unlistenError) unlistenError();
     };
   }, [onHostFound]);
+
+  // Show persisted results when not scanning (e.g. after app load). Don't overwrite if we have more results (scan just finished, parent may not have updated yet).
+  useEffect(() => {
+    if (isScanning || !initialResults) return;
+    if (results.length === 0 || initialResults.length >= results.length) {
+      setResults([...initialResults]);
+      resultsRef.current = [...initialResults];
+    }
+  }, [initialResults, isScanning]);
 
   // Finalize results on completion
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import AlertFeed from './AlertFeed';
@@ -9,6 +9,35 @@ import QuickConnectWidget from './QuickConnectWidget';
 import AddHostDialog, { AddHostInitialValues } from '../AddHostDialog';
 import { ViewId } from '../Sidebar';
 import { List, Network as NetworkIcon } from 'lucide-react';
+
+/** Backend discovered host shape (get_discovered_hosts). */
+interface PersistedDiscoveredHost {
+  id: string;
+  ip: string;
+  hostname?: string | null;
+  mac_address?: string | null;
+  device_type: string;
+  vendor?: string | null;
+  first_seen: number;
+  last_seen: number;
+  scan_count: number;
+  services: Array<{ port: number; protocol: string; service: string; version?: string | null }>;
+}
+
+function persistedToScanResult(h: PersistedDiscoveredHost): ScanResult {
+  const open_ports = h.services.map((s) => s.port);
+  return {
+    ip: h.ip,
+    is_alive: true,
+    open_ports,
+    hostname: h.hostname ?? undefined,
+    mac_address: h.mac_address ?? undefined,
+    device_type: h.device_type,
+    services: h.services.map((s) => ({ port: s.port, protocol: s.protocol, service: s.service, version: s.version ?? undefined })),
+    vendor: h.vendor ?? undefined,
+    last_seen: h.last_seen,
+  };
+}
 
 interface SavedHost {
   id: number;
@@ -28,6 +57,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [selectedHost, setSelectedHost] = useState<ScanResult | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'topology'>('topology');
   const [hostToSave, setHostToSave] = useState<AddHostInitialValues | null>(null);
+
+  // Load last scan from DB so the user sees persisted results without running a new scan
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await invoke<PersistedDiscoveredHost[] | undefined>('get_discovered_hosts', { limit: 500 });
+        const arr = Array.isArray(list) ? list : [];
+        if (!cancelled) setDiscoveredHosts(arr.map(persistedToScanResult));
+      } catch {
+        if (!cancelled) setDiscoveredHosts([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleQuickConnect = async (host: SavedHost) => {
     onNavigate('remote');
@@ -116,7 +160,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           <div className="flex-1 min-h-0 overflow-hidden">
             {viewMode === 'list' ? (
               <div className="h-full overflow-y-auto no-scrollbar">
-                <NetworkScanner 
+                <NetworkScanner
+                  initialResults={discoveredHosts}
+                  onResults={setDiscoveredHosts}
                   onHostFound={(host) => {
                     setDiscoveredHosts(prev => {
                       if (prev.some(h => h.ip === host.ip)) return prev;
