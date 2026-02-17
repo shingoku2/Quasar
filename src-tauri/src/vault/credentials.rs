@@ -180,35 +180,35 @@ impl CredentialManager {
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
         let credential = stmt.query_row([credential_id], |row| {
-            let encrypted_password: Vec<u8> = row.get(3)?;
-            let nonce_vec: Vec<u8> = row.get(4)?;
-            let tag_vec: Vec<u8> = row.get(5)?;
+            let encrypted_password: Option<Vec<u8>> = row.get(3)?;
+            let nonce_vec: Option<Vec<u8>> = row.get(4)?;
+            let tag_vec: Option<Vec<u8>> = row.get(5)?;
 
-            if nonce_vec.len() != 12 {
-                return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Invalid nonce length: expected 12, got {}", nonce_vec.len()),
-                ))));
-            }
-
-            if tag_vec.len() != 16 {
-                return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Invalid auth tag length: expected 16, got {}", tag_vec.len()),
-                ))));
-            }
-
-            let mut nonce = [0u8; 12];
-            let mut tag = [0u8; 16];
-            nonce.copy_from_slice(&nonce_vec);
-            tag.copy_from_slice(&tag_vec);
-
-            // Decrypt password
-            let decrypted = crypto::decrypt(&encrypted_password, master_key, &nonce, &tag)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
-
-            let password = String::from_utf8(decrypted)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+            let password = match (&encrypted_password, &nonce_vec, &tag_vec) {
+                (None, _, _) | (_, None, _) | (_, _, None) => String::new(),
+                (Some(ep), Some(n), Some(t)) => {
+                    if n.len() != 12 {
+                        return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("Invalid nonce length: expected 12, got {}", n.len()),
+                        ))));
+                    }
+                    if t.len() != 16 {
+                        return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("Invalid auth tag length: expected 16, got {}", t.len()),
+                        ))));
+                    }
+                    let mut nonce = [0u8; 12];
+                    let mut tag = [0u8; 16];
+                    nonce.copy_from_slice(n);
+                    tag.copy_from_slice(t);
+                    let decrypted = crypto::decrypt(ep, master_key, &nonce, &tag)
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+                    String::from_utf8(decrypted)
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
+                }
+            };
 
             // Optional SSH key fields (columns 13..20; may be NULL if migration 008 not run or password-only cred)
             let key_path: Option<String> = row.get(13).ok().flatten();
@@ -320,12 +320,19 @@ impl CredentialManager {
         }
 
         if let Some(p) = password {
-            let password_bytes = p.as_bytes();
-            let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
-            conn.execute(
-                "UPDATE credentials SET encrypted_password = ?1, nonce = ?2, tag = ?3, updated_at = ?4 WHERE id = ?5",
-                rusqlite::params![ciphertext, nonce.to_vec(), tag.to_vec(), now, credential_id],
-            ).map_err(|e| format!("Failed to update credential password: {}", e))?;
+            if p.is_empty() {
+                conn.execute(
+                    "UPDATE credentials SET encrypted_password = NULL, nonce = NULL, tag = NULL, updated_at = ?1 WHERE id = ?2",
+                    rusqlite::params![now, credential_id],
+                ).map_err(|e| format!("Failed to clear credential password: {}", e))?;
+            } else {
+                let password_bytes = p.as_bytes();
+                let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
+                conn.execute(
+                    "UPDATE credentials SET encrypted_password = ?1, nonce = ?2, tag = ?3, updated_at = ?4 WHERE id = ?5",
+                    rusqlite::params![ciphertext, nonce.to_vec(), tag.to_vec(), now, credential_id],
+                ).map_err(|e| format!("Failed to update credential password: {}", e))?;
+            }
         }
 
         if let Some(m) = metadata {

@@ -24,7 +24,7 @@ use rusqlite_migration::{Migrations, M};
 use errors::sanitize_error;
 use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -35,6 +35,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/006_discovered_hosts.sql")),
         M::up(include_str!("../migrations/007_monitoring_host_credential.sql")),
         M::up(include_str!("../migrations/008_ssh_key_credentials.sql")),
+        M::up(include_str!("../migrations/009_nullable_password.sql")),
     ])
 });
 
