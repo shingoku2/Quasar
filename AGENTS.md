@@ -576,100 +576,59 @@ Complete visual overhaul to match new Quasar design mockup. Shifted from gray/bl
 ## Comprehensive Code Review Findings (February 2, 2026)
 
 ### Overview
-Conducted thorough code review of entire codebase focusing on potential bugs, security issues, and code quality. Found **8 bugs** (3 critical, 3 high severity, 2 medium severity) requiring immediate attention.
+Code review identified 8 bugs (3 critical, 3 high, 2 medium). **Issues 1–7 have been fixed** in the codebase. Remaining items (vault error context, logging) are optional polish.
 
-### Critical Issues Identified (NOT YET FIXED)
+### Critical Issues — FIXED ✅
 
-#### 1. Credential Re-encryption Transaction Bug ⚠️ **DATA LOSS RISK**
-- **Location**: `src-tauri/src/vault.rs:314-350` (`change_master_password` function)
-- **Severity**: CRITICAL
-- **Issue**: During master password change, credential re-encryption is NOT transactional
-  - `delete_credential()` and `add_credential()` open separate DB connections
-  - Operations execute OUTSIDE the transaction scope
-  - Transaction only updates password hash/salt, not actual credentials
-  - If `add_credential()` fails after `delete_credential()` succeeds, credentials are permanently lost
-- **Impact**: User data loss during password change operation
-- **Status**: Documented, fix planned for Phase 1.1
-- **Fix Required**: Refactor to use transaction-aware methods that share the same connection
+#### 1. Credential Re-encryption Transaction Bug ✅
+- **Location**: `src-tauri/src/vault.rs` (`change_master_password`)
+- **Fix**: Uses single DB connection and a transaction; re-encryption via `delete_credential_tx` / `add_credential_tx` within the same transaction. No credential data loss on failure.
 
-#### 2. SSH/SFTP Session Resource Leaks
-- **Location**: `src-tauri/src/sftp.rs` (all 4 functions), `src-tauri/src/ssh_exec.rs` (all 3 functions)
-- **Severity**: CRITICAL
-- **Issue**: SSH sessions not explicitly closed/disconnected
-  - Relies only on Drop trait for cleanup
-  - No explicit `session.disconnect()` calls
-  - Resources not freed immediately on error paths
-- **Impact**: Connection leaks under high load, server resource exhaustion
-- **Status**: Documented, fix planned for Phase 1.2
-- **Fix Required**: Add explicit session cleanup with RAII guard pattern
+#### 2. SSH/SFTP Session Resource Leaks ✅
+- **Location**: `src-tauri/src/sftp.rs`, `src-tauri/src/ssh_exec.rs`
+- **Fix**: All code paths call `session.disconnect(russh::Disconnect::ByApplication, "", "en").await` before return (including error paths). No reliance on Drop alone.
 
-#### 3. Monitoring Task Panic on Initialization Failure
-- **Location**: `src-tauri/src/monitoring.rs:663-727` (`start_monitoring_task` function)
-- **Severity**: CRITICAL
-- **Issue**: Uses `.expect()` for critical initialization
-  - `app_data_dir().expect()` - panics if directory unavailable
-  - `to_str().expect()` - panics on invalid UTF-8 path
-  - `MetricsStore::new().expect()` - panics if DB fails
-  - Panic kills entire monitoring task permanently
-- **Impact**: Silent failure of entire monitoring system, no metrics collection
-- **Status**: Documented, fix planned for Phase 1.3
-- **Fix Required**: Replace `.expect()` with proper error handling and graceful degradation
+#### 3. Monitoring Task Panic on Initialization Failure ✅
+- **Location**: `src-tauri/src/monitoring.rs` (`start_monitoring_task`)
+- **Fix**: Initialization uses `match` on `app_data_dir()`, path `to_str()`, and `MetricsStore::new()`. Failures are logged with `error!`/`warn!` and the task continues with `metrics_store = None` (persistence disabled) instead of panicking.
 
-### High Severity Issues Identified (NOT YET FIXED)
+### High Severity Issues — FIXED ✅
 
-#### 4. Unsafe .unwrap() in Production Code
-- **Location**: `src-tauri/src/vault.rs:91`
-- **Severity**: HIGH
-- **Issue**: `result.is_ok() && result.unwrap() == "true"` - redundant check with panic risk
-- **Impact**: Potential panic if logic changes
-- **Status**: Documented, fix planned for Phase 2.1
-- **Fix Required**: Use `matches!(result, Ok(val) if val == "true")`
+#### 4. Unsafe .unwrap() in Production Code ✅
+- **Location**: `src-tauri/src/vault.rs` (`is_initialized`)
+- **Fix**: Replaced with `matches!(result, Ok(val) if val == "true")`.
 
-#### 5. SSH Metrics Tuple Unpacking Bug
-- **Location**: `src-tauri/src/ssh_exec.rs:207-231` (`get_system_metrics` function)
-- **Severity**: HIGH
-- **Issue**: `.unzip()` on `Option<(u64, u64)>` produces incorrect nested Options
-  - Creates `(Option<u64>, Option<u64>)` instead of extracting values
-  - Memory and disk metrics may be incorrectly parsed
-- **Impact**: Incorrect system metrics, potential None values when data exists
-- **Status**: Documented, fix planned for Phase 2.2
-- **Fix Required**: Remove `.unzip()`, handle tuple directly
+#### 5. SSH Metrics Tuple Unpacking Bug ✅
+- **Location**: `src-tauri/src/ssh_exec.rs` (`get_system_metrics`)
+- **Fix**: Memory and disk parsing use `.and_then(...).map(...).unwrap_or((None, None))`; no incorrect `.unzip()` on `Option<(u64, u64)>`.
 
-#### 6. Hardcoded Timeout Ignores Parameter
-- **Location**: `src-tauri/src/ssh_exec.rs:148-149` (`execute_ssh_commands_batch` function)
-- **Severity**: HIGH
-- **Issue**: Function accepts `timeout_secs` parameter but uses hardcoded 10 seconds
-- **Impact**: Commands may timeout prematurely, inconsistent behavior
-- **Status**: Documented, fix planned for Phase 2.3
-- **Fix Required**: Use `timeout_secs` parameter or calculate per-command timeout
+#### 6. Hardcoded Timeout Ignores Parameter ✅
+- **Location**: `src-tauri/src/ssh_exec.rs` (`execute_ssh_commands_batch`)
+- **Fix**: Uses `timeout_secs` for connection timeout and per-command timeout (`(timeout_secs / num_commands).max(5)`).
 
-### Medium Severity Issues Identified (NOT YET FIXED)
+### Medium Severity Issues
 
-#### 7. Potential Integer Overflow in Disk Calculation
-- **Location**: `src-tauri/src/monitoring.rs:280-298` (`calculate_disk_space` function)
-- **Severity**: MEDIUM
-- **Issue**: Summing disk space with `+=` can overflow on extreme configurations
-- **Impact**: Incorrect disk metrics on systems with many large disks
-- **Status**: Documented, fix planned for Phase 3.1
-- **Fix Required**: Use `saturating_add()` instead of `+=`
+#### 7. Potential Integer Overflow in Disk Calculation ✅
+- **Location**: `src-tauri/src/monitoring.rs` (`calculate_disk_space`)
+- **Fix**: Uses `saturating_add()` and `saturating_sub()` for all disk space sums.
 
-#### 8. Missing Error Context in Vault Operations
-- **Location**: `src-tauri/src/vault.rs` (multiple locations)
-- **Severity**: MEDIUM
-- **Issue**: Generic error messages lack operation context
-  - Example: "Failed to store password hash" doesn't specify which setting
-- **Impact**: Difficult to diagnose production issues
-- **Status**: Documented, fix planned for Phase 3.2
-- **Fix Required**: Add operation context to all error messages
+#### 8. Missing Error Context in Vault Operations (Optional)
+- **Location**: `src-tauri/src/vault.rs`
+- **Issue**: Generic error messages could include more operation context for diagnostics.
+- **Status**: Low priority; improve when touching vault error paths.
 
-### Code Quality Issues Identified
+### Code Quality (Optional)
 
 #### Production Code Using println! for Logging
-- **Location**: `src-tauri/src/monitoring.rs:690`
-- **Issue**: Uses `println!` and `eprintln!` instead of proper logging framework
-- **Impact**: No log levels, no structured logging, harder to debug production
-- **Status**: Documented, fix planned for Phase 4.1
-- **Fix Required**: Add `log` crate, replace with `log::debug!`, `log::error!`, etc.
+- **Location**: `src-tauri/src/monitoring.rs`
+- **Status**: Monitoring now uses `log::error!` / `log::warn!` for init failures. Any remaining `println!`/`eprintln!` in this file can be migrated to `log` when convenient.
+
+### Additional Fix (February 2026)
+
+#### mDNS Discovery Panic on Daemon Creation ✅
+- **Location**: `src-tauri/src/discovery.rs`
+- **Issue**: `ServiceDaemon::new().expect(...)` could panic the discovery thread if the daemon failed to create (e.g. no multicast support).
+- **Fix**: Replaced with `match ServiceDaemon::new() { Ok(d) => d, Err(e) => { error!("..."); return; } }` so the thread exits gracefully and logs the error.
 
 #### Test Code Quality (Acceptable)
 - **Location**: Multiple test modules
@@ -696,9 +655,7 @@ Conducted thorough code review of entire codebase focusing on potential bugs, se
 ### Missing/Incorrect Documentation
 
 #### Automation Engine Reference
-- **Issue**: `AGENTS.md` references `src-tauri/src/automation/engine.rs`
-- **Reality**: This file/directory does not exist in current codebase
-- **Status**: Needs documentation update or implementation
+- **Clarification**: The path `src-tauri/src/automation/engine.rs` does not exist in the current codebase. Automation/workflow execution is implemented via `ssh_exec.rs` and `sftp.rs` (Tauri commands). Any references to an automation engine in this repo refer to that design; a separate engine module was archived or not implemented.
 
 ### Testing Gaps Identified
 
