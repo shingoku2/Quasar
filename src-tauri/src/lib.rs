@@ -16,13 +16,14 @@ mod validation;
 
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use log::error;
 use rusqlite_migration::{Migrations, M};
 use errors::sanitize_error;
 use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
 
-// Define migrations (001 → 003 → 004 → 005 → 006)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -31,6 +32,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/004_monitoring.sql")),
         M::up(include_str!("../migrations/005_consolidate_credentials.sql")),
         M::up(include_str!("../migrations/006_discovered_hosts.sql")),
+        M::up(include_str!("../migrations/007_monitoring_host_credential.sql")),
     ])
 });
 
@@ -210,6 +212,144 @@ fn delete_discovered_host(
     validate_ip(&ip)?;
     host_tracker.delete_host(&ip)
         .map_err(|e| sanitize_error(e, "database"))
+}
+
+/// Saved remote host from the hosts table (used for remote monitoring).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SavedHost {
+    pub id: String,
+    pub name: String,
+    pub address: String,
+    pub port: i64,
+    pub username: Option<String>,
+    pub protocol: String,
+    /// When set, monitoring will use this vault credential to fetch SSH metrics (CPU, memory, disk).
+    pub credential_id: Option<String>,
+}
+
+/// Result of a reachability/latency check for a saved host; may include SSH metrics when a credential is linked.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RemoteHostMetric {
+    pub id: String,
+    pub name: String,
+    pub address: String,
+    pub port: i64,
+    pub reachable: bool,
+    pub latency_ms: Option<u32>,
+    pub error: Option<String>,
+    /// Present when host has a monitoring credential and vault is unlocked; SSH metrics (CPU, memory, disk).
+    pub metrics: Option<health::HealthMetrics>,
+}
+
+fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join("titan.db");
+    let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
+    let conn = db::open_connection(db_path_str)?;
+    // Join with monitoring_host_credential so we know which credential to use for SSH metrics (if any)
+    let sql = "SELECT h.id, h.name, h.address, h.port, h.username, h.protocol, m.credential_id
+               FROM hosts h
+               LEFT JOIN monitoring_host_credential m ON h.id = m.host_id
+               ORDER BY h.name ASC";
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map([], |row| {
+        Ok(SavedHost {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            address: row.get(2)?,
+            port: row.get::<_, i64>(3)?,
+            username: row.get(4)?,
+            protocol: row.get::<_, String>(5)?,
+            credential_id: row.get::<_, Option<String>>(6).ok().flatten(),
+        })
+    }).map_err(|e| e.to_string())?;
+    let hosts: Vec<SavedHost> = rows.filter_map(|r| r.ok()).collect();
+    Ok(hosts)
+}
+
+/// Resolve hostname to an IP for ping. Returns None if resolution fails.
+fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
+    let port = port as u16;
+    (address, port).to_socket_addrs().ok().and_then(|mut addrs| addrs.next()).map(|sa| sa.ip().to_string())
+}
+
+#[tauri::command]
+async fn get_saved_hosts(app: AppHandle) -> Result<Vec<SavedHost>, String> {
+    get_saved_hosts_from_db(&app).map_err(|e| sanitize_error(e, "database"))
+}
+
+#[tauri::command]
+async fn get_remote_hosts_health(
+    app: AppHandle,
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+) -> Result<Vec<RemoteHostMetric>, String> {
+    let hosts = get_saved_hosts_from_db(&app)?;
+    let mut results = Vec::with_capacity(hosts.len());
+    let master_key = vault_state.get_master_key().await.ok(); // None if vault locked
+
+    for h in hosts {
+        let port_u16 = h.port.max(1).min(65535) as u16;
+        let ping_target = if h.address.parse::<std::net::IpAddr>().is_ok() {
+            Some(h.address.clone())
+        } else {
+            resolve_to_ip(&h.address, h.port)
+        };
+        let (reachable, latency_ms, error, metrics) = match ping_target {
+            Some(ip) => match health::check_ping(&ip).await {
+                Ok(ms) => {
+                    let mut metrics = None;
+                    if let (Some(ref cred_id), Some(ref key)) = (h.credential_id.as_ref(), &master_key) {
+                        if let Ok(cred) = credential_manager.get_credential(key, cred_id) {
+                            let ssh_result = health::check_ssh_health(
+                                app.clone(),
+                                &h.address,
+                                port_u16,
+                                &cred.username,
+                                Some(&cred.password),
+                            ).await;
+                            metrics = ssh_result.metrics;
+                        }
+                    }
+                    (true, Some(ms), None, metrics)
+                }
+                Err(e) => (false, None, Some(e), None),
+            },
+            None => (false, None, Some("Could not resolve hostname".to_string()), None),
+        };
+        results.push(RemoteHostMetric {
+            id: h.id,
+            name: h.name,
+            address: h.address.clone(),
+            port: h.port,
+            reachable,
+            latency_ms,
+            error,
+            metrics,
+        });
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+async fn set_host_monitoring_credential(app: AppHandle, host_id: String, credential_id: Option<String>) -> Result<(), String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join("titan.db");
+    let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
+    let conn = db::open_connection(db_path_str)?;
+    match credential_id.as_deref() {
+        Some(id) if !id.is_empty() => {
+            conn.execute(
+                "INSERT OR REPLACE INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, ?2)",
+                rusqlite::params![host_id, id],
+            ).map_err(|e| e.to_string())?;
+        }
+        _ => {
+            conn.execute("DELETE FROM monitoring_host_credential WHERE host_id = ?1", rusqlite::params![host_id])
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -653,6 +793,8 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 monitoring::start_monitoring_task(app_handle, 5).await;
             });
+
+            // Remote hosts health is polled by the frontend (Monitoring tab) every 30s via get_remote_hosts_health
             
             // Start auto-lock checker task
             let vault_state_clone = app.state::<vault::VaultState>().inner().clone();
@@ -755,6 +897,9 @@ pub fn run() {
             get_host_details,
             search_discovered_hosts,
             delete_discovered_host,
+            get_saved_hosts,
+            get_remote_hosts_health,
+            set_host_monitoring_credential,
             preflight_check,
             check_host_health,
             get_system_metrics,

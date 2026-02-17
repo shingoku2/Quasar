@@ -300,8 +300,39 @@ impl VaultState {
     }
 
     pub async fn get_settings(&self) -> VaultSettings {
-        let inner = self.inner.read().await;
-        inner.settings.clone()
+        let (db_path, in_memory) = {
+            let inner = self.inner.read().await;
+            (inner.db_path.clone(), inner.settings.clone())
+        };
+        // Load authoritative vault_initialized and auto_lock from DB so Settings page
+        // shows correct state after app restart (in-memory settings default to false until init).
+        let conn = match db::open_connection(&db_path) {
+            Ok(c) => c,
+            Err(_) => return in_memory,
+        };
+        let vault_initialized = conn
+            .query_row(
+                "SELECT value FROM vault_settings WHERE key = 'vault_initialized'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .map(|v| v == "true")
+            .unwrap_or(false);
+        let auto_lock_timeout_minutes: u64 = conn
+            .query_row(
+                "SELECT value FROM vault_settings WHERE key = 'auto_lock_timeout'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(15);
+        VaultSettings {
+            vault_initialized,
+            auto_lock_timeout_minutes,
+            require_password_on_credential_use: in_memory.require_password_on_credential_use,
+        }
     }
 
     pub async fn change_master_password(&self, current_password: &str, new_password: &str) -> Result<(), String> {

@@ -3,6 +3,17 @@ import { invoke } from '@tauri-apps/api/core';
 import VaultInitDialog from './VaultInitDialog';
 import VaultUnlockDialog from './VaultUnlockDialog';
 
+/** True if the error indicates Tauri API is not available (e.g. running in a plain browser). */
+function isTauriUnavailableError(error: unknown): boolean {
+  const msg = typeof error === 'string' ? error : error instanceof Error ? error.message : '';
+  return (
+    typeof msg === 'string' &&
+    (msg.includes("reading 'invoke'") ||
+      msg.includes('transformCallback') ||
+      msg.includes('invoke') && msg.includes('undefined'))
+  );
+}
+
 interface VaultContextType {
   isVaultLocked: boolean;
   lockVault: () => Promise<void>;
@@ -65,7 +76,11 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('Failed to check vault status:', error);
-      setInitError(getErrorMessage(error));
+      setInitError(
+        isTauriUnavailableError(error)
+          ? 'This app must be run in Tauri. Use: npm run tauri dev'
+          : getErrorMessage(error)
+      );
       setIsInitialized(null);
     }
   };
@@ -76,17 +91,22 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    
+
     const setupListener = async () => {
-      const { listen } = await import('@tauri-apps/api/event');
-      unlisten = await listen('vault-auto-locked', () => {
-        setIsVaultLocked(true);
-        setShowUnlockDialog(true);
-      });
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        if (typeof listen !== 'function') return;
+        unlisten = await listen('vault-auto-locked', () => {
+          setIsVaultLocked(true);
+          setShowUnlockDialog(true);
+        });
+      } catch {
+        // Not in Tauri or event API unavailable (e.g. plain browser); ignore
+      }
     };
-    
+
     setupListener();
-    
+
     return () => {
       if (unlisten) {
         unlisten();

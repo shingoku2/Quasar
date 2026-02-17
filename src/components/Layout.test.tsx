@@ -19,6 +19,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'get_system_metrics') return Promise.resolve({ cpu_usage_percent: 10, memory_usage_percent: 50, disk_usage_percent: 30, uptime_seconds: 1000, hostname: 'test', os_info: 'test', cpu_count: 4, total_memory_mb: 8192, used_memory_mb: 4096, total_disk_mb: 500000, used_disk_mb: 150000, network_rx_bytes: 0, network_tx_bytes: 0, load_average_1m: 0.5, load_average_5m: 0.5, load_average_15m: 0.5, timestamp: Date.now(), top_cpu_processes: [], top_memory_processes: [] });
     if (cmd === 'get_alert_rules') return Promise.resolve([]);
     if (cmd === 'get_discovered_hosts') return Promise.resolve([]);
+    if (cmd === 'get_remote_hosts_health') return Promise.resolve([]);
     if (cmd === 'list_credentials') return Promise.resolve([]);
     if (cmd === 'get_known_ssh_hosts') return Promise.resolve([]);
     if (cmd === 'get_audit_logs') return Promise.resolve([]);
