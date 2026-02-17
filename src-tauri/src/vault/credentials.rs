@@ -289,6 +289,7 @@ impl CredentialManager {
         username: Option<String>,
         password: Option<String>,
         metadata: Option<String>,
+        credential_type: Option<String>,
         key_path: Option<String>,
         private_key: Option<String>,
         key_passphrase: Option<String>,
@@ -296,6 +297,13 @@ impl CredentialManager {
         let conn = db::open_connection(&self.db_path)?;
 
         let now = chrono::Utc::now().timestamp();
+
+        if let Some(ct) = credential_type {
+            conn.execute(
+                "UPDATE credentials SET credential_type = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![ct, now, credential_id],
+            ).map_err(|e| format!("Failed to update credential type: {}", e))?;
+        }
 
         if let Some(n) = name {
             conn.execute(
@@ -715,6 +723,7 @@ mod tests {
             Some("newuser".to_string()),
             Some("newpass".to_string()),
             None,
+            None, // credential_type
             None,
             None,
             None,
