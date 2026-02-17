@@ -269,7 +269,7 @@ fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
 
 /// Resolve hostname to an IP for ping. Returns None if resolution fails.
 fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
-    let port = port as u16;
+    let port = port.max(1).min(65535) as u16;
     (address, port).to_socket_addrs().ok().and_then(|mut addrs| addrs.next()).map(|sa| sa.ip().to_string())
 }
 
