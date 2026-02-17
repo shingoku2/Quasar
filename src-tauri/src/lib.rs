@@ -296,14 +296,15 @@ async fn get_remote_hosts_health(
             resolve_to_ip(&h.address, h.port)
         };
         let (reachable, latency_ms, error, metrics) = match ping_target {
-            Some(ip) => match health::check_ping(&ip).await {
+            Some(ref ip) => match health::check_ping(ip).await {
                 Ok(ms) => {
                     let mut metrics = None;
                     if let (Some(ref cred_id), Some(ref key)) = (h.credential_id.as_ref(), &master_key) {
                         if let Ok(cred) = credential_manager.get_credential(key, cred_id) {
+                            // Use resolved IP for check_ssh_health so its internal check_ping accepts it (hostnames are rejected by check_ping).
                             let ssh_result = health::check_ssh_health(
                                 app.clone(),
-                                &h.address,
+                                ip,
                                 port_u16,
                                 &cred.username,
                                 Some(&cred.password),
