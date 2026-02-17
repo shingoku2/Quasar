@@ -4,8 +4,19 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **Systematic audit remediation complete (Feb 15, 2026)**.
-- **Last Action:** Fixed scanner stop drain semantics, SSH timeout stale session cleanup, credential nonce/tag panic hardening, and vault init error rendering quality.
+- **Status:** **Credential edit & type-switch fixes complete (Feb 16, 2026)**.
+- **Last Action:** Full credential update flow: SSH key fields on update, credential_type column sync, clear-on-type-switch (password ↔ ssh_key), nullable password columns (migration 009) with explicit clear.
+
+## Credential Edit & Type-Switch Fixes (2026-02-16)
+
+### Summary
+- **update_credential** now supports SSH key fields (`key_path`, `private_key`, `key_passphrase`); frontend sends them when editing SSH key creds; empty string clears.
+- **credential_type** is sent on edit and written to DB so stored type matches UI.
+- **Clearing:** Frontend sends raw form values (empty string) for key fields so backend clears; when switching to password-based, key fields sent as `''`; when switching to SSH key, `password: ''` sent.
+- **Backend clear password:** Migration 009 makes `encrypted_password`, `nonce`, `tag` nullable; `update_credential` sets them to NULL when `password` is empty (no more storing encrypted empty); `get_credential` returns empty password when NULL.
+
+### Verification
+- `cargo test vault::credentials::tests::` — all 7 tests passing.
 
 ## Latest Audit Remediation (2026-02-15)
 
