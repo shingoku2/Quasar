@@ -7,6 +7,53 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Host Management + AI Assistant Context Updates - Complete (February 15, 2026)
+
+#### Overview
+Completed UX and context-quality improvements for Remote host management and the AI Assistant. Focus was on reducing host list duplication friction and giving the assistant direct visibility into real app network state.
+
+#### 1) Remote saved hosts duplicate cleanup UX ✅
+- **Location**: `src/components/HostList.tsx`
+- **Problem**: Duplicate saved hosts could accumulate and required one-by-one manual cleanup.
+- **Fix**:
+  - Added bulk **Remove duplicates** action (group key: `address + protocol + port`).
+  - Kept first occurrence, removed remaining duplicates with confirmation prompt.
+  - Added duplicate count indicator (`X duplicate(s) detected`) next to action button.
+  - Dispatches `hostsUpdated` after cleanup so host views stay in sync.
+- **Verification**:
+  - Ran `npm test -- src/components/HostManagement.test.tsx` (all tests passing).
+
+#### 2) AI assistant naming + network awareness context ✅
+- **Location**: `src/components/AIAssistant.tsx`, `src/components/AIAssistant.test.tsx`
+- **Problem**:
+  - Assistant UI still used legacy Titan naming.
+  - Chat requests lacked app-discovered network context, reducing usefulness for troubleshooting.
+- **Fix**:
+  - Renamed visible AI branding to **Quasar AI Assistant** and input placeholder to **Ask Quasar AI...**.
+  - Added `buildNetworkContextMessage()` to inject a system context message on each chat request.
+  - Context now includes:
+    - scan status (`is_scanning`)
+    - scan progress (`get_scan_progress`)
+    - discovered hosts snapshot (`get_discovered_hosts`)
+    - saved remote hosts snapshot (SQLite `hosts` table)
+    - discovered/saved overlap count by address
+  - Used `Promise.allSettled(...)` so partial failures do not block context generation.
+- **Verification**:
+  - Ran `npm test -- src/components/AIAssistant.test.tsx` (all tests passing).
+
+#### 3) Desktop remote-control direction decision ✅
+- **Decision**: Deferred in-app VNC integration for now.
+- **Rationale**:
+  - SSH covers command-line management needs in Quasar.
+  - Desktop support can be handled by external tooling (RustDesk) without increasing in-app complexity.
+- **Future Option**:
+  - Add one-click "Open in RustDesk" host action if desired.
+
+#### Files Modified
+- `src/components/HostList.tsx`
+- `src/components/AIAssistant.tsx`
+- `src/components/AIAssistant.test.tsx`
+
 ### Systematic Audit Fixes - Complete (February 15, 2026)
 
 #### Overview
