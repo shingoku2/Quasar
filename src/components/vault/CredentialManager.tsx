@@ -308,13 +308,20 @@ const CredentialDialog: React.FC<{
           host: formData.host || null,
           port: formData.port || null,
         });
-        await invoke('update_credential', {
+        const payload: Record<string, unknown> = {
           credentialId: credential.id.toString(),
           name: formData.name,
           username: formData.username,
-          password: formData.password,
           metadata,
-        });
+        };
+        if (formData.credential_type === 'ssh_key') {
+          payload.key_path = formData.key_path || null;
+          payload.private_key = formData.private_key || null;
+          payload.key_passphrase = formData.key_passphrase || null;
+        } else {
+          payload.password = formData.password || null;
+        }
+        await invoke('update_credential', payload);
       } else {
         const isKey = formData.credential_type === 'ssh_key';
         await invoke('add_credential', {

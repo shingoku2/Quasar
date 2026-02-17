@@ -590,10 +590,22 @@ async fn update_credential(
     username: Option<String>,
     password: Option<String>,
     metadata: Option<String>,
+    key_path: Option<String>,
+    private_key: Option<String>,
+    key_passphrase: Option<String>,
 ) -> Result<(), String> {
     let master_key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
-    credential_manager.update_credential(&master_key, &credential_id, name, username, password, metadata)
-        .map_err(|e| sanitize_error(e, "credential"))
+    credential_manager.update_credential(
+        &master_key,
+        &credential_id,
+        name,
+        username,
+        password,
+        metadata,
+        key_path,
+        private_key,
+        key_passphrase,
+    ).map_err(|e| sanitize_error(e, "credential"))
 }
 
 #[tauri::command]
