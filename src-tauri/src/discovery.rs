@@ -15,8 +15,14 @@ pub struct DiscoveredHost {
 
 pub fn start_mdns_discovery(app: AppHandle) {
     thread::spawn(move || {
-        // Create a daemon
-        let mdns = ServiceDaemon::new().expect("Failed to create daemon");
+        // Create a daemon; exit gracefully if creation fails (e.g. no multicast support)
+        let mdns = match ServiceDaemon::new() {
+            Ok(d) => d,
+            Err(e) => {
+                error!("[discovery] Failed to create mDNS daemon: {}", e);
+                return;
+            }
+        };
 
         // Browse for SSH services and generic workstation services
         let service_types = vec!["_ssh._tcp.local.", "_workstation._tcp.local."];
