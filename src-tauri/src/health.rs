@@ -44,28 +44,34 @@ pub async fn check_ping(host: &str) -> Result<u32, String> {
 
 use tauri::AppHandle;
 
-/// Check health via SSH connection and command execution
+/// Check health via SSH connection and command execution.
+/// When `skip_ping` is true, the caller has already verified reachability; only SSH metrics are run (avoids double ping).
 pub async fn check_ssh_health(
     app_handle: AppHandle,
     host: &str,
     port: u16,
     username: &str,
     password: Option<&str>,
+    skip_ping: bool,
 ) -> HealthCheckResult {
-    // First check if host is reachable
-    let ping_result = check_ping(host).await;
-    let latency_ms = ping_result.ok();
-    
-    if latency_ms.is_none() {
-        return HealthCheckResult {
-            host: host.to_string(),
-            reachable: false,
-            latency_ms: None,
-            metrics: None,
-            error: Some("Host unreachable".to_string()),
-        };
-    }
-    
+    let latency_ms = if skip_ping {
+        None
+    } else {
+        let ping_result = check_ping(host).await;
+        match ping_result {
+            Ok(ms) => Some(ms),
+            Err(_) => {
+                return HealthCheckResult {
+                    host: host.to_string(),
+                    reachable: false,
+                    latency_ms: None,
+                    metrics: None,
+                    error: Some("Host unreachable".to_string()),
+                };
+            }
+        }
+    };
+
     // Try to get system metrics via SSH if credentials provided
     let metrics = if let Some(pass) = password {
         match crate::ssh_exec::get_system_metrics(app_handle, host, port, username, pass).await {
@@ -75,7 +81,7 @@ pub async fn check_ssh_health(
     } else {
         None
     };
-    
+
     HealthCheckResult {
         host: host.to_string(),
         reachable: true,
