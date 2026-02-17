@@ -109,7 +109,7 @@ impl SshState {
     }
 }
 
-#[tauri::command]
+/// Connect and authenticate SSH session. Use password and/or key (key_path or private_key PEM).
 pub async fn connect_ssh(
     state: tauri::State<'_, SshState>,
     app_handle: AppHandle,
@@ -118,6 +118,9 @@ pub async fn connect_ssh(
     user: String,
     port: u16,
     password: Option<String>,
+    key_path: Option<String>,
+    private_key: Option<String>,
+    key_passphrase: Option<String>,
 ) -> Result<(), String> {
     // Input validation
     validation::validate_port(port)?;
@@ -147,18 +150,14 @@ pub async fn connect_ssh(
         Err(_) => return Err("Connection timed out".to_string()),
     };
 
-    if let Some(pass) = password {
-        let auth_res = session.authenticate_password(&user, pass).await.map_err(|e| e.to_string())?;
-        let is_success = match auth_res {
-             russh::client::AuthResult::Success => true,
-             _ => false,
-        };
-        if !is_success {
-             return Err("Authentication failed".to_string());
-        }
-    } else {
-        return Err("No password provided".to_string());
-    };
+    crate::ssh_auth::authenticate(
+        &mut session,
+        &user,
+        password.as_deref(),
+        key_path.as_deref(),
+        private_key.as_deref(),
+        key_passphrase.as_deref(),
+    ).await?;
 
     let channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
     channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;

@@ -3,6 +3,7 @@ mod launcher;
 mod discovery;
 mod ai;
 mod ssh;
+mod ssh_auth;
 mod ssh_exec;
 mod sftp;
 mod scanner;
@@ -33,6 +34,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/005_consolidate_credentials.sql")),
         M::up(include_str!("../migrations/006_discovered_hosts.sql")),
         M::up(include_str!("../migrations/007_monitoring_host_credential.sql")),
+        M::up(include_str!("../migrations/008_ssh_key_credentials.sql")),
     ])
 });
 
@@ -54,6 +56,46 @@ fn hash_password(password: String) -> Result<String, String> {
 fn verify_password(password: String, hashed: String) -> Result<bool, String> {
     crypto::verify_password(&password, &hashed)
         .map_err(|e| sanitize_error(e, "credential"))
+}
+
+#[tauri::command]
+async fn connect_ssh(
+    ssh_state: State<'_, ssh::SshState>,
+    app: AppHandle,
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    id: String,
+    host: String,
+    user: String,
+    port: u16,
+    password: Option<String>,
+    credential_id: Option<String>,
+) -> Result<(), String> {
+    let (username, password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
+        let key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
+        let cred = credential_manager.get_credential(&key, &cid).map_err(|e| sanitize_error(e, "credential"))?;
+        (
+            cred.username,
+            if cred.password.is_empty() { None } else { Some(cred.password) },
+            cred.key_path,
+            cred.private_key,
+            cred.key_passphrase,
+        )
+    } else {
+        (user, password, None, None, None)
+    };
+    ssh::connect_ssh(
+        ssh_state,
+        app,
+        id,
+        host,
+        username,
+        port,
+        password,
+        key_path,
+        private_key,
+        key_passphrase,
+    ).await
 }
 
 #[tauri::command]
@@ -301,14 +343,17 @@ async fn get_remote_hosts_health(
                     let mut metrics = None;
                     if let (Some(ref cred_id), Some(ref key)) = (h.credential_id.as_ref(), &master_key) {
                         if let Ok(cred) = credential_manager.get_credential(key, cred_id) {
-                            // Use resolved IP for SSH. skip_ping: true — we already pinged above, so avoid double ping and stale reachability.
+                            let password = if cred.password.is_empty() { None } else { Some(cred.password.as_str()) };
                             let ssh_result = health::check_ssh_health(
                                 app.clone(),
                                 ip,
                                 port_u16,
                                 &cred.username,
-                                Some(&cred.password),
+                                password,
                                 true,
+                                cred.key_path.as_deref(),
+                                cred.private_key.as_deref(),
+                                cred.key_passphrase.as_deref(),
                             ).await;
                             metrics = ssh_result.metrics;
                         }
@@ -375,7 +420,7 @@ async fn check_host_health(
     }
     validate_port(port)?;
     validate_username(&username)?;
-    Ok(health::check_ssh_health(app, &host, port, &username, password.as_deref(), false).await)
+    Ok(health::check_ssh_health(app, &host, port, &username, password.as_deref(), false, None, None, None).await)
 }
 
 #[tauri::command]
@@ -498,6 +543,9 @@ async fn add_credential(
     host: Option<String>,
     port: Option<u16>,
     metadata: Option<String>,
+    key_path: Option<String>,
+    private_key: Option<String>,
+    key_passphrase: Option<String>,
 ) -> Result<String, String> {
     validate_credential_name(&name)?;
     validate_username(&username)?;
@@ -510,7 +558,7 @@ async fn add_credential(
         validate_port(p)?;
     }
     let master_key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
-    credential_manager.add_credential(&master_key, name.clone(), username, password, credential_type, host, port, metadata)
+    credential_manager.add_credential(&master_key, name.clone(), username, password, credential_type, host, port, metadata, key_path, private_key, key_passphrase)
         .map_err(|e| sanitize_error(e, "credential"))
 }
 
@@ -887,7 +935,7 @@ pub fn run() {
             check_ai_status,
             list_ai_models,
             send_ai_chat,
-            ssh::connect_ssh,
+            connect_ssh,
             ssh::write_ssh,
             ssh::resize_ssh,
             ssh::disconnect_ssh,

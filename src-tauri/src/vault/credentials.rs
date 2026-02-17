@@ -9,6 +9,7 @@ pub struct Credential {
     pub id: String,
     pub name: String,
     pub username: String,
+    /// Password for password-based auth; empty when credential_type is ssh_key.
     pub password: String,
     pub credential_type: String,
     pub host: Option<String>,
@@ -17,6 +18,12 @@ pub struct Credential {
     pub created_at: i64,
     pub updated_at: i64,
     pub last_used_at: Option<i64>,
+    /// Path to private key file (e.g. ~/.ssh/id_ed25519). Used when credential_type is ssh_key.
+    pub key_path: Option<String>,
+    /// Decrypted private key PEM. Set when key is stored in DB (encrypted_private_key).
+    pub private_key: Option<String>,
+    /// Passphrase for decrypting the private key (file or stored key).
+    pub key_passphrase: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +59,29 @@ pub struct CredentialManager {
     db_path: String,
 }
 
+fn decrypt_optional_blob(
+    master_key: &[u8; 32],
+    ciphertext: Option<Vec<u8>>,
+    nonce_vec: Option<Vec<u8>>,
+    tag_vec: Option<Vec<u8>>,
+) -> Result<Option<String>, rusqlite::Error> {
+    let (Some(ciphertext), Some(nonce_vec), Some(tag_vec)) = (ciphertext, nonce_vec, tag_vec) else {
+        return Ok(None);
+    };
+    if nonce_vec.len() != 12 || tag_vec.len() != 16 {
+        return Ok(None);
+    }
+    let mut nonce = [0u8; 12];
+    let mut tag = [0u8; 16];
+    nonce.copy_from_slice(&nonce_vec);
+    tag.copy_from_slice(&tag_vec);
+    let decrypted = crypto::decrypt(&ciphertext, master_key, &nonce, &tag)
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+    let s = String::from_utf8(decrypted)
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+    Ok(Some(s))
+}
+
 impl CredentialManager {
     pub fn new(db_path: String) -> Self {
         Self { db_path }
@@ -67,19 +97,38 @@ impl CredentialManager {
         host: Option<String>,
         port: Option<u16>,
         metadata: Option<String>,
+        key_path: Option<String>,
+        private_key: Option<String>,
+        key_passphrase: Option<String>,
     ) -> Result<String, String> {
         let conn = db::open_connection(&self.db_path)?;
 
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().timestamp();
 
-        // Encrypt password
+        // Encrypt password (use empty string for ssh_key when no password)
         let password_bytes = password.as_bytes();
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
+        let (encrypted_key, key_nonce, key_tag) = match &private_key {
+            Some(pk) => {
+                let (c, n, t) = crypto::encrypt(pk.as_bytes(), master_key)?;
+                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
+            }
+            None => (None, None, None),
+        };
+        let (encrypted_kp, kp_nonce, kp_tag) = match &key_passphrase {
+            Some(kp) => {
+                let (c, n, t) = crypto::encrypt(kp.as_bytes(), master_key)?;
+                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
+            }
+            None => (None, None, None),
+        };
+
         conn.execute(
-            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at,
+             key_path, encrypted_private_key, private_key_nonce, private_key_tag, encrypted_key_passphrase, key_passphrase_nonce, key_passphrase_tag)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             rusqlite::params![
                 id,
                 name,
@@ -92,7 +141,14 @@ impl CredentialManager {
                 port,
                 metadata,
                 now,
-                now
+                now,
+                key_path,
+                encrypted_key,
+                key_nonce,
+                key_tag,
+                encrypted_kp,
+                kp_nonce,
+                kp_tag,
             ],
         ).map_err(|e| format!("Failed to insert credential: {}", e))?;
 
@@ -118,7 +174,8 @@ impl CredentialManager {
         let conn = db::open_connection(&self.db_path)?;
 
         let mut stmt = conn.prepare(
-            "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at
+            "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at,
+                    key_path, encrypted_private_key, private_key_nonce, private_key_tag, encrypted_key_passphrase, key_passphrase_nonce, key_passphrase_tag
              FROM credentials WHERE id = ?1"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
@@ -153,6 +210,11 @@ impl CredentialManager {
             let password = String::from_utf8(decrypted)
                 .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
+            // Optional SSH key fields (columns 13..20; may be NULL if migration 008 not run or password-only cred)
+            let key_path: Option<String> = row.get(13).ok().flatten();
+            let private_key = decrypt_optional_blob(master_key, row.get(14).ok().flatten(), row.get(15).ok().flatten(), row.get(16).ok().flatten())?;
+            let key_passphrase = decrypt_optional_blob(master_key, row.get(17).ok().flatten(), row.get(18).ok().flatten(), row.get(19).ok().flatten())?;
+
             Ok(Credential {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -165,6 +227,9 @@ impl CredentialManager {
                 created_at: row.get(10)?,
                 updated_at: row.get(11)?,
                 last_used_at: row.get(12)?,
+                key_path,
+                private_key,
+                key_passphrase,
             })
         }).map_err(|e| format!("Failed to get credential: {}", e))?;
 
@@ -331,17 +396,35 @@ impl CredentialManager {
         host: Option<String>,
         port: Option<u16>,
         metadata: Option<String>,
+        key_path: Option<String>,
+        private_key: Option<String>,
+        key_passphrase: Option<String>,
     ) -> Result<String, String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().timestamp();
 
-        // Encrypt password
         let password_bytes = password.as_bytes();
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
+        let (encrypted_key, key_nonce, key_tag) = match &private_key {
+            Some(pk) => {
+                let (c, n, t) = crypto::encrypt(pk.as_bytes(), master_key)?;
+                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
+            }
+            None => (None, None, None),
+        };
+        let (encrypted_kp, kp_nonce, kp_tag) = match &key_passphrase {
+            Some(kp) => {
+                let (c, n, t) = crypto::encrypt(kp.as_bytes(), master_key)?;
+                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
+            }
+            None => (None, None, None),
+        };
+
         tx.execute(
-            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at,
+             key_path, encrypted_private_key, private_key_nonce, private_key_tag, encrypted_key_passphrase, key_passphrase_nonce, key_passphrase_tag)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             rusqlite::params![
                 id,
                 name,
@@ -354,7 +437,14 @@ impl CredentialManager {
                 port,
                 metadata,
                 now,
-                now
+                now,
+                key_path,
+                encrypted_key,
+                key_nonce,
+                key_tag,
+                encrypted_kp,
+                kp_nonce,
+                kp_tag,
             ],
         ).map_err(|e| format!("Failed to insert credential: {}", e))?;
 
@@ -494,6 +584,16 @@ mod tests {
             )",
             [],
         ).expect("Failed to create credentials table");
+        // Migration 008 columns so get_credential SELECT works
+        conn.execute_batch(
+            "ALTER TABLE credentials ADD COLUMN key_path TEXT;
+             ALTER TABLE credentials ADD COLUMN encrypted_private_key BLOB;
+             ALTER TABLE credentials ADD COLUMN private_key_nonce BLOB;
+             ALTER TABLE credentials ADD COLUMN private_key_tag BLOB;
+             ALTER TABLE credentials ADD COLUMN encrypted_key_passphrase BLOB;
+             ALTER TABLE credentials ADD COLUMN key_passphrase_nonce BLOB;
+             ALTER TABLE credentials ADD COLUMN key_passphrase_tag BLOB;",
+        ).expect("Failed to add key columns");
 
         conn.execute(
             "CREATE TABLE security_audit_log (
@@ -533,6 +633,9 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
+            None,
         ).expect("Failed to add credential");
 
         let credential = manager.get_credential(&master_key, &cred_id)
@@ -551,8 +654,8 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        manager.add_credential(&master_key, "Cred 1".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None).unwrap();
-        manager.add_credential(&master_key, "Cred 2".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None).unwrap();
+        manager.add_credential(&master_key, "Cred 1".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        manager.add_credential(&master_key, "Cred 2".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
 
         let credentials = manager.list_credentials().expect("Failed to list credentials");
 
@@ -568,7 +671,7 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(&master_key, "Original".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None).unwrap();
+        let cred_id = manager.add_credential(&master_key, "Original".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
 
         manager.update_credential(
             &master_key,
@@ -593,7 +696,7 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(&master_key, "To Delete".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None).unwrap();
+        let cred_id = manager.add_credential(&master_key, "To Delete".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
 
         manager.delete_credential(&cred_id).expect("Failed to delete credential");
 
@@ -608,9 +711,9 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        manager.add_credential(&master_key, "GitHub Account".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None).unwrap();
-        manager.add_credential(&master_key, "GitLab Account".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None).unwrap();
-        manager.add_credential(&master_key, "AWS Console".to_string(), "user3".to_string(), "pass3".to_string(), "password".to_string(), None, None, None).unwrap();
+        manager.add_credential(&master_key, "GitHub Account".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        manager.add_credential(&master_key, "GitLab Account".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        manager.add_credential(&master_key, "AWS Console".to_string(), "user3".to_string(), "pass3".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
 
         let results = manager.search_credentials("Git").expect("Failed to search credentials");
 

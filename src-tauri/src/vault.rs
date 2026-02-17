@@ -413,12 +413,15 @@ impl VaultState {
                         credential.host,
                         credential.port,
                         credential.metadata,
+                        credential.key_path,
+                        credential.private_key,
+                        credential.key_passphrase,
                     ));
                 }
                 
                 // Now delete and re-add within transaction
                 let mut first_credential_id: Option<String> = None;
-                for (id, name, username, password, cred_type, host, port, metadata) in re_encrypted_credentials {
+                for (id, name, username, password, cred_type, host, port, metadata, key_path, private_key, key_passphrase) in re_encrypted_credentials {
                     credential_manager.delete_credential_tx(&tx, &id)?;
                     let new_id = credential_manager.add_credential_tx(
                         &tx,
@@ -430,6 +433,9 @@ impl VaultState {
                         host,
                         port,
                         metadata,
+                        key_path,
+                        private_key,
+                        key_passphrase,
                     )?;
                     
                     // Store first credential ID for validation

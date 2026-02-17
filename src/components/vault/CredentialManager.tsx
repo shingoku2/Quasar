@@ -24,6 +24,9 @@ interface CredentialFormData {
   credential_type: string;
   host: string;
   port: number;
+  key_path: string;
+  private_key: string;
+  key_passphrase: string;
 }
 
 const CredentialManager: React.FC = () => {
@@ -279,6 +282,9 @@ const CredentialDialog: React.FC<{
     credential_type: credential?.credential_type || 'ssh',
     host: credential?.host || '',
     port: credential?.port || 22,
+    key_path: (credential as { key_path?: string })?.key_path || '',
+    private_key: (credential as { private_key?: string })?.private_key || '',
+    key_passphrase: (credential as { key_passphrase?: string })?.key_passphrase || '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -288,6 +294,12 @@ const CredentialDialog: React.FC<{
     e.preventDefault();
     setIsSaving(true);
     setError('');
+
+    if (formData.credential_type === 'ssh_key' && !formData.key_path.trim() && !formData.private_key.trim()) {
+      setError('Provide either key path or paste private key PEM.');
+      setIsSaving(false);
+      return;
+    }
 
     try {
       if (credential) {
@@ -304,14 +316,18 @@ const CredentialDialog: React.FC<{
           metadata,
         });
       } else {
+        const isKey = formData.credential_type === 'ssh_key';
         await invoke('add_credential', {
           name: formData.name,
           username: formData.username,
-          password: formData.password,
+          password: isKey ? '' : formData.password,
           credentialType: formData.credential_type,
           host: formData.host || null,
           port: formData.port ? Number(formData.port) : null,
           metadata: null,
+          key_path: isKey && formData.key_path ? formData.key_path : null,
+          private_key: isKey && formData.private_key ? formData.private_key : null,
+          key_passphrase: isKey && formData.key_passphrase ? formData.key_passphrase : null,
         });
       }
       onSaved();
@@ -363,13 +379,49 @@ const CredentialDialog: React.FC<{
               onChange={(e) => setFormData({ ...formData, credential_type: e.target.value })}
               className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
             >
-              <option value="ssh">SSH</option>
+              <option value="ssh">SSH (password)</option>
+              <option value="ssh_key">SSH Key</option>
               <option value="rdp">RDP</option>
               <option value="database">Database</option>
               <option value="api">API</option>
               <option value="other">Other</option>
             </select>
           </div>
+
+          {formData.credential_type === 'ssh_key' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Key path (optional)</label>
+                <input
+                  type="text"
+                  value={formData.key_path}
+                  onChange={(e) => setFormData({ ...formData, key_path: e.target.value })}
+                  className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent"
+                  placeholder="~/.ssh/id_ed25519"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Private key PEM (or use path above)</label>
+                <textarea
+                  value={formData.private_key}
+                  onChange={(e) => setFormData({ ...formData, private_key: e.target.value })}
+                  className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent font-mono text-xs min-h-[120px]"
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
+                  rows={5}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Key passphrase (optional)</label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.key_passphrase}
+                  onChange={(e) => setFormData({ ...formData, key_passphrase: e.target.value })}
+                  className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent"
+                  placeholder="Passphrase for encrypted key"
+                />
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -409,6 +461,7 @@ const CredentialDialog: React.FC<{
             </div>
           </div>
 
+          {formData.credential_type !== 'ssh_key' && (
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
             <div className="relative">
@@ -431,6 +484,7 @@ const CredentialDialog: React.FC<{
               </button>
             </div>
           </div>
+          )}
 
           <div className="pt-2 flex space-x-2">
             <button

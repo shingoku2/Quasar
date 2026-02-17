@@ -82,15 +82,14 @@ pub async fn execute_ssh_command(
     };
 
     let result = async {
-        // Authenticate
-        let auth_res = session.authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication error: {}", e))?;
-        
-        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-        if !is_success {
-            return Err("Authentication failed".to_string());
-        }
+        crate::ssh_auth::authenticate(
+            &mut session,
+            username,
+            Some(password),
+            None,
+            None,
+            None,
+        ).await.map_err(|e| format!("Authentication error: {}", e))?;
 
         // Open channel and execute command
         let mut channel = session.channel_open_session()
@@ -156,7 +155,10 @@ pub async fn execute_ssh_commands_batch(
     host: &str,
     port: u16,
     username: &str,
-    password: &str,
+    password: Option<&str>,
+    key_path: Option<&str>,
+    private_key: Option<&str>,
+    key_passphrase: Option<&str>,
     commands: &[&str],
     timeout_secs: u64,
 ) -> Result<Vec<String>, String> {
@@ -184,14 +186,14 @@ pub async fn execute_ssh_commands_batch(
     };
 
     let result = async {
-        let auth_res = session.authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication error: {}", e))?;
-        
-        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-        if !is_success {
-            return Err("Authentication failed".to_string());
-        }
+        crate::ssh_auth::authenticate(
+            &mut session,
+            username,
+            password,
+            key_path,
+            private_key,
+            key_passphrase,
+        ).await.map_err(|e| format!("Authentication error: {}", e))?;
 
         let mut results = Vec::new();
         
@@ -259,13 +261,16 @@ pub async fn execute_ssh_commands_batch(
     result
 }
 
-/// Get system metrics via SSH commands
+/// Get system metrics via SSH commands (password or key auth).
 pub async fn get_system_metrics(
     app_handle: AppHandle,
     host: &str,
     port: u16,
     username: &str,
-    password: &str,
+    password: Option<&str>,
+    key_path: Option<&str>,
+    private_key: Option<&str>,
+    key_passphrase: Option<&str>,
 ) -> Result<crate::health::HealthMetrics, String> {
     let commands = vec![
         // CPU usage (1 second average)
@@ -280,7 +285,7 @@ pub async fn get_system_metrics(
         "cat /proc/loadavg | awk '{print $1,$2,$3}'",
     ];
 
-    let outputs = execute_ssh_commands_batch(app_handle, host, port, username, password, &commands, 10).await?;
+    let outputs = execute_ssh_commands_batch(app_handle, host, port, username, password, key_path, private_key, key_passphrase, &commands, 10).await?;
 
     // Parse outputs
     let cpu_percent = outputs.get(0)
