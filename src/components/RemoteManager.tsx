@@ -70,7 +70,7 @@ const RemoteManager: React.FC = () => {
     setActiveTabId(id);
   };
 
-  const startSession = (host: Host, password?: string, usernameOverride?: string) => {
+  const startSession = (host: Host, password?: string, usernameOverride?: string, credentialId?: string) => {
     const sessionUsername = usernameOverride ?? host.username;
     if (!sessionUsername) {
       alert('Username is required to start an SSH session.');
@@ -86,7 +86,8 @@ const RemoteManager: React.FC = () => {
         host={host.address}
         port={host.port || 22}
         username={sessionUsername}
-        password={password} 
+        password={password}
+        credentialId={credentialId}
       />
     );
   };
@@ -177,7 +178,7 @@ const RemoteManager: React.FC = () => {
       if (pendingMode === 'sftp') {
         startSftpSession(pendingHost, credential.password, selectedUsername);
       } else {
-        startSession(pendingHost, credential.password, selectedUsername);
+        startSession(pendingHost, credential.password, selectedUsername, credential.id);
       }
       setShowCredentialSelector(false);
       setPendingHost(null);

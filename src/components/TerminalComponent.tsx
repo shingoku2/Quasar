@@ -12,11 +12,13 @@ interface TerminalComponentProps {
     host: string;
     port?: number;
     username: string;
-    password?: string; // Optional for now, might prompt later
+    password?: string;
+    /** When set, backend loads this credential (password or SSH key) for auth. */
+    credentialId?: string;
 }
 
 const TerminalComponent: React.FC<TerminalComponentProps> = ({ 
-    className, sessionId, host, port = 22, username, password 
+    className, sessionId, host, port = 22, username, password, credentialId 
 }) => {
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
@@ -127,7 +129,8 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                     host,
                     port,
                     user: username,
-                    password: password || undefined 
+                    password: password || undefined,
+                    credentialId: credentialId || undefined
                 });
                 
                 if (isMounted) {
@@ -193,7 +196,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             term.dispose();
             xtermRef.current = null;
         };
-    }, [isReady, sessionId, host, port, username, password]);
+    }, [isReady, sessionId, host, port, username, password, credentialId]);
 
     return (
         <div className={`flex flex-col h-full ${className || ''}`} data-testid="terminal-wrapper">

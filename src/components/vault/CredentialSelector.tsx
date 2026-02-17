@@ -45,7 +45,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       
       if (hostAddress) {
         creds = creds.filter(c => 
-          c.credential_type === 'ssh' && 
+          (c.credential_type === 'ssh' || c.credential_type === 'ssh_key') && 
           (!c.host || c.host === hostAddress)
         );
       }
