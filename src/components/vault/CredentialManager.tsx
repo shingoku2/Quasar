@@ -313,11 +313,13 @@ const CredentialDialog: React.FC<{
           name: formData.name,
           username: formData.username,
           metadata,
+          credential_type: formData.credential_type,
         };
         if (formData.credential_type === 'ssh_key') {
-          payload.key_path = formData.key_path || null;
-          payload.private_key = formData.private_key || null;
-          payload.key_passphrase = formData.key_passphrase || null;
+          // Send actual values so empty string clears fields on the backend (null would skip update)
+          payload.key_path = formData.key_path;
+          payload.private_key = formData.private_key;
+          payload.key_passphrase = formData.key_passphrase;
         } else {
           payload.password = formData.password || null;
         }
