@@ -201,6 +201,14 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
+### February 16, 2026 - Credential Edit & Type-Switch Fixes
+- ✅ **update_credential** supports SSH key credentials: `key_path`, `private_key`, `key_passphrase` sent and persisted; empty string clears fields
+- ✅ **credential_type** column updated on edit so DB stays in sync with UI
+- ✅ Clearing key fields when editing works (send empty string; backend clears to NULL)
+- ✅ Switching type clears opposite auth: password→ssh_key clears password columns; ssh_key→password clears key columns
+- ✅ **Migration 009:** `encrypted_password`, `nonce`, `tag` nullable; empty password now clears to NULL (no stale encrypted data)
+- ✅ All vault credential tests passing
+
 ### February 12, 2026 - UI Refactor
 - ✅ Complete visual overhaul to dark navy/cyan aesthetic
 - ✅ Custom Quasar SVG logo and sidebar restyle with vault status badge

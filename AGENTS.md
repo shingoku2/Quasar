@@ -7,6 +7,57 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Credential Edit & Type-Switch Fixes - Complete (February 16, 2026)
+
+#### Overview
+Fixed credential update flow so SSH key and password-based credentials can be edited and type-switched without leaving stale data in the database. The backend now accepts and persists all credential fields on update, updates the `credential_type` column, and explicitly clears the opposite auth path when switching types.
+
+#### 1) update_credential SSH key support ✅
+- **Location**: `src-tauri/src/vault/credentials.rs`, `src-tauri/src/lib.rs`, `src/components/vault/CredentialManager.tsx`
+- **Problem**: Only password-based credentials could be updated; SSH key fields (`key_path`, `private_key`, `key_passphrase`) were not sent or persisted when editing.
+- **Fix**:
+  - Backend `update_credential`: added optional `key_path`, `private_key`, `key_passphrase`; when provided, encrypt and update (empty string clears columns/NULL).
+  - Tauri command: added same optional params and pass-through.
+  - Frontend edit payload: when `credential_type === 'ssh_key'`, sends `key_path`, `private_key`, `key_passphrase` from form (empty string = clear).
+
+#### 2) credential_type column on update ✅
+- **Location**: `src-tauri/src/vault/credentials.rs`, `src-tauri/src/lib.rs`, `src/components/vault/CredentialManager.tsx`
+- **Problem**: Credential type lived only in metadata JSON; DB column was never updated, so stored type could diverge from user selection.
+- **Fix**:
+  - Backend: added `credential_type: Option<String>` to `update_credential`; when `Some`, run `UPDATE credentials SET credential_type = ? ...`.
+  - Frontend: sends `credential_type: formData.credential_type` in edit payload.
+
+#### 3) Clearing fields when editing (empty string vs null) ✅
+- **Location**: `src/components/vault/CredentialManager.tsx`
+- **Problem**: Frontend sent `formData.key_path || null` etc., so cleared fields became `null`; backend skipped updates for `None`, leaving stale key data.
+- **Fix**: For SSH key type, send raw form values (`formData.key_path`, etc.) so empty string is sent; backend already treats `Some("")` as clear.
+
+#### 4) Clearing opposite auth when switching type ✅
+- **Location**: `src/components/vault/CredentialManager.tsx`, `src-tauri/src/vault/credentials.rs`
+- **Problem**: Switching ssh_key → password left encrypted key/passphrase in DB; switching password → ssh_key left encrypted password in DB.
+- **Fix**:
+  - When switching to password-based: frontend sends `key_path: ''`, `private_key: ''`, `key_passphrase: ''` so backend clears key columns.
+  - When switching to SSH key: frontend sends `password: ''`. Backend now treats empty password as clear (see 5).
+
+#### 5) Backend: clear password columns instead of storing encrypted empty ✅
+- **Location**: `src-tauri/src/vault/credentials.rs`, `src-tauri/migrations/009_nullable_password.sql`, `src-tauri/src/lib.rs`
+- **Problem**: Sending `password: ''` caused backend to encrypt and store empty string instead of clearing the password columns (unlike key_path/private_key which clear to NULL).
+- **Fix**:
+  - **Migration 009**: Recreated `credentials` with `encrypted_password`, `nonce`, `tag` nullable (BLOB without NOT NULL).
+  - **update_credential**: When `password` is `Some("")`, run `UPDATE ... SET encrypted_password = NULL, nonce = NULL, tag = NULL`; otherwise encrypt and store as before.
+  - **get_credential**: Read password columns as `Option<Vec<u8>>`; if any is `None`, return `password: String::new()`; otherwise decrypt as before.
+
+#### Files Modified
+- `src-tauri/src/vault/credentials.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/migrations/009_nullable_password.sql` (new)
+- `src/components/vault/CredentialManager.tsx`
+
+#### Verification
+- `cargo test vault::credentials::tests::` — all 7 credential tests passing.
+
+---
+
 ### Host Management + AI Assistant Context Updates - Complete (February 15, 2026)
 
 #### Overview
@@ -986,5 +1037,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 12, 2026*
-*Agent: Cascade (Windsurf IDE)*
+*Last Updated: February 16, 2026*
