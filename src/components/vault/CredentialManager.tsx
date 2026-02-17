@@ -322,6 +322,10 @@ const CredentialDialog: React.FC<{
           payload.key_passphrase = formData.key_passphrase;
         } else {
           payload.password = formData.password || null;
+          // Clear SSH key fields when switching to password-based so stale key data is not left in DB
+          payload.key_path = '';
+          payload.private_key = '';
+          payload.key_passphrase = '';
         }
         await invoke('update_credential', payload);
       } else {
