@@ -165,8 +165,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   onResults={setDiscoveredHosts}
                   onHostFound={(host) => {
                     setDiscoveredHosts(prev => {
-                      if (prev.some(h => h.ip === host.ip)) return prev;
-                      return [...prev, host];
+                      const idx = prev.findIndex(h => h.ip === host.ip);
+                      if (idx === -1) return [...prev, host];
+                      const next = [...prev];
+                      next[idx] = host;
+                      return next;
                     });
                   }}
                   onHostClick={handleHostClick}

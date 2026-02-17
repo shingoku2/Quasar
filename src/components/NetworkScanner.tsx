@@ -106,10 +106,10 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
     };
   }, [onHostFound]);
 
-  // Show persisted results when not scanning (e.g. after app load). Don't overwrite if we have more results (scan just finished, parent may not have updated yet).
+  // When not scanning, keep list in sync with parent (e.g. persisted load, or after a host is deleted). Sync when lengths differ so deletions apply; avoid overwriting when lengths match (e.g. scan just finished, parent not yet re-rendered).
   useEffect(() => {
     if (isScanning || !initialResults) return;
-    if (results.length === 0 || initialResults.length >= results.length) {
+    if (results.length === 0 || initialResults.length !== results.length) {
       setResults([...initialResults]);
       resultsRef.current = [...initialResults];
     }
