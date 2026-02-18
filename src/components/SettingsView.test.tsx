@@ -5,7 +5,17 @@ import '@testing-library/jest-dom';
 
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(() => Promise.resolve()),
+  invoke: vi.fn((cmd: string) => {
+    if (cmd === 'get_app_info') {
+      return Promise.resolve({ version: '0.1.0', platform: 'windows', arch: 'x86_64', app_data_dir: '', db_path: '', db_size_bytes: 0 });
+    }
+    return Promise.resolve();
+  }),
+}));
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  save: vi.fn(() => Promise.resolve(null)),
+  open: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
@@ -54,7 +64,7 @@ describe('SettingsView', () => {
     render(<SettingsView />);
 
     fireEvent.click(screen.getByText('Appearance'));
-    expect(screen.getByText('Dark Theme (Current)')).toBeInTheDocument();
+    expect(screen.getByText('Dark Theme')).toBeInTheDocument();
   });
 
   it('switches to Data & Storage category', () => {

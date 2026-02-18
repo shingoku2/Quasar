@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "tauri:dev": "cross-env CARGO_TARGET_DIR=src-tauri/target npm run tauri dev",
+    "tauri": "cross-env CARGO_TARGET_DIR=target tauri",
     "test": "vitest run"
   },
   "dependencies": {

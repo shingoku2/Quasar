@@ -822,6 +822,73 @@ async fn sftp_remote_exists(
         .map_err(|e| sanitize_error(e, "sftp"))
 }
 
+/// App info for Settings (About, Data tabs).
+#[derive(serde::Serialize)]
+pub struct AppInfo {
+    pub app_data_dir: String,
+    pub db_path: String,
+    pub db_size_bytes: Option<u64>,
+    pub version: String,
+    pub platform: String,
+    pub arch: String,
+}
+
+#[tauri::command]
+fn get_app_info(app: AppHandle) -> Result<AppInfo, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_data_dir = app_dir.to_str().ok_or_else(|| "Invalid app data path".to_string())?.to_string();
+    let db_path = app_dir.join(DB_FILENAME);
+    let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?.to_string();
+    let db_size_bytes = std::fs::metadata(&db_path).ok().and_then(|m| if m.is_file() { Some(m.len()) } else { None });
+    let version = app.package_info().version().to_string();
+    let platform = std::env::consts::OS.to_string();
+    let arch = std::env::consts::ARCH.to_string();
+    Ok(AppInfo {
+        app_data_dir,
+        db_path: db_path_str,
+        db_size_bytes,
+        version,
+        platform,
+        arch,
+    })
+}
+
+#[tauri::command]
+fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join(DB_FILENAME);
+    let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
+    let conn = db::open_connection(db_path_str)?;
+    conn.execute("DELETE FROM metrics_history", [])
+        .map_err(|e| format!("Failed to clear metrics: {}", e))?;
+    conn.execute("DELETE FROM alert_history", [])
+        .map_err(|e| format!("Failed to clear alert history: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let src = app_dir.join(DB_FILENAME);
+    if !src.exists() {
+        return Err("Database file not found".to_string());
+    }
+    std::fs::copy(&src, &dest_path).map_err(|e| format!("Failed to export database: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join(DB_FILENAME);
+    let backup_path = app_dir.join(format!("{}.bak", DB_FILENAME));
+    if db_path.exists() {
+        std::fs::copy(&db_path, &backup_path).map_err(|e| format!("Failed to backup current database: {}", e))?;
+    }
+    std::fs::copy(&source_path, &db_path).map_err(|e| format!("Failed to import database: {}", e))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1012,7 +1079,11 @@ pub fn run() {
             sftp_upload_file,
             sftp_download_file,
             sftp_list_directory,
-            sftp_remote_exists
+            sftp_remote_exists,
+            get_app_info,
+            clear_metrics_data,
+            export_database,
+            import_database
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
