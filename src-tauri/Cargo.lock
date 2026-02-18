@@ -3129,15 +3129,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
-<<<<<<< HEAD
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 name = "minisign-verify"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3264,7 +3261,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
-<<<<<<< HEAD
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3275,8 +3271,6 @@ dependencies = [
 ]
 
 [[package]]
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 name = "ntapi"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4389,10 +4383,7 @@ dependencies = [
  "argon2",
  "chrono",
  "cidr-utils",
-<<<<<<< HEAD
  "cron",
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
  "dns-lookup",
  "env_logger",
  "futures",
