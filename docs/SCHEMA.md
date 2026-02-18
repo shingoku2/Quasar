@@ -21,6 +21,7 @@ The application uses a single SQLite database (`quasar.db`) owned and migrated b
 - **Credentials**: Migrations 005 and 009 ensure a single `credentials` table with encryption and nullable password columns. The backend uses only `credentials`; there is no runtime use of `credentials_new`.
 - **Hosts**: Single `hosts` table (created in 001); frontend and backend both use it for saved hosts.
 - Migrations run in order via `rusqlite_migration`; see `src-tauri/src/lib.rs` for the migration list.
+- **Migrations 011 and 012** are applied by Rust hooks (not raw SQL) so they are idempotent: they add columns to `scheduled_tasks` only if missing (010 may already create the table with those columns on fresh installs).
 
 ## Error handling
 

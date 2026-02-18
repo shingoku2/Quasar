@@ -29,6 +29,15 @@ interface CredentialFormData {
   key_passphrase: string;
 }
 
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+}
+
 const CredentialManager: React.FC = () => {
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +54,7 @@ const CredentialManager: React.FC = () => {
       const creds = await invoke<CredentialSummary[]>('list_credentials');
       setCredentials(creds);
     } catch (err) {
-      setError(err as string || 'Failed to load credentials');
+      setError(getErrorMessage(err, 'Failed to load credentials'));
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +74,7 @@ const CredentialManager: React.FC = () => {
       const results = await invoke<CredentialSummary[]>('search_credentials', { query: searchQuery });
       setCredentials(results);
     } catch (err) {
-      setError(err as string || 'Search failed');
+      setError(getErrorMessage(err, 'Search failed'));
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +87,7 @@ const CredentialManager: React.FC = () => {
       await invoke('delete_credential', { credentialId: id.toString() });
       await loadCredentials();
     } catch (err) {
-      setError(err as string || 'Failed to delete credential');
+      setError(getErrorMessage(err, 'Failed to delete credential'));
     }
   };
 
@@ -87,7 +96,7 @@ const CredentialManager: React.FC = () => {
       const cred = await invoke<Credential>('get_credential', { credentialId: id.toString() });
       setSelectedCredential(cred);
     } catch (err) {
-      setError(err as string || 'Failed to retrieve credential');
+      setError(getErrorMessage(err, 'Failed to retrieve credential'));
     }
   };
 
@@ -96,7 +105,7 @@ const CredentialManager: React.FC = () => {
       const cred = await invoke<Credential>('get_credential', { credentialId: id.toString() });
       setEditingCredential(cred);
     } catch (err) {
-      setError(err as string || 'Failed to retrieve credential');
+      setError(getErrorMessage(err, 'Failed to retrieve credential'));
     }
   };
 
@@ -347,7 +356,7 @@ const CredentialDialog: React.FC<{
       }
       onSaved();
     } catch (err) {
-      setError(err as string || 'Failed to save credential');
+      setError(getErrorMessage(err, 'Failed to save credential'));
     } finally {
       setIsSaving(false);
     }

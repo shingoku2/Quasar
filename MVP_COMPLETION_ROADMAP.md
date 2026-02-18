@@ -63,7 +63,7 @@
 **Files Created/Modified**:
 - `src-tauri/src/sftp.rs` (380 lines) - Complete SFTP client
 - `src-tauri/Cargo.toml` - Added russh-sftp dependency
-- `src-tauri/src/automation/engine.rs` - FileTransfer action implementation
+- `src-tauri/src/scheduler.rs` + `sftp.rs` + `ssh_exec.rs` - Scheduled SFTP/SSH execution (no automation/engine.rs; workflow execution is scheduler + Tauri commands)
 - `src-tauri/src/lib.rs` - Added 4 Tauri commands for frontend
 
 **Features**:

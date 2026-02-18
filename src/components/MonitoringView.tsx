@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
@@ -99,25 +99,24 @@ const MonitoringView: React.FC = () => {
   const [remoteHosts, setRemoteHosts] = useState<RemoteHostMetric[]>([]);
   const [savedHosts, setSavedHosts] = useState<SavedHost[]>([]);
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
+  const unlistenPromiseRef = useRef<Promise<() => void> | null>(null);
 
   useEffect(() => {
-    let unlisten: Promise<() => void> | null = null;
-    
+    unlistenPromiseRef.current = null;
+
     const setupListener = async () => {
       try {
-        unlisten = listen('system-metrics', (event) => {
+        const unlistenPromise = listen('system-metrics', (event) => {
           const data = event.payload as SystemMetrics;
           const timeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          
           setMetrics(data);
-          
           setCpuData(prev => [...prev.slice(-19), { time: timeLabel, value: data.cpu_usage_percent }]);
           setMemData(prev => [...prev.slice(-19), { time: timeLabel, value: data.memory_usage_percent }]);
           setDiskData(prev => [...prev.slice(-19), { time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
           setNetData(prev => [...prev.slice(-19), { time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
         });
-        
-        await unlisten;
+        unlistenPromiseRef.current = unlistenPromise;
+        await unlistenPromise;
       } catch (error) {
         console.error('Error setting up listener:', error);
       }
@@ -137,9 +136,8 @@ const MonitoringView: React.FC = () => {
     });
 
     return () => {
-      if (unlisten) {
-        unlisten.then(fn => fn()).catch(console.error);
-      }
+      unlistenPromiseRef.current?.then(fn => fn()).catch(console.error);
+      unlistenPromiseRef.current = null;
     };
   }, []);
 

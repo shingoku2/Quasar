@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -25,10 +25,12 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
   const [mdnsHosts, setMdnsHosts] = useState<DiscoveredHost[]>([]);
   const [scanHosts, setScanHosts] = useState<DiscoveredHost[]>([]);
   const [scanning, setScanning] = useState(false);
+  const cancelledRef = useRef(false);
+  const unlistenRef = useRef<{ mdns?: () => void; scanComplete?: () => void }>({});
 
   useEffect(() => {
-    let unlistenMdns: (() => void) | undefined;
-    let unlistenScanComplete: (() => void) | undefined;
+    cancelledRef.current = false;
+    unlistenRef.current = {};
 
     const mergeHosts = (hosts: DiscoveredHost[]) => {
       const deduped = new Map<string, DiscoveredHost>();
@@ -60,21 +62,32 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
 
     const startScan = async () => {
       await refreshScanHosts();
+      if (cancelledRef.current) return;
 
       setScanning(true);
       await invoke('start_discovery');
-      
-      unlistenMdns = await listen<DiscoveredHost>('host-discovered', (event) => {
+      if (cancelledRef.current) return;
+
+      const unlistenMdns = await listen<DiscoveredHost>('host-discovered', (event) => {
         setMdnsHosts(prev => {
-          // Avoid duplicates
           if (prev.some(h => h.address === event.payload.address)) return prev;
           return mergeHosts([...prev, event.payload]);
         });
       });
+      if (cancelledRef.current) {
+        unlistenMdns();
+        return;
+      }
+      unlistenRef.current.mdns = unlistenMdns;
 
-      unlistenScanComplete = await listen('scan_complete', async () => {
+      const unlistenScanComplete = await listen('scan_complete', async () => {
         await refreshScanHosts();
       });
+      if (cancelledRef.current) {
+        unlistenScanComplete();
+        return;
+      }
+      unlistenRef.current.scanComplete = unlistenScanComplete;
     };
 
     startScan().catch((error) => {
@@ -83,8 +96,10 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
     });
 
     return () => {
-      if (unlistenMdns) unlistenMdns();
-      if (unlistenScanComplete) unlistenScanComplete();
+      cancelledRef.current = true;
+      unlistenRef.current.mdns?.();
+      unlistenRef.current.scanComplete?.();
+      unlistenRef.current = {};
       setScanning(false);
     };
   }, []);

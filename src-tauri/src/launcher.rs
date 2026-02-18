@@ -1,5 +1,7 @@
 use std::process::Command;
 
+/// Launch external SSH client. Caller must validate `address` (IP or hostname) and `username` (if present)
+/// before calling; see `launch_ssh_external` in lib.rs which validates via validation module.
 #[cfg(target_os = "windows")]
 pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
     let target = if let Some(user) = username {

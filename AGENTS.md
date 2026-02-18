@@ -879,7 +879,7 @@ Comprehensive fix plan created at: `C:\Users\User\.windsurf\plans\quasar-bug-fix
 - **Action**: Documentation corrected in February 2, 2026 code review
 
 #### Minor Issues (Lower Priority)
-- Potential memory leak in terminal resize observer (needs null check)
+- Terminal resize observer: cleanup calls `resizeObserver.disconnect()` in TerminalComponent useEffect return; no leak.
 - Missing timeout handling for vault status check
 - Inconsistent error message formatting across codebase (addressed in Phase 3.2 of fix plan)
 
@@ -904,12 +904,8 @@ Comprehensive fix plan created at: `C:\Users\User\.windsurf\plans\quasar-bug-fix
   - Connected monitoring task to use managed `AlertEngine` instance
 - **Impact**: Alert rules now persist and trigger correctly
 
-#### 3. SSH Server Key Validation (DOCUMENTED)
-- **Issue**: SSH connections accept any server key without verification (MITM vulnerability)
-- **Location**: `src-tauri/src/ssh.rs:19-31`
-- **Status**: Documented with comprehensive TODO comment
-- **Required Fix**: Implement known_hosts storage and key verification
-- **Security Risk**: HIGH - connections are vulnerable to man-in-the-middle attacks
+#### 3. SSH Server Key Validation (IMPLEMENTED)
+- **Status**: Host key verification is implemented via `SshKeyManager` (vault). `ssh.rs`, `ssh_exec.rs`, and `sftp.rs` use `check_server_key` to verify fingerprints; unknown/changed keys emit `ssh-host-key-verification` and block the connection until the user trusts the key.
 
 ---
 

@@ -393,27 +393,27 @@ impl AlertEngine {
     }
 
     pub fn add_rule(&self, rule: AlertRule) {
-        let mut rules = self.rules.lock().unwrap();
+        let mut rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
         rules.retain(|r| r.id != rule.id);
         rules.push(rule);
     }
 
     pub fn remove_rule(&self, rule_id: &str) {
-        let mut rules = self.rules.lock().unwrap();
+        let mut rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
         rules.retain(|r| r.id != rule_id);
     }
 
     pub fn get_rules(&self) -> Vec<AlertRule> {
-        self.rules.lock().unwrap().clone()
+        self.rules.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn evaluate(&self, metrics: &SystemMetrics) -> (Vec<Alert>, Vec<AlertRecovery>) {
-        let rules = self.rules.lock().unwrap();
+        let rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
         let mut new_alerts = Vec::new();
         let mut recoveries = Vec::new();
-        let mut counter = self.alert_counter.lock().unwrap();
-        let mut cooldowns = self.cooldown_tracker.lock().unwrap();
-        let mut alert_states = self.last_alert_state.lock().unwrap();
+        let mut counter = self.alert_counter.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cooldowns = self.cooldown_tracker.lock().unwrap_or_else(|e| e.into_inner());
+        let mut alert_states = self.last_alert_state.lock().unwrap_or_else(|e| e.into_inner());
 
         for rule in rules.iter().filter(|r| r.enabled) {
             let value = match rule.metric {
@@ -470,10 +470,7 @@ impl AlertEngine {
         }
 
         if !new_alerts.is_empty() {
-            let mut active = match self.active_alerts.lock() {
-                Ok(a) => a,
-                Err(_) => return (new_alerts, recoveries),
-            };
+            let mut active = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
             
             // Check capacity before adding to prevent unbounded growth
             let current_len = active.len();
@@ -503,25 +500,21 @@ impl AlertEngine {
 
     #[allow(dead_code)]
     pub fn get_active_alerts(&self) -> Vec<Alert> {
-        self.active_alerts.lock()
-            .map(|a| a.clone())
-            .unwrap_or_default()
+        self.active_alerts.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     #[allow(dead_code)]
     pub fn acknowledge_alert(&self, alert_id: &str) {
-        if let Ok(mut alerts) = self.active_alerts.lock() {
-            if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
-                alert.acknowledged = true;
-            }
+        let mut alerts = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
+            alert.acknowledged = true;
         }
     }
 
     #[allow(dead_code)]
     pub fn dismiss_alert(&self, alert_id: &str) {
-        if let Ok(mut alerts) = self.active_alerts.lock() {
-            alerts.retain(|a| a.id != alert_id);
-        }
+        let mut alerts = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
+        alerts.retain(|a| a.id != alert_id);
     }
 }
 
@@ -541,8 +534,7 @@ impl MetricsStore {
     }
     
     fn get_connection(&self) -> Result<std::sync::MutexGuard<'_, Option<rusqlite::Connection>>, String> {
-        let mut conn_guard = self.conn.lock()
-            .map_err(|e| format!("Failed to acquire connection lock: {}", e))?;
+        let mut conn_guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         
         // Check if connection exists and is valid
         if conn_guard.is_none() {
