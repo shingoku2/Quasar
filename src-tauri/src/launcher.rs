@@ -62,8 +62,6 @@ pub fn launch_rdp(_address: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // These tests are mocked or simple sanity checks as we can't spawn real processes easily in CI/Test
     // without side effects.
     #[test]
