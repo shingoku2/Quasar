@@ -373,6 +373,8 @@ impl MetricsCollector {
 
 use std::collections::HashMap;
 
+/// Alert rule engine. Uses Mutex::lock().unwrap() (no poison recovery) so that
+/// if a thread panics while holding a lock, the poison propagates and concurrency bugs are not masked.
 pub struct AlertEngine {
     rules: Arc<Mutex<Vec<AlertRule>>>,
     active_alerts: Arc<Mutex<Vec<Alert>>>,
@@ -393,27 +395,27 @@ impl AlertEngine {
     }
 
     pub fn add_rule(&self, rule: AlertRule) {
-        let mut rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
+        let mut rules = self.rules.lock().unwrap();
         rules.retain(|r| r.id != rule.id);
         rules.push(rule);
     }
 
     pub fn remove_rule(&self, rule_id: &str) {
-        let mut rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
+        let mut rules = self.rules.lock().unwrap();
         rules.retain(|r| r.id != rule_id);
     }
 
     pub fn get_rules(&self) -> Vec<AlertRule> {
-        self.rules.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.rules.lock().unwrap().clone()
     }
 
     pub fn evaluate(&self, metrics: &SystemMetrics) -> (Vec<Alert>, Vec<AlertRecovery>) {
-        let rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
+        let rules = self.rules.lock().unwrap();
         let mut new_alerts = Vec::new();
         let mut recoveries = Vec::new();
-        let mut counter = self.alert_counter.lock().unwrap_or_else(|e| e.into_inner());
-        let mut cooldowns = self.cooldown_tracker.lock().unwrap_or_else(|e| e.into_inner());
-        let mut alert_states = self.last_alert_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut counter = self.alert_counter.lock().unwrap();
+        let mut cooldowns = self.cooldown_tracker.lock().unwrap();
+        let mut alert_states = self.last_alert_state.lock().unwrap();
 
         for rule in rules.iter().filter(|r| r.enabled) {
             let value = match rule.metric {
@@ -470,7 +472,7 @@ impl AlertEngine {
         }
 
         if !new_alerts.is_empty() {
-            let mut active = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
+            let mut active = self.active_alerts.lock().unwrap();
             
             // Check capacity before adding to prevent unbounded growth
             let current_len = active.len();
@@ -500,12 +502,12 @@ impl AlertEngine {
 
     #[allow(dead_code)]
     pub fn get_active_alerts(&self) -> Vec<Alert> {
-        self.active_alerts.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.active_alerts.lock().unwrap().clone()
     }
 
     #[allow(dead_code)]
     pub fn acknowledge_alert(&self, alert_id: &str) {
-        let mut alerts = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
+        let mut alerts = self.active_alerts.lock().unwrap();
         if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
             alert.acknowledged = true;
         }
@@ -513,7 +515,7 @@ impl AlertEngine {
 
     #[allow(dead_code)]
     pub fn dismiss_alert(&self, alert_id: &str) {
-        let mut alerts = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
+        let mut alerts = self.active_alerts.lock().unwrap();
         alerts.retain(|a| a.id != alert_id);
     }
 }
@@ -533,9 +535,9 @@ impl MetricsStore {
         })
     }
     
+    /// Lock the connection mutex. We use unwrap() (no poison recovery) so poison propagates.
     fn get_connection(&self) -> Result<std::sync::MutexGuard<'_, Option<rusqlite::Connection>>, String> {
-        let mut conn_guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        
+        let mut conn_guard = self.conn.lock().unwrap();
         // Check if connection exists and is valid
         if conn_guard.is_none() {
             let new_conn = rusqlite::Connection::open(&self.db_path)
