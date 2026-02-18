@@ -5,7 +5,6 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use russh::*;
 use russh::keys::PublicKeyBase64;
-use tokio::sync::Mutex as TokioMutex;
 use log::error;
 use crate::crypto;
 use crate::vault::SshKeyManager;
@@ -16,7 +15,6 @@ pub struct Client {
     app_handle: AppHandle,
     host: String,
     port: u16,
-    data_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
 }
 
 impl client::Handler for Client {
@@ -26,15 +24,12 @@ impl client::Handler for Client {
         &mut self,
         server_public_key: &russh::keys::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
-        
-        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
+
         let key_bytes = server_public_key.public_key_bytes();
         let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
-        let key_type = "ssh-key"; // Generic type since russh doesn't expose key type easily
-        
-        // Verify host key
+        let key_type = "ssh-key";
+
         match ssh_key_manager.verify_host_key_by_fingerprint(
             &self.host,
             self.port,
@@ -45,7 +40,6 @@ impl client::Handler for Client {
                 if result.allowed {
                     Ok(true)
                 } else {
-                    // Emit event to frontend for user decision
                     let _ = self.app_handle.emit("ssh-host-key-verification", serde_json::json!({
                         "host": self.host,
                         "port": self.port,
@@ -55,8 +49,6 @@ impl client::Handler for Client {
                         "status": format!("{:?}", result.status),
                         "message": result.message,
                     }));
-                    
-                    // Reject connection - user must explicitly trust via frontend
                     Err(russh::Error::Disconnect)
                 }
             }
@@ -67,26 +59,21 @@ impl client::Handler for Client {
         }
     }
 
-    async fn data(
-        &mut self,
-        _channel: ChannelId,
-        data: &[u8],
-        _session: &mut client::Session,
-    ) -> Result<(), Self::Error> {
-        // Lock-free: send data to the batching task via unbounded channel.
-        // No mutex acquisition here — the session driver is never blocked.
-        let _ = self.data_tx.send(data.to_vec());
-        Ok(())
-    }
+    // NOTE: We intentionally do NOT override data() here. All channel data is
+    // consumed via Channel::wait() in the I/O task, which properly drains the
+    // internal buffer and lets russh manage SSH window adjustments. Overriding
+    // data() without draining wait() causes the internal buffer to fill, the
+    // connection driver to block, and the terminal to hang.
 }
 
 pub struct SshConnection {
-    pub channel: Arc<TokioMutex<russh::Channel<russh::client::Msg>>>,
     pub disconnect_tx: tokio::sync::mpsc::Sender<()>,
-    #[allow(dead_code)] // Accessed via Arc clones in batching/stats tasks
+    #[allow(dead_code)]
     pub bytes_received: Arc<AtomicU64>,
     pub last_activity: Arc<Mutex<Instant>>,
     pub stats_cancel_tx: tokio::sync::mpsc::Sender<()>,
+    pub write_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+    pub resize_tx: tokio::sync::mpsc::UnboundedSender<(u32, u32)>,
 }
 
 pub struct SshState {
@@ -114,34 +101,26 @@ pub async fn connect_ssh(
     private_key: Option<String>,
     key_passphrase: Option<String>,
 ) -> Result<(), String> {
-    // Input validation
     validation::validate_port(port)?;
     validation::validate_username(&user)?;
-    
-    // Validate host (can be IP or hostname)
+
     if validation::validate_ip(&host).is_err() && validation::validate_hostname(&host).is_err() {
         return Err(format!("Invalid host format: {}", host));
     }
-    
-    // Increase window sizes to prevent flow-control stalls on high-output commands
-    let mut config = russh::client::Config::default();
-    config.window_size = 4 * 1024 * 1024;     // 4 MB (default 2 MB)
-    config.maximum_packet_size = 32 * 1024;    // 32 KB — must not exceed TCP max (65535)
-    let config = Arc::new(config);
 
-    // Create the unbounded channel for lock-free data forwarding from the
-    // Handler callback to the batching task.
-    let (data_tx, mut data_rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+    let mut config = russh::client::Config::default();
+    config.window_size = 4 * 1024 * 1024;
+    config.maximum_packet_size = 32 * 1024;
+    let config = Arc::new(config);
 
     let sh = Client {
         app_handle: app_handle.clone(),
         host: host.clone(),
         port,
-        data_tx,
     };
 
     let addr = format!("{}:{}", host, port);
-    
+
     let mut session = match tokio::time::timeout(
         Duration::from_secs(5),
         russh::client::connect(config, addr, sh)
@@ -159,43 +138,92 @@ pub async fn connect_ssh(
         key_passphrase.as_deref(),
     ).await?;
 
-    let channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
+    let mut channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
     channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;
     channel.request_shell(true).await.map_err(|e| e.to_string())?;
 
-    let channel_handle = Arc::new(TokioMutex::new(channel));
-    
     let bytes_received = Arc::new(AtomicU64::new(0));
+
+    let (write_tx, mut write_rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+    let (resize_tx, mut resize_rx) = tokio::sync::mpsc::unbounded_channel::<(u32, u32)>();
+    let (data_tx, mut data_rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
 
     let (disconnect_tx, mut disconnect_rx) = tokio::sync::mpsc::channel(1);
     let (stats_cancel_tx, mut stats_cancel_rx) = tokio::sync::mpsc::channel::<()>(1);
 
-    // Spawn session driver
+    // Session driver: keeps the connection alive and emits close event.
     let id_for_driver = id.clone();
     let app_handle_for_driver = app_handle.clone();
-    
+
     tokio::spawn(async move {
         tokio::select! {
             _ = session => {
                 let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
             }
             _ = disconnect_rx.recv() => {
-                // Dropping 'session' here will close the connection
                 let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
             }
         }
     });
 
-    // Spawn data batching task: reads from the unbounded channel, buffers data,
-    // and flushes to the frontend either when the buffer exceeds 4 KB or every
-    // 8 ms — whichever comes first. This reduces IPC events by 10-100x for
-    // high-throughput commands compared to emitting every SSH chunk individually.
-    let bytes_for_batcher = bytes_received.clone();
+    // Unified I/O task: owns the channel, reads via Channel::wait(), writes via
+    // channel.data(), and handles resizes. Using Channel::wait() is critical —
+    // it drains the channel's internal buffer so russh can send
+    // SSH_MSG_CHANNEL_WINDOW_ADJUST back to the server, preventing stalls.
+    let bytes_for_io = bytes_received.clone();
+    tokio::spawn(async move {
+        let mut pending_writes: Vec<Vec<u8>> = Vec::new();
+        let mut pending_resizes: Vec<(u32, u32)> = Vec::new();
+
+        loop {
+            // Drain pending writes before blocking on wait()
+            while let Some(data) = pending_writes.pop() {
+                if channel.data(data.as_slice()).await.is_err() { return; }
+            }
+            // Drain any freshly-queued writes (non-blocking)
+            while let Ok(data) = write_rx.try_recv() {
+                if channel.data(data.as_slice()).await.is_err() { return; }
+            }
+            // Drain pending + freshly-queued resizes
+            while let Some((cols, rows)) = pending_resizes.pop() {
+                let _ = channel.window_change(cols, rows, 0, 0).await;
+            }
+            while let Ok((cols, rows)) = resize_rx.try_recv() {
+                let _ = channel.window_change(cols, rows, 0, 0).await;
+            }
+
+            tokio::select! {
+                msg = channel.wait() => {
+                    match msg {
+                        Some(ChannelMsg::Data { ref data }) => {
+                            bytes_for_io.fetch_add(data.len() as u64, Ordering::Relaxed);
+                            let _ = data_tx.send(data.to_vec());
+                        }
+                        Some(ChannelMsg::ExtendedData { ref data, .. }) => {
+                            bytes_for_io.fetch_add(data.len() as u64, Ordering::Relaxed);
+                            let _ = data_tx.send(data.to_vec());
+                        }
+                        None => break,
+                        _ => {}
+                    }
+                }
+                Some(data) = write_rx.recv() => {
+                    pending_writes.push(data);
+                }
+                Some(pair) = resize_rx.recv() => {
+                    pending_resizes.push(pair);
+                }
+            }
+        }
+    });
+
+    // Data batching task: buffers small chunks from the I/O task and flushes to
+    // the frontend on newline/CR, when buffer exceeds 4 KB, or every 4 ms.
     let app_handle_for_batcher = app_handle.clone();
     let id_for_batcher = id.clone();
     tokio::spawn(async move {
         let mut buf: Vec<u8> = Vec::with_capacity(8192);
-        let mut flush_interval = tokio::time::interval(Duration::from_millis(8));
+        let mut flush_interval = tokio::time::interval(Duration::from_millis(4));
         flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let event_name = format!("ssh_data_{}", id_for_batcher);
 
@@ -206,20 +234,16 @@ pub async fn connect_ssh(
                 chunk = data_rx.recv() => {
                     match chunk {
                         Some(data) => {
-                            bytes_for_batcher.fetch_add(data.len() as u64, Ordering::Relaxed);
                             buf.extend_from_slice(&data);
-                            // Flush immediately when the buffer is large enough
                             let should_flush_size = buf.len() >= 4096;
-                            // Flush on carriage return so progress lines (e.g. apt "Reading package lists... 0%\r") appear without delay
-                            let should_flush_cr = data.contains(&b'\r');
-                            if should_flush_size || should_flush_cr {
+                            let should_flush_line = data.contains(&b'\r') || data.contains(&b'\n');
+                            if should_flush_size || should_flush_line {
                                 let s = String::from_utf8_lossy(&buf).to_string();
                                 let _ = app_handle_for_batcher.emit(&event_name, s);
                                 buf.clear();
                             }
                         }
                         None => {
-                            // Sender dropped — session ended. Flush remaining data.
                             if !buf.is_empty() {
                                 let s = String::from_utf8_lossy(&buf).to_string();
                                 let _ = app_handle_for_batcher.emit(&event_name, s);
@@ -241,19 +265,19 @@ pub async fn connect_ssh(
     });
 
     let conn = SshConnection {
-        channel: channel_handle,
         disconnect_tx,
         bytes_received: bytes_received.clone(),
         last_activity: Arc::new(Mutex::new(Instant::now())),
         stats_cancel_tx,
+        write_tx,
+        resize_tx,
     };
 
     state.sessions.lock()
         .map_err(|e| format!("Failed to acquire session lock: {}", e))?
         .insert(id.clone(), conn);
 
-    // Spawn stats reporter with cancellation support.
-    // Uses atomic swap to read and reset bytes — no mutex contention.
+    // Stats reporter: emits bandwidth info every second.
     let app_handle_for_stats = app_handle.clone();
     let id_for_stats = id.clone();
     let bytes_for_stats = bytes_received.clone();
@@ -265,7 +289,6 @@ pub async fn connect_ssh(
         loop {
             tokio::select! {
                 _ = interval.tick() => {
-                    // Check if session still exists
                     let exists = {
                         let state = app_handle_for_stats.state::<SshState>();
                         let has_key = match state.sessions.lock() {
@@ -301,7 +324,6 @@ pub async fn connect_ssh(
                     }));
                 }
                 _ = stats_cancel_rx.recv() => {
-                    // Explicitly cancelled - clean exit
                     break;
                 }
             }
@@ -317,21 +339,19 @@ pub async fn write_ssh(
     id: String,
     data: String,
 ) -> Result<(), String> {
-    let (channel_arc, last_activity) = {
+    let (write_tx, last_activity) = {
         let sessions = state.sessions.lock()
             .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
-        sessions.get(&id).map(|c| (c.channel.clone(), c.last_activity.clone())).ok_or("Session not found")?
+        sessions.get(&id)
+            .map(|c| (c.write_tx.clone(), c.last_activity.clone()))
+            .ok_or("Session not found")?
     };
 
-    // Update last activity timestamp
     if let Ok(mut activity) = last_activity.lock() {
         *activity = Instant::now();
     }
 
-    let channel = channel_arc.lock().await;
-    channel.data(data.as_bytes())
-        .await
-        .map_err(|_| "Failed to send data".to_string())?;
+    write_tx.send(data.into_bytes()).map_err(|_| "Session write channel closed".to_string())?;
     Ok(())
 }
 
@@ -342,21 +362,16 @@ pub async fn resize_ssh(
     rows: u32,
     cols: u32,
 ) -> Result<(), String> {
-    let conn = {
+    let resize_tx = {
         let sessions = state.sessions.lock()
             .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
-        sessions.get(&id).map(|c| c.channel.clone())
+        sessions.get(&id)
+            .map(|c| c.resize_tx.clone())
+            .ok_or("Session not found")?
     };
 
-    if let Some(channel_arc) = conn {
-        let channel = channel_arc.lock().await;
-        channel.window_change(cols, rows, 0, 0)
-            .await
-            .map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("Session not found".to_string())
-    }
+    resize_tx.send((cols, rows)).map_err(|_| "Resize channel closed".to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -371,9 +386,7 @@ pub async fn disconnect_ssh(
     };
 
     if let Some(conn) = conn {
-        // Send disconnect signal to background driver
         let _ = conn.disconnect_tx.send(()).await;
-        // Cancel stats reporter task
         let _ = conn.stats_cancel_tx.send(()).await;
         Ok(())
     } else {

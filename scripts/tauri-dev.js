@@ -13,12 +13,13 @@ const targetDir = path.join(projectRoot, 'src-tauri', 'target');
 
 const env = { ...process.env, CARGO_TARGET_DIR: targetDir };
 const args = ['tauri', ...process.argv.slice(2)];
-// Use npx.cmd on Windows so we can pass args safely without shell (avoids DEP0190)
-const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const child = spawn(cmd, args, {
+// On Windows, npx is typically npx.cmd and needs shell to run; without shell we get spawn EINVAL.
+const useShell = process.platform === 'win32';
+const child = spawn('npx', args, {
   stdio: 'inherit',
   env,
   cwd: projectRoot,
+  shell: useShell,
 });
 
 child.on('close', (code) => process.exit(code ?? 1));
