@@ -18,6 +18,8 @@ pub fn sanitize_error(internal_error: String, context: &str) -> String {
         "monitoring" => "Monitoring operation failed. Check logs for details.".to_string(),
         "scanner" => "Network scan operation failed. Check logs for details.".to_string(),
         "credential" => "Credential operation failed. Check logs for details.".to_string(),
+        "scheduled task" | "scheduled tasks" => "Scheduled task operation failed. Check logs for details.".to_string(),
+        "run task" => "Run task failed. Check logs for details.".to_string(),
         _ => "Operation failed. Check logs for details.".to_string(),
     }
 }

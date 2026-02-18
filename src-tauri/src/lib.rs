@@ -21,11 +21,34 @@ use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use log::error;
-use rusqlite_migration::{Migrations, M};
+use rusqlite::Transaction;
+use rusqlite_migration::{HookError, Migrations, M};
 use errors::sanitize_error;
 use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011)
+/// Migration 011 hook: add last_run_status, last_run_error, last_run_output to scheduled_tasks
+/// only if missing (idempotent for DBs where 010 already created the table with these columns).
+fn add_scheduled_task_run_result_columns_if_missing(tx: &Transaction) -> Result<(), HookError> {
+    let names: Vec<String> = tx
+        .prepare("PRAGMA table_info(scheduled_tasks)")
+        .map_err(|e| HookError::Hook(e.to_string()))?
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| HookError::Hook(e.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| HookError::Hook(e.to_string()))?;
+    for (col, sql) in [
+        ("last_run_status", "ALTER TABLE scheduled_tasks ADD COLUMN last_run_status TEXT"),
+        ("last_run_error", "ALTER TABLE scheduled_tasks ADD COLUMN last_run_error TEXT"),
+        ("last_run_output", "ALTER TABLE scheduled_tasks ADD COLUMN last_run_output TEXT"),
+    ] {
+        if !names.contains(&col.to_string()) {
+            tx.execute(sql, []).map_err(|e| HookError::Hook(e.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -38,7 +61,11 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/008_ssh_key_credentials.sql")),
         M::up(include_str!("../migrations/009_nullable_password.sql")),
         M::up(include_str!("../migrations/010_scheduled_tasks.sql")),
-        M::up(include_str!("../migrations/011_scheduled_task_run_result.sql")),
+        M::up_with_hook(
+            "SELECT 1;",
+            add_scheduled_task_run_result_columns_if_missing,
+        ),
+        M::up(include_str!("../migrations/012_scheduled_tasks_sftp.sql")),
     ])
 });
 
@@ -365,8 +392,12 @@ async fn add_scheduled_task(
     command: String,
     credential_id: Option<String>,
     enabled: bool,
+    task_type: Option<String>,
+    local_path: Option<String>,
+    remote_path: Option<String>,
 ) -> Result<String, String> {
     let conn = scheduled_tasks_conn(&app)?;
+    let task_type = task_type.as_deref().unwrap_or("ssh");
     scheduler::add_scheduled_task(
         &conn,
         &name,
@@ -375,6 +406,9 @@ async fn add_scheduled_task(
         &command,
         credential_id.as_deref(),
         enabled,
+        task_type,
+        local_path.as_deref(),
+        remote_path.as_deref(),
     ).map_err(|e| sanitize_error(e, "scheduled task"))
 }
 
@@ -388,8 +422,12 @@ async fn update_scheduled_task(
     command: String,
     credential_id: Option<String>,
     enabled: bool,
+    task_type: Option<String>,
+    local_path: Option<String>,
+    remote_path: Option<String>,
 ) -> Result<(), String> {
     let conn = scheduled_tasks_conn(&app)?;
+    let task_type = task_type.as_deref().unwrap_or("ssh");
     scheduler::update_scheduled_task(
         &conn,
         &id,
@@ -399,6 +437,9 @@ async fn update_scheduled_task(
         &command,
         credential_id.as_deref(),
         enabled,
+        task_type,
+        local_path.as_deref(),
+        remote_path.as_deref(),
     ).map_err(|e| sanitize_error(e, "scheduled task"))
 }
 

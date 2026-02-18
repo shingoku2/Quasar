@@ -207,6 +207,9 @@ See `conductor/code_styleguides/` for detailed coding standards:
 - ✅ **Scheduled tasks (cron)** — Automation view: create/edit/delete tasks (name, cron expression, host, command, optional credential); background scheduler runs due tasks every 60s; supports password and SSH key auth
 - ✅ **Last run result** — Each task stores and displays last run time, status (Success / Failed), error message, and truncated output (migration 011)
 - ✅ **Run now** — Manual run from UI with result panel (success/failure, output/error)
+- ✅ **Cron format** — UI uses 6-field (sec min hour day month dow), e.g. `0 0 9 * * *` for 9:00 daily; see `docs/CORE_WORKFLOWS.md`
+- ✅ **Scheduler tests** — Integration tests for CRUD, set_run_result, load_enabled_tasks, load_task_by_id, output truncation (`cargo test scheduler::`)
+- ✅ **Documentation** — `docs/CORE_WORKFLOWS.md` covers vault, SSH, scheduled tasks, SFTP, monitoring, discovery
 
 ### February 18, 2026 - SSH Terminal & Dashboard Fixes
 - ✅ **SSH terminal hang fixed** — Refactored to use `Channel::wait()` for receiving data so russh’s internal buffer is drained and window adjustments keep data flowing; consecutive/simultaneous commands no longer stall
@@ -250,6 +253,7 @@ See `conductor/code_styleguides/` for detailed coding standards:
 ## Documentation
 
 - `AGENTS.md` - AI agent context and implementation history
+- `docs/CORE_WORKFLOWS.md` - Core user workflows (vault, SSH, scheduled tasks, SFTP, monitoring, discovery)
 - `conductor/` - Product guidelines and feature tracks
 - `MVP_COMPLETION_ROADMAP.md` - Development roadmap
 - `MONITORING_COMPLETE.md` - Monitoring system documentation

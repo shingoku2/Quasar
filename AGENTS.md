@@ -28,6 +28,10 @@ Cron-based scheduled SSH command execution on saved hosts, with Automation UI, l
 - **Sidebar/TopBar/Layout**: New view `automation` (Clock icon, "Automation"); `ScheduledTasksView` rendered when active.
 - **Invoke**: Frontend uses camelCase for command args (Tauri maps to Rust snake_case). Commands: `list_scheduled_tasks`, `get_scheduled_task`, `add_scheduled_task`, `update_scheduled_task`, `remove_scheduled_task`, `run_scheduled_task_now`.
 
+#### 4) Scheduler tests and cron format ✅
+- **Tests** (`scheduler::tests`): In-memory DB with `hosts` + `scheduled_tasks` (010/011). Tests: `test_is_due` (6-field cron), `test_scheduler_crud_and_run_result` (add/list/get/update/set_run_result/remove), `test_load_enabled_tasks_only_returns_enabled`, `test_load_task_by_id`, `test_set_run_result_truncates_long_output`. All 5 pass.
+- **Cron format**: The `cron` crate 0.12 expects **6 fields** (sec min hour day month dow). UI default and placeholder updated to `0 0 9 * * *` (9:00 daily); label "sec min hour day month dow". Existing 5-field expressions never run until edited to 6-field.
+
 #### Files Modified/Added
 - `src-tauri/migrations/010_scheduled_tasks.sql`, `011_scheduled_task_run_result.sql`
 - `src-tauri/src/scheduler.rs` (new)
@@ -36,6 +40,7 @@ Cron-based scheduled SSH command execution on saved hosts, with Automation UI, l
 - `src/components/ScheduledTasksView.tsx` (new)
 - `src/components/Sidebar.tsx`, `TopBar.tsx`, `Layout.tsx` (automation view)
 - Test mocks: `Layout.test.tsx`, `App.test.tsx` (list_scheduled_tasks, get_saved_hosts)
+- `docs/CORE_WORKFLOWS.md` (new) — user-facing core workflows (vault, SSH, scheduled tasks, SFTP, monitoring, discovery; cron quick reference)
 
 ---
 
@@ -864,10 +869,8 @@ Comprehensive fix plan created at: `C:\Users\User\.windsurf\plans\quasar-bug-fix
 
 #### Database Schema Drift (DOCUMENTED)
 - **Location**: `db.ts:21-32` vs `003_security_vault.sql`
-- **Issue**: `credentials` table (frontend) and `credentials_new` table (backend) coexist
-- **Impact**: Potential data inconsistency if both tables are used
-- **Recommendation**: Implement migration or consolidate tables
-- **Status**: Low priority - backend uses `credentials_new` exclusively
+- **Issue**: Historically, `credentials` (frontend) and `credentials_new` (backend) coexisted.
+- **Status**: Resolved - migration 005/009 consolidated to a single `credentials` table; backend uses it exclusively. See `docs/SCHEMA.md`.
 
 #### Automation Engine (CLARIFIED)
 - **Previous Reference**: `automation/engine.rs` mentioned in older documentation
@@ -1003,7 +1006,7 @@ Backend emits events to frontend:
 ### Database Schema
 SQLite database (`quasar.db`) with tables:
 - `hosts` - Remote host inventory
-- `credentials_new` - Encrypted credentials with AES-256-GCM (nonce, tag, metadata)
+- `credentials` - Encrypted credentials with AES-256-GCM (nonce, tag, metadata); consolidated schema (see docs/SCHEMA.md)
 - `vault_settings` - Master password hash, salt, vault configuration
 - `security_audit_log` - Comprehensive audit trail for all credential operations
 - `ssh_known_hosts` - SSH host key verification (ready for Phase 3)
@@ -1125,4 +1128,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 18, 2026 (workflow scheduling, last-run status, Run now)*
+*Last Updated: February 18, 2026 (scheduler tests, cron 6-field, CORE_WORKFLOWS.md)*

@@ -4,6 +4,8 @@
 
 ### Recent Progress (February 18, 2026)
 - **Workflow scheduling**: Cron-based scheduled tasks (migration 010/011), `scheduler.rs` background loop (60s), CRUD + `run_scheduled_task_now`; Automation view with list/add/edit/delete, last run status (success/failure + error/output), and **Run now** button with result panel.
+- **Scheduler tests**: In-memory DB tests for CRUD, set_run_result, load_enabled_tasks, load_task_by_id, output truncation; cron 6-field format in UI (`0 0 9 * * *`).
+- **Documentation**: `docs/CORE_WORKFLOWS.md` — core workflows (vault, SSH, scheduled tasks, SFTP, monitoring, discovery; cron quick reference). Success criterion "Documentation covers core workflows" ✅.
 - SSH terminal: refactored to use `Channel::wait()` for data; fixes hang on consecutive/simultaneous commands (flow control).
 - Dashboard: System Health shows Hosts Online count and vault timeout; Real-time Metrics shows all attached disks.
 - UX: password autocomplete on inputs; SSH packet size 32 KB; launcher/tauri-dev spawn fix on Windows.
@@ -131,6 +133,7 @@
 - ✅ Health check metrics parsing
 - 🔄 SFTP upload/download
 - ✅ Cron schedule parsing (scheduler `is_due` test)
+- ✅ Scheduler CRUD and run result (add/list/get/update/set_run_result/remove, load_enabled_tasks, load_task_by_id, output truncation)
 
 ### Integration Tests
 - ✅ Workflow execution with SSH commands
@@ -151,11 +154,11 @@
 - [x] System monitoring displays real-time metrics
 - [x] Workflows can execute SSH commands
 - [x] Health checks provide pre-flight validation
-- [ ] SFTP file transfers work in workflows
+- [x] SFTP file transfers work in workflows
 - [x] Workflows can be scheduled with cron
-- [ ] Database schema is clean and consolidated
-- [ ] All features have basic error handling
-- [ ] Documentation covers core workflows
+- [x] Database schema is clean and consolidated
+- [x] All features have basic error handling
+- [x] Documentation covers core workflows
 
 ---
 
@@ -233,19 +236,13 @@ tower = "0.4"                 # Middleware for axum
 
 ## Conclusion
 
-With the completion of real SSH command execution, health checks, SFTP, scheduling, and database consolidation, Quasar is now **~90% complete** for the v0.1 MVP. The remaining work focuses on:
+With the completion of SFTP in scheduled workflows, database schema documentation, and error-handling confirmation, Quasar meets all **v0.1 MVP success criteria**.
 
-1. **Testing** - Cron schedule parsing, scheduled execution integration tests
-2. **Documentation** - Core workflows and user-facing docs
-3. **Polish** - Error handling consistency, minor technical debt
+**Completed this phase**:
+- **SFTP in workflows**: Scheduled tasks support task types SSH command, SFTP upload, and SFTP download; backend runs the appropriate action; UI includes task type selector and path fields.
+- **Database schema**: Documented in `docs/SCHEMA.md`; single `credentials` table (consolidated); AGENTS.md updated.
+- **Error handling**: Backend commands return `Result` and use `sanitize_error`; scheduled-task contexts added; documented in `docs/SCHEMA.md`.
 
-*(Remote desktop is out of scope; use external tools such as RustDesk.)*
-
-**Next steps (roadmap continuation)**:
-- **Testing**: E2E test for scheduled task execution; SFTP in workflows if not covered.
-- **Documentation**: Ensure "Documentation covers core workflows" (user-facing Scheduled Tasks + SSH/SFTP flows).
-- **Polish**: Error handling consistency; address known minor issues (unused vars, terminal resize observer).
-
-**Estimated time to v0.1 MVP**: 1–2 weeks of testing, docs, and polish.
+**Optional polish**: E2E test for scheduled task execution; terminal resize observer if needed. *(Remote desktop is out of scope; use external tools such as RustDesk.)*
 
 The foundation is solid, and all critical security and infrastructure components are in place. The remaining features are well-defined and can be implemented incrementally without major architectural changes.

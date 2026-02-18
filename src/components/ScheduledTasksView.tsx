@@ -10,6 +10,9 @@ export interface ScheduledTask {
   command: string;
   credential_id: string | null;
   enabled: boolean;
+  task_type: string;
+  local_path: string | null;
+  remote_path: string | null;
   last_run_at: number | null;
   last_run_status: string | null;
   last_run_error: string | null;
@@ -41,7 +44,7 @@ interface CredentialSummary {
   credential_type: string;
 }
 
-const DEFAULT_CRON = '0 9 * * *'; // 9:00 daily (5-field: min hour day month dow)
+const DEFAULT_CRON = '0 0 9 * * *'; // 9:00 daily (6-field: sec min hour day month dow)
 
 const ScheduledTasksView: React.FC = () => {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -60,6 +63,9 @@ const ScheduledTasksView: React.FC = () => {
     command: '',
     credential_id: '' as string | null,
     enabled: true,
+    task_type: 'ssh' as 'ssh' | 'sftp_upload' | 'sftp_download',
+    local_path: '',
+    remote_path: '',
   });
 
   const load = useCallback(async () => {
@@ -96,37 +102,47 @@ const ScheduledTasksView: React.FC = () => {
       command: '',
       credential_id: null,
       enabled: true,
+      task_type: 'ssh',
+      local_path: '',
+      remote_path: '',
     });
     setEditingId(null);
     setShowForm(false);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.cron_expression.trim() || !form.host_id || !form.command.trim()) {
-      setError('Name, schedule, host, and command are required.');
+    if (!form.name.trim() || !form.cron_expression.trim() || !form.host_id) {
+      setError('Name, schedule, and host are required.');
       return;
     }
+    if (form.task_type === 'ssh') {
+      if (!form.command.trim()) {
+        setError('Command is required for SSH tasks.');
+        return;
+      }
+    } else {
+      if (!form.local_path.trim() || !form.remote_path.trim()) {
+        setError('Local path and remote path are required for file transfer tasks.');
+        return;
+      }
+    }
     setError(null);
+    const payload = {
+      name: form.name.trim(),
+      cronExpression: form.cron_expression.trim(),
+      hostId: form.host_id,
+      command: form.task_type === 'ssh' ? form.command.trim() : '',
+      credentialId: form.credential_id || null,
+      enabled: form.enabled,
+      taskType: form.task_type,
+      localPath: form.task_type !== 'ssh' ? form.local_path.trim() || null : null,
+      remotePath: form.task_type !== 'ssh' ? form.remote_path.trim() || null : null,
+    };
     try {
       if (editingId) {
-        await invoke('update_scheduled_task', {
-          id: editingId,
-          name: form.name.trim(),
-          cronExpression: form.cron_expression.trim(),
-          hostId: form.host_id,
-          command: form.command.trim(),
-          credentialId: form.credential_id || null,
-          enabled: form.enabled,
-        });
+        await invoke('update_scheduled_task', { id: editingId, ...payload });
       } else {
-        await invoke('add_scheduled_task', {
-          name: form.name.trim(),
-          cronExpression: form.cron_expression.trim(),
-          hostId: form.host_id,
-          command: form.command.trim(),
-          credentialId: form.credential_id || null,
-          enabled: form.enabled,
-        });
+        await invoke('add_scheduled_task', payload);
       }
       await load();
       resetForm();
@@ -175,6 +191,9 @@ const ScheduledTasksView: React.FC = () => {
       command: task.command,
       credential_id: task.credential_id || null,
       enabled: task.enabled,
+      task_type: (task.task_type === 'sftp_upload' || task.task_type === 'sftp_download' ? task.task_type : 'ssh') as 'ssh' | 'sftp_upload' | 'sftp_download',
+      local_path: task.local_path ?? '',
+      remote_path: task.remote_path ?? '',
     });
     setEditingId(task.id);
     setShowForm(true);
@@ -202,6 +221,9 @@ const ScheduledTasksView: React.FC = () => {
                 command: '',
                 credential_id: null,
                 enabled: true,
+                task_type: 'ssh',
+                local_path: '',
+                remote_path: '',
               });
               setEditingId(null);
               setShowForm(true);
@@ -264,12 +286,12 @@ const ScheduledTasksView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Cron schedule (min hour day month dow)</label>
+                <label className="block text-xs text-gray-500 mb-1">Cron schedule (sec min hour day month dow)</label>
                 <input
                   value={form.cron_expression}
                   onChange={(e) => setForm((f) => ({ ...f, cron_expression: e.target.value }))}
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
-                  placeholder="0 9 * * *"
+                  placeholder="0 0 9 * * *"
                 />
               </div>
               <div>
@@ -304,16 +326,57 @@ const ScheduledTasksView: React.FC = () => {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Task type</label>
+                <select
+                  value={form.task_type}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      task_type: e.target.value as 'ssh' | 'sftp_upload' | 'sftp_download',
+                    }))
+                  }
+                  className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent"
+                >
+                  <option value="ssh">SSH command</option>
+                  <option value="sftp_upload">Upload file (SFTP)</option>
+                  <option value="sftp_download">Download file (SFTP)</option>
+                </select>
+              </div>
             </div>
-            <div className="mt-4">
-              <label className="block text-xs text-gray-500 mb-1">Command</label>
-              <input
-                value={form.command}
-                onChange={(e) => setForm((f) => ({ ...f, command: e.target.value }))}
-                className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
-                placeholder="e.g. /opt/scripts/backup.sh"
-              />
-            </div>
+            {form.task_type === 'ssh' && (
+              <div className="mt-4">
+                <label className="block text-xs text-gray-500 mb-1">Command</label>
+                <input
+                  value={form.command}
+                  onChange={(e) => setForm((f) => ({ ...f, command: e.target.value }))}
+                  className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
+                  placeholder="e.g. /opt/scripts/backup.sh"
+                />
+              </div>
+            )}
+            {(form.task_type === 'sftp_upload' || form.task_type === 'sftp_download') && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Local path</label>
+                  <input
+                    value={form.local_path}
+                    onChange={(e) => setForm((f) => ({ ...f, local_path: e.target.value }))}
+                    className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
+                    placeholder={form.task_type === 'sftp_upload' ? 'C:\\backup\\file.zip' : 'C:\\downloads\\file.zip'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Remote path</label>
+                  <input
+                    value={form.remote_path}
+                    onChange={(e) => setForm((f) => ({ ...f, remote_path: e.target.value }))}
+                    className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
+                    placeholder="/home/user/file.zip"
+                  />
+                </div>
+              </div>
+            )}
             <div className="mt-4 flex items-center gap-4">
               <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
                 <input
@@ -371,10 +434,21 @@ const ScheduledTasksView: React.FC = () => {
                   <div className="text-sm text-gray-500 mt-1 font-mono">{task.cron_expression}</div>
                   <div className="text-sm text-gray-400 mt-1">
                     Host: {hostName(task.host_id)} · Credential: {credName(task.credential_id)}
+                    {(task.task_type === 'sftp_upload' || task.task_type === 'sftp_download') && (
+                      <span className="ml-2 text-accent">
+                        {task.task_type === 'sftp_upload' ? 'Upload' : 'Download'}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1 truncate font-mono" title={task.command}>
-                    {task.command}
-                  </div>
+                  {(task.task_type === 'sftp_upload' || task.task_type === 'sftp_download') ? (
+                    <div className="text-sm text-gray-500 mt-1 truncate font-mono" title={`${task.local_path ?? ''} → ${task.remote_path ?? ''}`}>
+                      {task.local_path ?? '—'} → {task.remote_path ?? '—'}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 mt-1 truncate font-mono" title={task.command}>
+                      {task.command}
+                    </div>
+                  )}
                   {task.last_run_at != null && (
                     <div className="text-xs mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                       <span className="text-gray-500">Last run: {formatTs(task.last_run_at)}</span>
