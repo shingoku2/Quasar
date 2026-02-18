@@ -28,3 +28,6 @@ dist-ssr
 # Rust / Cargo build output (do not commit)
 **/target/
 src-tauri/src-tauri/
+
+# SQLite temporary files (test runs, etc.)
+**/*.db-journal
