@@ -25,11 +25,8 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'get_audit_logs') return Promise.resolve([]);
     if (cmd === 'get_audit_log_count') return Promise.resolve(0);
     if (cmd === 'get_vault_settings') return Promise.resolve({ auto_lock_timeout: 15 });
-<<<<<<< HEAD
     if (cmd === 'list_scheduled_tasks') return Promise.resolve([]);
     if (cmd === 'get_saved_hosts') return Promise.resolve([]);
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     return Promise.resolve();
   }),
 }));

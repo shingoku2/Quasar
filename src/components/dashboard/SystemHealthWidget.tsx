@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
-<<<<<<< HEAD
 import { Server, AlertTriangle, Cpu, HardDrive, Shield } from 'lucide-react';
-=======
-import { Server, AlertTriangle, Cpu, HardDrive, Shield, MoreHorizontal } from 'lucide-react';
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '../../lib/utils';
 
-<<<<<<< HEAD
 interface DiskInfo {
   name: string;
   mount_point: string;
@@ -18,8 +13,6 @@ interface DiskInfo {
   usage_percent: number;
 }
 
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 interface SystemMetrics {
   cpu_usage_percent: number;
   memory_usage_percent: number;
@@ -29,10 +22,7 @@ interface SystemMetrics {
   disk_used_gb: number;
   disk_total_gb: number;
   uptime_seconds: number;
-<<<<<<< HEAD
   disks?: DiskInfo[];
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 }
 
 interface Alert {
@@ -40,7 +30,6 @@ interface Alert {
   severity: string;
 }
 
-<<<<<<< HEAD
 interface RemoteHostMetric {
   id: string;
   name: string;
@@ -57,8 +46,6 @@ interface VaultSettings {
   vault_initialized: boolean;
 }
 
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 interface SystemHealthWidgetProps {
   variant?: 'metrics' | 'summary';
 }
@@ -66,11 +53,8 @@ interface SystemHealthWidgetProps {
 const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metrics' }) => {
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-<<<<<<< HEAD
   const [onlineHostsCount, setOnlineHostsCount] = useState<number | null>(null);
   const [vaultTimeout, setVaultTimeout] = useState<number | null>(null);
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
   useEffect(() => {
     const unlistenMetrics = listen<SystemMetrics>('system-metrics', (event) => {
@@ -83,7 +67,6 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
 
     invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
 
-<<<<<<< HEAD
     // Fetch online hosts count (only for summary variant)
     if (variant === 'summary') {
       const fetchHostsHealth = async () => {
@@ -105,13 +88,10 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
       };
     }
 
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     return () => {
       unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
     };
-<<<<<<< HEAD
   }, [variant]);
 
   // Fetch vault settings for auto-lock timeout (only for summary variant)
@@ -122,9 +102,6 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
         .catch(() => setVaultTimeout(null));
     }
   }, [variant]);
-=======
-  }, []);
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
   const activeAlertCount = alerts.filter(a => !a.id.includes('acknowledged')).length;
 
@@ -133,24 +110,14 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
       <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">System Health</h3>
-<<<<<<< HEAD
-=======
-          <button className="p-1 text-gray-500 hover:text-gray-300 transition-colors">
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         </div>
         <div className="space-y-2">
           <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
             <Server className="h-4 w-4 text-accent" />
             <span className="text-xs text-gray-300 flex-1">Hosts Online</span>
-<<<<<<< HEAD
             <span className="text-xs font-bold text-white">
               {onlineHostsCount !== null ? onlineHostsCount : '--'}
             </span>
-=======
-            <span className="text-xs font-bold text-white">--</span>
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
           </div>
           <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
             <AlertTriangle className={cn("h-4 w-4", activeAlertCount > 0 ? "text-warning" : "text-gray-500")} />
@@ -160,13 +127,9 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
           <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
             <Shield className="h-4 w-4 text-success" />
             <span className="text-xs text-gray-300 flex-1">Vault Auto-lock</span>
-<<<<<<< HEAD
             <span className="text-xs font-bold text-white">
               {vaultTimeout !== null ? `${vaultTimeout} min` : '--'}
             </span>
-=======
-            <span className="text-xs font-bold text-white">15:00</span>
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
           </div>
         </div>
       </div>
@@ -176,27 +139,16 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
   const cpuPercent = metrics?.cpu_usage_percent ?? 0;
   const memUsed = metrics?.memory_used_mb ? (metrics.memory_used_mb / 1024).toFixed(1) : '0';
   const memTotal = metrics?.memory_total_mb ? (metrics.memory_total_mb / 1024).toFixed(0) : '0';
-<<<<<<< HEAD
   const diskList = (metrics?.disks && metrics.disks.length > 0)
     ? metrics.disks
     : (metrics?.disk_used_gb != null && metrics?.disk_total_gb != null
       ? [{ name: 'Disk', mount_point: '', total_gb: metrics.disk_total_gb, used_gb: metrics.disk_used_gb, free_gb: 0, usage_percent: metrics?.disk_usage_percent ?? 0 }]
       : []);
-=======
-  const diskUsed = metrics?.disk_used_gb?.toFixed(0) ?? '0';
-  const diskTotal = metrics?.disk_total_gb?.toFixed(0) ?? '0';
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
   return (
     <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Real-time Metrics</h3>
-<<<<<<< HEAD
-=======
-        <button className="p-1 text-gray-500 hover:text-gray-300 transition-colors">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       </div>
       <div className="space-y-3">
         {/* CPU */}
@@ -237,7 +189,6 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
             />
           </div>
         </div>
-<<<<<<< HEAD
         {/* Disks: all attached disks */}
         {diskList.length > 0 && diskList.map((disk, idx) => (
           <div key={disk.mount_point || disk.name || idx}>
@@ -263,24 +214,6 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
             </div>
           </div>
         ))}
-=======
-        {/* Disk */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center space-x-2">
-              <HardDrive className="h-3.5 w-3.5 text-accent" />
-              <span className="text-xs text-gray-300">Disk</span>
-            </div>
-            <span className="text-xs font-bold text-white">{diskUsed}GB/{diskTotal}GB</span>
-          </div>
-          <div className="h-1.5 bg-bg-root rounded-full overflow-hidden">
-            <div 
-              className="h-full rounded-full bg-accent transition-all duration-500"
-              style={{ width: `${Math.min(metrics?.disk_usage_percent ?? 0, 100)}%` }}
-            />
-          </div>
-        </div>
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       </div>
     </div>
   );
