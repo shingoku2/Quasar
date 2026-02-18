@@ -1,6 +1,12 @@
 -- Migration 012: Scheduled task type (SSH vs SFTP) and paths for file transfer
 -- Created: February 18, 2026
-
-ALTER TABLE scheduled_tasks ADD COLUMN task_type TEXT NOT NULL DEFAULT 'ssh';
-ALTER TABLE scheduled_tasks ADD COLUMN local_path TEXT;
-ALTER TABLE scheduled_tasks ADD COLUMN remote_path TEXT;
+--
+-- Applied by Rust hook in lib.rs (add_scheduled_tasks_sftp_columns_if_missing)
+-- so it is idempotent: adds columns only if missing (010 now creates the table with
+-- task_type, local_path, remote_path; this migration still runs for DBs that applied
+-- 010 before that change).
+--
+-- Raw SQL equivalent (run only when columns do not exist):
+-- ALTER TABLE scheduled_tasks ADD COLUMN task_type TEXT NOT NULL DEFAULT 'ssh';
+-- ALTER TABLE scheduled_tasks ADD COLUMN local_path TEXT;
+-- ALTER TABLE scheduled_tasks ADD COLUMN remote_path TEXT;

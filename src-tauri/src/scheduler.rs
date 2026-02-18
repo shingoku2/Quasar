@@ -612,7 +612,7 @@ pub fn start_scheduler(app: AppHandle) {
 mod tests {
     use super::*;
 
-    /// In-memory DB with hosts (for FK) and scheduled_tasks schema (010 includes run-result columns + 012).
+    /// In-memory DB with hosts (for FK) and scheduled_tasks schema (010 includes run-result and SFTP columns).
     fn test_conn() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         conn.execute(
@@ -625,8 +625,6 @@ mod tests {
         conn.execute("INSERT INTO hosts (id, address, port, username) VALUES ('host-2', '127.0.0.1', 22, 'root')", [])
             .unwrap();
         conn.execute_batch(include_str!("../migrations/010_scheduled_tasks.sql"))
-            .unwrap();
-        conn.execute_batch(include_str!("../migrations/012_scheduled_tasks_sftp.sql"))
             .unwrap();
         conn
     }

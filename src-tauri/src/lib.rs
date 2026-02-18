@@ -48,6 +48,28 @@ fn add_scheduled_task_run_result_columns_if_missing(tx: &Transaction) -> Result<
     Ok(())
 }
 
+/// Migration 012 hook: add task_type, local_path, remote_path to scheduled_tasks
+/// only if missing (idempotent for DBs where 010 already created the table with these columns).
+fn add_scheduled_tasks_sftp_columns_if_missing(tx: &Transaction) -> Result<(), HookError> {
+    let names: Vec<String> = tx
+        .prepare("PRAGMA table_info(scheduled_tasks)")
+        .map_err(|e| HookError::Hook(e.to_string()))?
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| HookError::Hook(e.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| HookError::Hook(e.to_string()))?;
+    for (col, sql) in [
+        ("task_type", "ALTER TABLE scheduled_tasks ADD COLUMN task_type TEXT NOT NULL DEFAULT 'ssh'"),
+        ("local_path", "ALTER TABLE scheduled_tasks ADD COLUMN local_path TEXT"),
+        ("remote_path", "ALTER TABLE scheduled_tasks ADD COLUMN remote_path TEXT"),
+    ] {
+        if !names.contains(&col.to_string()) {
+            tx.execute(sql, []).map_err(|e| HookError::Hook(e.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
 // Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
@@ -65,7 +87,10 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
             "SELECT 1;",
             add_scheduled_task_run_result_columns_if_missing,
         ),
-        M::up(include_str!("../migrations/012_scheduled_tasks_sftp.sql")),
+        M::up_with_hook(
+            "SELECT 1;",
+            add_scheduled_tasks_sftp_columns_if_missing,
+        ),
     ])
 });
 

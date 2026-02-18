@@ -1,7 +1,7 @@
 -- Migration 010: Scheduled tasks (cron-based SSH command execution)
 -- Created: February 18, 2026
--- Includes last_run_status, last_run_error, last_run_output so set_run_result works
--- even if migration 011 is not yet applied; 011 adds them idempotently for older DBs.
+-- Includes last_run_* so set_run_result works; includes task_type, local_path, remote_path
+-- so scheduler SFTP/SSH branching works. 011 and 012 add these idempotently for older DBs.
 
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
     id TEXT PRIMARY KEY,
@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS scheduled_tasks (
     last_run_output TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
+    task_type TEXT NOT NULL DEFAULT 'ssh',
+    local_path TEXT,
+    remote_path TEXT,
     FOREIGN KEY (host_id) REFERENCES hosts(id)
 );
 
