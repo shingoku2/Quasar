@@ -451,11 +451,6 @@ pub async fn remote_exists(
 
 #[cfg(test)]
 mod tests {
-<<<<<<< HEAD
-=======
-    use super::*;
-
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     #[tokio::test]
     async fn test_sftp_connection_structure() {
         // Note: This test can't easily be run without a mock app handle

@@ -1,10 +1,7 @@
 use std::process::Command;
 
-<<<<<<< HEAD
 /// Launch external SSH client. Caller must validate `address` (IP or hostname) and `username` (if present)
 /// before calling; see `launch_ssh_external` in lib.rs which validates via validation module.
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 #[cfg(target_os = "windows")]
 pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
     let target = if let Some(user) = username {
@@ -67,11 +64,6 @@ pub fn launch_rdp(_address: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-<<<<<<< HEAD
-=======
-    use super::*;
-
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     // These tests are mocked or simple sanity checks as we can't spawn real processes easily in CI/Test
     // without side effects.
     #[test]

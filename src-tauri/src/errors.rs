@@ -18,11 +18,8 @@ pub fn sanitize_error(internal_error: String, context: &str) -> String {
         "monitoring" => "Monitoring operation failed. Check logs for details.".to_string(),
         "scanner" => "Network scan operation failed. Check logs for details.".to_string(),
         "credential" => "Credential operation failed. Check logs for details.".to_string(),
-<<<<<<< HEAD
         "scheduled task" | "scheduled tasks" => "Scheduled task operation failed. Check logs for details.".to_string(),
         "run task" => "Run task failed. Check logs for details.".to_string(),
-=======
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         _ => "Operation failed. Check logs for details.".to_string(),
     }
 }
@@ -33,11 +30,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_error_does_not_leak_internal_details() {
-<<<<<<< HEAD
         let internal = "SQLITE error: no such table: credentials at /home/user/.local/quasar.db".to_string();
-=======
-        let internal = "SQLITE error: no such table: credentials at /home/user/.local/titan.db".to_string();
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         let result = sanitize_error(internal.clone(), "database");
         assert!(!result.contains("SQLITE"));
         assert!(!result.contains("/home/user"));
