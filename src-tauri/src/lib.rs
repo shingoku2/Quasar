@@ -25,7 +25,7 @@ use rusqlite_migration::{Migrations, M};
 use errors::sanitize_error;
 use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -38,6 +38,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/008_ssh_key_credentials.sql")),
         M::up(include_str!("../migrations/009_nullable_password.sql")),
         M::up(include_str!("../migrations/010_scheduled_tasks.sql")),
+        M::up(include_str!("../migrations/011_scheduled_task_run_result.sql")),
     ])
 });
 
@@ -405,6 +406,11 @@ async fn update_scheduled_task(
 async fn remove_scheduled_task(app: AppHandle, id: String) -> Result<(), String> {
     let conn = scheduled_tasks_conn(&app)?;
     scheduler::remove_scheduled_task(&conn, &id).map_err(|e| sanitize_error(e, "scheduled task"))
+}
+
+#[tauri::command]
+async fn run_scheduled_task_now(app: AppHandle, id: String) -> Result<scheduler::TaskRunResult, String> {
+    scheduler::run_scheduled_task_now(&app, &id).await.map_err(|e| sanitize_error(e, "run task"))
 }
 
 #[tauri::command]
@@ -1161,6 +1167,7 @@ pub fn run() {
             add_scheduled_task,
             update_scheduled_task,
             remove_scheduled_task,
+            run_scheduled_task_now,
             get_app_info,
             clear_metrics_data,
             export_database,

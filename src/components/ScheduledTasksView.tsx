@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Clock, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Clock, Plus, Pencil, Trash2, Play } from 'lucide-react';
 
 export interface ScheduledTask {
   id: string;
@@ -11,8 +11,17 @@ export interface ScheduledTask {
   credential_id: string | null;
   enabled: boolean;
   last_run_at: number | null;
+  last_run_status: string | null;
+  last_run_error: string | null;
+  last_run_output: string | null;
   created_at: number;
   updated_at: number;
+}
+
+export interface TaskRunResult {
+  success: boolean;
+  output: string | null;
+  error: string | null;
 }
 
 interface SavedHost {
@@ -42,6 +51,8 @@ const ScheduledTasksView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [lastRunResult, setLastRunResult] = useState<{ taskName: string; success: boolean; output: string | null; error: string | null } | null>(null);
   const [form, setForm] = useState({
     name: '',
     cron_expression: DEFAULT_CRON,
@@ -101,19 +112,19 @@ const ScheduledTasksView: React.FC = () => {
         await invoke('update_scheduled_task', {
           id: editingId,
           name: form.name.trim(),
-          cron_expression: form.cron_expression.trim(),
-          host_id: form.host_id,
+          cronExpression: form.cron_expression.trim(),
+          hostId: form.host_id,
           command: form.command.trim(),
-          credential_id: form.credential_id || null,
+          credentialId: form.credential_id || null,
           enabled: form.enabled,
         });
       } else {
         await invoke('add_scheduled_task', {
           name: form.name.trim(),
-          cron_expression: form.cron_expression.trim(),
-          host_id: form.host_id,
+          cronExpression: form.cron_expression.trim(),
+          hostId: form.host_id,
           command: form.command.trim(),
-          credential_id: form.credential_id || null,
+          credentialId: form.credential_id || null,
           enabled: form.enabled,
         });
       }
@@ -133,6 +144,26 @@ const ScheduledTasksView: React.FC = () => {
       if (editingId === id) resetForm();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleRunNow = async (task: ScheduledTask) => {
+    setError(null);
+    setLastRunResult(null);
+    setRunningId(task.id);
+    try {
+      const result = await invoke<TaskRunResult>('run_scheduled_task_now', { id: task.id });
+      setLastRunResult({
+        taskName: task.name,
+        success: result.success,
+        output: result.output ?? null,
+        error: result.error ?? null,
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunningId(null);
     }
   };
 
@@ -184,6 +215,37 @@ const ScheduledTasksView: React.FC = () => {
 
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-alert/10 text-alert text-sm">{error}</div>
+        )}
+
+        {lastRunResult && (
+          <div className="mb-4 p-4 rounded-xl bg-bg-card border border-border">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-white">
+                  Run result: {lastRunResult.taskName}
+                  {lastRunResult.success ? (
+                    <span className="ml-2 text-success">Success</span>
+                  ) : (
+                    <span className="ml-2 text-alert">Failed</span>
+                  )}
+                </div>
+                {lastRunResult.error && (
+                  <pre className="mt-2 text-sm text-alert whitespace-pre-wrap break-words font-mono">{lastRunResult.error}</pre>
+                )}
+                {lastRunResult.output != null && lastRunResult.output.length > 0 && (
+                  <pre className="mt-2 text-sm text-gray-400 whitespace-pre-wrap break-words font-mono max-h-40 overflow-y-auto">{lastRunResult.output}</pre>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setLastRunResult(null)}
+                className="shrink-0 text-gray-500 hover:text-white transition-colors"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          </div>
         )}
 
         {showForm && (
@@ -314,10 +376,34 @@ const ScheduledTasksView: React.FC = () => {
                     {task.command}
                   </div>
                   {task.last_run_at != null && (
-                    <div className="text-xs text-gray-500 mt-1">Last run: {formatTs(task.last_run_at)}</div>
+                    <div className="text-xs mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      <span className="text-gray-500">Last run: {formatTs(task.last_run_at)}</span>
+                      {task.last_run_status === 'success' && (
+                        <span className="text-success font-medium">Success</span>
+                      )}
+                      {task.last_run_status === 'failure' && (
+                        <span className="text-alert font-medium" title={task.last_run_error ?? undefined}>
+                          Failed{task.last_run_error ? `: ${task.last_run_error}` : ''}
+                        </span>
+                      )}
+                      {task.last_run_output != null && task.last_run_output.length > 0 && (
+                        <span className="text-gray-500 truncate max-w-xs" title={task.last_run_output}>
+                          Output: {task.last_run_output}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleRunNow(task)}
+                    disabled={runningId !== null}
+                    className="p-2 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Run now"
+                  >
+                    <Play className="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => startEdit(task)}
