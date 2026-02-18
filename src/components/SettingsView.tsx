@@ -250,7 +250,7 @@ const DataSettings: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-sm">Database Location</span>
-                <span className="text-white text-sm font-mono">~/AppData/Roaming/com.tauri.dev/titan.db</span>
+                <span className="text-white text-sm font-mono">~/AppData/Roaming/com.tauri.dev/quasar.db</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-sm">Database Size</span>

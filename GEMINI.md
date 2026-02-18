@@ -1,4 +1,4 @@
-# Project Titan: Gemini Context
+# Quasar: Gemini Context
 
 This file provides persistent context for the Gemini CLI agent to ensure a smooth transition between sessions.
 

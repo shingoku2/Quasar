@@ -77,7 +77,7 @@ Completed UX and context-quality improvements for Remote host management and the
 #### 2) AI assistant naming + network awareness context ✅
 - **Location**: `src/components/AIAssistant.tsx`, `src/components/AIAssistant.test.tsx`
 - **Problem**:
-  - Assistant UI still used legacy Titan naming.
+  - Assistant UI still used the previous product name (Titan).
   - Chat requests lacked app-discovered network context, reducing usefulness for troubleshooting.
 - **Fix**:
   - Renamed visible AI branding to **Quasar AI Assistant** and input placeholder to **Ask Quasar AI...**.
@@ -915,7 +915,7 @@ Backend emits events to frontend:
 - `workflow-*` - Workflow execution events
 
 ### Database Schema
-SQLite database (`titan.db`) with tables:
+SQLite database (`quasar.db`) with tables:
 - `hosts` - Remote host inventory
 - `credentials_new` - Encrypted credentials with AES-256-GCM (nonce, tag, metadata)
 - `vault_settings` - Master password hash, salt, vault configuration
@@ -972,6 +972,8 @@ SQLite database (`titan.db`) with tables:
 ```bash
 # Run development server
 npm run tauri dev
+# If you see "ProjectTitan" path errors (stale CARGO_TARGET_DIR), use:
+npm run tauri:dev
 
 # Build for production
 npm run tauri build

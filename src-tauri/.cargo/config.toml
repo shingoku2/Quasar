@@ -1,0 +1,5 @@
+# Force this project to use its own target directory.
+# Prevents CARGO_TARGET_DIR (e.g. from another project) from
+# redirecting the build and breaking the Tauri build script.
+[build]
+target-dir = "target"

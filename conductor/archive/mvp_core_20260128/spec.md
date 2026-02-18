@@ -1,7 +1,7 @@
-# Track: Create Project Titan MVP with Core Remote Access and Discovery
+# Track: Create Quasar MVP with Core Remote Access and Discovery
 
 ## Specification
-This track implements the foundational elements of Project Titan, as defined in the Phase 1 blueprint.
+This track implements the foundational elements of Quasar, as defined in the Phase 1 blueprint.
 
 ### Scope
 - **Application Scaffold:** Tauri v2 project setup with Rust backend and React/TypeScript/Tailwind frontend.

@@ -472,7 +472,7 @@ If you choose Option 1 now and Option 3 later, here's the migration path:
 
 ### Step 1: Current State (Option 1 Applied)
 ```
-Database: titan.db
+Database: quasar.db
 Tables: credentials, vault_settings, ssh_known_hosts, security_audit_log, monitoring tables
 Migrations: 003, 004 applied (no tracking)
 ```

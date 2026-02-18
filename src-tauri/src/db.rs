@@ -23,7 +23,7 @@ use rusqlite::Connection;
 /// # Examples
 /// ```ignore
 /// use quasar_lib::db;
-/// let conn = db::open_connection("./titan.db").unwrap();
+/// let conn = db::open_connection("./quasar.db").unwrap();
 /// ```
 pub fn open_connection(db_path: &str) -> Result<Connection, String> {
     let conn = Connection::open(db_path)

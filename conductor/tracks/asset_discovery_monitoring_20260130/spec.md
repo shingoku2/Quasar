@@ -2,7 +2,7 @@
 
 ## Overview
 
-This track implements automated network discovery and real-time system health monitoring for Project Titan. It enables zero-config LAN scanning, automated asset inventory population, and pre-flight health checks before establishing remote connections.
+This track implements automated network discovery and real-time system health monitoring for Quasar. It enables zero-config LAN scanning, automated asset inventory population, and pre-flight health checks before establishing remote connections.
 
 ## Functional Requirements
 

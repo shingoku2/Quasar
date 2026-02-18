@@ -41,6 +41,19 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
 
 use once_cell::sync::Lazy;
 
+/// Database filename (renamed from titan.db for Quasar).
+const DB_FILENAME: &str = "quasar.db";
+
+/// One-time migration: rename titan.db to quasar.db for existing installs.
+fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> {
+    let old_path = app_dir.join("titan.db");
+    let new_path = app_dir.join(DB_FILENAME);
+    if old_path.exists() && !new_path.exists() {
+        std::fs::rename(&old_path, &new_path)?;
+    }
+    Ok(())
+}
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -286,7 +299,7 @@ pub struct RemoteHostMetric {
 
 fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let db_path = app_dir.join("titan.db");
+    let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
     // Join with monitoring_host_credential so we know which credential to use for SSH metrics (if any)
@@ -382,7 +395,7 @@ async fn get_remote_hosts_health(
 #[tauri::command]
 async fn set_host_monitoring_credential(app: AppHandle, host_id: String, credential_id: Option<String>) -> Result<(), String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let db_path = app_dir.join("titan.db");
+    let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
     match credential_id.as_deref() {
@@ -441,7 +454,7 @@ async fn get_metrics_history(
     app: AppHandle,
 ) -> Result<Vec<monitoring::SystemMetrics>, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
-    let db_path = app_dir.join("titan.db");
+    let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?.to_string();
     
     let store = monitoring::MetricsStore::new(db_path_str, 30).map_err(|e| sanitize_error(e, "monitoring"))?;
@@ -456,7 +469,7 @@ async fn get_alert_history(
     app: AppHandle,
 ) -> Result<Vec<monitoring::Alert>, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
-    let db_path = app_dir.join("titan.db");
+    let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?.to_string();
     
     let store = monitoring::MetricsStore::new(db_path_str, 30).map_err(|e| sanitize_error(e, "monitoring"))?;
@@ -823,8 +836,12 @@ pub fn run() {
                 error!("Failed to create app data dir: {}", e);
                 e
             })?;
+            migrate_titan_db_to_quasar(&app_dir).map_err(|e| {
+                error!("Failed to migrate database file: {}", e);
+                e
+            })?;
             
-            let db_path = app_dir.join("titan.db");
+            let db_path = app_dir.join(DB_FILENAME);
             let db_path_str = db_path.to_str().ok_or("Invalid database path")?;
             let db_path_str = db_path_str.to_string();
             

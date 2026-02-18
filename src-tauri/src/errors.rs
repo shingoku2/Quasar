@@ -28,7 +28,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_error_does_not_leak_internal_details() {
-        let internal = "SQLITE error: no such table: credentials at /home/user/.local/titan.db".to_string();
+        let internal = "SQLITE error: no such table: credentials at /home/user/.local/quasar.db".to_string();
         let result = sanitize_error(internal.clone(), "database");
         assert!(!result.contains("SQLITE"));
         assert!(!result.contains("/home/user"));

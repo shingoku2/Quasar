@@ -1,6 +1,6 @@
 # Initial Concept
 
-Project Titan is a unified, open-source IT operations console designed for sysadmins. It aims to unify remote access (RDP, SSH, VNC), monitoring, automation, and local AI diagnostics into a single, high-performance desktop application built with Tauri and Rust. The core focus is on solving "tab explosion," providing transparent and secure remote access, and integrating local AI for log analysis and automation without cloud data leakage.
+Quasar is a unified, open-source IT operations console designed for sysadmins. It aims to unify remote access (RDP, SSH, VNC), monitoring, automation, and local AI diagnostics into a single, high-performance desktop application built with Tauri and Rust. The core focus is on solving "tab explosion," providing transparent and secure remote access, and integrating local AI for log analysis and automation without cloud data leakage.
 
 ## Target Audience
 - System Administrators and IT Operations Professionals

@@ -1,7 +1,7 @@
 # Track: Integrate Local AI with Ollama
 
 ## Specification
-This track implements the "Local AI Integration" phase of Project Titan, enabling privacy-focused, offline AI assistance for sysadmins.
+This track implements the "Local AI Integration" phase of Quasar, enabling privacy-focused, offline AI assistance for sysadmins.
 
 ### Scope
 - **Ollama Integration:** Detect and interact with a local Ollama instance.

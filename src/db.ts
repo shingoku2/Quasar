@@ -1,7 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
 
 export async function initDatabase() {
-  const db = await Database.load("sqlite:titan.db");
+  const db = await Database.load("sqlite:quasar.db");
 
   // Initialize Hosts table
   await db.execute(`
