@@ -32,11 +32,12 @@ pub struct SystemMetrics {
     pub cpu_per_core: Vec<f32>,
     pub cpu_frequency_mhz: u64,
     
-    // Disk details
+    // Disk details (aggregate + per-disk)
     pub disk_total_gb: u64,
     pub disk_used_gb: u64,
     pub disk_free_gb: u64,
     pub disk_usage_percent: f32,
+    pub disks: Vec<DiskInfo>,
     
     // Network details
     pub network_packets_rx: u64,
@@ -55,6 +56,17 @@ pub struct ProcessInfo {
     pub name: String,
     pub cpu_usage: f32,
     pub memory_mb: u64,
+}
+
+/// Per-disk usage for display in the UI (all attached disks).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiskInfo {
+    pub name: String,
+    pub mount_point: String,
+    pub total_gb: u64,
+    pub used_gb: u64,
+    pub free_gb: u64,
+    pub usage_percent: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,8 +200,9 @@ impl MetricsCollector {
         let cpu_per_core: Vec<f32> = self.system.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
         let cpu_frequency_mhz = self.system.cpus().first().map(|cpu| cpu.frequency()).unwrap_or(0);
 
-        // New metrics - Disk details
+        // New metrics - Disk details (aggregate + per-disk list)
         let (disk_total_gb, disk_used_gb, disk_free_gb, disk_usage_percent) = Self::calculate_disk_space(&disks);
+        let disks_list = Self::get_disk_list(&disks);
 
         // New metrics - Network details
         let (network_packets_rx, network_packets_tx, network_errors_rx, network_errors_tx) = Self::get_network_packets(&networks);
@@ -231,7 +244,8 @@ impl MetricsCollector {
             disk_used_gb,
             disk_free_gb,
             disk_usage_percent,
-            
+            disks: disks_list,
+
             // Network details
             network_packets_rx,
             network_packets_tx,
@@ -296,6 +310,32 @@ impl MetricsCollector {
         let used_gb = used / 1024 / 1024 / 1024;
         let free_gb = available / 1024 / 1024 / 1024;
         (total_gb, used_gb, free_gb, usage_percent)
+    }
+
+    fn get_disk_list(disks: &Disks) -> Vec<DiskInfo> {
+        disks.list().iter().map(|disk| {
+            let total = disk.total_space();
+            let available = disk.available_space();
+            let used = total.saturating_sub(available);
+            let usage_percent = if total > 0 {
+                (used as f64 / total as f64 * 100.0) as f32
+            } else {
+                0.0
+            };
+            let total_gb = total / 1024 / 1024 / 1024;
+            let used_gb = used / 1024 / 1024 / 1024;
+            let free_gb = available / 1024 / 1024 / 1024;
+            let name = disk.name().to_string_lossy().to_string();
+            let mount_point = disk.mount_point().to_string_lossy().to_string();
+            DiskInfo {
+                name,
+                mount_point,
+                total_gb,
+                used_gb,
+                free_gb,
+                usage_percent,
+            }
+        }).collect()
     }
 
     fn get_top_processes_by_cpu(&self, limit: usize) -> Vec<ProcessInfo> {
@@ -532,6 +572,7 @@ impl MetricsStore {
             "network_errors_tx": metrics.network_errors_tx,
             "top_cpu_processes": metrics.top_cpu_processes,
             "top_memory_processes": metrics.top_memory_processes,
+            "disks": metrics.disks,
         });
 
         conn.execute(
@@ -615,6 +656,7 @@ impl MetricsStore {
                     network_errors_tx: metadata["network_errors_tx"].as_u64().unwrap_or(0),
                     top_cpu_processes: serde_json::from_value(metadata["top_cpu_processes"].clone()).unwrap_or_default(),
                     top_memory_processes: serde_json::from_value(metadata["top_memory_processes"].clone()).unwrap_or_default(),
+                    disks: serde_json::from_value(metadata["disks"].clone()).unwrap_or_default(),
                 })
             }
         ).map_err(|e| format!("Failed to query metrics: {}", e))?;
@@ -883,6 +925,7 @@ mod tests {
             network_errors_tx: 0,
             top_cpu_processes: vec![],
             top_memory_processes: vec![],
+            disks: vec![],
         };
 
         let (alerts, _recoveries) = engine.evaluate(&metrics);
@@ -933,6 +976,7 @@ mod tests {
             network_errors_tx: 0,
             top_cpu_processes: vec![],
             top_memory_processes: vec![],
+            disks: vec![],
         };
 
         let (alerts, _recoveries) = engine.evaluate(&metrics);
@@ -982,6 +1026,7 @@ mod tests {
             network_errors_tx: 0,
             top_cpu_processes: vec![],
             top_memory_processes: vec![],
+            disks: vec![],
         };
 
         let (_alerts, _recoveries) = engine.evaluate(&metrics);

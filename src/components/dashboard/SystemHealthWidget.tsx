@@ -4,6 +4,15 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '../../lib/utils';
 
+interface DiskInfo {
+  name: string;
+  mount_point: string;
+  total_gb: number;
+  used_gb: number;
+  free_gb: number;
+  usage_percent: number;
+}
+
 interface SystemMetrics {
   cpu_usage_percent: number;
   memory_usage_percent: number;
@@ -13,6 +22,7 @@ interface SystemMetrics {
   disk_used_gb: number;
   disk_total_gb: number;
   uptime_seconds: number;
+  disks?: DiskInfo[];
 }
 
 interface Alert {
@@ -129,8 +139,11 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
   const cpuPercent = metrics?.cpu_usage_percent ?? 0;
   const memUsed = metrics?.memory_used_mb ? (metrics.memory_used_mb / 1024).toFixed(1) : '0';
   const memTotal = metrics?.memory_total_mb ? (metrics.memory_total_mb / 1024).toFixed(0) : '0';
-  const diskUsed = metrics?.disk_used_gb?.toFixed(0) ?? '0';
-  const diskTotal = metrics?.disk_total_gb?.toFixed(0) ?? '0';
+  const diskList = (metrics?.disks && metrics.disks.length > 0)
+    ? metrics.disks
+    : (metrics?.disk_used_gb != null && metrics?.disk_total_gb != null
+      ? [{ name: 'Disk', mount_point: '', total_gb: metrics.disk_total_gb, used_gb: metrics.disk_used_gb, free_gb: 0, usage_percent: metrics?.disk_usage_percent ?? 0 }]
+      : []);
 
   return (
     <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
@@ -176,22 +189,31 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
             />
           </div>
         </div>
-        {/* Disk */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center space-x-2">
-              <HardDrive className="h-3.5 w-3.5 text-accent" />
-              <span className="text-xs text-gray-300">Disk</span>
+        {/* Disks: all attached disks */}
+        {diskList.length > 0 && diskList.map((disk, idx) => (
+          <div key={disk.mount_point || disk.name || idx}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center space-x-2 min-w-0">
+                <HardDrive className="h-3.5 w-3.5 text-accent shrink-0" />
+                <span className="text-xs text-gray-300 truncate" title={disk.mount_point || disk.name}>
+                  {disk.mount_point || disk.name || `Disk ${idx + 1}`}
+                </span>
+              </div>
+              <span className="text-xs font-bold text-white shrink-0 ml-1">
+                {disk.used_gb}GB/{disk.total_gb}GB
+              </span>
             </div>
-            <span className="text-xs font-bold text-white">{diskUsed}GB/{diskTotal}GB</span>
+            <div className="h-1.5 bg-bg-root rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  disk.usage_percent > 80 ? "bg-alert" : disk.usage_percent > 60 ? "bg-warning" : "bg-accent"
+                )}
+                style={{ width: `${Math.min(disk.usage_percent, 100)}%` }}
+              />
+            </div>
           </div>
-          <div className="h-1.5 bg-bg-root rounded-full overflow-hidden">
-            <div 
-              className="h-full rounded-full bg-accent transition-all duration-500"
-              style={{ width: `${Math.min(metrics?.disk_usage_percent ?? 0, 100)}%` }}
-            />
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
