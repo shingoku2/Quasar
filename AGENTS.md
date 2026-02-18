@@ -7,6 +7,58 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Comprehensive Code Audit Fixes - Complete (February 18, 2026)
+
+#### Overview
+Addressed all 7 findings from a full codebase audit (Critical/High/Medium). See `CODEBASE_AUDIT_REPORT.md` for the original audit; fixes summarized below.
+
+#### AUD-01 (Critical): DB import/export lifecycle safety ✅
+- **Location**: `src-tauri/src/lib.rs`
+- **Problem**: `export_database` and `import_database` used raw `std::fs::copy` while monitoring/scheduler held active SQLite connections, risking corrupted exports/imports.
+- **Fix**: Export uses `VACUUM INTO 'dest'` on a live connection for a consistent snapshot. Import validates source as SQLite, uses atomic copy-to-temp then rename, and logs a restart-required warning.
+
+#### AUD-02 (High): Discovery thread leak / duplicate workers ✅
+- **Location**: `src-tauri/src/discovery.rs`, `src-tauri/src/lib.rs`
+- **Problem**: Each `start_discovery` call spawned a new thread with no singleton guard.
+- **Fix**: Added `DiscoveryState` with `Arc<AtomicBool>`; `start_mdns_discovery` checks-and-sets the flag and returns early if already running. A `DropGuard` in the thread clears the flag on exit.
+
+#### AUD-03 (High): SFTP + SSH-key credential mismatch ✅
+- **Location**: `src/components/vault/CredentialSelector.tsx`, `src/components/RemoteManager.tsx`, `src/components/ScheduledTasksView.tsx`, `src-tauri/src/sftp.rs`
+- **Problem**: UI allowed `ssh_key` credentials for SFTP, but backend SFTP only supports password auth.
+- **Fix**: Added `allowedTypes` prop to CredentialSelector; SFTP flows pass `['ssh']` to hide key credentials. ScheduledTasksView filters out `ssh_key` for SFTP task types. Backend `require_password_auth()` guard returns a clear error if password is empty.
+
+#### AUD-04 (High): Scheduler silent failure on run-result persistence ✅
+- **Location**: `src-tauri/src/scheduler.rs`
+- **Problem**: `set_run_result` errors were ignored; failed DB writes could leave `last_run_at` stale and cause duplicate runs.
+- **Fix**: Log errors on `set_run_result` failure. Added in-memory `last_executed` map; tasks that ran within the last 60s are skipped even if persistence failed.
+
+#### AUD-05 (Medium): Monitoring network throughput unit mismatch ✅
+- **Location**: `src/components/MonitoringView.tsx`
+- **Problem**: Backend sends `network_rx_mb`/`network_tx_mb` in MB; frontend divided by 1024 again, underreporting.
+- **Fix**: Removed the extra `/1024`; display shows correct MB/s.
+
+#### AUD-06 (Medium): Credential ID type drift ✅
+- **Location**: `src/components/vault/CredentialManager.tsx`
+- **Problem**: Frontend typed credential `id` as `number`; backend uses string (UUID/integer serialized as string).
+- **Fix**: `CredentialSummary` and `Credential` now use `id: string`; handlers updated and `.toString()` removed.
+
+#### AUD-07 (Medium): Mutex poison panic propagation ✅
+- **Location**: `src-tauri/src/monitoring.rs`
+- **Problem**: Production `.lock().unwrap()` could cascade panics after a poisoned mutex.
+- **Fix**: All 12 production lock sites use `.lock().unwrap_or_else(|poisoned| poisoned.into_inner())` for recovery.
+
+#### Files Modified (audit round)
+- `src-tauri/src/lib.rs` (export/import, discovery state)
+- `src-tauri/src/discovery.rs` (DiscoveryState, singleton guard)
+- `src-tauri/src/scheduler.rs` (set_run_result logging, last_executed map)
+- `src-tauri/src/monitoring.rs` (poison recovery)
+- `src-tauri/src/sftp.rs` (require_password_auth)
+- `src/components/vault/CredentialSelector.tsx`, `RemoteManager.tsx`, `ScheduledTasksView.tsx`
+- `src/components/vault/CredentialManager.tsx` (id type, getErrorMessage already present)
+- `src/components/MonitoringView.tsx` (network units)
+
+---
+
 ### Workflow Scheduling (Scheduled Tasks) - Complete (February 18, 2026)
 
 #### Overview
@@ -1124,4 +1176,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 18, 2026 (SFTP in scheduled tasks, migration 010/011/012 idempotency, audit fixes, README/CORE_WORKFLOWS/SCHEMA doc updates, tauri-dev.js npx check, cross-env removed).*
+*Last Updated: February 18, 2026 (Comprehensive audit AUD-01–07, SFTP in scheduled tasks, migration 010/011/012 idempotency, README/CORE_WORKFLOWS/SCHEMA/MVP roadmap doc updates, tauri-dev.js npx check, gitignore SQLite journal).*

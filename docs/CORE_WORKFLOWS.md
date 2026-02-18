@@ -41,6 +41,7 @@ This document describes the main user workflows for remote management, automatio
 
 - **From SSH session**: Use the SFTP/file UI in the session to browse, upload, and download files.
 - **Tauri commands**: `sftp_upload_file`, `sftp_download_file`, `sftp_list_directory`, `sftp_remote_exists` are available for workflows or future UI.
+- **Authentication**: SFTP currently requires **password-based** credentials. SSH key credentials are not yet supported for SFTP; the credential selector and scheduled-task UI hide or filter key-based credentials for SFTP flows.
 
 ---
 

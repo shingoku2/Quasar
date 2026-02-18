@@ -150,3 +150,19 @@ Findings are ordered by severity (Critical → High → Medium → Low) and cate
 | **L-5** | `docs/SCHEMA.md`: Added note that migrations 011 and 012 are applied by Rust hooks for idempotency. |
 
 **Not changed (per report):** M-4 (main .expect — optional), M-5/M-6 (acceptable as-is), L-2 (dead code — leave as-is), L-3 (optional frontend error state — not implemented).
+
+---
+
+## Second audit round (February 18, 2026) — AUD-01 through AUD-07
+
+A second, comprehensive audit identified 7 additional issues (data safety, concurrency, frontend-backend contract, UX). All were fixed the same day.
+
+| ID | Severity | Summary | Fix |
+|----|----------|---------|-----|
+| **AUD-01** | Critical | DB export/import used raw file copy while writers active | Export: `VACUUM INTO` for safe snapshot. Import: validate source, atomic rename, restart warning. |
+| **AUD-02** | High | Discovery spawned unbounded threads per `start_discovery` call | `DiscoveryState` with `AtomicBool`; start-if-not-running; `DropGuard` clears flag on thread exit. |
+| **AUD-03** | High | SFTP UI allowed SSH-key credentials but backend is password-only | `CredentialSelector` `allowedTypes` for SFTP; ScheduledTasksView filters; `sftp.rs` `require_password_auth()` guard. |
+| **AUD-04** | High | Scheduler ignored `set_run_result` errors → duplicate runs | Log errors; in-memory `last_executed` map to skip within 60s even if DB write fails. |
+| **AUD-05** | Medium | Monitoring network throughput double-divided by 1024 | Use backend MB values directly in MonitoringView (no extra `/1024`). |
+| **AUD-06** | Medium | Credential `id` typed as `number` in frontend, string in backend | `CredentialSummary`/`Credential` `id: string`; handlers updated. |
+| **AUD-07** | Medium | Monitoring mutex `.unwrap()` propagated poison panics | All production locks use `.unwrap_or_else(\|e\| e.into_inner())`. |

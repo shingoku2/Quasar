@@ -1,6 +1,5 @@
 # Quasar v0.1 MVP Completion Roadmap
 
-<<<<<<< HEAD
 **Status**: ~90% Complete (Updated: February 18, 2026)
 
 ### Recent Progress (February 18, 2026)
@@ -10,9 +9,7 @@
 - SSH terminal: refactored to use `Channel::wait()` for data; fixes hang on consecutive/simultaneous commands (flow control).
 - Dashboard: System Health shows Hosts Online count and vault timeout; Real-time Metrics shows all attached disks.
 - UX: password autocomplete on inputs; SSH packet size 32 KB; launcher/tauri-dev spawn fix on Windows.
-=======
-**Status**: ~85% Complete (Updated: February 1, 2026 - 8:50 PM)
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
+- **Comprehensive code audit**: All 7 findings fixed (AUD-01–07): DB export/import safety, discovery singleton, SFTP credential filter, scheduler persistence + cooldown, monitoring units and mutex poison, credential ID types; see `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md`.
 
 ## Completed Core Features ✅
 
@@ -32,18 +29,12 @@
 
 ### Automation & Workflows
 - ✅ Workflow automation framework (definitions, execution)
-<<<<<<< HEAD
 - ✅ **Real SSH Command Execution** (Feb 1, 2026)
   - Location: `src-tauri/src/ssh_exec.rs`
-=======
-- ✅ **Real SSH Command Execution** (NEW - Feb 1, 2026)
-  - Location: `src-tauri/src/ssh_exec.rs` (280 lines)
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
   - Single command execution with timeout
   - Batch command execution on same session
   - System metrics collection via SSH
-  - Integrated into automation engine
-<<<<<<< HEAD
+  - Integrated into scheduler and SSH execution
 - ✅ **SSH Health Checks** (Feb 1, 2026)
   - Pre-flight ping validation
   - Full system metrics via SSH (CPU, RAM, disk, uptime, load)
@@ -53,12 +44,6 @@
   - Migrations 010 (`scheduled_tasks`), 011 (last_run_status, last_run_error, last_run_output)
   - Automation view: list/add/edit/delete tasks, last run status and output, **Run now** with result panel
   - Tauri commands: list/get/add/update/remove scheduled tasks, run_scheduled_task_now
-=======
-- ✅ **SSH Health Checks** (NEW - Feb 1, 2026)
-  - Pre-flight ping validation
-  - Full system metrics via SSH (CPU, RAM, disk, uptime, load)
-  - Credential-optional design
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ## Remaining Critical Gaps (20%)
 
@@ -79,11 +64,7 @@
 **Files Created/Modified**:
 - `src-tauri/src/sftp.rs` (380 lines) - Complete SFTP client
 - `src-tauri/Cargo.toml` - Added russh-sftp dependency
-<<<<<<< HEAD
-- `src-tauri/src/scheduler.rs` + `sftp.rs` + `ssh_exec.rs` - Scheduled SFTP/SSH execution (no automation/engine.rs; workflow execution is scheduler + Tauri commands)
-=======
-- `src-tauri/src/automation/engine.rs` - FileTransfer action implementation
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
+- `src-tauri/src/scheduler.rs` + `sftp.rs` + `ssh_exec.rs` - Scheduled SFTP/SSH execution (workflow execution is scheduler + Tauri commands)
 - `src-tauri/src/lib.rs` - Added 4 Tauri commands for frontend
 
 **Features**:
@@ -91,46 +72,11 @@
 - 10-second connection timeout
 - Proper resource cleanup
 - Host format: `username@host:port`
-- Password from execution context
+- Password from execution context (SSH key auth for SFTP not yet supported; use password credential)
 
 ---
 
-<<<<<<< HEAD
 ### 3. Database Schema Migration ✅ COMPLETED
-=======
-### 3. VNC Client Integration
-**Priority**: Medium  
-**Estimated Time**: 3-5 days  
-**Status**: Not started
-
-**Requirements**:
-- VNC protocol support (RFB)
-- Embedded VNC viewer in UI
-- Mouse/keyboard input forwarding
-- Screen updates and rendering
-- Authentication (password, none)
-
-**Implementation Options**:
-1. **noVNC** (JavaScript VNC client)
-   - Pros: Web-based, no native dependencies
-   - Cons: Requires WebSocket proxy
-   
-2. **rust-vnc** crate
-   - Pros: Native Rust, direct integration
-   - Cons: May need custom UI rendering
-
-**Recommended Approach**: noVNC + WebSocket proxy
-```rust
-// src-tauri/src/vnc.rs
-- VncProxy with tokio WebSocket
-- Forward VNC traffic to/from remote host
-- Session management similar to SSH
-```
-
----
-
-### 4. Database Schema Migration ✅ COMPLETED
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 **Priority**: Low (Technical Debt)  
 **Completed**: February 2, 2026  
 **Status**: Fully implemented
@@ -150,7 +96,7 @@
 - **Days 1-3**: SFTP file transfer implementation
   - Core SFTP client
   - Upload/download functions
-  - Integration with automation engine
+  - Integration with scheduler and Tauri commands
   - Frontend file picker UI
 
 - **Days 4-5**: Workflow scheduling daemon
@@ -164,27 +110,11 @@
   - Frontend schedule management UI
   - Testing and debugging
 
-<<<<<<< HEAD
 - **Days 3-5**: Database migration and testing
-=======
-- **Days 3-5**: VNC client integration
-  - noVNC setup and WebSocket proxy
-  - Session management
-  - Frontend VNC viewer component
-
-### Week 3 (Feb 16-22, 2026)
-- **Days 1-2**: VNC (continued)
-  - Authentication and security
-  - Performance optimization
-  - Error handling
-
-- **Day 3**: Database migration
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
   - Schema consolidation
   - Data migration script
   - Frontend updates
 
-<<<<<<< HEAD
 ### Week 3 (Feb 16-22, 2026)
 - **Days 1-3**: Testing and polish
   - End-to-end testing
@@ -194,12 +124,6 @@
 - **Days 4-5**: Documentation and bug fixes
   - User documentation
   - Bug fixes and polish
-=======
-- **Days 4-5**: Testing, bug fixes, documentation
-  - End-to-end testing
-  - Performance testing
-  - User documentation
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ---
 
@@ -209,31 +133,17 @@
 - ✅ SSH command execution
 - ✅ Health check metrics parsing
 - 🔄 SFTP upload/download
-<<<<<<< HEAD
 - ✅ Cron schedule parsing (scheduler `is_due` test)
 - ✅ Scheduler CRUD and run result (add/list/get/update/set_run_result/remove, load_enabled_tasks, load_task_by_id, output truncation)
-=======
-- ⏳ Cron schedule parsing
-- ⏳ VNC protocol handling
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ### Integration Tests
 - ✅ Workflow execution with SSH commands
 - 🔄 File transfer in workflows
-<<<<<<< HEAD
 - ✅ Scheduled task execution (scheduler loop + run_scheduled_task_now)
-=======
-- ⏳ Scheduled workflow execution
-- ⏳ VNC session management
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ### E2E Tests
 - ⏳ Complete workflow with SSH + SFTP
 - ⏳ Scheduled automation execution
-<<<<<<< HEAD
-=======
-- ⏳ Multi-protocol remote management (SSH + VNC)
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ---
 
@@ -245,20 +155,11 @@
 - [x] System monitoring displays real-time metrics
 - [x] Workflows can execute SSH commands
 - [x] Health checks provide pre-flight validation
-<<<<<<< HEAD
 - [x] SFTP file transfers work in workflows
 - [x] Workflows can be scheduled with cron
 - [x] Database schema is clean and consolidated
 - [x] All features have basic error handling
 - [x] Documentation covers core workflows
-=======
-- [ ] SFTP file transfers work in workflows
-- [ ] Workflows can be scheduled with cron
-- [ ] VNC connections allow remote desktop access
-- [ ] Database schema is clean and consolidated
-- [ ] All features have basic error handling
-- [ ] Documentation covers core workflows
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ---
 
@@ -321,20 +222,12 @@
 tokio-cron-scheduler = "0.9"  # For cron scheduling
 axum = "0.7"                  # For webhook listener (alternative: actix-web)
 tower = "0.4"                 # Middleware for axum
-<<<<<<< HEAD
-=======
-tokio-tungstenite = "0.21"    # WebSocket for VNC proxy
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 ```
 
 ### Frontend Dependencies (Additional)
 ```json
 {
   "dependencies": {
-<<<<<<< HEAD
-=======
-    "@novnc/novnc": "^1.4.0",  // VNC client
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     "cron-parser": "^4.9.0"     // Cron expression validation
   }
 }
@@ -344,24 +237,14 @@ tokio-tungstenite = "0.21"    # WebSocket for VNC proxy
 
 ## Conclusion
 
-<<<<<<< HEAD
 With the completion of SFTP in scheduled workflows, database schema documentation, and error-handling confirmation, Quasar meets all **v0.1 MVP success criteria**.
 
 **Completed this phase**:
-- **SFTP in workflows**: Scheduled tasks support task types SSH command, SFTP upload, and SFTP download; backend runs the appropriate action; UI includes task type selector and path fields.
+- **SFTP in workflows**: Scheduled tasks support task types SSH command, SFTP upload, and SFTP download; backend runs the appropriate action; UI includes task type selector and path fields. SFTP requires password-based credentials (SSH key for SFTP not yet supported).
 - **Database schema**: Documented in `docs/SCHEMA.md`; single `credentials` table (consolidated); AGENTS.md updated.
 - **Error handling**: Backend commands return `Result` and use `sanitize_error`; scheduled-task contexts added; documented in `docs/SCHEMA.md`.
+- **Code audit**: All 7 audit findings (AUD-01–07) addressed; see `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md`.
 
 **Optional polish**: E2E test for scheduled task execution; terminal resize observer if needed. *(Remote desktop is out of scope; use external tools such as RustDesk.)*
-=======
-With the completion of real SSH command execution and health checks, Quasar is now **~80% complete** for the v0.1 MVP. The remaining work focuses on:
-
-1. **SFTP** - Essential for file management workflows
-2. **Scheduling** - Enables automation without manual triggers
-3. **VNC** - Completes the "SSH, RDP, and VNC" product requirement
-4. **Database cleanup** - Technical debt that should be addressed
-
-**Estimated time to v0.1 MVP**: 2-3 weeks of focused development.
->>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 The foundation is solid, and all critical security and infrastructure components are in place. The remaining features are well-defined and can be implemented incrementally without major architectural changes.

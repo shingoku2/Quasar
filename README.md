@@ -202,10 +202,11 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
-### February 18, 2026 - Documentation & Script Fixes
-- ✅ **tauri-dev.js** — Verifies `npx` is available before spawn (Windows: `where npx`; Unix: `command -v npx`); improved error messages if spawn fails
-- ✅ **cross-env** — Removed unused devDependency; env is set directly in the script
-- ✅ **Codebase audit** — Fixes applied for monitoring/scanner Mutex poison recovery, Discovery/MonitoringView listener cleanup, AGENTS.md/MVP roadmap doc updates, CredentialManager error helper, SCHEMA.md migration note; see `CODEBASE_AUDIT_REPORT.md`
+### February 18, 2026 - Comprehensive Code Audit & Documentation
+- ✅ **Code audit (AUD-01–07)** — All 7 findings fixed: DB export/import safety (`VACUUM INTO`, atomic import), discovery singleton guard, SFTP credential filter (password-only; SSH key hidden in SFTP UI), scheduler persistence logging + in-memory cooldown, monitoring network units and mutex poison recovery, credential ID type (`string`). See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md`.
+- ✅ **Documentation** — AGENTS.md, CODEBASE_AUDIT_REPORT.md, MVP_COMPLETION_ROADMAP.md, README, and CORE_WORKFLOWS.md updated; merge conflicts resolved in roadmap; SQLite journal/temp files added to `.gitignore` (`**/*.db-journal`, `*.db-wal`, `*.db-shm`).
+- ✅ **tauri-dev.js** — Verifies `npx` before spawn; improved error messages
+- ✅ **Vault unlock form** — Hidden username field for Chromium accessibility; `autoComplete="off"` to avoid password manager association
 
 ### February 18, 2026 - Workflow Scheduling & Task Results
 - ✅ **Scheduled tasks (cron)** — Automation view: create/edit/delete tasks; **task types**: SSH command, SFTP upload, SFTP download (with local/remote paths); background scheduler runs due tasks every 60s; supports password and SSH key auth
