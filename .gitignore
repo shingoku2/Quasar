@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 .vs/
+
+# Rust / Cargo build output (do not commit)
+**/target/
+src-tauri/src-tauri/
