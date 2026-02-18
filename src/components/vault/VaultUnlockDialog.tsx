@@ -70,6 +70,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
             <input 
               autoFocus
               type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
               className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-3 pr-12 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-gray-600"
               placeholder="Master Password"
               value={masterPassword}

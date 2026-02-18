@@ -429,6 +429,7 @@ const CredentialDialog: React.FC<{
                 <label className="block text-sm font-medium text-gray-400 mb-2">Key passphrase (optional)</label>
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="off"
                   value={formData.key_passphrase}
                   onChange={(e) => setFormData({ ...formData, key_passphrase: e.target.value })}
                   className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent"
@@ -483,6 +484,7 @@ const CredentialDialog: React.FC<{
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full bg-bg-root border border-gray-700 rounded-lg pl-10 pr-12 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"

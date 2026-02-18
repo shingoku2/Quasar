@@ -200,6 +200,7 @@ const VaultSettings: React.FC = () => {
                       </label>
                       <input
                         type="password"
+                        autoComplete="current-password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
@@ -213,6 +214,7 @@ const VaultSettings: React.FC = () => {
                       </label>
                       <input
                         type="password"
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
@@ -226,6 +228,7 @@ const VaultSettings: React.FC = () => {
                       </label>
                       <input
                         type="password"
+                        autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"

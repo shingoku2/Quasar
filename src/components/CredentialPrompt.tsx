@@ -69,7 +69,8 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
 
           <div>
             <input 
-              type="password" 
+              type="password"
+              autoComplete="current-password"
               className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-gray-600"
               placeholder="Password"
               value={password}

@@ -126,7 +126,7 @@ pub async fn connect_ssh(
     // Increase window sizes to prevent flow-control stalls on high-output commands
     let mut config = russh::client::Config::default();
     config.window_size = 4 * 1024 * 1024;     // 4 MB (default 2 MB)
-    config.maximum_packet_size = 128 * 1024;   // 128 KB (default 32 KB)
+    config.maximum_packet_size = 32 * 1024;    // 32 KB — must not exceed TCP max (65535)
     let config = Arc::new(config);
 
     // Create the unbounded channel for lock-free data forwarding from the
@@ -209,7 +209,10 @@ pub async fn connect_ssh(
                             bytes_for_batcher.fetch_add(data.len() as u64, Ordering::Relaxed);
                             buf.extend_from_slice(&data);
                             // Flush immediately when the buffer is large enough
-                            if buf.len() >= 4096 {
+                            let should_flush_size = buf.len() >= 4096;
+                            // Flush on carriage return so progress lines (e.g. apt "Reading package lists... 0%\r") appear without delay
+                            let should_flush_cr = data.contains(&b'\r');
+                            if should_flush_size || should_flush_cr {
                                 let s = String::from_utf8_lossy(&buf).to_string();
                                 let _ = app_handle_for_batcher.emit(&event_name, s);
                                 buf.clear();
