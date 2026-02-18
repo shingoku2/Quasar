@@ -11,6 +11,7 @@ const viewLabels: Record<ViewId, string> = {
   remote: 'Remote',
   monitoring: 'Monitoring',
   ai: 'AI Assistant',
+  automation: 'Automation',
   security: 'Security',
   settings: 'Settings',
 };

@@ -6,6 +6,7 @@ import AIAssistant from './AIAssistant';
 import DashboardView from './dashboard/DashboardView';
 import MonitoringView from './MonitoringView';
 import SecurityView from './vault/SecurityView';
+import ScheduledTasksView from './ScheduledTasksView';
 import SettingsView from './SettingsView';
 
 const Layout: React.FC = () => {
@@ -34,6 +35,9 @@ const Layout: React.FC = () => {
           </div>
           <div className={`absolute inset-0 ${activeView === 'monitoring' ? 'block' : 'hidden'}`}>
             <MonitoringView />
+          </div>
+          <div className={`absolute inset-0 ${activeView === 'automation' ? 'block' : 'hidden'}`}>
+            <ScheduledTasksView />
           </div>
           <div className={`absolute inset-0 ${activeView === 'security' ? 'block' : 'hidden'}`}>
             <SecurityView />

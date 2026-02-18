@@ -11,6 +11,7 @@ mod health;
 mod monitoring;
 mod vault;
 mod host_tracker;
+mod scheduler;
 mod errors;
 mod db;
 mod validation;
@@ -24,7 +25,7 @@ use rusqlite_migration::{Migrations, M};
 use errors::sanitize_error;
 use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -36,6 +37,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/007_monitoring_host_credential.sql")),
         M::up(include_str!("../migrations/008_ssh_key_credentials.sql")),
         M::up(include_str!("../migrations/009_nullable_password.sql")),
+        M::up(include_str!("../migrations/010_scheduled_tasks.sql")),
     ])
 });
 
@@ -332,6 +334,77 @@ fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
 #[tauri::command]
 async fn get_saved_hosts(app: AppHandle) -> Result<Vec<SavedHost>, String> {
     get_saved_hosts_from_db(&app).map_err(|e| sanitize_error(e, "database"))
+}
+
+fn scheduled_tasks_conn(app: &AppHandle) -> Result<rusqlite::Connection, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join(DB_FILENAME);
+    let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
+    db::open_connection(db_path_str).map_err(|e| sanitize_error(e, "database"))
+}
+
+#[tauri::command]
+async fn list_scheduled_tasks(app: AppHandle) -> Result<Vec<scheduler::ScheduledTask>, String> {
+    let conn = scheduled_tasks_conn(&app)?;
+    scheduler::list_scheduled_tasks(&conn).map_err(|e| sanitize_error(e, "scheduled tasks"))
+}
+
+#[tauri::command]
+async fn get_scheduled_task(app: AppHandle, id: String) -> Result<Option<scheduler::ScheduledTask>, String> {
+    let conn = scheduled_tasks_conn(&app)?;
+    scheduler::get_scheduled_task(&conn, &id).map_err(|e| sanitize_error(e, "scheduled task"))
+}
+
+#[tauri::command]
+async fn add_scheduled_task(
+    app: AppHandle,
+    name: String,
+    cron_expression: String,
+    host_id: String,
+    command: String,
+    credential_id: Option<String>,
+    enabled: bool,
+) -> Result<String, String> {
+    let conn = scheduled_tasks_conn(&app)?;
+    scheduler::add_scheduled_task(
+        &conn,
+        &name,
+        &cron_expression,
+        &host_id,
+        &command,
+        credential_id.as_deref(),
+        enabled,
+    ).map_err(|e| sanitize_error(e, "scheduled task"))
+}
+
+#[tauri::command]
+async fn update_scheduled_task(
+    app: AppHandle,
+    id: String,
+    name: String,
+    cron_expression: String,
+    host_id: String,
+    command: String,
+    credential_id: Option<String>,
+    enabled: bool,
+) -> Result<(), String> {
+    let conn = scheduled_tasks_conn(&app)?;
+    scheduler::update_scheduled_task(
+        &conn,
+        &id,
+        &name,
+        &cron_expression,
+        &host_id,
+        &command,
+        credential_id.as_deref(),
+        enabled,
+    ).map_err(|e| sanitize_error(e, "scheduled task"))
+}
+
+#[tauri::command]
+async fn remove_scheduled_task(app: AppHandle, id: String) -> Result<(), String> {
+    let conn = scheduled_tasks_conn(&app)?;
+    scheduler::remove_scheduled_task(&conn, &id).map_err(|e| sanitize_error(e, "scheduled task"))
 }
 
 #[tauri::command]
@@ -1015,6 +1088,9 @@ pub fn run() {
                     }
                 }
             });
+
+            // Start cron-based scheduled task runner (SSH commands on saved hosts)
+            scheduler::start_scheduler(app.handle().clone());
             
             Ok(())
         })
@@ -1080,6 +1156,11 @@ pub fn run() {
             sftp_download_file,
             sftp_list_directory,
             sftp_remote_exists,
+            list_scheduled_tasks,
+            get_scheduled_task,
+            add_scheduled_task,
+            update_scheduled_task,
+            remove_scheduled_task,
             get_app_info,
             clear_metrics_data,
             export_database,

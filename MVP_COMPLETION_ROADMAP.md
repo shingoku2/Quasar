@@ -67,38 +67,7 @@
 
 ---
 
-### 3. VNC Client Integration
-**Priority**: Medium  
-**Estimated Time**: 3-5 days  
-**Status**: Not started
-
-**Requirements**:
-- VNC protocol support (RFB)
-- Embedded VNC viewer in UI
-- Mouse/keyboard input forwarding
-- Screen updates and rendering
-- Authentication (password, none)
-
-**Implementation Options**:
-1. **noVNC** (JavaScript VNC client)
-   - Pros: Web-based, no native dependencies
-   - Cons: Requires WebSocket proxy
-   
-2. **rust-vnc** crate
-   - Pros: Native Rust, direct integration
-   - Cons: May need custom UI rendering
-
-**Recommended Approach**: noVNC + WebSocket proxy
-```rust
-// src-tauri/src/vnc.rs
-- VncProxy with tokio WebSocket
-- Forward VNC traffic to/from remote host
-- Session management similar to SSH
-```
-
----
-
-### 4. Database Schema Migration ✅ COMPLETED
+### 3. Database Schema Migration ✅ COMPLETED
 **Priority**: Low (Technical Debt)  
 **Completed**: February 2, 2026  
 **Status**: Fully implemented
@@ -132,26 +101,20 @@
   - Frontend schedule management UI
   - Testing and debugging
 
-- **Days 3-5**: VNC client integration
-  - noVNC setup and WebSocket proxy
-  - Session management
-  - Frontend VNC viewer component
-
-### Week 3 (Feb 16-22, 2026)
-- **Days 1-2**: VNC (continued)
-  - Authentication and security
-  - Performance optimization
-  - Error handling
-
-- **Day 3**: Database migration
+- **Days 3-5**: Database migration and testing
   - Schema consolidation
   - Data migration script
   - Frontend updates
 
-- **Days 4-5**: Testing, bug fixes, documentation
+### Week 3 (Feb 16-22, 2026)
+- **Days 1-3**: Testing and polish
   - End-to-end testing
   - Performance testing
+  - Error handling
+
+- **Days 4-5**: Documentation and bug fixes
   - User documentation
+  - Bug fixes and polish
 
 ---
 
@@ -162,18 +125,15 @@
 - ✅ Health check metrics parsing
 - 🔄 SFTP upload/download
 - ⏳ Cron schedule parsing
-- ⏳ VNC protocol handling
 
 ### Integration Tests
 - ✅ Workflow execution with SSH commands
 - 🔄 File transfer in workflows
 - ⏳ Scheduled workflow execution
-- ⏳ VNC session management
 
 ### E2E Tests
 - ⏳ Complete workflow with SSH + SFTP
 - ⏳ Scheduled automation execution
-- ⏳ Multi-protocol remote management (SSH + VNC)
 
 ---
 
@@ -187,7 +147,6 @@
 - [x] Health checks provide pre-flight validation
 - [ ] SFTP file transfers work in workflows
 - [ ] Workflows can be scheduled with cron
-- [ ] VNC connections allow remote desktop access
 - [ ] Database schema is clean and consolidated
 - [ ] All features have basic error handling
 - [ ] Documentation covers core workflows
@@ -253,14 +212,12 @@
 tokio-cron-scheduler = "0.9"  # For cron scheduling
 axum = "0.7"                  # For webhook listener (alternative: actix-web)
 tower = "0.4"                 # Middleware for axum
-tokio-tungstenite = "0.21"    # WebSocket for VNC proxy
 ```
 
 ### Frontend Dependencies (Additional)
 ```json
 {
   "dependencies": {
-    "@novnc/novnc": "^1.4.0",  // VNC client
     "cron-parser": "^4.9.0"     // Cron expression validation
   }
 }
@@ -274,8 +231,9 @@ With the completion of real SSH command execution and health checks, Quasar is n
 
 1. **SFTP** - Essential for file management workflows
 2. **Scheduling** - Enables automation without manual triggers
-3. **VNC** - Completes the "SSH, RDP, and VNC" product requirement
-4. **Database cleanup** - Technical debt that should be addressed
+3. **Database cleanup** - Technical debt that should be addressed
+
+*(Remote desktop is out of scope; use external tools such as RustDesk.)*
 
 **Estimated time to v0.1 MVP**: 2-3 weeks of focused development.
 
