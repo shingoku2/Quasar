@@ -60,6 +60,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
               name="username"
               autoComplete="username"
               tabIndex={-1}
+              defaultValue="vault"
               placeholder="vault"
               className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
             />
