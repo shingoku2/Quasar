@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -172,20 +172,20 @@ pub async fn connect_ssh(
     // SSH_MSG_CHANNEL_WINDOW_ADJUST back to the server, preventing stalls.
     let bytes_for_io = bytes_received.clone();
     tokio::spawn(async move {
-        let mut pending_writes: Vec<Vec<u8>> = Vec::new();
-        let mut pending_resizes: Vec<(u32, u32)> = Vec::new();
+        let mut pending_writes: VecDeque<Vec<u8>> = VecDeque::new();
+        let mut pending_resizes: VecDeque<(u32, u32)> = VecDeque::new();
 
         loop {
-            // Drain pending writes before blocking on wait()
-            while let Some(data) = pending_writes.pop() {
+            // Drain pending writes before blocking on wait() (FIFO so order is preserved)
+            while let Some(data) = pending_writes.pop_front() {
                 if channel.data(data.as_slice()).await.is_err() { return; }
             }
             // Drain any freshly-queued writes (non-blocking)
             while let Ok(data) = write_rx.try_recv() {
                 if channel.data(data.as_slice()).await.is_err() { return; }
             }
-            // Drain pending + freshly-queued resizes
-            while let Some((cols, rows)) = pending_resizes.pop() {
+            // Drain pending + freshly-queued resizes (FIFO so order is preserved)
+            while let Some((cols, rows)) = pending_resizes.pop_front() {
                 let _ = channel.window_change(cols, rows, 0, 0).await;
             }
             while let Ok((cols, rows)) = resize_rx.try_recv() {
@@ -208,10 +208,10 @@ pub async fn connect_ssh(
                     }
                 }
                 Some(data) = write_rx.recv() => {
-                    pending_writes.push(data);
+                    pending_writes.push_back(data);
                 }
                 Some(pair) = resize_rx.recv() => {
-                    pending_resizes.push(pair);
+                    pending_resizes.push_back(pair);
                 }
             }
         }
