@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Key, Plus, Edit2, Trash2, Search, Server, User, Lock, Save, X, Eye, EyeOff } from 'lucide-react';
 
 interface CredentialSummary {
-  id: number;
+  id: string;
   name: string;
   username: string;
   credential_type: string;
@@ -80,29 +80,29 @@ const CredentialManager: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this credential?')) return;
     
     try {
-      await invoke('delete_credential', { credentialId: id.toString() });
+      await invoke('delete_credential', { credentialId: id });
       await loadCredentials();
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to delete credential'));
     }
   };
 
-  const handleView = async (id: number) => {
+  const handleView = async (id: string) => {
     try {
-      const cred = await invoke<Credential>('get_credential', { credentialId: id.toString() });
+      const cred = await invoke<Credential>('get_credential', { credentialId: id });
       setSelectedCredential(cred);
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to retrieve credential'));
     }
   };
 
-  const handleEdit = async (id: number) => {
+  const handleEdit = async (id: string) => {
     try {
-      const cred = await invoke<Credential>('get_credential', { credentialId: id.toString() });
+      const cred = await invoke<Credential>('get_credential', { credentialId: id });
       setEditingCredential(cred);
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to retrieve credential'));
@@ -318,7 +318,7 @@ const CredentialDialog: React.FC<{
           port: formData.port || null,
         });
         const payload: Record<string, unknown> = {
-          credentialId: credential.id.toString(),
+          credentialId: credential.id,
           name: formData.name,
           username: formData.username,
           metadata,

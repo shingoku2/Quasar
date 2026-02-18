@@ -1,7 +1,9 @@
 use tauri::{AppHandle, Emitter};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
 use serde::Serialize;
-use log::error;
+use log::{error, info};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -13,8 +15,27 @@ pub struct DiscoveredHost {
     pub service_type: String,
 }
 
-pub fn start_mdns_discovery(app: AppHandle) {
+pub struct DiscoveryState {
+    pub running: Arc<AtomicBool>,
+}
+
+impl DiscoveryState {
+    pub fn new() -> Self {
+        Self {
+            running: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>) {
+    if running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        info!("[discovery] mDNS discovery already running, skipping duplicate spawn");
+        return;
+    }
+
+    let running_flag = running.clone();
     thread::spawn(move || {
+        let _guard = DropGuard(running_flag);
         // Create a daemon; exit gracefully if creation fails (e.g. no multicast support)
         let mdns = match ServiceDaemon::new() {
             Ok(d) => d,
@@ -64,4 +85,12 @@ pub fn start_mdns_discovery(app: AppHandle) {
             thread::sleep(Duration::from_millis(100));
         }
     });
+}
+
+struct DropGuard(Arc<AtomicBool>);
+
+impl Drop for DropGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }

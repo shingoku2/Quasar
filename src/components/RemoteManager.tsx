@@ -328,6 +328,7 @@ const RemoteManager: React.FC = () => {
       {showCredentialSelector && pendingHost && (
         <CredentialSelector
           hostAddress={pendingHost.address}
+          allowedTypes={pendingMode === 'sftp' ? ['ssh'] : undefined}
           onSelect={handleCredentialSelected}
           onCancel={() => {
             setShowCredentialSelector(false);

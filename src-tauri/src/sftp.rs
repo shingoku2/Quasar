@@ -63,6 +63,17 @@ impl client::Handler for SftpClient {
     }
 }
 
+fn require_password_auth(password: &str) -> Result<(), String> {
+    if password.is_empty() {
+        return Err(
+            "SFTP requires password-based authentication. \
+             SSH key authentication is not yet supported for SFTP operations."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 /// Progress callback for file transfer operations
 pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
 
@@ -77,7 +88,8 @@ pub async fn upload_file(
     remote_path: &str,
     progress_callback: Option<ProgressCallback>,
 ) -> Result<(), String> {
-    // Validate local file exists
+    require_password_auth(password)?;
+
     if !Path::new(local_path).exists() {
         return Err(format!("Local file not found: {}", local_path));
     }
@@ -194,7 +206,8 @@ pub async fn download_file(
     local_path: &str,
     progress_callback: Option<ProgressCallback>,
 ) -> Result<(), String> {
-    // Connect to SSH
+    require_password_auth(password)?;
+
     let config = russh::client::Config::default();
     let config = Arc::new(config);
     let sh = SftpClient {
@@ -306,7 +319,8 @@ pub async fn list_directory(
     password: &str,
     remote_path: &str,
 ) -> Result<Vec<RemoteFile>, String> {
-    // Connect to SSH
+    require_password_auth(password)?;
+
     let config = russh::client::Config::default();
     let config = Arc::new(config);
     let sh = SftpClient {
@@ -390,7 +404,8 @@ pub async fn remote_exists(
     password: &str,
     remote_path: &str,
 ) -> Result<bool, String> {
-    // Connect to SSH
+    require_password_auth(password)?;
+
     let config = russh::client::Config::default();
     let config = Arc::new(config);
     let sh = SftpClient {

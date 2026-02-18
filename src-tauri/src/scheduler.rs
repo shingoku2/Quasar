@@ -3,6 +3,7 @@
 
 use chrono::{DateTime, Utc};
 use cron::Schedule;
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
@@ -473,7 +474,7 @@ pub async fn run_scheduled_task_now(app: &AppHandle, task_id: &str) -> Result<Ta
     Ok(result)
 }
 
-async fn run_due_tasks(app: &AppHandle) {
+async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, DateTime<Utc>>) {
     let db_path = match get_db_path(app) {
         Ok(p) => p,
         Err(e) => {
@@ -503,10 +504,18 @@ async fn run_due_tasks(app: &AppHandle) {
 
     let now = Utc::now();
     let now_ts = now.timestamp();
+    let guard_duration = chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64);
 
     for task in tasks {
         if !is_due(&task.cron_expression, task.last_run_at, now) {
             continue;
+        }
+
+        // Guard against repeated execution when DB persistence of last_run_at failed.
+        if let Some(last) = last_executed.get(&task.id) {
+            if now.signed_duration_since(*last) < guard_duration {
+                continue;
+            }
         }
 
         info!("scheduler: running task '{}'", task.name);
@@ -563,6 +572,9 @@ async fn run_due_tasks(app: &AppHandle) {
             }
         };
 
+        // Record in-memory regardless of DB persistence outcome.
+        last_executed.insert(task_id.clone(), now);
+
         let conn2 = match db::open_connection(db_path_str) {
             Ok(c) => c,
             Err(e) => {
@@ -578,18 +590,28 @@ async fn run_due_tasks(app: &AppHandle) {
                 } else {
                     error!("scheduler: task '{}' failed: {:?}", task_name, r.error);
                 }
-                let _ = set_run_result(
+                if let Err(e) = set_run_result(
                     &conn2,
                     &task_id,
                     now_ts,
                     status,
                     r.error.as_deref(),
                     r.output.as_deref(),
-                );
+                ) {
+                    error!(
+                        "scheduler: failed to persist run result for task '{}': {}",
+                        task_name, e
+                    );
+                }
             }
             Err(e) => {
                 error!("scheduler: task '{}' run error: {}", task_name, e);
-                let _ = set_run_result(&conn2, &task_id, now_ts, "failure", Some(e.as_str()), None);
+                if let Err(pe) = set_run_result(&conn2, &task_id, now_ts, "failure", Some(e.as_str()), None) {
+                    error!(
+                        "scheduler: failed to persist run result for task '{}': {}",
+                        task_name, pe
+                    );
+                }
             }
         }
     }
@@ -600,10 +622,11 @@ async fn run_due_tasks(app: &AppHandle) {
 pub fn start_scheduler(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_secs(CHECK_INTERVAL_SECS));
+        let mut last_executed: HashMap<String, DateTime<Utc>> = HashMap::new();
         ticker.tick().await; // first tick fires immediately; skip so we wait CHECK_INTERVAL_SECS first
         loop {
             ticker.tick().await;
-            run_due_tasks(&app).await;
+            run_due_tasks(&app, &mut last_executed).await;
         }
     });
 }

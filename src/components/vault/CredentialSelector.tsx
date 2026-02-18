@@ -17,13 +17,15 @@ interface Credential extends CredentialSummary {
 
 interface CredentialSelectorProps {
   hostAddress?: string;
+  allowedTypes?: string[];
   onSelect: (credential: Credential) => void;
   onCancel: () => void;
   onManualEntry: () => void;
 }
 
 const CredentialSelector: React.FC<CredentialSelectorProps> = ({ 
-  hostAddress, 
+  hostAddress,
+  allowedTypes,
   onSelect, 
   onCancel,
   onManualEntry 
@@ -44,10 +46,13 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       let creds = await invoke<CredentialSummary[]>('list_credentials');
       
       if (hostAddress) {
+        const types = allowedTypes ?? ['ssh', 'ssh_key'];
         creds = creds.filter(c => 
-          (c.credential_type === 'ssh' || c.credential_type === 'ssh_key') && 
+          types.includes(c.credential_type) && 
           (!c.host || c.host === hostAddress)
         );
+      } else if (allowedTypes) {
+        creds = creds.filter(c => allowedTypes.includes(c.credential_type));
       }
       
       setCredentials(creds);

@@ -319,23 +319,36 @@ const ScheduledTasksView: React.FC = () => {
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent"
                 >
                   <option value="">None</option>
-                  {credentials.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.username})
-                    </option>
-                  ))}
+                  {credentials
+                    .filter((c) =>
+                      form.task_type === 'sftp_upload' || form.task_type === 'sftp_download'
+                        ? c.credential_type !== 'ssh_key'
+                        : true
+                    )
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.username})
+                      </option>
+                    ))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Task type</label>
                 <select
                   value={form.task_type}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      task_type: e.target.value as 'ssh' | 'sftp_upload' | 'sftp_download',
-                    }))
-                  }
+                  onChange={(e) => {
+                    const newType = e.target.value as 'ssh' | 'sftp_upload' | 'sftp_download';
+                    setForm((f) => {
+                      const isSftp = newType === 'sftp_upload' || newType === 'sftp_download';
+                      const selectedCred = credentials.find((c) => c.id === f.credential_id);
+                      const clearCred = isSftp && selectedCred?.credential_type === 'ssh_key';
+                      return {
+                        ...f,
+                        task_type: newType,
+                        credential_id: clearCred ? null : f.credential_id,
+                      };
+                    });
+                  }}
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent"
                 >
                   <option value="ssh">SSH command</option>

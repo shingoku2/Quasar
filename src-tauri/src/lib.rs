@@ -189,8 +189,8 @@ async fn connect_rdp(address: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn start_discovery(app: AppHandle) {
-    discovery::start_mdns_discovery(app);
+fn start_discovery(app: AppHandle, state: State<'_, discovery::DiscoveryState>) {
+    discovery::start_mdns_discovery(app, state.running.clone());
 }
 
 #[tauri::command]
@@ -1018,7 +1018,12 @@ fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
     if !src.exists() {
         return Err("Database file not found".to_string());
     }
-    std::fs::copy(&src, &dest_path).map_err(|e| format!("Failed to export database: {}", e))?;
+    let src_str = src.to_str().ok_or("Invalid database path")?;
+    let conn = db::open_connection(src_str)?;
+    // VACUUM INTO creates a consistent snapshot even while other connections are writing.
+    let escaped = dest_path.replace('\'', "''");
+    conn.execute_batch(&format!("VACUUM INTO '{}';", escaped))
+        .map_err(|e| format!("Failed to export database: {}", e))?;
     Ok(())
 }
 
@@ -1026,11 +1031,44 @@ fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
 fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_dir.join(DB_FILENAME);
+
+    // Validate that the source file is a readable SQLite database.
+    if !std::path::Path::new(&source_path).exists() {
+        return Err("Source file not found".to_string());
+    }
+    rusqlite::Connection::open_with_flags(
+        &source_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .and_then(|c| {
+        c.execute_batch("SELECT count(*) FROM sqlite_master;")?;
+        Ok(())
+    })
+    .map_err(|e| format!("Source is not a valid SQLite database: {}", e))?;
+
+    // Backup current DB before replacing.
     let backup_path = app_dir.join(format!("{}.bak", DB_FILENAME));
     if db_path.exists() {
-        std::fs::copy(&db_path, &backup_path).map_err(|e| format!("Failed to backup current database: {}", e))?;
+        std::fs::copy(&db_path, &backup_path)
+            .map_err(|e| format!("Failed to backup current database: {}", e))?;
     }
-    std::fs::copy(&source_path, &db_path).map_err(|e| format!("Failed to import database: {}", e))?;
+
+    // Atomic replace: copy to a temp file next to target, then rename over the target.
+    let tmp_path = app_dir.join(format!("{}.import_tmp", DB_FILENAME));
+    std::fs::copy(&source_path, &tmp_path)
+        .map_err(|e| format!("Failed to stage import file: {}", e))?;
+    std::fs::rename(&tmp_path, &db_path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp_path);
+        format!("Failed to replace database file: {}", e)
+    })?;
+
+    // Active background connections (monitoring, scheduler) still reference the old
+    // file-descriptor. An application restart is required for them to pick up the
+    // imported database.
+    log::warn!(
+        "Database imported from '{}'. Application restart required for changes to take full effect.",
+        source_path
+    );
     Ok(())
 }
 
@@ -1058,6 +1096,7 @@ pub fn run() {
             let db_path_str = db_path_str.to_string();
             
             app.manage(ssh::SshState::new());
+            app.manage(discovery::DiscoveryState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
             app.manage(Arc::new(monitoring::AlertEngine::new()));
             app.manage(vault::VaultState::new(db_path_str.clone()));

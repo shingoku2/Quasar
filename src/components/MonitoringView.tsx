@@ -237,7 +237,7 @@ const MonitoringView: React.FC = () => {
         />
         <MetricChartCard 
           title="Network Traffic" 
-          value={metrics?.network_rx_mb !== undefined && metrics?.network_tx_mb !== undefined ? `${((metrics.network_rx_mb + metrics.network_tx_mb) / 1024).toFixed(2)} MB/s` : '-- MB/s'} 
+          value={metrics?.network_rx_mb !== undefined && metrics?.network_tx_mb !== undefined ? `${(metrics.network_rx_mb + metrics.network_tx_mb).toFixed(2)} MB/s` : '-- MB/s'} 
           data={netData} 
           color="#8b5cf6" 
         />
