@@ -840,7 +840,7 @@ fn get_app_info(app: AppHandle) -> Result<AppInfo, String> {
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?.to_string();
     let db_size_bytes = std::fs::metadata(&db_path).ok().and_then(|m| if m.is_file() { Some(m.len()) } else { None });
-    let version = app.package_info().version().to_string();
+    let version = app.package_info().version.to_string();
     let platform = std::env::consts::OS.to_string();
     let arch = std::env::consts::ARCH.to_string();
     Ok(AppInfo {
