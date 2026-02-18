@@ -51,7 +51,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Visually hidden username field for accessibility: password forms should include a username field per Chromium guidance; sr-only keeps it available to screen readers */}
+          {/* Visually hidden username field for accessibility: password forms should include a username field per Chromium guidance; kept empty to avoid password managers associating the master password with a username. */}
           <div className="sr-only">
             <label htmlFor="vault-unlock-username">Username</label>
             <input
@@ -60,8 +60,6 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
               name="username"
               autoComplete="username"
               tabIndex={-1}
-              defaultValue="vault"
-              placeholder="vault"
               className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
             />
           </div>
