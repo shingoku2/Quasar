@@ -7,6 +7,38 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Workflow Scheduling (Scheduled Tasks) - Complete (February 18, 2026)
+
+#### Overview
+Cron-based scheduled SSH command execution on saved hosts, with Automation UI, last-run status/result storage, and manual "Run now."
+
+#### 1) Backend scheduler ✅
+- **Location**: `src-tauri/src/scheduler.rs`
+- **Migrations**: `010_scheduled_tasks.sql` (table `scheduled_tasks`: id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, created_at, updated_at); `011_scheduled_task_run_result.sql` (last_run_status, last_run_error, last_run_output).
+- **Loop**: `start_scheduler(app)` spawns a task (Tauri async runtime) that every 60s opens DB, loads enabled tasks, for each due task (cron `is_due`) resolves host and optional credential, runs `ssh_exec::execute_ssh_command` (password or SSH key), then `set_run_result` (success/failure, error, truncated output).
+- **CRUD**: `list_scheduled_tasks`, `get_scheduled_task`, `add_scheduled_task`, `update_scheduled_task`, `remove_scheduled_task` (all in scheduler.rs; Tauri commands in lib.rs open DB and call these).
+- **Manual run**: `run_scheduled_task_now(app, task_id)` loads task, runs once, updates last_run_*, returns `TaskRunResult { success, output, error }`. Uses `run_one_task` (no `conn` across await) so the spawn future is `Send`.
+
+#### 2) Automation view ✅
+- **Location**: `src/components/ScheduledTasksView.tsx`
+- **Features**: List tasks; add/edit form (name, cron expression, host dropdown, command, optional credential, enabled); delete; **Run now** button (play icon) with loading state; result panel after run (success/failure, output/error, dismissible).
+- **Last run display**: Each task card shows last run time, status (Success / Failed: message), and optional output snippet. Data from `last_run_status`, `last_run_error`, `last_run_output`.
+
+#### 3) Navigation and commands ✅
+- **Sidebar/TopBar/Layout**: New view `automation` (Clock icon, "Automation"); `ScheduledTasksView` rendered when active.
+- **Invoke**: Frontend uses camelCase for command args (Tauri maps to Rust snake_case). Commands: `list_scheduled_tasks`, `get_scheduled_task`, `add_scheduled_task`, `update_scheduled_task`, `remove_scheduled_task`, `run_scheduled_task_now`.
+
+#### Files Modified/Added
+- `src-tauri/migrations/010_scheduled_tasks.sql`, `011_scheduled_task_run_result.sql`
+- `src-tauri/src/scheduler.rs` (new)
+- `src-tauri/src/lib.rs` (migration 010/011, mod scheduler, commands, start_scheduler in setup)
+- `src-tauri/src/ssh_exec.rs` (execute_ssh_command: optional key_path, private_key, key_passphrase for SSH key auth)
+- `src/components/ScheduledTasksView.tsx` (new)
+- `src/components/Sidebar.tsx`, `TopBar.tsx`, `Layout.tsx` (automation view)
+- Test mocks: `Layout.test.tsx`, `App.test.tsx` (list_scheduled_tasks, get_saved_hosts)
+
+---
+
 ### SSH Terminal Flow Control & Dashboard / UX Fixes - Complete (February 18, 2026)
 
 #### Overview
@@ -1093,4 +1125,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 18, 2026*
+*Last Updated: February 18, 2026 (workflow scheduling, last-run status, Run now)*

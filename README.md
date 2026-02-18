@@ -21,6 +21,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **Quick Connect** - One-click connection to saved hosts
 - **Session Management** - Multiple concurrent SSH sessions
 - **Real Command Execution** - Execute commands and scripts on remote hosts
+- **Scheduled Tasks** - Cron-based automation: run SSH commands on saved hosts on a schedule; view last run status (success/failure, output); **Run now** for manual execution
 
 ### 📊 Monitoring & Health Checks
 - **Real-time Metrics** - CPU, memory, disk usage, and system load monitoring
@@ -135,12 +136,12 @@ This creates platform-specific installers in `src-tauri/target/release/bundle/`.
 3. Optionally associate credentials with specific hosts
 4. Use credentials for quick SSH connections
 
-### Creating Workflows
-1. Navigate to Automation → Workflows
-2. Create a new workflow with the visual builder
-3. Add actions: SSH commands, file transfers, health checks
-4. Add conditional logic based on command output
-5. Save and execute the workflow
+### Scheduled Tasks (Automation)
+1. Navigate to **Automation** (sidebar)
+2. Add a task: name, cron schedule (e.g. `0 9 * * *` for daily 9:00), host, command, optional credential
+3. Tasks run automatically when due (scheduler checks every 60s)
+4. Use **Run now** to execute a task immediately and see output/error in the result panel
+5. View last run status (Success / Failed) and output on each task card
 
 ### Monitoring
 1. View real-time metrics on the Dashboard
@@ -165,6 +166,7 @@ Quasar/
 │   │   ├── vault/               # Credential vault module
 │   │   ├── ssh_exec.rs          # SSH command execution
 │   │   ├── sftp.rs              # SFTP file transfer
+│   │   ├── scheduler.rs         # Cron-based scheduled tasks
 │   │   ├── health.rs            # Health check system
 │   │   └── lib.rs               # Main Tauri application
 │   ├── migrations/              # SQLite database migrations
@@ -200,6 +202,11 @@ See `conductor/code_styleguides/` for detailed coding standards:
 5. Submit a pull request
 
 ## Recent Updates
+
+### February 18, 2026 - Workflow Scheduling & Task Results
+- ✅ **Scheduled tasks (cron)** — Automation view: create/edit/delete tasks (name, cron expression, host, command, optional credential); background scheduler runs due tasks every 60s; supports password and SSH key auth
+- ✅ **Last run result** — Each task stores and displays last run time, status (Success / Failed), error message, and truncated output (migration 011)
+- ✅ **Run now** — Manual run from UI with result panel (success/failure, output/error)
 
 ### February 18, 2026 - SSH Terminal & Dashboard Fixes
 - ✅ **SSH terminal hang fixed** — Refactored to use `Channel::wait()` for receiving data so russh’s internal buffer is drained and window adjustments keep data flowing; consecutive/simultaneous commands no longer stall
