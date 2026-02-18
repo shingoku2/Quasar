@@ -1094,8 +1094,8 @@ Quasar/
 │   │   ├── vault/
 │   │   │   └── credentials.rs  # Credential CRUD with encryption
 │   │   └── ...
-│   ├── migrations/
-│   │   └── 003_security_vault.sql  # Vault database schema
+│   ├── migrations/   # 001–012; 011/012 via Rust hooks (idempotent)
+│   │   └── (010 scheduled_tasks, 011 run-result, 012 SFTP columns, etc.)
 │   └── Cargo.toml
 └── conductor/             # Product documentation
 ```
@@ -1124,4 +1124,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 18, 2026 (scheduler tests, cron 6-field, CORE_WORKFLOWS.md)*
+*Last Updated: February 18, 2026 (SFTP in scheduled tasks, migration 010/011/012 idempotency, audit fixes, README/CORE_WORKFLOWS/SCHEMA doc updates, tauri-dev.js npx check, cross-env removed).*

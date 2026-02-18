@@ -25,9 +25,13 @@ This document describes the main user workflows for remote management, automatio
 ## 3. Scheduled tasks (Automation)
 
 - **Location**: Automation (sidebar).
-- **Add task**: Name, **cron schedule**, host, command, optional credential. Enabled by default.
+- **Task types**: Choose **SSH command**, **Upload file (SFTP)**, or **Download file (SFTP)**.
+  - **SSH command**: Enter the command to run on the host (e.g. `/opt/backup.sh`).
+  - **Upload file**: Enter local path (e.g. `C:\backup\file.zip`) and remote path (e.g. `/home/user/file.zip`).
+  - **Download file**: Enter remote path and local path. File transfer tasks use the same vault credential (password) for SFTP.
+- **Add task**: Name, **cron schedule**, host, optional credential. Enabled by default.
 - **Cron format**: **6 fields** (sec min hour day month dow), e.g. `0 0 9 * * *` = daily at 9:00. Use the placeholder in the form as a guide.
-- **Execution**: Background scheduler checks every 60 seconds; due tasks run via SSH (password or SSH key from vault). If the vault is locked, tasks that need a credential are skipped.
+- **Execution**: Background scheduler checks every 60 seconds; due tasks run via SSH (command) or SFTP (upload/download). Password or SSH key from vault. If the vault is locked, tasks that need a credential are skipped.
 - **Last run**: Each task shows last run time, status (Success / Failed), and optional error or output snippet.
 - **Run now**: Use the play button to run a task once and see the full result (output/error) in the result panel.
 

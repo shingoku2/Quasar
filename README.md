@@ -21,7 +21,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **Quick Connect** - One-click connection to saved hosts
 - **Session Management** - Multiple concurrent SSH sessions
 - **Real Command Execution** - Execute commands and scripts on remote hosts
-- **Scheduled Tasks** - Cron-based automation: run SSH commands on saved hosts on a schedule; view last run status (success/failure, output); **Run now** for manual execution
+- **Scheduled Tasks** - Cron-based automation: run **SSH commands** or **SFTP upload/download** on saved hosts; task types (SSH command, Upload file, Download file) with optional local/remote paths for file transfer; view last run status (success/failure, output); **Run now** for manual execution
 
 ### 📊 Monitoring & Health Checks
 - **Real-time Metrics** - CPU, memory, disk usage, and system load monitoring
@@ -49,8 +49,8 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 ## Architecture
 
 ### Frontend
-- **Framework**: React 18 + TypeScript + Vite
-- **UI Library**: shadcn/ui + Tailwind CSS + Lucide icons
+- **Framework**: React 19 + TypeScript + Vite
+- **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
 - **Testing**: Vitest + React Testing Library
@@ -63,17 +63,14 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **Security**: zeroize for secure memory clearing
 
 ### Database Schema
+See `docs/SCHEMA.md` for the full consolidated schema. Main tables:
 - `hosts` - Remote host configurations
 - `credentials` - Encrypted credential storage
 - `vault_settings` - Master password and vault configuration
 - `ssh_known_hosts` - SSH host key fingerprints
 - `security_audit_log` - Security event tracking
-- `monitoring_metrics` - System metrics history
-- `monitoring_alerts` - Alert configurations
-- `discovered_hosts` - Network scan results and host tracking
-- `host_services` - Detected services per discovered host
-- `workflows` - Automation workflow definitions
-- `workflow_executions` - Workflow execution history
+- `scheduled_tasks` - Cron tasks (SSH command or SFTP upload/download)
+- Monitoring/alert and discovery tables (see migrations 004, 006, 007)
 
 ## Getting Started
 
@@ -108,10 +105,12 @@ Run the application in development mode:
 npm run tauri dev
 ```
 
-This will:
-- Start the Vite dev server for hot module reloading
-- Compile and run the Tauri backend
-- Open the application window
+This runs `scripts/tauri-dev.js`, which sets `CARGO_TARGET_DIR` to the project’s `src-tauri/target`, then starts `npx tauri dev`. The script checks that `npx` is available before spawning and prints clear errors if Node/npm are missing.
+
+You get:
+- Vite dev server for hot module reloading
+- Tauri backend compile and run
+- Application window
 
 ### Building
 
@@ -138,10 +137,11 @@ This creates platform-specific installers in `src-tauri/target/release/bundle/`.
 
 ### Scheduled Tasks (Automation)
 1. Navigate to **Automation** (sidebar)
-2. Add a task: name, cron schedule (e.g. `0 9 * * *` for daily 9:00), host, command, optional credential
-3. Tasks run automatically when due (scheduler checks every 60s)
-4. Use **Run now** to execute a task immediately and see output/error in the result panel
-5. View last run status (Success / Failed) and output on each task card
+2. Add a task: choose **Task type** (SSH command, Upload file, or Download file), name, cron schedule (6-field e.g. `0 0 9 * * *` for daily 9:00), host, optional credential
+3. For SSH: enter the command. For Upload/Download: enter local path and remote path
+4. Tasks run automatically when due (scheduler checks every 60s)
+5. Use **Run now** to execute a task immediately and see output/error in the result panel
+6. View last run status (Success / Failed) and output on each task card
 
 ### Monitoring
 1. View real-time metrics on the Dashboard
@@ -203,13 +203,18 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
+### February 18, 2026 - Documentation & Script Fixes
+- ✅ **tauri-dev.js** — Verifies `npx` is available before spawn (Windows: `where npx`; Unix: `command -v npx`); improved error messages if spawn fails
+- ✅ **cross-env** — Removed unused devDependency; env is set directly in the script
+- ✅ **Codebase audit** — Fixes applied for monitoring/scanner Mutex poison recovery, Discovery/MonitoringView listener cleanup, AGENTS.md/MVP roadmap doc updates, CredentialManager error helper, SCHEMA.md migration note; see `CODEBASE_AUDIT_REPORT.md`
+
 ### February 18, 2026 - Workflow Scheduling & Task Results
-- ✅ **Scheduled tasks (cron)** — Automation view: create/edit/delete tasks (name, cron expression, host, command, optional credential); background scheduler runs due tasks every 60s; supports password and SSH key auth
-- ✅ **Last run result** — Each task stores and displays last run time, status (Success / Failed), error message, and truncated output (migration 011)
+- ✅ **Scheduled tasks (cron)** — Automation view: create/edit/delete tasks; **task types**: SSH command, SFTP upload, SFTP download (with local/remote paths); background scheduler runs due tasks every 60s; supports password and SSH key auth
+- ✅ **Last run result** — Each task stores and displays last run time, status (Success / Failed), error message, and truncated output (migrations 010/011)
 - ✅ **Run now** — Manual run from UI with result panel (success/failure, output/error)
 - ✅ **Cron format** — UI uses 6-field (sec min hour day month dow), e.g. `0 0 9 * * *` for 9:00 daily; see `docs/CORE_WORKFLOWS.md`
 - ✅ **Scheduler tests** — Integration tests for CRUD, set_run_result, load_enabled_tasks, load_task_by_id, output truncation (`cargo test scheduler::`)
-- ✅ **Documentation** — `docs/CORE_WORKFLOWS.md` covers vault, SSH, scheduled tasks, SFTP, monitoring, discovery
+- ✅ **Documentation** — `docs/CORE_WORKFLOWS.md` covers vault, SSH, scheduled tasks (including SFTP types), SFTP, monitoring, discovery
 
 ### February 18, 2026 - SSH Terminal & Dashboard Fixes
 - ✅ **SSH terminal hang fixed** — Refactored to use `Channel::wait()` for receiving data so russh’s internal buffer is drained and window adjustments keep data flowing; consecutive/simultaneous commands no longer stall
@@ -252,11 +257,14 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Documentation
 
-- `AGENTS.md` - AI agent context and implementation history
-- `docs/CORE_WORKFLOWS.md` - Core user workflows (vault, SSH, scheduled tasks, SFTP, monitoring, discovery)
-- `conductor/` - Product guidelines and feature tracks
-- `MVP_COMPLETION_ROADMAP.md` - Development roadmap
-- `MONITORING_COMPLETE.md` - Monitoring system documentation
+- **README.md** (this file) — Overview, features, getting started, usage
+- **AGENTS.md** — AI agent context, implementation history, and bug-fix log
+- **docs/CORE_WORKFLOWS.md** — Core user workflows (vault, SSH, scheduled tasks including SFTP types, SFTP, monitoring, discovery)
+- **docs/SCHEMA.md** — Database schema and migration notes
+- **MVP_COMPLETION_ROADMAP.md** — Development roadmap and success criteria
+- **CODEBASE_AUDIT_REPORT.md** — Audit findings and applied fixes
+- **conductor/** — Product guidelines and feature tracks
+- **MONITORING_COMPLETE.md** — Monitoring system documentation
 
 ## Tech Stack
 
