@@ -108,7 +108,10 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
               <input 
                 autoFocus
                 type={showPassword ? 'text' : 'password'}
+<<<<<<< HEAD
                 autoComplete="new-password"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                 className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-3 pr-12 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-gray-600"
                 placeholder="Enter master password"
                 value={masterPassword}
@@ -149,7 +152,10 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
               <label className="block text-sm font-medium text-gray-400 mb-2">Confirm Password</label>
               <input 
                 type={showConfirm ? 'text' : 'password'}
+<<<<<<< HEAD
                 autoComplete="new-password"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                 className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-3 pr-12 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-gray-600"
                 placeholder="Confirm master password"
                 value={confirmPassword}

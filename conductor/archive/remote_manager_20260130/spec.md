@@ -1,7 +1,11 @@
 # Specification: Remote Connection Manager (Module B)
 
 ## Overview
+<<<<<<< HEAD
 This track focuses on transitioning from external system-level launchers to a native, embedded remote access experience within Quasar. It implements the "Remote Connection Manager" using a hybrid interface that supports both tabbed navigation and split-pane viewing for SSH, RDP, and VNC sessions.
+=======
+This track focuses on transitioning from external system-level launchers to a native, embedded remote access experience within Project Titan. It implements the "Remote Connection Manager" using a hybrid interface that supports both tabbed navigation and split-pane viewing for SSH, RDP, and VNC sessions.
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ## Functional Requirements
 1.  **Embedded Terminals (SSH):**

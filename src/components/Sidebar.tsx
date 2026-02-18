@@ -7,14 +7,22 @@ import {
   Settings,
   Shield,
   Lock,
+<<<<<<< HEAD
   LockOpen,
   Clock
+=======
+  LockOpen
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useVault } from './vault/VaultProvider';
 import quasarLogo from '../assets/quasar-logo.svg';
 
+<<<<<<< HEAD
 export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'ai' | 'automation' | 'security' | 'settings';
+=======
+export type ViewId = 'dashboard' | 'remote' | 'monitoring' | 'ai' | 'security' | 'settings';
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 interface SidebarProps {
   activeView: ViewId;
@@ -26,7 +34,10 @@ const navItems = [
   { id: 'remote', icon: Terminal, label: 'Remote' },
   { id: 'monitoring', icon: Activity, label: 'Monitoring' },
   { id: 'ai', icon: Bot, label: 'AI Assistant' },
+<<<<<<< HEAD
   { id: 'automation', icon: Clock, label: 'Automation' },
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
   { id: 'security', icon: Shield, label: 'Security' },
   { id: 'settings', icon: Settings, label: 'Settings' },
 ] as const;

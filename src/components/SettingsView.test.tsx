@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
+<<<<<<< HEAD
   invoke: vi.fn((cmd: string) => {
     if (cmd === 'get_app_info') {
       return Promise.resolve({ version: '0.1.0', platform: 'windows', arch: 'x86_64', app_data_dir: '', db_path: '', db_size_bytes: 0 });
@@ -16,6 +17,9 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   save: vi.fn(() => Promise.resolve(null)),
   open: vi.fn(() => Promise.resolve(null)),
+=======
+  invoke: vi.fn(() => Promise.resolve()),
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
@@ -64,7 +68,11 @@ describe('SettingsView', () => {
     render(<SettingsView />);
 
     fireEvent.click(screen.getByText('Appearance'));
+<<<<<<< HEAD
     expect(screen.getByText('Dark Theme')).toBeInTheDocument();
+=======
+    expect(screen.getByText('Dark Theme (Current)')).toBeInTheDocument();
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
   });
 
   it('switches to Data & Storage category', () => {

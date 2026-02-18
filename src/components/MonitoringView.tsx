@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
+=======
+import React, { useState, useEffect } from 'react';
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
@@ -99,6 +103,7 @@ const MonitoringView: React.FC = () => {
   const [remoteHosts, setRemoteHosts] = useState<RemoteHostMetric[]>([]);
   const [savedHosts, setSavedHosts] = useState<SavedHost[]>([]);
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
+<<<<<<< HEAD
   const unlistenPromiseRef = useRef<Promise<() => void> | null>(null);
 
   useEffect(() => {
@@ -110,13 +115,32 @@ const MonitoringView: React.FC = () => {
           const data = event.payload as SystemMetrics;
           const timeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
           setMetrics(data);
+=======
+
+  useEffect(() => {
+    let unlisten: Promise<() => void> | null = null;
+    
+    const setupListener = async () => {
+      try {
+        unlisten = listen('system-metrics', (event) => {
+          const data = event.payload as SystemMetrics;
+          const timeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          
+          setMetrics(data);
+          
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
           setCpuData(prev => [...prev.slice(-19), { time: timeLabel, value: data.cpu_usage_percent }]);
           setMemData(prev => [...prev.slice(-19), { time: timeLabel, value: data.memory_usage_percent }]);
           setDiskData(prev => [...prev.slice(-19), { time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
           setNetData(prev => [...prev.slice(-19), { time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
         });
+<<<<<<< HEAD
         unlistenPromiseRef.current = unlistenPromise;
         await unlistenPromise;
+=======
+        
+        await unlisten;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       } catch (error) {
         console.error('Error setting up listener:', error);
       }
@@ -136,8 +160,14 @@ const MonitoringView: React.FC = () => {
     });
 
     return () => {
+<<<<<<< HEAD
       unlistenPromiseRef.current?.then(fn => fn()).catch(console.error);
       unlistenPromiseRef.current = null;
+=======
+      if (unlisten) {
+        unlisten.then(fn => fn()).catch(console.error);
+      }
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     };
   }, []);
 

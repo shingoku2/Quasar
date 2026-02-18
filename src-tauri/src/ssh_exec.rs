@@ -51,17 +51,25 @@ impl client::Handler for ExecClient {
     }
 }
 
+<<<<<<< HEAD
 /// Execute a single SSH command and return output.
 /// Supports password and/or SSH key auth (key_path or private_key PEM string).
+=======
+/// Execute a single SSH command and return output
+#[allow(dead_code)]
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 pub async fn execute_ssh_command(
     app_handle: AppHandle,
     host: &str,
     port: u16,
     username: &str,
     password: &str,
+<<<<<<< HEAD
     key_path: Option<&str>,
     private_key: Option<&str>,
     key_passphrase: Option<&str>,
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     command: &str,
     timeout_secs: u64,
 ) -> Result<String, String> {
@@ -88,10 +96,17 @@ pub async fn execute_ssh_command(
         crate::ssh_auth::authenticate(
             &mut session,
             username,
+<<<<<<< HEAD
             if password.is_empty() { None } else { Some(password) },
             key_path,
             private_key,
             key_passphrase,
+=======
+            Some(password),
+            None,
+            None,
+            None,
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         ).await.map_err(|e| format!("Authentication error: {}", e))?;
 
         // Open channel and execute command

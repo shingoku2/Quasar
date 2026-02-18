@@ -200,7 +200,10 @@ const VaultSettings: React.FC = () => {
                       </label>
                       <input
                         type="password"
+<<<<<<< HEAD
                         autoComplete="current-password"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
@@ -214,7 +217,10 @@ const VaultSettings: React.FC = () => {
                       </label>
                       <input
                         type="password"
+<<<<<<< HEAD
                         autoComplete="new-password"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
@@ -228,7 +234,10 @@ const VaultSettings: React.FC = () => {
                       </label>
                       <input
                         type="password"
+<<<<<<< HEAD
                         autoComplete="new-password"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"

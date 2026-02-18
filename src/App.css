@@ -23,6 +23,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+<<<<<<< HEAD
 /* Light theme (applied when data-theme="light" on html) */
 [data-theme="light"] {
   color-scheme: light;
@@ -37,6 +38,8 @@
   color: #1e293b;
 }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 body {
   margin: 0;
   padding: 0;

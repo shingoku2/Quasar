@@ -24,7 +24,11 @@ const HostList: React.FC<{
 
   const fetchHosts = async () => {
     try {
+<<<<<<< HEAD
       const db = await Database.load("sqlite:quasar.db");
+=======
+      const db = await Database.load("sqlite:titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       const result = await db.select<Host[]>("SELECT * FROM hosts ORDER BY name ASC");
       setHosts(result);
     } catch (err) {
@@ -62,7 +66,11 @@ const HostList: React.FC<{
     }
 
     try {
+<<<<<<< HEAD
       const db = await Database.load("sqlite:quasar.db");
+=======
+      const db = await Database.load("sqlite:titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       for (const id of duplicateHostIds) {
         await db.execute("DELETE FROM hosts WHERE id = ?", [id]);
       }
@@ -107,7 +115,11 @@ const HostList: React.FC<{
     }
 
     try {
+<<<<<<< HEAD
       const db = await Database.load("sqlite:quasar.db");
+=======
+      const db = await Database.load("sqlite:titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       await db.execute("DELETE FROM hosts WHERE id = ?", [host.id]);
       await fetchHosts();
       window.dispatchEvent(new Event('hostsUpdated'));

@@ -111,7 +111,6 @@ You get:
 - Vite dev server for hot module reloading
 - Tauri backend compile and run
 - Application window
-
 ### Building
 
 Build the application for production:

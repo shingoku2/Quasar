@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
+=======
+import React, { useState, useEffect } from 'react';
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -25,12 +29,19 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
   const [mdnsHosts, setMdnsHosts] = useState<DiscoveredHost[]>([]);
   const [scanHosts, setScanHosts] = useState<DiscoveredHost[]>([]);
   const [scanning, setScanning] = useState(false);
+<<<<<<< HEAD
   const cancelledRef = useRef(false);
   const unlistenRef = useRef<{ mdns?: () => void; scanComplete?: () => void }>({});
 
   useEffect(() => {
     cancelledRef.current = false;
     unlistenRef.current = {};
+=======
+
+  useEffect(() => {
+    let unlistenMdns: (() => void) | undefined;
+    let unlistenScanComplete: (() => void) | undefined;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
     const mergeHosts = (hosts: DiscoveredHost[]) => {
       const deduped = new Map<string, DiscoveredHost>();
@@ -62,6 +73,7 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
 
     const startScan = async () => {
       await refreshScanHosts();
+<<<<<<< HEAD
       if (cancelledRef.current) return;
 
       setScanning(true);
@@ -70,10 +82,20 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
 
       const unlistenMdns = await listen<DiscoveredHost>('host-discovered', (event) => {
         setMdnsHosts(prev => {
+=======
+
+      setScanning(true);
+      await invoke('start_discovery');
+      
+      unlistenMdns = await listen<DiscoveredHost>('host-discovered', (event) => {
+        setMdnsHosts(prev => {
+          // Avoid duplicates
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
           if (prev.some(h => h.address === event.payload.address)) return prev;
           return mergeHosts([...prev, event.payload]);
         });
       });
+<<<<<<< HEAD
       if (cancelledRef.current) {
         unlistenMdns();
         return;
@@ -88,6 +110,12 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
         return;
       }
       unlistenRef.current.scanComplete = unlistenScanComplete;
+=======
+
+      unlistenScanComplete = await listen('scan_complete', async () => {
+        await refreshScanHosts();
+      });
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     };
 
     startScan().catch((error) => {
@@ -96,10 +124,15 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
     });
 
     return () => {
+<<<<<<< HEAD
       cancelledRef.current = true;
       unlistenRef.current.mdns?.();
       unlistenRef.current.scanComplete?.();
       unlistenRef.current = {};
+=======
+      if (unlistenMdns) unlistenMdns();
+      if (unlistenScanComplete) unlistenScanComplete();
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       setScanning(false);
     };
   }, []);

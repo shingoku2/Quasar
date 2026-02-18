@@ -32,12 +32,19 @@ pub struct SystemMetrics {
     pub cpu_per_core: Vec<f32>,
     pub cpu_frequency_mhz: u64,
     
+<<<<<<< HEAD
     // Disk details (aggregate + per-disk)
+=======
+    // Disk details
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     pub disk_total_gb: u64,
     pub disk_used_gb: u64,
     pub disk_free_gb: u64,
     pub disk_usage_percent: f32,
+<<<<<<< HEAD
     pub disks: Vec<DiskInfo>,
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     
     // Network details
     pub network_packets_rx: u64,
@@ -58,6 +65,7 @@ pub struct ProcessInfo {
     pub memory_mb: u64,
 }
 
+<<<<<<< HEAD
 /// Per-disk usage for display in the UI (all attached disks).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiskInfo {
@@ -69,6 +77,8 @@ pub struct DiskInfo {
     pub usage_percent: f32,
 }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertRule {
     pub id: String,
@@ -200,9 +210,14 @@ impl MetricsCollector {
         let cpu_per_core: Vec<f32> = self.system.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
         let cpu_frequency_mhz = self.system.cpus().first().map(|cpu| cpu.frequency()).unwrap_or(0);
 
+<<<<<<< HEAD
         // New metrics - Disk details (aggregate + per-disk list)
         let (disk_total_gb, disk_used_gb, disk_free_gb, disk_usage_percent) = Self::calculate_disk_space(&disks);
         let disks_list = Self::get_disk_list(&disks);
+=======
+        // New metrics - Disk details
+        let (disk_total_gb, disk_used_gb, disk_free_gb, disk_usage_percent) = Self::calculate_disk_space(&disks);
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
         // New metrics - Network details
         let (network_packets_rx, network_packets_tx, network_errors_rx, network_errors_tx) = Self::get_network_packets(&networks);
@@ -244,8 +259,12 @@ impl MetricsCollector {
             disk_used_gb,
             disk_free_gb,
             disk_usage_percent,
+<<<<<<< HEAD
             disks: disks_list,
 
+=======
+            
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
             // Network details
             network_packets_rx,
             network_packets_tx,
@@ -312,6 +331,7 @@ impl MetricsCollector {
         (total_gb, used_gb, free_gb, usage_percent)
     }
 
+<<<<<<< HEAD
     fn get_disk_list(disks: &Disks) -> Vec<DiskInfo> {
         disks.list().iter().map(|disk| {
             let total = disk.total_space();
@@ -338,6 +358,8 @@ impl MetricsCollector {
         }).collect()
     }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     fn get_top_processes_by_cpu(&self, limit: usize) -> Vec<ProcessInfo> {
         let mut processes: Vec<_> = self.system.processes()
             .iter()
@@ -393,17 +415,26 @@ impl AlertEngine {
     }
 
     pub fn add_rule(&self, rule: AlertRule) {
+<<<<<<< HEAD
         let mut rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
+=======
+        let mut rules = self.rules.lock().unwrap();
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         rules.retain(|r| r.id != rule.id);
         rules.push(rule);
     }
 
     pub fn remove_rule(&self, rule_id: &str) {
+<<<<<<< HEAD
         let mut rules = self.rules.lock().unwrap_or_else(|e| e.into_inner());
+=======
+        let mut rules = self.rules.lock().unwrap();
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         rules.retain(|r| r.id != rule_id);
     }
 
     pub fn get_rules(&self) -> Vec<AlertRule> {
+<<<<<<< HEAD
         self.rules.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
@@ -414,6 +445,18 @@ impl AlertEngine {
         let mut counter = self.alert_counter.lock().unwrap_or_else(|e| e.into_inner());
         let mut cooldowns = self.cooldown_tracker.lock().unwrap_or_else(|e| e.into_inner());
         let mut alert_states = self.last_alert_state.lock().unwrap_or_else(|e| e.into_inner());
+=======
+        self.rules.lock().unwrap().clone()
+    }
+
+    pub fn evaluate(&self, metrics: &SystemMetrics) -> (Vec<Alert>, Vec<AlertRecovery>) {
+        let rules = self.rules.lock().unwrap();
+        let mut new_alerts = Vec::new();
+        let mut recoveries = Vec::new();
+        let mut counter = self.alert_counter.lock().unwrap();
+        let mut cooldowns = self.cooldown_tracker.lock().unwrap();
+        let mut alert_states = self.last_alert_state.lock().unwrap();
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
         for rule in rules.iter().filter(|r| r.enabled) {
             let value = match rule.metric {
@@ -470,7 +513,14 @@ impl AlertEngine {
         }
 
         if !new_alerts.is_empty() {
+<<<<<<< HEAD
             let mut active = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
+=======
+            let mut active = match self.active_alerts.lock() {
+                Ok(a) => a,
+                Err(_) => return (new_alerts, recoveries),
+            };
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
             
             // Check capacity before adding to prevent unbounded growth
             let current_len = active.len();
@@ -500,21 +550,40 @@ impl AlertEngine {
 
     #[allow(dead_code)]
     pub fn get_active_alerts(&self) -> Vec<Alert> {
+<<<<<<< HEAD
         self.active_alerts.lock().unwrap_or_else(|e| e.into_inner()).clone()
+=======
+        self.active_alerts.lock()
+            .map(|a| a.clone())
+            .unwrap_or_default()
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     }
 
     #[allow(dead_code)]
     pub fn acknowledge_alert(&self, alert_id: &str) {
+<<<<<<< HEAD
         let mut alerts = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
             alert.acknowledged = true;
+=======
+        if let Ok(mut alerts) = self.active_alerts.lock() {
+            if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
+                alert.acknowledged = true;
+            }
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         }
     }
 
     #[allow(dead_code)]
     pub fn dismiss_alert(&self, alert_id: &str) {
+<<<<<<< HEAD
         let mut alerts = self.active_alerts.lock().unwrap_or_else(|e| e.into_inner());
         alerts.retain(|a| a.id != alert_id);
+=======
+        if let Ok(mut alerts) = self.active_alerts.lock() {
+            alerts.retain(|a| a.id != alert_id);
+        }
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     }
 }
 
@@ -534,7 +603,12 @@ impl MetricsStore {
     }
     
     fn get_connection(&self) -> Result<std::sync::MutexGuard<'_, Option<rusqlite::Connection>>, String> {
+<<<<<<< HEAD
         let mut conn_guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+=======
+        let mut conn_guard = self.conn.lock()
+            .map_err(|e| format!("Failed to acquire connection lock: {}", e))?;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         
         // Check if connection exists and is valid
         if conn_guard.is_none() {
@@ -564,7 +638,10 @@ impl MetricsStore {
             "network_errors_tx": metrics.network_errors_tx,
             "top_cpu_processes": metrics.top_cpu_processes,
             "top_memory_processes": metrics.top_memory_processes,
+<<<<<<< HEAD
             "disks": metrics.disks,
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         });
 
         conn.execute(
@@ -648,7 +725,10 @@ impl MetricsStore {
                     network_errors_tx: metadata["network_errors_tx"].as_u64().unwrap_or(0),
                     top_cpu_processes: serde_json::from_value(metadata["top_cpu_processes"].clone()).unwrap_or_default(),
                     top_memory_processes: serde_json::from_value(metadata["top_memory_processes"].clone()).unwrap_or_default(),
+<<<<<<< HEAD
                     disks: serde_json::from_value(metadata["disks"].clone()).unwrap_or_default(),
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                 })
             }
         ).map_err(|e| format!("Failed to query metrics: {}", e))?;
@@ -754,7 +834,11 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     // Try to initialize metrics store, but continue without it if it fails
     let metrics_store = match app_handle.path().app_data_dir() {
         Ok(path) => {
+<<<<<<< HEAD
             let db_path = path.join("quasar.db");
+=======
+            let db_path = path.join("titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
             if let Some(db_path_str) = db_path.to_str() {
                 match MetricsStore::new(db_path_str.to_string(), 30) {
                     Ok(store) => Some(store),
@@ -917,7 +1001,10 @@ mod tests {
             network_errors_tx: 0,
             top_cpu_processes: vec![],
             top_memory_processes: vec![],
+<<<<<<< HEAD
             disks: vec![],
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         };
 
         let (alerts, _recoveries) = engine.evaluate(&metrics);
@@ -968,7 +1055,10 @@ mod tests {
             network_errors_tx: 0,
             top_cpu_processes: vec![],
             top_memory_processes: vec![],
+<<<<<<< HEAD
             disks: vec![],
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         };
 
         let (alerts, _recoveries) = engine.evaluate(&metrics);
@@ -1018,7 +1108,10 @@ mod tests {
             network_errors_tx: 0,
             top_cpu_processes: vec![],
             top_memory_processes: vec![],
+<<<<<<< HEAD
             disks: vec![],
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         };
 
         let (_alerts, _recoveries) = engine.evaluate(&metrics);

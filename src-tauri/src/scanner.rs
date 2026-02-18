@@ -473,20 +473,32 @@ mod tests {
         let state = ScannerState::new();
         
         // Set scanning state manually (simulating an active scan)
+<<<<<<< HEAD
         *state.is_scanning.lock().unwrap_or_else(|e| e.into_inner()) = true;
+=======
+        *state.is_scanning.lock().unwrap() = true;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         assert!(is_scanning(&state));
         
         // stop_scan should only set the stop signal, NOT reset is_scanning.
         // The ScanRunningGuard (RAII) is the sole owner of is_scanning.
         stop_scan(&state);
         assert!(is_scanning(&state), "stop_scan must not reset is_scanning; only the guard should");
+<<<<<<< HEAD
         assert!(*state.stop_signal.lock().unwrap_or_else(|e| e.into_inner()), "stop signal must be set");
+=======
+        assert!(*state.stop_signal.lock().unwrap(), "stop signal must be set");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     }
 
     #[test]
     fn test_scan_running_guard_resets_on_drop() {
         let state = ScannerState::new();
+<<<<<<< HEAD
         *state.is_scanning.lock().unwrap_or_else(|e| e.into_inner()) = true;
+=======
+        *state.is_scanning.lock().unwrap() = true;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
         {
             let _guard = ScanRunningGuard {
@@ -505,7 +517,11 @@ mod tests {
         let state = ScannerState::new();
 
         // Scan 1 starts
+<<<<<<< HEAD
         *state.is_scanning.lock().unwrap_or_else(|e| e.into_inner()) = true;
+=======
+        *state.is_scanning.lock().unwrap() = true;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         let guard1 = ScanRunningGuard {
             is_scanning: Arc::clone(&state.is_scanning),
         };
@@ -519,7 +535,11 @@ mod tests {
         assert!(!is_scanning(&state));
 
         // Scan 2 starts with its own guard
+<<<<<<< HEAD
         *state.is_scanning.lock().unwrap_or_else(|e| e.into_inner()) = true;
+=======
+        *state.is_scanning.lock().unwrap() = true;
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         let _guard2 = ScanRunningGuard {
             is_scanning: Arc::clone(&state.is_scanning),
         };
@@ -654,10 +674,17 @@ mod tests {
         assert!(futures.is_empty(), "All spawned futures must be drained before returning");
         assert_eq!(completed, 3, "Completed count must include all pending tasks");
 
+<<<<<<< HEAD
         let stored = state.results.lock().unwrap_or_else(|e| e.into_inner());
         assert_eq!(stored.len(), 3, "All drained task results must be persisted");
 
         let progress = state.progress.lock().unwrap_or_else(|e| e.into_inner());
+=======
+        let stored = state.results.lock().unwrap();
+        assert_eq!(stored.len(), 3, "All drained task results must be persisted");
+
+        let progress = state.progress.lock().unwrap();
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         assert_eq!(progress.completed, 3, "Progress must reflect drained tasks");
     }
 }

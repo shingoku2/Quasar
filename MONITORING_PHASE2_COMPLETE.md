@@ -308,7 +308,11 @@ If needed, simply don't run the migration:
 ### Check Database
 ```bash
 # After running app for a few minutes
+<<<<<<< HEAD
 sqlite3 ~/AppData/Roaming/com.tauri.dev/quasar.db
+=======
+sqlite3 ~/AppData/Roaming/com.tauri.dev/titan.db
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 > SELECT COUNT(*) FROM metrics_history;
 > SELECT * FROM metrics_history ORDER BY timestamp DESC LIMIT 5;
 > .quit

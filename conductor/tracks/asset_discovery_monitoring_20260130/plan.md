@@ -1,6 +1,10 @@
 # Implementation Plan: Asset Discovery & Monitoring
 
+<<<<<<< HEAD
 This plan outlines the steps to implement automated LAN discovery and pre-flight health monitoring for Quasar.
+=======
+This plan outlines the steps to implement automated LAN discovery and pre-flight health monitoring for Project Titan.
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ## Phase 1: LAN Scanner Backend
 

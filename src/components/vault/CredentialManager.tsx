@@ -29,6 +29,7 @@ interface CredentialFormData {
   key_passphrase: string;
 }
 
+<<<<<<< HEAD
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
@@ -38,6 +39,8 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 const CredentialManager: React.FC = () => {
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,7 +57,11 @@ const CredentialManager: React.FC = () => {
       const creds = await invoke<CredentialSummary[]>('list_credentials');
       setCredentials(creds);
     } catch (err) {
+<<<<<<< HEAD
       setError(getErrorMessage(err, 'Failed to load credentials'));
+=======
+      setError(err as string || 'Failed to load credentials');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +81,11 @@ const CredentialManager: React.FC = () => {
       const results = await invoke<CredentialSummary[]>('search_credentials', { query: searchQuery });
       setCredentials(results);
     } catch (err) {
+<<<<<<< HEAD
       setError(getErrorMessage(err, 'Search failed'));
+=======
+      setError(err as string || 'Search failed');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +98,11 @@ const CredentialManager: React.FC = () => {
       await invoke('delete_credential', { credentialId: id.toString() });
       await loadCredentials();
     } catch (err) {
+<<<<<<< HEAD
       setError(getErrorMessage(err, 'Failed to delete credential'));
+=======
+      setError(err as string || 'Failed to delete credential');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     }
   };
 
@@ -96,7 +111,11 @@ const CredentialManager: React.FC = () => {
       const cred = await invoke<Credential>('get_credential', { credentialId: id.toString() });
       setSelectedCredential(cred);
     } catch (err) {
+<<<<<<< HEAD
       setError(getErrorMessage(err, 'Failed to retrieve credential'));
+=======
+      setError(err as string || 'Failed to retrieve credential');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     }
   };
 
@@ -105,7 +124,11 @@ const CredentialManager: React.FC = () => {
       const cred = await invoke<Credential>('get_credential', { credentialId: id.toString() });
       setEditingCredential(cred);
     } catch (err) {
+<<<<<<< HEAD
       setError(getErrorMessage(err, 'Failed to retrieve credential'));
+=======
+      setError(err as string || 'Failed to retrieve credential');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     }
   };
 
@@ -356,7 +379,11 @@ const CredentialDialog: React.FC<{
       }
       onSaved();
     } catch (err) {
+<<<<<<< HEAD
       setError(getErrorMessage(err, 'Failed to save credential'));
+=======
+      setError(err as string || 'Failed to save credential');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     } finally {
       setIsSaving(false);
     }
@@ -438,7 +465,10 @@ const CredentialDialog: React.FC<{
                 <label className="block text-sm font-medium text-gray-400 mb-2">Key passphrase (optional)</label>
                 <input
                   type={showPassword ? 'text' : 'password'}
+<<<<<<< HEAD
                   autoComplete="off"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                   value={formData.key_passphrase}
                   onChange={(e) => setFormData({ ...formData, key_passphrase: e.target.value })}
                   className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent"
@@ -493,7 +523,10 @@ const CredentialDialog: React.FC<{
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input
                 type={showPassword ? 'text' : 'password'}
+<<<<<<< HEAD
                 autoComplete="new-password"
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full bg-bg-root border border-gray-700 rounded-lg pl-10 pr-12 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"

@@ -70,7 +70,11 @@ result
 ```rust
 let metrics_store = app_handle.path().app_data_dir()
     .ok()
+<<<<<<< HEAD
     .and_then(|path| path.join("quasar.db").to_str().map(|s| s.to_string()))
+=======
+    .and_then(|path| path.join("titan.db").to_str().map(|s| s.to_string()))
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     .and_then(|db_path| {
         MetricsStore::new(db_path, 30)
             .map_err(|e| {

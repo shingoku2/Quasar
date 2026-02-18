@@ -70,7 +70,11 @@ const AIAssistant: React.FC = () => {
         invoke<ScanProgress>('get_scan_progress'),
         invoke<DiscoveredHost[]>('get_discovered_hosts', { limit: 50 }),
         (async () => {
+<<<<<<< HEAD
           const db = await Database.load('sqlite:quasar.db');
+=======
+          const db = await Database.load('sqlite:titan.db');
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
           return db.select<SavedHost[]>('SELECT id, name, address, protocol, port FROM hosts ORDER BY name ASC LIMIT 100');
         })(),
       ]);

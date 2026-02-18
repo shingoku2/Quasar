@@ -27,7 +27,11 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
   const loadHosts = async () => {
     setIsLoading(true);
     try {
+<<<<<<< HEAD
       const db = await Database.load("sqlite:quasar.db");
+=======
+      const db = await Database.load("sqlite:titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
       const result = await db.select<SavedHost[]>("SELECT * FROM hosts ORDER BY name ASC LIMIT 10");
       setHosts(result);
     } catch (err) {

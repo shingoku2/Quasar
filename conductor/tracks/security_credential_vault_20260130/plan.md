@@ -1,6 +1,10 @@
 # Implementation Plan: Security & Credential Vault
 
+<<<<<<< HEAD
 This plan outlines the phase-by-phase implementation of secure credential storage, SSH host key verification, and security hardening for Quasar.
+=======
+This plan outlines the phase-by-phase implementation of secure credential storage, SSH host key verification, and security hardening for Project Titan.
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 
 ## Phase 1: Vault Infrastructure & Encryption Integration
 

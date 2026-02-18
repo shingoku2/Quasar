@@ -11,7 +11,10 @@ mod health;
 mod monitoring;
 mod vault;
 mod host_tracker;
+<<<<<<< HEAD
 mod scheduler;
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 mod errors;
 mod db;
 mod validation;
@@ -21,6 +24,7 @@ use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use log::error;
+<<<<<<< HEAD
 use rusqlite::Transaction;
 use rusqlite_migration::{HookError, Migrations, M};
 use errors::sanitize_error;
@@ -71,6 +75,13 @@ fn add_scheduled_tasks_sftp_columns_if_missing(tx: &Transaction) -> Result<(), H
 }
 
 // Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012)
+=======
+use rusqlite_migration::{Migrations, M};
+use errors::sanitize_error;
+use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
+
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009)
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -82,6 +93,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!("../migrations/007_monitoring_host_credential.sql")),
         M::up(include_str!("../migrations/008_ssh_key_credentials.sql")),
         M::up(include_str!("../migrations/009_nullable_password.sql")),
+<<<<<<< HEAD
         M::up(include_str!("../migrations/010_scheduled_tasks.sql")),
         M::up_with_hook(
             "SELECT 1;",
@@ -91,11 +103,14 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
             "SELECT 1;",
             add_scheduled_tasks_sftp_columns_if_missing,
         ),
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     ])
 });
 
 use once_cell::sync::Lazy;
 
+<<<<<<< HEAD
 /// Database filename (renamed from titan.db for Quasar).
 const DB_FILENAME: &str = "quasar.db";
 
@@ -109,6 +124,8 @@ fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> 
     Ok(())
 }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -354,7 +371,11 @@ pub struct RemoteHostMetric {
 
 fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+<<<<<<< HEAD
     let db_path = app_dir.join(DB_FILENAME);
+=======
+    let db_path = app_dir.join("titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
     // Join with monitoring_host_credential so we know which credential to use for SSH metrics (if any)
@@ -389,6 +410,7 @@ async fn get_saved_hosts(app: AppHandle) -> Result<Vec<SavedHost>, String> {
     get_saved_hosts_from_db(&app).map_err(|e| sanitize_error(e, "database"))
 }
 
+<<<<<<< HEAD
 fn scheduled_tasks_conn(app: &AppHandle) -> Result<rusqlite::Connection, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_dir.join(DB_FILENAME);
@@ -479,6 +501,8 @@ async fn run_scheduled_task_now(app: AppHandle, id: String) -> Result<scheduler:
     scheduler::run_scheduled_task_now(&app, &id).await.map_err(|e| sanitize_error(e, "run task"))
 }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 #[tauri::command]
 async fn get_remote_hosts_health(
     app: AppHandle,
@@ -540,7 +564,11 @@ async fn get_remote_hosts_health(
 #[tauri::command]
 async fn set_host_monitoring_credential(app: AppHandle, host_id: String, credential_id: Option<String>) -> Result<(), String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+<<<<<<< HEAD
     let db_path = app_dir.join(DB_FILENAME);
+=======
+    let db_path = app_dir.join("titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
     match credential_id.as_deref() {
@@ -599,7 +627,11 @@ async fn get_metrics_history(
     app: AppHandle,
 ) -> Result<Vec<monitoring::SystemMetrics>, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
+<<<<<<< HEAD
     let db_path = app_dir.join(DB_FILENAME);
+=======
+    let db_path = app_dir.join("titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     let db_path_str = db_path.to_str().ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?.to_string();
     
     let store = monitoring::MetricsStore::new(db_path_str, 30).map_err(|e| sanitize_error(e, "monitoring"))?;
@@ -614,7 +646,11 @@ async fn get_alert_history(
     app: AppHandle,
 ) -> Result<Vec<monitoring::Alert>, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
+<<<<<<< HEAD
     let db_path = app_dir.join(DB_FILENAME);
+=======
+    let db_path = app_dir.join("titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
     let db_path_str = db_path.to_str().ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?.to_string();
     
     let store = monitoring::MetricsStore::new(db_path_str, 30).map_err(|e| sanitize_error(e, "monitoring"))?;
@@ -967,6 +1003,7 @@ async fn sftp_remote_exists(
         .map_err(|e| sanitize_error(e, "sftp"))
 }
 
+<<<<<<< HEAD
 /// App info for Settings (About, Data tabs).
 #[derive(serde::Serialize)]
 pub struct AppInfo {
@@ -1034,6 +1071,8 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
     Ok(())
 }
 
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1048,12 +1087,17 @@ pub fn run() {
                 error!("Failed to create app data dir: {}", e);
                 e
             })?;
+<<<<<<< HEAD
             migrate_titan_db_to_quasar(&app_dir).map_err(|e| {
                 error!("Failed to migrate database file: {}", e);
                 e
             })?;
             
             let db_path = app_dir.join(DB_FILENAME);
+=======
+            
+            let db_path = app_dir.join("titan.db");
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
             let db_path_str = db_path.to_str().ok_or("Invalid database path")?;
             let db_path_str = db_path_str.to_string();
             
@@ -1160,9 +1204,12 @@ pub fn run() {
                     }
                 }
             });
+<<<<<<< HEAD
 
             // Start cron-based scheduled task runner (SSH commands on saved hosts)
             scheduler::start_scheduler(app.handle().clone());
+=======
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
             
             Ok(())
         })
@@ -1227,6 +1274,7 @@ pub fn run() {
             sftp_upload_file,
             sftp_download_file,
             sftp_list_directory,
+<<<<<<< HEAD
             sftp_remote_exists,
             list_scheduled_tasks,
             get_scheduled_task,
@@ -1238,6 +1286,9 @@ pub fn run() {
             clear_metrics_data,
             export_database,
             import_database
+=======
+            sftp_remote_exists
+>>>>>>> 30e7e777944d676f8ea8e22a69c2d690697e9fa7
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
