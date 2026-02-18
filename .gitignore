@@ -29,5 +29,7 @@ dist-ssr
 **/target/
 src-tauri/src-tauri/
 
-# SQLite temporary files (test runs, etc.)
+# SQLite temporary files (test runs, etc.) — do not commit
 **/*.db-journal
+**/*.db-wal
+**/*.db-shm
