@@ -7,6 +7,60 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### SSH Terminal Flow Control & Dashboard / UX Fixes - Complete (February 18, 2026)
+
+#### Overview
+Fixed SSH terminal hanging when running consecutive or simultaneous commands in one or more sessions, improved dashboard System Health data, Real-time Metrics disk display, and various small fixes.
+
+#### 1) SSH terminal hang (consecutive / simultaneous commands) ✅
+- **Location**: `src-tauri/src/ssh.rs`
+- **Root Cause**: Data was consumed via `Handler::data()` only; russh also queues data in the Channel's internal buffer for `Channel::wait()`. Nobody drained that buffer, so it filled, the connection driver blocked, and the SSH connection stalled (especially with high-output commands like `apt upgrade` or when running commands in two terminals at once).
+- **Fix**: Refactored to a **unified I/O task** that owns the channel and consumes data via **`Channel::wait()`** only (removed `Handler::data()` override). This properly drains the internal buffer so russh can send `SSH_MSG_CHANNEL_WINDOW_ADJUST` and keep data flowing. The I/O task also handles writes (`write_tx`) and resizes (`resize_tx`) via unbounded channels; `write_ssh` and `resize_ssh` return immediately.
+- **SshConnection**: No longer stores `channel`; added `resize_tx`. Writer and resize are queued to the I/O task.
+
+#### 2) SSH output batching (progress / line flush) ✅
+- **Location**: `src-tauri/src/ssh.rs` (batcher task)
+- **Change**: Flush to frontend when chunk contains `\r` or `\n` (in addition to 4 KB or 4 ms), and reduced flush interval from 8 ms to 4 ms, so apt progress and line output appear without delay.
+
+#### 3) SSH packet size and launcher warning ✅
+- **Location**: `src-tauri/src/ssh.rs`, `src-tauri/src/launcher.rs`
+- **ssh.rs**: `maximum_packet_size` reduced from 128 KB to 32 KB (must not exceed TCP max 65535); eliminates russh "Maximum packet size should not larger than a TCP packet" errors.
+- **launcher.rs**: Removed unused `use super::*` in test module to clear compiler warning.
+
+#### 4) Password input autocomplete (console warning) ✅
+- **Location**: `CredentialPrompt.tsx`, `VaultUnlockDialog.tsx`, `VaultInitDialog.tsx`, `VaultSettings.tsx`, `CredentialManager.tsx`
+- **Fix**: Added `autoComplete="current-password"` or `autoComplete="new-password"` (or `off` for key passphrase) to all password inputs to satisfy Chromium and remove DOM autocomplete warnings.
+
+#### 5) Dashboard System Health widget ✅
+- **Location**: `src/components/dashboard/SystemHealthWidget.tsx`
+- **Hosts Online**: Now fetches `get_remote_hosts_health` and shows count of reachable saved hosts; refreshes every 30 s.
+- **Vault Auto-lock**: Shows actual timeout from `get_vault_settings` (e.g. "15 min") instead of hardcoded "15:00".
+- **Three-dots menus**: Removed non-functional `MoreHorizontal` buttons from System Health and Real-time Metrics cards.
+
+#### 6) Real-time Metrics — all attached disks ✅
+- **Location**: `src-tauri/src/monitoring.rs`, `src/components/dashboard/SystemHealthWidget.tsx`
+- **Backend**: Added `DiskInfo` (name, mount_point, total_gb, used_gb, free_gb, usage_percent) and `disks: Vec<DiskInfo>` to `SystemMetrics`; `get_disk_list(disks)` builds per-disk list from sysinfo `Disks`. Persisted in metrics metadata.
+- **Frontend**: Real-time Metrics card shows one row per disk (mount_point or name, used/total, progress bar); falls back to single aggregate row if `disks` is empty.
+
+#### 7) tauri-dev.js spawn on Windows ✅
+- **Location**: `scripts/tauri-dev.js`
+- **Problem**: Using `npx.cmd` with `shell: false` caused `spawn EINVAL` on Windows.
+- **Fix**: Reverted to `shell: true` on Windows so `npm run tauri dev` runs; DEP0190 deprecation warning may reappear but command works.
+
+#### Files Modified
+- `src-tauri/src/ssh.rs` (major refactor)
+- `src-tauri/src/monitoring.rs`
+- `src-tauri/src/launcher.rs`
+- `scripts/tauri-dev.js`
+- `src/components/dashboard/SystemHealthWidget.tsx`
+- `src/components/CredentialPrompt.tsx`
+- `src/components/vault/VaultUnlockDialog.tsx`
+- `src/components/vault/VaultInitDialog.tsx`
+- `src/components/vault/VaultSettings.tsx`
+- `src/components/vault/CredentialManager.tsx`
+
+---
+
 ### Credential Edit & Type-Switch Fixes - Complete (February 16, 2026)
 
 #### Overview
@@ -1039,4 +1093,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 16, 2026*
+*Last Updated: February 18, 2026*

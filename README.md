@@ -201,6 +201,15 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
+### February 18, 2026 - SSH Terminal & Dashboard Fixes
+- ✅ **SSH terminal hang fixed** — Refactored to use `Channel::wait()` for receiving data so russh’s internal buffer is drained and window adjustments keep data flowing; consecutive/simultaneous commands no longer stall
+- ✅ **Output batching** — Flush on `\r`/`\n` and 4 ms interval for responsive apt progress and line output
+- ✅ **SSH packet size** — Set to 32 KB (≤ TCP max); removed russh packet-size errors
+- ✅ **Dashboard System Health** — Hosts Online count from remote health; Vault Auto-lock from settings; removed non-functional three-dots menus
+- ✅ **Real-time Metrics** — All attached disks shown (per-disk usage from backend)
+- ✅ **Password inputs** — `autoComplete` on all password fields (console warning resolved)
+- ✅ **tauri-dev.js** — Use shell on Windows to avoid spawn EINVAL
+
 ### February 16, 2026 - Credential Edit & Type-Switch Fixes
 - ✅ **update_credential** supports SSH key credentials: `key_path`, `private_key`, `key_passphrase` sent and persisted; empty string clears fields
 - ✅ **credential_type** column updated on edit so DB stays in sync with UI

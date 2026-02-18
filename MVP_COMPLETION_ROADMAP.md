@@ -1,6 +1,11 @@
 # Quasar v0.1 MVP Completion Roadmap
 
-**Status**: ~85% Complete (Updated: February 1, 2026 - 8:50 PM)
+**Status**: ~85% Complete (Updated: February 18, 2026)
+
+### Recent Progress (February 18, 2026)
+- SSH terminal: refactored to use `Channel::wait()` for data; fixes hang on consecutive/simultaneous commands (flow control).
+- Dashboard: System Health shows Hosts Online count and vault timeout; Real-time Metrics shows all attached disks.
+- UX: password autocomplete on inputs; SSH packet size 32 KB; launcher/tauri-dev spawn fix on Windows.
 
 ## Completed Core Features ✅
 
