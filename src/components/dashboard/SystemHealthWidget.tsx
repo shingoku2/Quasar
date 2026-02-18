@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server, AlertTriangle, Cpu, HardDrive, Shield, MoreHorizontal } from 'lucide-react';
+import { Server, AlertTriangle, Cpu, HardDrive, Shield } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '../../lib/utils';
@@ -20,6 +20,22 @@ interface Alert {
   severity: string;
 }
 
+interface RemoteHostMetric {
+  id: string;
+  name: string;
+  address: string;
+  port: number;
+  reachable: boolean;
+  latency_ms: number | null;
+  error: string | null;
+}
+
+interface VaultSettings {
+  auto_lock_timeout_minutes: number;
+  require_password_on_credential_use: boolean;
+  vault_initialized: boolean;
+}
+
 interface SystemHealthWidgetProps {
   variant?: 'metrics' | 'summary';
 }
@@ -27,6 +43,8 @@ interface SystemHealthWidgetProps {
 const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metrics' }) => {
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [onlineHostsCount, setOnlineHostsCount] = useState<number | null>(null);
+  const [vaultTimeout, setVaultTimeout] = useState<number | null>(null);
 
   useEffect(() => {
     const unlistenMetrics = listen<SystemMetrics>('system-metrics', (event) => {
@@ -39,11 +57,41 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
 
     invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
 
+    // Fetch online hosts count (only for summary variant)
+    if (variant === 'summary') {
+      const fetchHostsHealth = async () => {
+        try {
+          const hosts = await invoke<RemoteHostMetric[]>('get_remote_hosts_health');
+          const onlineCount = Array.isArray(hosts) ? hosts.filter(h => h.reachable).length : 0;
+          setOnlineHostsCount(onlineCount);
+        } catch {
+          setOnlineHostsCount(0);
+        }
+      };
+      fetchHostsHealth();
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchHostsHealth, 30000);
+      return () => {
+        clearInterval(interval);
+        unlistenMetrics.then(fn => fn());
+        unlistenAlerts.then(fn => fn());
+      };
+    }
+
     return () => {
       unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
     };
-  }, []);
+  }, [variant]);
+
+  // Fetch vault settings for auto-lock timeout (only for summary variant)
+  useEffect(() => {
+    if (variant === 'summary') {
+      invoke<VaultSettings>('get_vault_settings')
+        .then(settings => setVaultTimeout(settings.auto_lock_timeout_minutes))
+        .catch(() => setVaultTimeout(null));
+    }
+  }, [variant]);
 
   const activeAlertCount = alerts.filter(a => !a.id.includes('acknowledged')).length;
 
@@ -52,15 +100,14 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
       <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">System Health</h3>
-          <button className="p-1 text-gray-500 hover:text-gray-300 transition-colors">
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
         </div>
         <div className="space-y-2">
           <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
             <Server className="h-4 w-4 text-accent" />
             <span className="text-xs text-gray-300 flex-1">Hosts Online</span>
-            <span className="text-xs font-bold text-white">--</span>
+            <span className="text-xs font-bold text-white">
+              {onlineHostsCount !== null ? onlineHostsCount : '--'}
+            </span>
           </div>
           <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
             <AlertTriangle className={cn("h-4 w-4", activeAlertCount > 0 ? "text-warning" : "text-gray-500")} />
@@ -70,7 +117,9 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
           <div className="flex items-center space-x-3 bg-bg-root rounded-lg px-3 py-2">
             <Shield className="h-4 w-4 text-success" />
             <span className="text-xs text-gray-300 flex-1">Vault Auto-lock</span>
-            <span className="text-xs font-bold text-white">15:00</span>
+            <span className="text-xs font-bold text-white">
+              {vaultTimeout !== null ? `${vaultTimeout} min` : '--'}
+            </span>
           </div>
         </div>
       </div>
@@ -87,9 +136,6 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
     <div className="bg-bg-card border border-border rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Real-time Metrics</h3>
-        <button className="p-1 text-gray-500 hover:text-gray-300 transition-colors">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
       </div>
       <div className="space-y-3">
         {/* CPU */}
