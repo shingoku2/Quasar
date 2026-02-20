@@ -232,7 +232,6 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         });
         term.setOption('fontFamily', fontFamily);
         term.setOption('fontSize', fontSize);
-        // Force redraw so existing content picks up new foreground (fixes light theme text visibility).
         term.refresh(0, term.rows - 1);
     }, [theme, fontFamily, fontSize]);
 

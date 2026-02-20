@@ -37,6 +37,48 @@
   color: #1e293b;
 }
 
+/* Override Tailwind text utilities in light theme so app UI text is readable (components use text-white, text-gray-* etc.) */
+[data-theme="light"] .text-white {
+  color: #0f172a;
+}
+[data-theme="light"] .text-gray-100 {
+  color: #1e293b;
+}
+[data-theme="light"] .text-gray-200 {
+  color: #334155;
+}
+[data-theme="light"] .text-gray-300 {
+  color: #475569;
+}
+[data-theme="light"] .text-gray-400 {
+  color: #64748b;
+}
+[data-theme="light"] .text-gray-500 {
+  color: #64748b;
+}
+[data-theme="light"] .text-gray-600 {
+  color: #475569;
+}
+[data-theme="light"] .text-gray-700 {
+  color: #334155;
+}
+[data-theme="light"] .text-gray-800 {
+  color: #1e293b;
+}
+[data-theme="light"] .text-gray-900 {
+  color: #0f172a;
+}
+[data-theme="light"] .text-black {
+  color: #0f172a;
+}
+/* Accent text stays accent-colored in both themes */
+[data-theme="light"] .text-accent {
+  color: var(--color-accent);
+}
+[data-theme="light"] .scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 body {
   margin: 0;
   padding: 0;
