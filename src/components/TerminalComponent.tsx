@@ -83,12 +83,10 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         if (!terminalRef.current) {
             return;
         }
-        
-        // Strict Mode protection
-        if (xtermRef.current) {
-            return;
-        }
 
+        // When deps (e.g. theme, fontFamily, fontSize) change, React runs the previous
+        // effect's cleanup first (dispose + xtermRef.current = null), then this body,
+        // so we re-initialize with the new values. No guard here so prop changes apply.
         const themeConfig = TERMINAL_THEMES[theme] ?? TERMINAL_THEMES.default;
         const term = new Terminal({
             cursorBlink: true,
