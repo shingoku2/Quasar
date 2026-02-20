@@ -11,6 +11,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tauri::AppHandle;
 use russh::client::Handle;
+use russh::Disconnect;
 use log::{error, info};
 
 use crate::ssh::Client;
@@ -119,6 +120,9 @@ async fn run_tunnel_loop(
             }
         }
     }
+
+    // Explicitly disconnect SSH session when tunnel loop exits (user stop or error)
+    let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
 }
 
 /// Start a local port forward: bind to local_port and forward to remote_host:remote_port via SSH.
@@ -179,9 +183,13 @@ pub async fn start_tunnel(
     .await?;
 
     let bind_addr = format!("127.0.0.1:{}", local_port);
-    let listener = TcpListener::bind(&bind_addr)
-        .await
-        .map_err(|e| format!("Failed to bind {}: {}", bind_addr, e))?;
+    let listener = match TcpListener::bind(&bind_addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
+            return Err(format!("Failed to bind {}: {}", bind_addr, e));
+        }
+    };
 
     let (cancel_tx, cancel_rx) = mpsc::channel(1);
     let info = TunnelInfo {
