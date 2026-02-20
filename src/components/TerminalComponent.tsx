@@ -84,9 +84,12 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             return;
         }
 
-        // When deps (e.g. theme, fontFamily, fontSize) change, React runs the previous
-        // effect's cleanup first (dispose + xtermRef.current = null), then this body,
-        // so we re-initialize with the new values. No guard here so prop changes apply.
+        // Guard: do not re-run full init when terminal already exists (would disconnect SSH).
+        // Appearance (theme, font) is updated in-place by a separate effect below.
+        if (xtermRef.current) {
+            return;
+        }
+
         const themeConfig = TERMINAL_THEMES[theme] ?? TERMINAL_THEMES.default;
         const term = new Terminal({
             cursorBlink: true,
@@ -214,7 +217,17 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             term.dispose();
             xtermRef.current = null;
         };
-    }, [isReady, sessionId, host, port, username, password, credentialId, theme, fontFamily, fontSize]);
+    }, [isReady, sessionId, host, port, username, password, credentialId]);
+
+    // Update terminal appearance in-place when theme/font props change (keeps SSH session alive).
+    useEffect(() => {
+        const term = xtermRef.current;
+        if (!term) return;
+        const themeConfig = TERMINAL_THEMES[theme] ?? TERMINAL_THEMES.default;
+        term.setOption('theme', { background: themeConfig.background, foreground: themeConfig.foreground });
+        term.setOption('fontFamily', fontFamily);
+        term.setOption('fontSize', fontSize);
+    }, [theme, fontFamily, fontSize]);
 
     return (
         <div className={`flex flex-col h-full ${className || ''}`} data-testid="terminal-wrapper">
