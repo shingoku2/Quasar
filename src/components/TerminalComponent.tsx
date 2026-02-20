@@ -6,14 +6,14 @@ import { listen } from '@tauri-apps/api/event';
 import SessionToolbar from './SessionToolbar';
 import '@xterm/xterm/css/xterm.css';
 
-/** Built-in terminal themes (Phase 8: SSH feature enhancements). */
+/** Built-in terminal themes (Phase 8: SSH feature enhancements). Cursor chosen for visibility on each background. */
 export const TERMINAL_THEMES = {
-    default: { background: '#000000', foreground: '#ffffff' },
-    quasar: { background: '#0f1923', foreground: '#e2e8f0' },
-    solarizedDark: { background: '#002b36', foreground: '#839496' },
-    solarizedLight: { background: '#fdf6e3', foreground: '#657b83' },
-    monokai: { background: '#272822', foreground: '#f8f8f2' },
-    nord: { background: '#2e3440', foreground: '#d8dee9' },
+    default: { background: '#000000', foreground: '#ffffff', cursor: '#ffffff' },
+    quasar: { background: '#0f1923', foreground: '#e2e8f0', cursor: '#00d4ff' },
+    solarizedDark: { background: '#002b36', foreground: '#839496', cursor: '#839496' },
+    solarizedLight: { background: '#fdf6e3', foreground: '#073642', cursor: '#073642' },
+    monokai: { background: '#272822', foreground: '#f8f8f2', cursor: '#f8f8f2' },
+    nord: { background: '#2e3440', foreground: '#d8dee9', cursor: '#d8dee9' },
 } as const;
 
 export type TerminalThemeId = keyof typeof TERMINAL_THEMES;
@@ -96,6 +96,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             theme: {
                 background: themeConfig.background,
                 foreground: themeConfig.foreground,
+                cursor: themeConfig.cursor,
             },
             fontFamily,
             fontSize,
@@ -224,9 +225,15 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         const term = xtermRef.current;
         if (!term) return;
         const themeConfig = TERMINAL_THEMES[theme] ?? TERMINAL_THEMES.default;
-        term.setOption('theme', { background: themeConfig.background, foreground: themeConfig.foreground });
+        term.setOption('theme', {
+            background: themeConfig.background,
+            foreground: themeConfig.foreground,
+            cursor: themeConfig.cursor,
+        });
         term.setOption('fontFamily', fontFamily);
         term.setOption('fontSize', fontSize);
+        // Force redraw so existing content picks up new foreground (fixes light theme text visibility).
+        term.refresh(0, term.rows - 1);
     }, [theme, fontFamily, fontSize]);
 
     return (
