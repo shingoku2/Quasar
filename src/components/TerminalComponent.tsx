@@ -11,7 +11,7 @@ export const TERMINAL_THEMES = {
     default: { background: '#000000', foreground: '#ffffff', cursor: '#ffffff' },
     quasar: { background: '#0f1923', foreground: '#e2e8f0', cursor: '#00d4ff' },
     solarizedDark: { background: '#002b36', foreground: '#839496', cursor: '#839496' },
-    solarizedLight: { background: '#fdf6e3', foreground: '#657b83', cursor: '#657b83' },
+    solarizedLight: { background: '#fdf6e3', foreground: '#073642', cursor: '#073642' },
     monokai: { background: '#272822', foreground: '#f8f8f2', cursor: '#f8f8f2' },
     nord: { background: '#2e3440', foreground: '#d8dee9', cursor: '#d8dee9' },
 } as const;
