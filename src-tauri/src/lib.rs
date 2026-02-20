@@ -5,6 +5,7 @@ mod ai;
 mod ssh;
 mod ssh_auth;
 mod ssh_exec;
+mod ssh_tunnel;
 mod sftp;
 mod scanner;
 mod health;
@@ -164,7 +165,69 @@ async fn connect_ssh(
         key_path,
         private_key,
         key_passphrase,
+        false, // enable_agent_forwarding: can be added to frontend later
     ).await
+}
+
+#[tauri::command]
+async fn start_ssh_tunnel(
+    app: AppHandle,
+    tunnel_state: State<'_, ssh_tunnel::TunnelState>,
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    tunnel_id: String,
+    ssh_host: String,
+    ssh_port: u16,
+    ssh_user: String,
+    password: Option<String>,
+    credential_id: Option<String>,
+    local_port: u16,
+    remote_host: String,
+    remote_port: u16,
+) -> Result<ssh_tunnel::TunnelInfo, String> {
+    let (username, password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
+        let key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
+        let cred = credential_manager.get_credential(&key, &cid).map_err(|e| sanitize_error(e, "credential"))?;
+        (
+            cred.username,
+            if cred.password.is_empty() { None } else { Some(cred.password) },
+            cred.key_path,
+            cred.private_key,
+            cred.key_passphrase,
+        )
+    } else {
+        (ssh_user, password, None, None, None)
+    };
+    ssh_tunnel::start_tunnel(
+        app,
+        tunnel_state.inner(),
+        tunnel_id,
+        ssh_host,
+        ssh_port,
+        username,
+        password,
+        key_path,
+        private_key,
+        key_passphrase,
+        local_port,
+        remote_host,
+        remote_port,
+    ).await
+        .map_err(|e| sanitize_error(e, "tunnel"))
+}
+
+#[tauri::command]
+fn list_ssh_tunnels(tunnel_state: State<'_, ssh_tunnel::TunnelState>) -> Vec<ssh_tunnel::TunnelInfo> {
+    tunnel_state.list()
+}
+
+#[tauri::command]
+fn close_ssh_tunnel(tunnel_state: State<'_, ssh_tunnel::TunnelState>, tunnel_id: String) -> Result<(), String> {
+    if tunnel_state.remove(&tunnel_id) {
+        Ok(())
+    } else {
+        Err("Tunnel not found".to_string())
+    }
 }
 
 #[tauri::command]
@@ -1096,6 +1159,7 @@ pub fn run() {
             let db_path_str = db_path_str.to_string();
             
             app.manage(ssh::SshState::new());
+            app.manage(ssh_tunnel::TunnelState::new());
             app.manage(discovery::DiscoveryState::new());
             app.manage(Arc::new(scanner::ScannerState::new()));
             app.manage(Arc::new(monitoring::AlertEngine::new()));
@@ -1273,6 +1337,9 @@ pub fn run() {
             update_scheduled_task,
             remove_scheduled_task,
             run_scheduled_task_now,
+            start_ssh_tunnel,
+            list_ssh_tunnels,
+            close_ssh_tunnel,
             get_app_info,
             clear_metrics_data,
             export_database,

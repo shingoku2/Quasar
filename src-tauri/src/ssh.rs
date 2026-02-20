@@ -12,9 +12,9 @@ use crate::validation;
 
 #[derive(Clone)]
 pub struct Client {
-    app_handle: AppHandle,
-    host: String,
-    port: u16,
+    pub app_handle: AppHandle,
+    pub host: String,
+    pub port: u16,
 }
 
 impl client::Handler for Client {
@@ -89,6 +89,7 @@ impl SshState {
 }
 
 /// Connect and authenticate SSH session. Use password and/or key (key_path or private_key PEM).
+/// When enable_agent_forwarding is true, requests auth-agent@openssh.com forwarding on the session channel.
 pub async fn connect_ssh(
     state: tauri::State<'_, SshState>,
     app_handle: AppHandle,
@@ -100,6 +101,7 @@ pub async fn connect_ssh(
     key_path: Option<String>,
     private_key: Option<String>,
     key_passphrase: Option<String>,
+    enable_agent_forwarding: bool,
 ) -> Result<(), String> {
     validation::validate_port(port)?;
     validation::validate_username(&user)?;
@@ -139,6 +141,9 @@ pub async fn connect_ssh(
     ).await?;
 
     let mut channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
+    if enable_agent_forwarding {
+        let _ = channel.agent_forward(true).await; // best-effort; server may not support it
+    }
     channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;
     channel.request_shell(true).await.map_err(|e| e.to_string())?;
 

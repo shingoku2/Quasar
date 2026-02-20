@@ -7,6 +7,7 @@ import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
 import CredentialSelector from './vault/CredentialSelector';
 import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
+import SshTunnelsView from './SshTunnelsView';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
 import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
@@ -285,6 +286,12 @@ const RemoteManager: React.FC = () => {
             </div>
           </div>
         ),
+        closable: false
+      },
+      {
+        id: 'tunnels',
+        title: 'Tunnels',
+        content: <SshTunnelsView />,
         closable: false
       }
     ]);

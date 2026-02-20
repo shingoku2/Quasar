@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import SettingsView from './SettingsView';
 import '@testing-library/jest-dom';
@@ -45,12 +45,14 @@ describe('SettingsView', () => {
     expect(screen.getByTestId('vault-settings')).toBeInTheDocument();
   });
 
-  it('switches to About category', () => {
+  it('switches to About category', async () => {
     render(<SettingsView />);
 
     fireEvent.click(screen.getByText('About'));
     expect(screen.getByText('Quasar')).toBeInTheDocument();
-    expect(screen.getByText(/v0\.1\.0/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/v0\.1\.0/)).toBeInTheDocument();
+    });
   });
 
   it('switches to Notifications category', () => {

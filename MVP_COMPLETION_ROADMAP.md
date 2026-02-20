@@ -165,12 +165,12 @@
 
 ## Post-MVP Enhancements (v0.2+)
 
-### Phase 8: SSH Feature Enhancements
-- SSH tunneling (local/remote port forwarding)
-- SOCKS proxy support
-- SSH agent forwarding
-- Custom terminal themes and fonts
-- Session recording and playback
+### Phase 8: SSH Feature Enhancements (in progress)
+- **SSH tunneling (local port forwarding)** — Done: `ssh_tunnel.rs`, Tauri commands `start_ssh_tunnel`, `list_ssh_tunnels`, `close_ssh_tunnel`; Remote → Tunnels tab UI.
+- **SOCKS proxy support** — Not yet implemented.
+- **SSH agent forwarding** — Done: optional `agent_forward(true)` on session channel in `connect_ssh` (backend flag, default false; frontend can add toggle later).
+- **Custom terminal themes and fonts** — Done: `TerminalComponent` props `theme`, `fontFamily`, `fontSize`; built-in themes (default, quasar, solarizedDark, solarizedLight, monokai, nord).
+- **Session recording and playback** — Not yet implemented.
 
 ### Phase 9: Monitoring & Alerting
 - Custom metric collectors

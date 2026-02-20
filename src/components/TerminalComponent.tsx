@@ -6,6 +6,18 @@ import { listen } from '@tauri-apps/api/event';
 import SessionToolbar from './SessionToolbar';
 import '@xterm/xterm/css/xterm.css';
 
+/** Built-in terminal themes (Phase 8: SSH feature enhancements). */
+export const TERMINAL_THEMES = {
+    default: { background: '#000000', foreground: '#ffffff' },
+    quasar: { background: '#0f1923', foreground: '#e2e8f0' },
+    solarizedDark: { background: '#002b36', foreground: '#839496' },
+    solarizedLight: { background: '#fdf6e3', foreground: '#657b83' },
+    monokai: { background: '#272822', foreground: '#f8f8f2' },
+    nord: { background: '#2e3440', foreground: '#d8dee9' },
+} as const;
+
+export type TerminalThemeId = keyof typeof TERMINAL_THEMES;
+
 interface TerminalComponentProps {
     className?: string;
     sessionId: string;
@@ -15,10 +27,17 @@ interface TerminalComponentProps {
     password?: string;
     /** When set, backend loads this credential (password or SSH key) for auth. */
     credentialId?: string;
+    /** Terminal theme (default: 'default'). */
+    theme?: TerminalThemeId;
+    /** Terminal font family (default: 'monospace'). */
+    fontFamily?: string;
+    /** Terminal font size in px (default: 14). */
+    fontSize?: number;
 }
 
 const TerminalComponent: React.FC<TerminalComponentProps> = ({ 
-    className, sessionId, host, port = 22, username, password, credentialId 
+    className, sessionId, host, port = 22, username, password, credentialId,
+    theme = 'default', fontFamily = 'monospace', fontSize = 14,
 }) => {
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
@@ -70,14 +89,15 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             return;
         }
 
+        const themeConfig = TERMINAL_THEMES[theme] ?? TERMINAL_THEMES.default;
         const term = new Terminal({
             cursorBlink: true,
             theme: {
-                background: '#000000',
-                foreground: '#ffffff',
+                background: themeConfig.background,
+                foreground: themeConfig.foreground,
             },
-            fontFamily: 'monospace',
-            fontSize: 14,
+            fontFamily,
+            fontSize,
         });
 
         const fitAddon = new FitAddon();
@@ -196,7 +216,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             term.dispose();
             xtermRef.current = null;
         };
-    }, [isReady, sessionId, host, port, username, password, credentialId]);
+    }, [isReady, sessionId, host, port, username, password, credentialId, theme, fontFamily, fontSize]);
 
     return (
         <div className={`flex flex-col h-full ${className || ''}`} data-testid="terminal-wrapper">
