@@ -60,6 +60,12 @@ This document describes the main user workflows for remote management, automatio
 
 ---
 
+## 7. Appearance
+
+- **Settings → Appearance**: Choose **Dark** or **Light** theme; both use readable text (light theme overrides Tailwind text classes so labels and headers are dark on light backgrounds). Set accent color; changes apply immediately. Terminal theme is independent (uses its own theme prop, e.g. default or Solarized Light).
+
+---
+
 ## Quick reference: cron (scheduled tasks)
 
 Format: **sec min hour day month day_of_week** (6 fields).

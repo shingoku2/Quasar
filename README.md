@@ -41,7 +41,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 ### 🎨 Modern UI
 - **React + TypeScript** - Type-safe frontend with modern React patterns
 - **Tailwind CSS** - Beautiful, responsive design with shadcn/ui components
-- **Dark Navy/Cyan Theme** - Professional dark theme with custom Quasar branding
+- **Dark & Light Themes** - Settings → Appearance: dark navy/cyan or light theme with readable text; accent color option
 - **Dashboard Layout** - Hero topology view with real-time metrics, active sessions, and system health cards
 - **Status Bar** - Connection status and scan information footer
 - **Real-time Updates** - Live data updates without page refreshes
@@ -201,6 +201,10 @@ See `conductor/code_styleguides/` for detailed coding standards:
 5. Submit a pull request
 
 ## Recent Updates
+
+### February 20, 2026 - Light Theme & Terminal
+- ✅ **Light theme app UI** — Selecting Light in Settings → Appearance now uses dark text on light backgrounds (sidebar, settings, headers, labels) so the app is readable. Implemented via `[data-theme="light"]` overrides in `App.css` for Tailwind text classes.
+- ✅ **Terminal** — Removed automatic terminal-theme sync with app theme; terminal uses its `theme` prop only. Solarized Light theme: foreground `#586e75` (base01), cursor `#073642` (base02) for visibility. In-place theme/font updates preserved so SSH stays connected when appearance or terminal settings change.
 
 ### February 18, 2026 - Comprehensive Code Audit & Documentation
 - ✅ **Code audit (AUD-01–07)** — All 7 findings fixed: DB export/import safety (`VACUUM INTO`, atomic import), discovery singleton guard, SFTP credential filter (password-only; SSH key hidden in SFTP UI), scheduler persistence logging + in-memory cooldown, monitoring network units and mutex poison recovery, credential ID type (`string`). See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md`.

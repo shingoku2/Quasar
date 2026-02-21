@@ -7,6 +7,31 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Light Theme App UI & Terminal Fixes - Complete (February 20, 2026)
+
+#### Overview
+Fixed app UI readability when switching to Light theme in Settings → Appearance. Reverted unnecessary terminal–app-theme sync and corrected Solarized Light terminal theme colors.
+
+#### 1) App UI text in light mode ✅
+- **Location**: `src/App.css`
+- **Problem**: Selecting Light theme changed CSS variables (backgrounds) and `body` color, but components use Tailwind classes (`text-white`, `text-gray-*`) with fixed colors, so text stayed light on light background and was unreadable.
+- **Fix**: Added `[data-theme="light"]` overrides for `.text-white`, `.text-gray-100` through `.text-gray-900`, `.text-black`, and `.text-accent` so app shell (sidebar, settings, headers, labels) uses dark text on light backgrounds. Scrollbar thumb hover adjusted for light theme.
+
+#### 2) Terminal: reverted app-theme sync ✅
+- **Location**: `src/components/TerminalComponent.tsx`, `src/components/SettingsView.tsx`
+- **Change**: Removed needless coupling of terminal theme to app theme. Removed `app-theme-changed` event, `terminalThemeFromAppTheme()`, and `appTheme` state from TerminalComponent; removed `window.dispatchEvent('app-theme-changed')` from SettingsView. Terminal theme is again driven only by the `theme` prop (default `'default'`). Kept in-place theme/font update effect and init guard so changing appearance or future terminal theme/font settings do not disconnect SSH.
+
+#### 3) Solarized Light terminal theme ✅
+- **Location**: `src/components/TerminalComponent.tsx` (`TERMINAL_THEMES.solarizedLight`)
+- **Fix**: Foreground set to `#586e75` (base01) per Solarized Light spec for body text on light background. Cursor set to `#073642` (base02) so it contrasts with both foreground and background and remains visible when over text (comment: "Cursor chosen for visibility on each background").
+
+#### Files Modified
+- `src/App.css` (light-theme text overrides)
+- `src/components/TerminalComponent.tsx` (revert app-theme sync; solarizedLight foreground/cursor)
+- `src/components/SettingsView.tsx` (remove app-theme-changed dispatch)
+
+---
+
 ### Comprehensive Code Audit Fixes - Complete (February 18, 2026)
 
 #### Overview
@@ -1176,4 +1201,4 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 18, 2026 (Comprehensive audit AUD-01–07, SFTP in scheduled tasks, migration 010/011/012 idempotency, README/CORE_WORKFLOWS/SCHEMA/MVP roadmap doc updates, tauri-dev.js npx check, gitignore SQLite journal).*
+*Last Updated: February 20, 2026 (Light theme app UI text overrides, terminal app-theme sync reverted, Solarized Light theme foreground/cursor).*
