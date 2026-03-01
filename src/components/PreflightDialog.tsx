@@ -80,7 +80,9 @@ const PreflightDialog: React.FC<PreflightDialogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-bg-root border border-gray-700 rounded-lg w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="text-lg font-bold text-white">Pre-flight Check</h2>

@@ -159,7 +159,7 @@ const CredentialManager: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mx-6 mt-4 bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm">
+        <div className="mx-6 mt-4 bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
@@ -296,6 +296,7 @@ const CredentialDialog: React.FC<{
     key_passphrase: (credential as { key_passphrase?: string })?.key_passphrase || '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showPassphrase, setShowPassphrase] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -363,7 +364,7 @@ const CredentialDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={credential ? 'Edit Credential' : 'Add Credential'}>
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
@@ -379,7 +380,7 @@ const CredentialDialog: React.FC<{
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm">
+            <div className="bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm" role="alert" aria-live="assertive">
               {error}
             </div>
           )}
@@ -436,14 +437,24 @@ const CredentialDialog: React.FC<{
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">Key passphrase (optional)</label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="off"
-                  value={formData.key_passphrase}
-                  onChange={(e) => setFormData({ ...formData, key_passphrase: e.target.value })}
-                  className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent"
-                  placeholder="Passphrase for encrypted key"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassphrase ? 'text' : 'password'}
+                    autoComplete="off"
+                    value={formData.key_passphrase}
+                    onChange={(e) => setFormData({ ...formData, key_passphrase: e.target.value })}
+                    className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 pr-12 py-2 text-white focus:outline-none focus:border-accent"
+                    placeholder="Passphrase for encrypted key"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassphrase(!showPassphrase)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassphrase ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -464,7 +475,7 @@ const CredentialDialog: React.FC<{
               <input
                 type="number"
                 value={formData.port}
-                onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 22 })}
+                onChange={(e) => { const v = parseInt(e.target.value, 10); setFormData({ ...formData, port: Number.isFinite(v) && v >= 1 && v <= 65535 ? v : 22 }); }}
                 className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
                 placeholder="22"
               />
@@ -543,14 +554,25 @@ const CredentialViewDialog: React.FC<{
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const clipboardClearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
+    // Clear the copied state indicator after 2 s.
     setTimeout(() => setCopied(false), 2000);
+    // Auto-clear clipboard after 30 s to prevent credential exposure.
+    if (clipboardClearTimerRef.current !== null) {
+      clearTimeout(clipboardClearTimerRef.current);
+    }
+    clipboardClearTimerRef.current = setTimeout(() => {
+      navigator.clipboard.writeText('').catch(() => {});
+      clipboardClearTimerRef.current = null;
+    }, 30000);
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="View Credential">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">

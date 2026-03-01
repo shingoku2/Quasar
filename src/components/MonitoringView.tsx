@@ -99,14 +99,14 @@ const MonitoringView: React.FC = () => {
   const [remoteHosts, setRemoteHosts] = useState<RemoteHostMetric[]>([]);
   const [savedHosts, setSavedHosts] = useState<SavedHost[]>([]);
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
-  const unlistenPromiseRef = useRef<Promise<() => void> | null>(null);
+  const unlistenRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    unlistenPromiseRef.current = null;
+    let cancelled = false;
 
     const setupListener = async () => {
       try {
-        const unlistenPromise = listen('system-metrics', (event) => {
+        const unlisten = await listen('system-metrics', (event) => {
           const data = event.payload as SystemMetrics;
           const timeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
           setMetrics(data);
@@ -115,8 +115,11 @@ const MonitoringView: React.FC = () => {
           setDiskData(prev => [...prev.slice(-19), { time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
           setNetData(prev => [...prev.slice(-19), { time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
         });
-        unlistenPromiseRef.current = unlistenPromise;
-        await unlistenPromise;
+        if (cancelled) {
+          unlisten();
+        } else {
+          unlistenRef.current = unlisten;
+        }
       } catch (error) {
         console.error('Error setting up listener:', error);
       }
@@ -136,8 +139,9 @@ const MonitoringView: React.FC = () => {
     });
 
     return () => {
-      unlistenPromiseRef.current?.then(fn => fn()).catch(console.error);
-      unlistenPromiseRef.current = null;
+      cancelled = true;
+      unlistenRef.current?.();
+      unlistenRef.current = null;
     };
   }, []);
 

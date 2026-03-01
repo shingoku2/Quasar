@@ -78,7 +78,9 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
   const strength = passwordStrength(masterPassword);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
+    <div role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
@@ -97,15 +99,16 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
           </div>
 
           {error && (
-            <div className="bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm">
+            <div className="bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm" role="alert" aria-live="assertive">
               {error}
             </div>
           )}
 
           <div className="space-y-4">
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-400 mb-2">Master Password</label>
-              <input 
+              <label htmlFor="vault-init-password" className="block text-sm font-medium text-gray-400 mb-2">Master Password</label>
+              <input
+                id="vault-init-password"
                 autoFocus
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
@@ -146,8 +149,9 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
             </div>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-400 mb-2">Confirm Password</label>
-              <input 
+              <label htmlFor="vault-init-confirm" className="block text-sm font-medium text-gray-400 mb-2">Confirm Password</label>
+              <input
+                id="vault-init-confirm"
                 type={showConfirm ? 'text' : 'password'}
                 autoComplete="new-password"
                 className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-3 pr-12 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-gray-600"

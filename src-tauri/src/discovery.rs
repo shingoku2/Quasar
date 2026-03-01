@@ -17,21 +17,32 @@ pub struct DiscoveredHost {
 
 pub struct DiscoveryState {
     pub running: Arc<AtomicBool>,
+    /// Set to true to request the discovery thread to stop.
+    pub stop_requested: Arc<AtomicBool>,
 }
 
 impl DiscoveryState {
     pub fn new() -> Self {
         Self {
             running: Arc::new(AtomicBool::new(false)),
+            stop_requested: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Request the background discovery thread to stop, if running.
+    pub fn request_stop(&self) {
+        self.stop_requested.store(true, Ordering::SeqCst);
     }
 }
 
-pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>) {
+pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>, stop_requested: Arc<AtomicBool>) {
     if running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
         info!("[discovery] mDNS discovery already running, skipping duplicate spawn");
         return;
     }
+
+    // Clear any previous stop request before starting.
+    stop_requested.store(false, Ordering::SeqCst);
 
     let running_flag = running.clone();
     thread::spawn(move || {
@@ -56,8 +67,13 @@ pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>) {
             }
         }
 
-        // Poll all receivers with timeout
+        // Poll all receivers with timeout; exit when stop is requested.
         loop {
+            if stop_requested.load(Ordering::SeqCst) {
+                info!("[discovery] Stop requested, shutting down mDNS thread");
+                break;
+            }
+
             for receiver in &receivers {
                 if let Ok(event) = receiver.recv_timeout(Duration::from_millis(100)) {
                     match event {
@@ -65,7 +81,7 @@ pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>) {
                             let addresses = info.get_addresses();
                             let port = info.get_port();
                             let name = info.get_fullname();
-                            
+
                             if let Some(addr) = addresses.iter().next() {
                                 let host = DiscoveredHost {
                                     name: name.to_string(),
@@ -73,7 +89,7 @@ pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>) {
                                     port,
                                     service_type: "discovered".to_string(),
                                 };
-                                
+
                                 // Emit event to frontend
                                 let _ = app.emit("host-discovered", host);
                             }

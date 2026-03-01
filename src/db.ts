@@ -1,21 +1,12 @@
 import Database from "@tauri-apps/plugin-sql";
 
+/**
+ * Opens a connection to the application SQLite database.
+ *
+ * Schema is managed exclusively by the Rust backend via rusqlite_migration
+ * (see src-tauri/migrations/). This function must NOT create or alter tables.
+ */
 export async function initDatabase() {
   const db = await Database.load("sqlite:quasar.db");
-
-  // Initialize Hosts table
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS hosts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      address TEXT NOT NULL,
-      port INTEGER NOT NULL DEFAULT 22,
-      username TEXT,
-      protocol TEXT NOT NULL DEFAULT 'ssh',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
   return db;
 }

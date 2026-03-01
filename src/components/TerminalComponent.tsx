@@ -125,6 +125,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         let unlistenData: (() => void) | undefined;
         let unlistenClosed: (() => void) | undefined;
         let unlistenStats: (() => void) | undefined;
+        let unlistenTimeout: (() => void) | undefined;
         let isMounted = true;
 
         const initSession = async () => {
@@ -142,6 +143,10 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                 unlistenStats = await listen<{bandwidth: string, latency: number}>(`ssh_stats_${sessionId}`, (event) => {
                     setBandwidth(event.payload.bandwidth);
                     setLatency(event.payload.latency);
+                });
+
+                unlistenTimeout = await listen(`ssh_timeout_${sessionId}`, () => {
+                    term.write('\r\nSession timed out due to inactivity.\r\n');
                 });
 
                 if (!isMounted) return;
@@ -210,6 +215,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
             if (unlistenData) unlistenData();
             if (unlistenClosed) unlistenClosed();
             if (unlistenStats) unlistenStats();
+            if (unlistenTimeout) unlistenTimeout();
             
             invoke('disconnect_ssh', { id: sessionId }).catch(() => {
                 // Session cleanup
@@ -225,13 +231,13 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         const term = xtermRef.current;
         if (!term) return;
         const themeConfig = TERMINAL_THEMES[theme] ?? TERMINAL_THEMES.default;
-        term.setOption('theme', {
+        term.options.theme = {
             background: themeConfig.background,
             foreground: themeConfig.foreground,
             cursor: themeConfig.cursor,
-        });
-        term.setOption('fontFamily', fontFamily);
-        term.setOption('fontSize', fontSize);
+        };
+        term.options.fontFamily = fontFamily;
+        term.options.fontSize = fontSize;
         term.refresh(0, term.rows - 1);
     }, [theme, fontFamily, fontSize]);
 
@@ -244,8 +250,10 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                 clipboardSync={clipboardSync}
                 onToggleClipboard={() => setClipboardSync(!clipboardSync)}
             />
-            <div 
-                ref={terminalRef} 
+            <div
+                ref={terminalRef}
+                role="application"
+                aria-label={`SSH terminal — ${username}@${host}`}
                 className="flex-1 bg-black border border-gray-700 overflow-hidden"
                 data-testid="terminal-container"
             />

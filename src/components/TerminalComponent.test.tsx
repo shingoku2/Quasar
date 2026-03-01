@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import TerminalComponent from './TerminalComponent';
 import '@testing-library/jest-dom';
 
@@ -12,12 +12,12 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(() => Promise.resolve(() => {})),
 }));
 
-// Mock ResizeObserver
-global.ResizeObserver = class {
+// Mock ResizeObserver (not available in jsdom)
+window.ResizeObserver = class {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
-} as any;
+} as unknown as typeof ResizeObserver;
 
 // Mock @xterm/xterm
 vi.mock('@xterm/xterm', () => {

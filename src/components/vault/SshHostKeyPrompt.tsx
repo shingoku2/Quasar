@@ -32,7 +32,9 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 backdrop-blur-md">
+    <div role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className={`px-6 py-4 border-b border-gray-800 flex justify-between items-center ${isChanged ? 'bg-alert/10' : 'bg-bg-root/50'}`}>
           <div className="flex items-center space-x-2">

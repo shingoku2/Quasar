@@ -9,12 +9,12 @@ const SETTINGS_STORAGE_KEY = 'quasar_settings';
 export type SettingsCategory = 'security' | 'notifications' | 'appearance' | 'data' | 'about';
 
 export interface StoredSettings {
-  notifications?: {
+  notifications: {
     desktopNotifications: boolean;
     emailNotifications: boolean;
     alertSounds: boolean;
   };
-  appearance?: {
+  appearance: {
     theme: 'dark' | 'light';
     accentColor: string;
   };
@@ -36,7 +36,7 @@ function loadStoredSettings(): StoredSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) return defaultSettings;
-    const parsed = JSON.parse(raw) as StoredSettings;
+    const parsed = JSON.parse(raw) as Partial<StoredSettings>;
     return {
       notifications: { ...defaultSettings.notifications, ...parsed.notifications },
       appearance: { ...defaultSettings.appearance, ...parsed.appearance },
@@ -152,7 +152,7 @@ const NotificationsSettings: React.FC = () => {
     saveStoredSettings(next);
   }, [settings]);
 
-  const n = settings.notifications ?? defaultSettings.notifications!;
+  const n = settings.notifications;
 
   return (
     <div className="flex flex-col h-full bg-bg-root">
@@ -230,18 +230,17 @@ const AppearanceSettings: React.FC = () => {
     applyAppearance(app.theme, app.accentColor);
   }, []);
 
-  const updateAppearance = useCallback((patch: Partial<NonNullable<StoredSettings['appearance']>>) => {
+  const updateAppearance = useCallback((patch: Partial<StoredSettings['appearance']>) => {
     const next = {
       ...settings,
       appearance: { ...defaultSettings.appearance, ...settings.appearance, ...patch },
     };
     setSettings(next);
     saveStoredSettings(next);
-    const app = next.appearance!;
-    applyAppearance(app.theme, app.accentColor);
+    applyAppearance(next.appearance.theme, next.appearance.accentColor);
   }, [settings]);
 
-  const app = settings.appearance ?? defaultSettings.appearance!;
+  const app = settings.appearance;
 
   return (
     <div className="flex flex-col h-full bg-bg-root">
