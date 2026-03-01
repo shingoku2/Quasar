@@ -56,7 +56,7 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
     }
   };
 
-  const getStatusColor = (host: SavedHost): string => {
+  const getStatusColor = (): string => {
     // For now, assume all hosts are available
     // In the future, this could ping the host to check status
     return 'bg-green-500';
@@ -93,7 +93,7 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
                 onClick={() => onConnect(host)}
                 className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 text-[11px] text-gray-400 hover:text-gray-200 transition-colors flex items-center group"
               >
-                <div className={`h-1.5 w-1.5 rounded-full ${getStatusColor(host)} mr-2 shrink-0`} />
+                <div className={`h-1.5 w-1.5 rounded-full ${getStatusColor()} mr-2 shrink-0`} />
                 <Icon className="h-3 w-3 mr-1.5 text-gray-500 group-hover:text-accent transition-colors shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-medium">{host.name}</div>

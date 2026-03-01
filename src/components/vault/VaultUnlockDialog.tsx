@@ -36,7 +36,9 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
+    <div role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
@@ -73,13 +75,15 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
           </div>
 
           {error && (
-            <div className="bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm">
+            <div className="bg-alert/10 border border-alert/30 rounded-lg px-4 py-3 text-alert text-sm" role="alert" aria-live="assertive">
               {error}
             </div>
           )}
 
           <div className="relative">
-            <input 
+            <input
+              id="vault-unlock-password"
+              aria-label="Master Password"
               autoFocus
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"

@@ -4,7 +4,7 @@ import HealthCheckBadge from './HealthCheckBadge';
 import '@testing-library/jest-dom';
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn((cmd, args) => {
+  invoke: vi.fn((cmd) => {
     if (cmd === 'preflight_check') {
       return Promise.resolve({
         reachable: true,

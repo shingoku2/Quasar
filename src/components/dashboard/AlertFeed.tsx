@@ -96,12 +96,26 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
       setAlerts(prev => [...newAlerts, ...prev].slice(0, 50));
     });
 
+    // Listen for recovered alerts (metric returned below threshold)
+    const unlistenRecovered = listen<Array<{rule_id: string; message: string; recovered_at: number}>>('alerts-recovered', (event) => {
+      const recoveryItems: Alert[] = event.payload.map((r) => ({
+        id: `recovery-${r.rule_id}-${r.recovered_at}`,
+        source: r.rule_id,
+        message: r.message,
+        severity: 'info' as const,
+        timestamp: new Date(r.recovered_at * 1000).toLocaleTimeString(),
+        acknowledged: true,
+      }));
+      setAlerts(prev => [...recoveryItems, ...prev].slice(0, 50));
+    });
+
     // Initial metrics fetch
     invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
 
     return () => {
       unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
+      unlistenRecovered.then(fn => fn());
     };
   }, []);
 

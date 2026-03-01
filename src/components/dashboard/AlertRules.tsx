@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Plus, Trash2, AlertTriangle, Check } from 'lucide-react';
+import { Bell, Plus, Trash2, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -79,7 +79,7 @@ const AlertRules: React.FC = () => {
     };
   };
 
-  const convertToBackendRule = (rule: SimpleAlertRule): any => {
+  const convertToBackendRule = (rule: SimpleAlertRule): AlertRule => {
     return {
       id: rule.id,
       metric: { [rule.metric]: null },
@@ -177,6 +177,9 @@ const AlertRules: React.FC = () => {
           >
             <div className="flex items-center space-x-3">
               <button
+                role="switch"
+                aria-checked={rule.enabled}
+                aria-label={`Toggle alert rule: ${METRIC_LABELS[rule.metric]} ${OPERATOR_LABELS[rule.operator]} ${rule.threshold}%`}
                 onClick={() => toggleRule(rule.id)}
                 className={cn(
                   "w-8 h-4 rounded-full transition-colors relative",

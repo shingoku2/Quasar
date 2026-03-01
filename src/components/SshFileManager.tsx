@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { 
-  Folder, 
-  File, 
-  ArrowLeft, 
-  Download, 
-  Upload, 
-  RefreshCw, 
+import {
+  Folder,
+  ArrowLeft,
+  Download,
+  Upload,
+  RefreshCw,
   ChevronRight,
   HardDrive,
   FileText,

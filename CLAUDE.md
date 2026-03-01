@@ -154,6 +154,7 @@ All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key g
 - `get_system_metrics()` / `get_remote_hosts_health()`
 - `add_alert_rule(host_id, metric, threshold, ...)` / `update_alert_rule(id, ...)` / `remove_alert_rule(id)`
 - `list_alert_rules()` / `get_alert_history()`
+- `get_metrics_history(host?, limit?)` — returns stored `metrics_history` rows
 
 **Network Discovery & Scanning**
 - `start_network_scan(cidr, timeout?)` / `get_discovered_hosts()`
@@ -177,11 +178,21 @@ Listen with `listen()` from `@tauri-apps/api/event`:
 
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `ssh_output` | `{ session_id, data }` | Terminal output chunks |
-| `ssh_closed` | `{ session_id }` | Session terminated |
-| `metrics_update` | metrics object | Periodic system metrics |
-| `discovery_update` | host list | mDNS discovery progress |
-| `alert_triggered` | alert object | Threshold exceeded |
+| `ssh_data_{id}` | `string` | Terminal output chunk for session `id` |
+| `ssh_closed_{id}` | `{}` | SSH session `id` terminated by server |
+| `ssh_timeout_{id}` | `{}` | SSH session `id` closed after 30 min idle |
+| `ssh_stats_{id}` | `{ bandwidth: string, latency: number }` | Per-session SSH stats |
+| `ssh-host-key-verification` | host key object | Prompt user to trust/reject a new host key |
+| `system-metrics` | `SystemMetrics` | Periodic local system metrics (CPU, mem, disk, …) |
+| `alerts-triggered` | `Alert[]` | One or more alert thresholds exceeded |
+| `alerts-recovered` | `AlertRecovery[]` | Alerts cleared (metric back below threshold) |
+| `vault-auto-locked` | `{}` | Vault locked due to inactivity timeout |
+| `host-discovered` | `DiscoveredHost` | mDNS host discovered during network scan |
+| `scan_progress` | `{ scanned, total }` | Network scan progress update |
+| `scan_result` | `ScanResult` | Individual host scan result |
+| `scan_complete` | `{ total }` | Network scan finished |
+| `scan_error` | `string` | Network scan failed with error |
+| `ai-chat-response` | `string` | AI assistant streaming token |
 
 ---
 

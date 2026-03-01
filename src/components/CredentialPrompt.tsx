@@ -33,7 +33,9 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">

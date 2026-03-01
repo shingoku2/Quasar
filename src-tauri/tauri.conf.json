@@ -14,12 +14,14 @@
       {
         "label": "main",
         "title": "Quasar",
-        "width": 800,
-        "height": 600
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws://localhost:* http://localhost:*"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data:; connect-src 'self' ws://localhost:* http://localhost:*"
     }
   },
   "bundle": {
@@ -31,15 +33,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "createUpdaterArtifacts": "v1Compatible"
-  },
-  "plugins": {
-    "updater": {
-      "endpoints": [
-        "https://github.com/user/Quasar/releases/latest/download/latest.json"
-      ],
-      "pubkey": ""
-    }
+    ]
   }
 }
