@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "mcp__Desktop_Commander__read_file"
+      "mcp__Desktop_Commander__read_file",
+      "Bash(ls:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

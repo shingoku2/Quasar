@@ -315,7 +315,8 @@ async fn scan_network(
             // Save host to database if alive
             if result.is_alive {
                 if let Err(e) = tracker.save_host(&result) {
-                    let _ = app_for_result.emit("scan_error", format!("Failed to save discovered host {}: {}", result.ip, e));
+                    error!("Failed to save discovered host {}: {}", result.ip, e);
+                    let _ = app_for_result.emit("scan_error", sanitize_error(e.to_string(), "database"));
                 }
             }
             let _ = app_for_result.emit("scan_result", result);
@@ -326,7 +327,7 @@ async fn scan_network(
                 let _ = app_for_events.emit("scan_complete", ());
             }
             Err(e) => {
-                let _ = app_for_events.emit("scan_error", e);
+                let _ = app_for_events.emit("scan_error", sanitize_error(e, "scanner"));
                 let _ = app_for_events.emit("scan_complete", ());
             }
         }
@@ -611,11 +612,11 @@ async fn set_host_monitoring_credential(app: AppHandle, host_id: String, credent
             conn.execute(
                 "INSERT OR REPLACE INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, ?2)",
                 rusqlite::params![host_id, id],
-            ).map_err(|e| e.to_string())?;
+            ).map_err(|e| sanitize_error(e.to_string(), "database"))?;
         }
         _ => {
             conn.execute("DELETE FROM monitoring_host_credential WHERE host_id = ?1", rusqlite::params![host_id])
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| sanitize_error(e.to_string(), "database"))?;
         }
     }
     Ok(())
@@ -789,9 +790,10 @@ async fn get_credential(
     vault_state: State<'_, vault::VaultState>,
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
-) -> Result<vault::Credential, String> {
+) -> Result<vault::CredentialFrontendView, String> {
     let master_key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager.get_credential(&master_key, &credential_id)
+        .map(vault::CredentialFrontendView::from)
         .map_err(|e| sanitize_error(e, "credential"))
 }
 
@@ -932,8 +934,10 @@ async fn change_master_password(
         return Err("Current password cannot be empty".to_string());
     }
     validate_master_password(&new_password)?;
-    state.change_master_password(&current_password, &new_password).await
-        .map_err(|e| sanitize_error(e, "vault"))
+    state.change_master_password(
+        secrecy::Secret::new(current_password),
+        secrecy::Secret::new(new_password),
+    ).await.map_err(|e| sanitize_error(e, "vault"))
 }
 
 // Audit log commands
@@ -1043,7 +1047,7 @@ pub struct AppInfo {
 
 #[tauri::command]
 fn get_app_info(app: AppHandle) -> Result<AppInfo, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let app_data_dir = app_dir.to_str().ok_or_else(|| "Invalid app data path".to_string())?.to_string();
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?.to_string();
@@ -1068,25 +1072,29 @@ fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
     conn.execute("DELETE FROM metrics_history", [])
-        .map_err(|e| format!("Failed to clear metrics: {}", e))?;
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     conn.execute("DELETE FROM alert_history", [])
-        .map_err(|e| format!("Failed to clear alert history: {}", e))?;
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     Ok(())
 }
 
 #[tauri::command]
 fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let src = app_dir.join(DB_FILENAME);
     if !src.exists() {
         return Err("Database file not found".to_string());
     }
-    let src_str = src.to_str().ok_or("Invalid database path")?;
-    let conn = db::open_connection(src_str)?;
-    // VACUUM INTO creates a consistent snapshot even while other connections are writing.
-    let escaped = dest_path.replace('\'', "''");
-    conn.execute_batch(&format!("VACUUM INTO '{}';", escaped))
-        .map_err(|e| format!("Failed to export database: {}", e))?;
+    // Use the rusqlite backup API instead of VACUUM INTO string interpolation,
+    // which was vulnerable to SQL injection via a crafted dest_path.
+    let src_conn = rusqlite::Connection::open(&src)
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    let mut dst_conn = rusqlite::Connection::open(&dest_path)
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    let backup = rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    backup.run_to_completion(100, std::time::Duration::from_millis(0), None)
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     Ok(())
 }
 
@@ -1107,22 +1115,22 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
         c.execute_batch("SELECT count(*) FROM sqlite_master;")?;
         Ok(())
     })
-    .map_err(|e| format!("Source is not a valid SQLite database: {}", e))?;
+    .map_err(|e| sanitize_error(e.to_string(), "database"))?;
 
     // Backup current DB before replacing.
     let backup_path = app_dir.join(format!("{}.bak", DB_FILENAME));
     if db_path.exists() {
         std::fs::copy(&db_path, &backup_path)
-            .map_err(|e| format!("Failed to backup current database: {}", e))?;
+            .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     }
 
     // Atomic replace: copy to a temp file next to target, then rename over the target.
     let tmp_path = app_dir.join(format!("{}.import_tmp", DB_FILENAME));
     std::fs::copy(&source_path, &tmp_path)
-        .map_err(|e| format!("Failed to stage import file: {}", e))?;
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     std::fs::rename(&tmp_path, &db_path).map_err(|e| {
         let _ = std::fs::remove_file(&tmp_path);
-        format!("Failed to replace database file: {}", e)
+        sanitize_error(e.to_string(), "database")
     })?;
 
     // Active background connections (monitoring, scheduler) still reference the old

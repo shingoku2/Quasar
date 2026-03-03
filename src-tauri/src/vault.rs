@@ -5,7 +5,7 @@ pub mod audit;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{Duration, Instant};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 use secrecy::{Secret, ExposeSecret};
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier, SaltString, PasswordHasher, rand_core::OsRng},
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::db;
 
-pub use credentials::{Credential, CredentialSummary, CredentialManager};
+pub use credentials::{CredentialFrontendView, CredentialSummary, CredentialManager};
 pub use ssh_keys::{SshKeyManager, SshHostKey, TrustStatus, HostKeyVerificationResult};
 pub use audit::{AuditLogManager, AuditLogEntry, AuditLogFilter};
 
@@ -161,6 +161,7 @@ impl VaultState {
             .map_err(|e| format!("Failed to derive key: {}", e))?;
 
         inner.master_key = Some(MasterKey { key: master_key });
+        master_key.zeroize(); // Clear stack copy — MasterKey holds the authoritative copy
         inner.last_activity = Some(Instant::now());
 
         // Log audit event
@@ -243,6 +244,7 @@ impl VaultState {
             .map_err(|e| format!("Failed to derive key: {}", e))?;
 
         inner.master_key = Some(MasterKey { key: master_key });
+        master_key.zeroize(); // Clear stack copy — MasterKey holds the authoritative copy
         inner.last_activity = Some(Instant::now());
         inner.failed_attempts = 0;
         inner.lockout_until = None;
@@ -335,16 +337,14 @@ impl VaultState {
         }
     }
 
-    pub async fn change_master_password(&self, current_password: &str, new_password: &str) -> Result<(), String> {
+    pub async fn change_master_password(&self, current_password: Secret<String>, new_password: Secret<String>) -> Result<(), String> {
         let mut inner = self.inner.write().await;
-        
+
         // Set flag to prevent auto-lock during password change
         inner.changing_password = true;
-        
+
         let db_path = inner.db_path.clone();
         let master_key_option = inner.master_key.as_ref().map(|mk| mk.key);
-        let current_password = current_password.to_string();
-        let new_password = new_password.to_string();
 
         // Perform heavy crypto and DB operations in a blocking thread
         let result = tauri::async_runtime::spawn_blocking(move || {
@@ -370,25 +370,24 @@ impl VaultState {
                 .map_err(|e| format!("Invalid password hash: {}", e))?;
             
             argon2
-                .verify_password(current_password.as_bytes(), &parsed_hash)
+                .verify_password(current_password.expose_secret().as_bytes(), &parsed_hash)
                 .map_err(|_| "Invalid current password".to_string())?;
-            
+
             // Generate new hash and salt
             let new_salt = SaltString::generate(&mut OsRng);
-            
-            let password_hash = argon2.hash_password(new_password.as_bytes(), &new_salt)
+
+            let password_hash = argon2.hash_password(new_password.expose_secret().as_bytes(), &new_salt)
                 .map_err(|e| format!("Failed to hash password: {}", e))?
                 .to_string();
-            
-            // Derive new master key using hash_password_into with proper salt bytes
-            let mut new_master_key = [0u8; 32];
-            // FIX: Decode base64 salt to raw bytes (not UTF-8 string)
+
+            // Derive new master key; Zeroizing wrapper clears bytes when dropped
+            let mut new_master_key = Zeroizing::new([0u8; 32]);
             let new_salt_decoded = Salt::from_b64(new_salt.as_str())
                 .map_err(|e| format!("Failed to parse salt: {}", e))?;
-            let mut new_salt_bytes = [0u8; 64]; // Max salt length
+            let mut new_salt_bytes = [0u8; 64];
             let new_salt_raw = new_salt_decoded.decode_b64(&mut new_salt_bytes)
                 .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
-            argon2.hash_password_into(new_password.as_bytes(), new_salt_raw, &mut new_master_key)
+            argon2.hash_password_into(new_password.expose_secret().as_bytes(), new_salt_raw, &mut *new_master_key)
                 .map_err(|e| format!("Failed to derive key: {}", e))?;
             
             // Re-encrypt all credentials with new key using transaction for safety
@@ -425,7 +424,7 @@ impl VaultState {
                     credential_manager.delete_credential_tx(&tx, &id)?;
                     let new_id = credential_manager.add_credential_tx(
                         &tx,
-                        &new_master_key,
+                        &*new_master_key,
                         name,
                         username,
                         password,
@@ -447,7 +446,7 @@ impl VaultState {
                 // Validate re-encryption by attempting to decrypt first credential with new key
                 if let Some(cred_id) = first_credential_id {
                     // This will fail if encryption/decryption doesn't work with new key
-                    let _ = credential_manager.get_credential(&new_master_key, &cred_id)
+                    let _ = credential_manager.get_credential(&*new_master_key, &cred_id)
                         .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
                 }
                 
@@ -481,8 +480,8 @@ impl VaultState {
             }
             
             Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
-            
-            Ok::<[u8; 32], String>(new_master_key)
+
+            Ok::<[u8; 32], String>(*new_master_key) // copy out before Zeroizing drops
         }).await
             .map_err(|e| format!("Task failed: {}", e))
             .and_then(|inner_result| inner_result);
@@ -492,10 +491,11 @@ impl VaultState {
         inner.changing_password = false;
         
         // Now propagate the error (flag is already reset)
-        let new_master_key = result?;
-        
-        // Update master key in memory
+        let mut new_master_key = result?;
+
+        // Update master key in memory, then clear the stack copy
         inner.master_key = Some(MasterKey { key: new_master_key });
+        new_master_key.zeroize();
         inner.last_activity = Some(Instant::now());
         
         Ok(())

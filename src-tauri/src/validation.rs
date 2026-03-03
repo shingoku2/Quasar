@@ -33,7 +33,7 @@ pub fn validate_ip(ip: &str) -> Result<(), String> {
     if IP_REGEX.is_match(ip) {
         Ok(())
     } else {
-        Err(format!("Invalid IP address format: {}", ip))
+        Err("Invalid IP address format".to_string())
     }
 }
 
@@ -63,7 +63,7 @@ pub fn validate_hostname(hostname: &str) -> Result<(), String> {
     if HOSTNAME_REGEX.is_match(hostname) {
         Ok(())
     } else {
-        Err(format!("Invalid hostname format: {}", hostname))
+        Err("Invalid hostname format".to_string())
     }
 }
 
@@ -97,7 +97,7 @@ pub fn validate_cidr(cidr: &str) -> Result<(), String> {
     if CIDR_REGEX.is_match(cidr) {
         Ok(())
     } else {
-        Err(format!("Invalid CIDR notation: {}", cidr))
+        Err("Invalid CIDR notation".to_string())
     }
 }
 

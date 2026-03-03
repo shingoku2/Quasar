@@ -179,7 +179,9 @@ const RemoteManager: React.FC = () => {
       if (pendingMode === 'sftp') {
         startSftpSession(pendingHost, credential.password, selectedUsername);
       } else {
-        startSession(pendingHost, credential.password, selectedUsername, credential.id);
+        // Pass credentialId only — the backend fetches the credential from the vault
+        // by ID, so the password never needs to cross the IPC boundary for SSH sessions.
+        startSession(pendingHost, undefined, selectedUsername, credential.id);
       }
       setShowCredentialSelector(false);
       setPendingHost(null);

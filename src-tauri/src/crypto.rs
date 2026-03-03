@@ -2,7 +2,7 @@ use sha2::{Sha256, Digest};
 
 use argon2::{
     password_hash::{
-        rand_core::OsRng,
+        rand_core::{OsRng, RngCore},
         PasswordHash, PasswordHasher, PasswordVerifier, SaltString
     },
     Argon2, Algorithm, Params, Version
@@ -11,7 +11,6 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce
 };
-use rand::RngCore;
 
 pub fn hash_password(password: &str) -> Result<String, String> {
     let salt = SaltString::generate(&mut OsRng);
@@ -42,8 +41,7 @@ pub fn verify_password(password: &str, hashed_password: &str) -> Result<bool, St
 pub fn encrypt(data: &[u8], key: &[u8; 32]) -> Result<(Vec<u8>, [u8; 12], [u8; 16]), String> {
     let cipher = Aes256Gcm::new(key.into());
     let mut nonce_bytes = [0u8; 12];
-    let mut rng = rand::rng();
-    rng.fill_bytes(&mut nonce_bytes);
+    OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext_with_tag = cipher.encrypt(nonce, data)

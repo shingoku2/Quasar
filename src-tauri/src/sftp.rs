@@ -262,8 +262,24 @@ pub async fn download_file(
         
         let file_size = file_attrs.size.unwrap_or(0);
 
+        // Canonicalize the destination path to prevent directory traversal (e.g. ../../etc/passwd).
+        // Resolve the parent directory to its canonical form, then re-attach the file name.
+        let local_path_buf = std::path::Path::new(local_path);
+        let parent_dir = local_path_buf.parent()
+            .ok_or_else(|| "Invalid local path: missing parent directory".to_string())?;
+        let resolved_local_path = if parent_dir.as_os_str().is_empty() {
+            // Bare filename — resolve relative to current dir
+            local_path_buf.to_path_buf()
+        } else {
+            let canonical_parent = parent_dir.canonicalize()
+                .map_err(|_| "Download directory does not exist or cannot be resolved".to_string())?;
+            let file_name = local_path_buf.file_name()
+                .ok_or_else(|| "Invalid local path: missing file name".to_string())?;
+            canonical_parent.join(file_name)
+        };
+
         // Create local file
-        let mut local_file = fs::File::create(local_path)
+        let mut local_file = fs::File::create(&resolved_local_path)
             .await
             .map_err(|e| format!("Failed to create local file: {}", e))?;
 

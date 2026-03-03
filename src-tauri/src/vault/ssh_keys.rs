@@ -1,6 +1,7 @@
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use subtle::ConstantTimeEq;
 use crate::db;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,7 +121,7 @@ impl SshKeyManager {
                 }
             }
             Some(known) => {
-                if known.fingerprint == fingerprint {
+                if known.fingerprint.as_bytes().ct_eq(fingerprint.as_bytes()).into() {
                     // Key matches - check trust status
                     match known.trust_status {
                         TrustStatus::Trusted => {

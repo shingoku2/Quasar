@@ -39,6 +39,50 @@ pub struct CredentialSummary {
     pub last_used_at: Option<i64>,
 }
 
+/// Credential view safe for Tauri IPC serialization.
+/// Omits private key material — use booleans to indicate presence.
+/// This is the return type of the `get_credential` Tauri command.
+#[derive(Debug, Clone, Serialize)]
+pub struct CredentialFrontendView {
+    pub id: String,
+    pub name: String,
+    pub username: String,
+    pub password: String,
+    pub credential_type: String,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub metadata: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub last_used_at: Option<i64>,
+    pub key_path: Option<String>,
+    /// True if a private key is stored for this credential (not the key itself).
+    pub has_private_key: bool,
+    /// True if a key passphrase is stored for this credential (not the passphrase itself).
+    pub has_key_passphrase: bool,
+}
+
+impl From<Credential> for CredentialFrontendView {
+    fn from(c: Credential) -> Self {
+        CredentialFrontendView {
+            has_private_key: c.private_key.is_some(),
+            has_key_passphrase: c.key_passphrase.is_some(),
+            id: c.id,
+            name: c.name,
+            username: c.username,
+            password: c.password,
+            credential_type: c.credential_type,
+            host: c.host,
+            port: c.port,
+            metadata: c.metadata,
+            created_at: c.created_at,
+            updated_at: c.updated_at,
+            last_used_at: c.last_used_at,
+            key_path: c.key_path,
+        }
+    }
+}
+
 impl From<Credential> for CredentialSummary {
     fn from(cred: Credential) -> Self {
         Self {

@@ -15,6 +15,8 @@ interface CredentialSummary {
 
 interface Credential extends CredentialSummary {
   password: string;
+  has_private_key: boolean;
+  has_key_passphrase: boolean;
 }
 
 interface CredentialFormData {
@@ -292,8 +294,8 @@ const CredentialDialog: React.FC<{
     host: credential?.host || '',
     port: credential?.port || 22,
     key_path: (credential as { key_path?: string })?.key_path || '',
-    private_key: (credential as { private_key?: string })?.private_key || '',
-    key_passphrase: (credential as { key_passphrase?: string })?.key_passphrase || '',
+    private_key: '',
+    key_passphrase: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -325,10 +327,11 @@ const CredentialDialog: React.FC<{
           credential_type: formData.credential_type,
         };
         if (formData.credential_type === 'ssh_key') {
-          // Send actual values so empty string clears fields on the backend (null would skip update)
           payload.key_path = formData.key_path;
-          payload.private_key = formData.private_key;
-          payload.key_passphrase = formData.key_passphrase;
+          // Send null (not empty string) when the key field is blank so the backend
+          // keeps the existing encrypted key. The backend only updates when non-null.
+          payload.private_key = formData.private_key || null;
+          payload.key_passphrase = formData.key_passphrase || null;
           // Clear password when switching to SSH key so stale password is not left in DB
           payload.password = '';
         } else {

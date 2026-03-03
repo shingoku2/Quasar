@@ -28,7 +28,10 @@ pub fn parse_private_key(
     key_pem: &str,
     passphrase: Option<&str>,
 ) -> Result<russh::keys::PrivateKey, String> {
-    decode_secret_key(key_pem, passphrase).map_err(|e| format!("Invalid SSH key: {}", e))
+    decode_secret_key(key_pem, passphrase).map_err(|e| {
+        log::error!("SSH key parse error: {}", e);
+        "SSH key authentication failed".to_string()
+    })
 }
 
 fn expand_tilde(path: &str) -> String {

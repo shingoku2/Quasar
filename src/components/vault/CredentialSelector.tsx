@@ -13,6 +13,8 @@ interface CredentialSummary {
 
 interface Credential extends CredentialSummary {
   password: string;
+  has_private_key: boolean;
+  has_key_passphrase: boolean;
 }
 
 interface CredentialSelectorProps {

@@ -40,6 +40,9 @@ impl client::Handler for Client {
                 if result.allowed {
                     Ok(true)
                 } else {
+                    // keyBytes is included because trust_ssh_host_key needs the raw public key
+                    // bytes to store in the ssh_known_hosts table. Omitting it would require
+                    // server-side caching of pending host keys by fingerprint.
                     let _ = self.app_handle.emit("ssh-host-key-verification", serde_json::json!({
                         "host": self.host,
                         "port": self.port,
