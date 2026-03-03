@@ -90,9 +90,10 @@ pub async fn upload_file(
 ) -> Result<(), String> {
     require_password_auth(password)?;
 
-    if !Path::new(local_path).exists() {
-        return Err(format!("Local file not found: {}", local_path));
-    }
+    // Canonicalize the source path to prevent symlink attacks and use a resolved path for reading.
+    let resolved_local_path = Path::new(local_path)
+        .canonicalize()
+        .map_err(|_| format!("Local file not found or cannot be resolved: {}", local_path))?;
 
     // Connect to SSH
     let config = russh::client::Config::default();
@@ -137,8 +138,8 @@ pub async fn upload_file(
             .await
             .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
-        // Read local file
-        let mut local_file = fs::File::open(local_path)
+        // Read local file (use canonical path)
+        let mut local_file = fs::File::open(&resolved_local_path)
             .await
             .map_err(|e| format!("Failed to open local file: {}", e))?;
         

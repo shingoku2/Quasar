@@ -39,14 +39,16 @@ pub struct CredentialSummary {
     pub last_used_at: Option<i64>,
 }
 
-/// Credential view safe for Tauri IPC serialization.
-/// Omits private key material — use booleans to indicate presence.
+/// Credential view for Tauri IPC when the frontend needs to use the credential (e.g. SSH or SFTP auth).
+/// Includes the decrypted password so callers can authenticate; omits private key material and
+/// key passphrase — use `has_private_key` and `has_key_passphrase` to indicate presence.
 /// This is the return type of the `get_credential` Tauri command.
 #[derive(Debug, Clone, Serialize)]
 pub struct CredentialFrontendView {
     pub id: String,
     pub name: String,
     pub username: String,
+    /// Decrypted password for password-based auth; present so SSH/SFTP flows can use it over IPC.
     pub password: String,
     pub credential_type: String,
     pub host: Option<String>,
