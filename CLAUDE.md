@@ -1,97 +1,358 @@
-# CLAUDE.md
+# CLAUDE.md — Quasar Codebase Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Quasar is a Tauri 2.x desktop application for remote infrastructure management: SSH sessions, SFTP, system monitoring, network discovery, cron-scheduled automation, and a security vault. React + TypeScript frontend, Rust backend, SQLite database.
 
-## Commands
+---
 
-```bash
-# Run the full app (Vite dev server + Tauri/Rust backend)
-npm run tauri dev
+## Repository Layout
 
-# Build for production (outputs to src-tauri/target/release/bundle/)
-npm run tauri build
-
-# Run frontend tests (Vitest)
-npm test
-
-# Run a single frontend test file
-npx vitest run src/components/TerminalComponent.test.tsx
-
-# Run Rust backend tests
-cd src-tauri && cargo test
-
-# Run a specific Rust test module
-cd src-tauri && cargo test scheduler::
-
-# Frontend-only Vite dev server (no Tauri)
-npm run dev
+```
+Quasar/
+├── src/                        # React/TypeScript frontend
+│   ├── components/             # 55+ React components (views, dialogs, widgets)
+│   │   ├── dashboard/          # Dashboard widgets (metrics, charts, maps)
+│   │   └── vault/              # Vault/credential UI
+│   ├── hooks/                  # Custom React hooks
+│   ├── lib/utils.ts            # cn() helper (clsx + tailwind-merge)
+│   ├── db.ts                   # Tauri SQL plugin interface
+│   ├── test-setup.ts           # Vitest global mocks
+│   ├── App.tsx                 # Root component + routing
+│   └── *.test.tsx              # 20 test files (co-located with sources)
+├── src-tauri/                  # Rust/Tauri backend
+│   ├── src/
+│   │   ├── lib.rs              # App setup, migrations, ALL Tauri commands
+│   │   ├── vault.rs            # Vault state + auto-lock
+│   │   ├── vault/
+│   │   │   ├── credentials.rs  # AES-256-GCM encryption, CRUD
+│   │   │   ├── ssh_keys.rs     # SSH host key trust management
+│   │   │   └── audit.rs        # Security event logging
+│   │   ├── ssh.rs              # Interactive SSH sessions (Channel::wait())
+│   │   ├── ssh_exec.rs         # One-shot SSH command execution
+│   │   ├── ssh_tunnel.rs       # SSH port forwarding
+│   │   ├── sftp.rs             # SFTP file transfer (password-auth only)
+│   │   ├── scheduler.rs        # Cron task runner
+│   │   ├── monitoring.rs       # System metrics + alert rules
+│   │   ├── scanner.rs          # Network port scanning
+│   │   ├── discovery.rs        # mDNS network discovery (singleton)
+│   │   ├── host_tracker.rs     # Discovered host persistence
+│   │   ├── health.rs           # Ping + SSH pre-flight checks
+│   │   ├── crypto.rs           # AES-256-GCM, Argon2id utilities
+│   │   ├── validation.rs       # Input validation (IP, hostname, port, CIDR)
+│   │   ├── errors.rs           # Error types + frontend sanitization
+│   │   ├── ai.rs               # Ollama LLM integration
+│   │   ├── db.rs               # DB connection helpers
+│   │   └── main.rs             # Binary entry point
+│   ├── migrations/             # 12 numbered SQL migration files
+│   ├── tests/                  # Rust integration tests
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── conductor/                  # Internal docs & style guides
+│   └── code_styleguides/       # typescript.md, html-css.md, general.md
+├── docs/
+│   ├── SCHEMA.md               # Database schema reference
+│   └── CORE_WORKFLOWS.md       # End-to-end user workflows
+├── scripts/tauri-dev.js        # Tauri dev wrapper (sets CARGO_TARGET_DIR)
+├── .github/workflows/
+│   ├── ci.yml                  # PR checks (TypeScript, Vitest, Clippy, Cargo test)
+│   └── release.yml             # Multi-platform build + GitHub release
+├── AGENTS.md                   # Detailed bug-fix log and architectural decisions
+├── CODEBASE_AUDIT_REPORT.md    # Security audit findings + resolutions
+└── package.json
 ```
 
-## Architecture
+---
 
-Quasar is a **Tauri v2** desktop app: React/TypeScript frontend compiled by Vite, communicating with a Rust backend via `invoke()` calls.
+## Tech Stack
 
-### Frontend (`src/`)
+| Layer | Technology |
+|-------|-----------|
+| Desktop runtime | Tauri 2.x |
+| Frontend framework | React 19 + TypeScript 5.8 |
+| Build tool | Vite 7 |
+| Styling | Tailwind CSS 4 (dark navy/cyan theme) |
+| Icons | Lucide React |
+| Charts | Recharts |
+| Terminal | xterm.js 6 (`@xterm/xterm`, `@xterm/addon-fit`) |
+| Network graph | vis-network + vis-data |
+| Backend language | Rust (edition 2021), async via Tokio 1 |
+| Database | SQLite (rusqlite bundled, migrations via rusqlite_migration) |
+| SSH/SFTP | russh 0.57, russh-keys 0.49, russh-sftp 2.0 |
+| Encryption | aes-gcm 0.10 (AES-256-GCM), argon2 0.5 (Argon2id) |
+| Secure memory | zeroize 1.8, secrecy 0.8 |
+| Network scan | surge-ping, cidr-utils, dns-lookup, mdns-sd |
+| System info | sysinfo 0.33 |
+| Cron | cron 0.12 |
+| AI (optional) | ollama-rs 0.3 |
+| Testing | Vitest 4, React Testing Library 16, jsdom |
 
-- **Entry**: `main.tsx` → `App.tsx` → `Layout.tsx`
-- **Navigation**: `Layout.tsx` renders all view components simultaneously and toggles visibility with `block`/`hidden` CSS classes. Views are never unmounted, so SSH sessions persist when navigating away.
-- **Views**: Dashboard, RemoteManager (SSH/SFTP sessions), AIAssistant, MonitoringView, ScheduledTasksView, SecurityView, SettingsView — all wired in `Layout.tsx`.
-- **Vault state**: `src/components/vault/VaultProvider.tsx` wraps the app and exposes vault/credential state via React Context. Always check vault locked state before accessing credentials.
-- **Database (frontend)**: `src/db.ts` uses `@tauri-apps/plugin-sql` for the `hosts` table only. All other data goes through Tauri `invoke()` commands.
-- **Terminal**: `src/components/TerminalComponent.tsx` uses xterm.js. Terminal theme is driven by the `theme` prop only — it does **not** sync with the app theme. In-place theme/font updates are applied without reconnecting the SSH session.
-- **Theming**: Dark/light themes use CSS custom properties. Light mode is implemented via `[data-theme="light"]` overrides in `App.css` that remap Tailwind text classes (`text-white`, `text-gray-*`, etc.) to dark-on-light values.
+---
 
-### Backend (`src-tauri/src/`)
+## Development Commands
 
-All Tauri commands are defined in `lib.rs` and registered in the `tauri::Builder`. Modules:
+```bash
+# Frontend dev server only
+npm run dev
 
-| Module | Purpose |
-|--------|---------|
-| `vault/` | Encrypted credential store (AES-256-GCM, Argon2id). `VaultState` is the central Tauri-managed state. |
-| `ssh.rs`, `ssh_auth.rs`, `ssh_exec.rs` | SSH connection, authentication, and command execution (russh) |
-| `sftp.rs` | SFTP file transfer (russh-sftp) |
-| `scheduler.rs` | Cron task runner; polls every 60 s; supports SSH command, SFTP upload, SFTP download |
-| `monitoring.rs` | Real-time host metrics (CPU, memory, disk) |
-| `scanner.rs`, `discovery.rs`, `host_tracker.rs` | Network CIDR scanning and device discovery |
-| `health.rs` | Pre-flight ping + SSH validation |
-| `db.rs` | `open_connection()` helper — always enables `PRAGMA foreign_keys = ON` |
-| `crypto.rs` | AES-256-GCM encrypt/decrypt primitives |
-| `validation.rs` | Input validation (IPs, hostnames, CIDR, credentials) |
-| `errors.rs` | `sanitize_error()` strips internal detail from user-facing errors |
-| `ai.rs`, `launcher.rs` | AI assistant (ollama-rs) and process launchers |
+# Full Tauri dev (frontend + Rust backend) — use this for normal development
+npm run tauri
 
-### Database
+# TypeScript type-check + Vite production build
+npm run build
 
-- SQLite at `quasar.db` (in Tauri app data dir at runtime, or project root during tests).
-- **Migrations**: numbered SQL files in `src-tauri/migrations/` (001–012), applied by `rusqlite-migration` on startup in `lib.rs`. To add a migration, create the next numbered `.sql` file and register it in the `Migrations::from_iter([...])` call in `lib.rs`.
-- Schema reference: `docs/SCHEMA.md`.
+# Run frontend tests
+npm test
 
-### Vault Security Model
+# Rust: lint
+cd src-tauri && cargo clippy -- -D warnings
 
-- Master password → Argon2id (47 MiB, 2 iterations) → 32-byte master key held in `VaultState` (in-memory only, zeroized on drop/lock).
-- All credentials encrypted at rest with AES-256-GCM using the master key.
-- Auto-lock after configurable idle timeout. Lockout after failed attempts (5/10/15 thresholds).
-- Changing password re-encrypts all credentials in a single transaction with validation before commit.
+# Rust: unit + integration tests
+cd src-tauri && cargo test
+```
 
-### Scheduled Tasks (cron)
+`npm run tauri` calls `scripts/tauri-dev.js`, which sets `CARGO_TARGET_DIR=src-tauri/target` and runs `npx tauri dev`. On Windows it uses `npx.cmd`.
 
-- Cron expressions are **6-field** format: `sec min hour day month dow` (e.g., `0 0 9 * * *` = 9:00 AM daily).
-- Task types: `ssh_command`, `sftp_upload`, `sftp_download`. File transfer tasks require `local_path` and `remote_path`.
-- Scheduler runs in a background `tokio` task; checks every 60 s; uses an in-memory cooldown map to prevent double-firing.
+The Vite dev server is fixed to port **1420** (required by Tauri).
+
+---
+
+## Architecture: Frontend ↔ Backend IPC
+
+All communication goes through Tauri's IPC layer — no HTTP server.
+
+### Commands (Frontend → Backend)
+
+All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key groups:
+
+**Vault**
+- `initialize_vault(password)` / `unlock_vault(password)` / `lock_vault()`
+- `change_master_password(old_password, new_password)`
+- `get_vault_settings()` / `update_vault_settings(...)`
+- `export_vault(path)` / `import_vault(path)`
+
+**Credentials**
+- `add_credential(name, credential_type, username, password?, private_key?, ...)`
+- `update_credential(id, ...)` / `remove_credential(id)`
+- `list_credentials()` / `get_credential(id)`
+
+**Hosts**
+- `add_host(hostname, port, username, protocol)` / `update_host(...)` / `remove_host(id)`
+- `list_hosts()` / `get_saved_hosts()`
+
+**SSH**
+- `start_ssh_session(host_id, credential_id?, password?)` → returns `session_id`
+- `write_ssh(session_id, data)` / `resize_ssh(session_id, rows, cols)` / `close_ssh_session(session_id)`
+- `execute_ssh_command(host_id, command, credential_id?, password?)`
+- `get_ssh_known_hosts()` / `verify_ssh_host_key(...)` / `remove_known_host(hostname)`
+
+**SFTP** — password auth only (no SSH key support in backend)
+- `sftp_upload_file(host_id, local_path, remote_path, credential_id?, password?)`
+- `sftp_download_file(host_id, remote_path, local_path, credential_id?, password?)`
+- `sftp_list_directory(host_id, path, credential_id?, password?)`
+- `sftp_remote_exists(host_id, path, credential_id?, password?)`
+
+**Monitoring & Alerts**
+- `get_system_metrics()` / `get_remote_hosts_health()`
+- `add_alert_rule(host_id, metric, threshold, ...)` / `update_alert_rule(id, ...)` / `remove_alert_rule(id)`
+- `list_alert_rules()` / `get_alert_history()`
+- `get_metrics_history(host?, limit?)` — returns stored `metrics_history` rows
+
+**Network Discovery & Scanning**
+- `start_network_scan(cidr, timeout?)` / `get_discovered_hosts()`
+- `save_discovered_host(ip, hostname, port, username)` / `remove_discovered_host(ip)`
+
+**Scheduled Tasks**
+- `list_scheduled_tasks()` / `get_scheduled_task(id)`
+- `add_scheduled_task(name, cron_expression, host_id, task_type, command?, ..., credential_id?, enabled)`
+- `update_scheduled_task(id, ...)` / `remove_scheduled_task(id)`
+- `run_scheduled_task_now(task_id)`
+
+**SSH Tunnels**
+- `create_tunnel(host_id, local_port, remote_addr, remote_port, ...)` / `close_tunnel(tunnel_id)` / `list_tunnels()`
+
+**AI**
+- `send_ai_message(message, context?)`
+
+### Events (Backend → Frontend)
+
+Listen with `listen()` from `@tauri-apps/api/event`:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `ssh_data_{id}` | `string` | Terminal output chunk for session `id` |
+| `ssh_closed_{id}` | `{}` | SSH session `id` terminated by server |
+| `ssh_timeout_{id}` | `{}` | SSH session `id` closed after 30 min idle |
+| `ssh_stats_{id}` | `{ bandwidth: string, latency: number }` | Per-session SSH stats |
+| `ssh-host-key-verification` | host key object | Prompt user to trust/reject a new host key |
+| `system-metrics` | `SystemMetrics` | Periodic local system metrics (CPU, mem, disk, …) |
+| `alerts-triggered` | `Alert[]` | One or more alert thresholds exceeded |
+| `alerts-recovered` | `AlertRecovery[]` | Alerts cleared (metric back below threshold) |
+| `vault-auto-locked` | `{}` | Vault locked due to inactivity timeout |
+| `host-discovered` | `DiscoveredHost` | mDNS host discovered during network scan |
+| `scan_progress` | `{ scanned, total }` | Network scan progress update |
+| `scan_result` | `ScanResult` | Individual host scan result |
+| `scan_complete` | `{ total }` | Network scan finished |
+| `scan_error` | `string` | Network scan failed with error |
+| `ai-chat-response` | `string` | AI assistant streaming token |
+
+---
+
+## Database
+
+SQLite database stored in the platform app-data directory as `quasar.db`.
+
+Migrations run automatically on startup via `rusqlite_migration`. Migration files are in `src-tauri/migrations/` numbered `001` through `012`.
+
+### Key Tables
+
+| Table | Purpose |
+|-------|---------|
+| `hosts` | Saved remote servers |
+| `credentials` | Encrypted passwords/SSH keys (AES-256-GCM) |
+| `vault_settings` | Master password hash (Argon2id), auto-lock config |
+| `ssh_known_hosts` | SSH host key fingerprints |
+| `security_audit_log` | Vault and credential access events |
+| `discovered_hosts`, `host_services` | Network scan results |
+| `scheduled_tasks` | Cron automation tasks |
+| `scheduled_task_runs` | Task execution history |
+| `system_metrics_history` | Historical monitoring data |
+| `alert_rules`, `alert_history` | Alert configuration and log |
+
+See `docs/SCHEMA.md` for full column definitions.
+
+### Adding Migrations
+
+1. Create `src-tauri/migrations/013_description.sql`
+2. Register it in `lib.rs` where migrations are initialized
+3. Use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for additive changes
+
+---
 
 ## Testing
 
-**Frontend**: Vitest + React Testing Library. All Tauri APIs are globally mocked in `src/test-setup.ts` (covers `@tauri-apps/api/core`, `event`, `plugin-dialog`, `plugin-sql`). Add per-test `vi.mock()` calls for component-specific behavior.
+### Frontend Tests
 
-**Backend**: Standard `cargo test`. Tests use unique timestamped temp `.db` files and clean them up in a `cleanup_test_db()` helper pattern. The scheduler has integration tests: run them with `cargo test scheduler::`.
+```bash
+npm test          # run all tests once
+npm test -- --watch   # watch mode
+```
 
-## Code Style
+Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setup.ts` globally mocks:
+- `window.__TAURI_INTERNALS__`
+- `@tauri-apps/api/core` (`invoke`)
+- `@tauri-apps/api/event` (`listen`, `emit`)
+- `@tauri-apps/plugin-dialog`
+- `@tauri-apps/plugin-sql`
+- `@tauri-apps/api/path`
 
-Follows Google TypeScript Style Guide (`conductor/code_styleguides/typescript.md`):
-- **Named exports only** — no default exports.
-- `const`/`let` only; no `var`.
-- Single quotes for strings; template literals for interpolation.
-- 2-space indentation; explicit semicolons.
-- Avoid `any`; avoid type assertions (`as`/`!`) without justification.
-- `UpperCamelCase` for types/components; `lowerCamelCase` for variables/functions.
-- No `_` prefix/suffix on identifiers.
+**All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
+
+### Rust Tests
+
+```bash
+cd src-tauri && cargo test
+```
+
+Integration tests are in `src-tauri/tests/`. Unit tests use `#[cfg(test)]` modules within source files.
+
+---
+
+## Code Conventions
+
+### TypeScript / React
+
+Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guide).
+
+- **`const` by default**, `let` if needed, never `var`
+- **Named exports only** — no default exports
+- **No `any`** — use `unknown` or a specific type
+- **No type assertions** (`as SomeType`, `x!`) without a clear comment justifying it
+- **No `#private` fields** — use TypeScript `private` keyword
+- **No `public` modifier** (it's the default)
+- **Single quotes** for strings; template literals for interpolation
+- **Strict equality** — always `===` / `!==`
+- **Explicit semicolons** — never rely on ASI
+- **No `const enum`** — use plain `enum`
+- **No `eval()`**
+- **No `{}` type** — prefer `unknown`, `Record<string, unknown>`, or `object`
+
+**Naming**:
+- `UpperCamelCase` — classes, interfaces, types, enums
+- `lowerCamelCase` — variables, functions, methods, properties
+- `CONSTANT_CASE` — global constants and enum values
+- No `_` prefix/suffix on identifiers
+
+**Comments**: JSDoc `/** */` for documentation, `//` for inline notes. Don't restate the code.
+
+**CSS utility**: Use the `cn()` helper from `src/lib/utils.ts` (wraps `clsx` + `tailwind-merge`) for conditional class composition.
+
+### Rust
+
+- Tauri commands return `Result<T, String>` — convert errors with `.map_err(|e| e.to_string())` or the error sanitization in `errors.rs`
+- No `.unwrap()` or `.expect()` in non-test code
+- Zeroize sensitive data (passwords, keys) when done — use `zeroize` crate
+- Use `secrecy::Secret<String>` for in-memory secrets
+- Validate all external inputs through `validation.rs` before processing
+- Database work should use transactions for multi-step operations
+- `discovery.rs` uses a singleton pattern (`Arc<AtomicBool>`) — do not bypass it
+
+### Component Patterns
+
+- Functional components with hooks only (no class components)
+- Global vault state via `VaultProvider` context (`src/components/vault/VaultProvider.tsx`)
+- Wrap the app (or risky subtrees) in `ErrorBoundary`
+- SSH credential selectors must filter out `ssh_key` type when the target is SFTP (backend only supports password auth for SFTP)
+
+---
+
+## Security Notes
+
+1. **Vault must be unlocked** before any credential operations. The vault state is in-memory only — the master password hash is stored (Argon2id) but the derived key is not persisted.
+2. **Credentials are encrypted** with AES-256-GCM. The key is derived from the master password per session.
+3. **SFTP only supports password credentials.** The `CredentialSelector` component filters `ssh_key` type out when `filterType="password_only"` is set — always use this prop for SFTP contexts.
+4. **Discovery is a singleton.** Calling `start_network_scan` when already running returns early; there is no duplicate-thread risk.
+5. **Database export** uses `VACUUM INTO` (not file copy) to get a consistent snapshot while connections are live.
+6. **Input validation** (`validation.rs`) must be called on all user-supplied network values before use in commands.
+
+See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
+
+---
+
+## CI/CD
+
+`.github/workflows/ci.yml` runs on every push/PR to `main` or `develop`:
+
+1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test`
+2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test`
+3. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
+
+`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, and creates a GitHub release with bundles attached.
+
+---
+
+## Key Files for Common Tasks
+
+| Task | File(s) |
+|------|---------|
+| Add a new Tauri command | `src-tauri/src/lib.rs` (register in `tauri::generate_handler!`) |
+| Add credential/host logic | `src-tauri/src/vault/credentials.rs` or `lib.rs` |
+| Add a new React view | `src/components/` + register in `App.tsx` sidebar |
+| Add a database table/column | New migration in `src-tauri/migrations/` + register in `lib.rs` |
+| Change alert/monitoring logic | `src-tauri/src/monitoring.rs` |
+| Change SSH session handling | `src-tauri/src/ssh.rs` (interactive) or `ssh_exec.rs` (one-shot) |
+| Change cron/scheduler logic | `src-tauri/src/scheduler.rs` |
+| Change encryption | `src-tauri/src/crypto.rs` |
+| Change input validation | `src-tauri/src/validation.rs` |
+| Understand DB schema | `docs/SCHEMA.md` + `src-tauri/migrations/` |
+| Understand user workflows | `docs/CORE_WORKFLOWS.md` |
+| Review past bug fixes | `AGENTS.md` |
+
+---
+
+## Important Constraints
+
+- **SFTP backend does not support SSH key auth** — only password credentials. Do not add `ssh_key` credential support to SFTP paths without implementing it in `src-tauri/src/sftp.rs` first.
+- **Tauri API cannot be called in tests** — always mock via `vi.mocked(invoke)` in test files or `test-setup.ts`.
+- **Do not use `unwrap()`/`expect()` in Rust production code** — return `Result` and propagate errors.
+- **Migrations are append-only** — never modify existing migration files. Add a new numbered file instead.
+- **All Tauri commands must be registered** in `tauri::generate_handler!([...])` inside `lib.rs` to be callable from the frontend.
+- **The Vite port is fixed at 1420** — do not change it; Tauri's CSP and dev config depend on it.

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Server, Laptop, Router, Printer, HelpCircle, Copy, Check, ExternalLink, Trash2 } from 'lucide-react';
-import { ScanResult, ServiceInfo } from './NetworkScanner';
+import { ScanResult } from './NetworkScanner';
 
 interface HostDetailDialogProps {
   host: ScanResult | null;
@@ -61,7 +61,7 @@ const HostDetailDialog: React.FC<HostDetailDialogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Host details: ${host.ip}`}>
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">

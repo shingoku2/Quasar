@@ -44,7 +44,7 @@ const SshTunnelsView: React.FC = () => {
 
   useEffect(() => {
     loadTunnels();
-    const interval = setInterval(loadTunnels, 2000);
+    const interval = setInterval(loadTunnels, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -103,7 +103,7 @@ const SshTunnelsView: React.FC = () => {
         SSH Tunnels (Local Port Forward)
       </h2>
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-200 text-sm">
+        <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700 text-red-200 text-sm" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
@@ -115,6 +115,7 @@ const SshTunnelsView: React.FC = () => {
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="text"
+                aria-label="SSH host"
                 placeholder="SSH host"
                 value={form.ssh_host}
                 onChange={(e) => setForm((f) => ({ ...f, ssh_host: e.target.value }))}
@@ -122,21 +123,26 @@ const SshTunnelsView: React.FC = () => {
               />
               <input
                 type="number"
+                aria-label="SSH port (1-65535)"
                 placeholder="SSH port"
+                min={1}
+                max={65535}
                 value={form.ssh_port}
-                onChange={(e) => setForm((f) => ({ ...f, ssh_port: parseInt(e.target.value, 10) || 22 }))}
+                onChange={(e) => { const v = parseInt(e.target.value, 10); setForm((f) => ({ ...f, ssh_port: Number.isFinite(v) ? Math.max(1, Math.min(65535, v)) : f.ssh_port })); }}
                 className="bg-bg-sidebar border border-border rounded px-3 py-2 text-sm text-white"
               />
             </div>
             <div className="flex gap-2">
               <input
                 type="text"
+                aria-label="SSH username"
                 placeholder="SSH user"
                 value={form.ssh_user}
                 onChange={(e) => setForm((f) => ({ ...f, ssh_user: e.target.value }))}
                 className="flex-1 bg-bg-sidebar border border-border rounded px-3 py-2 text-sm text-white placeholder-gray-500"
               />
               <select
+                aria-label="Credential (optional)"
                 value={form.credential_id}
                 onChange={(e) => setForm((f) => ({ ...f, credential_id: e.target.value }))}
                 className="w-40 bg-bg-sidebar border border-border rounded px-3 py-2 text-sm text-white"
@@ -153,13 +159,17 @@ const SshTunnelsView: React.FC = () => {
             <div className="grid grid-cols-3 gap-2">
               <input
                 type="number"
+                aria-label="Local port (1-65535)"
                 placeholder="Local port"
+                min={1}
+                max={65535}
                 value={form.local_port}
-                onChange={(e) => setForm((f) => ({ ...f, local_port: parseInt(e.target.value, 10) || 1080 }))}
+                onChange={(e) => { const v = parseInt(e.target.value, 10); setForm((f) => ({ ...f, local_port: Number.isFinite(v) ? Math.max(1, Math.min(65535, v)) : f.local_port })); }}
                 className="bg-bg-sidebar border border-border rounded px-3 py-2 text-sm text-white"
               />
               <input
                 type="text"
+                aria-label="Remote host"
                 placeholder="Remote host"
                 value={form.remote_host}
                 onChange={(e) => setForm((f) => ({ ...f, remote_host: e.target.value }))}
@@ -167,9 +177,12 @@ const SshTunnelsView: React.FC = () => {
               />
               <input
                 type="number"
+                aria-label="Remote port (1-65535)"
                 placeholder="Remote port"
+                min={1}
+                max={65535}
                 value={form.remote_port}
-                onChange={(e) => setForm((f) => ({ ...f, remote_port: parseInt(e.target.value, 10) || 8080 }))}
+                onChange={(e) => { const v = parseInt(e.target.value, 10); setForm((f) => ({ ...f, remote_port: Number.isFinite(v) ? Math.max(1, Math.min(65535, v)) : f.remote_port })); }}
                 className="bg-bg-sidebar border border-border rounded px-3 py-2 text-sm text-white"
               />
             </div>

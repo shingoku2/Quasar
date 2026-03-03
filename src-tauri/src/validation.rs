@@ -1,8 +1,8 @@
 //! Input validation utilities for Quasar
-//! 
+//!
 //! This module provides validation functions for user inputs to prevent
 //! injection attacks and ensure data integrity (OWASP ASVS v4.0 5.1.3).
-//! 
+//!
 //! All validation functions return `Result<(), String>` where:
 //! - `Ok(())` indicates valid input
 //! - `Err(String)` contains a user-friendly error message
@@ -11,25 +11,24 @@ use regex::Regex;
 use once_cell::sync::Lazy;
 
 /// Validates IPv4 address format.
-/// 
-/// # Arguments
-/// * `ip` - The IP address string to validate
-/// 
-/// # Returns
-/// * `Ok(())` if the IP address is valid (e.g., "192.168.1.1")
-/// * `Err(String)` with error message if invalid
-/// 
+///
+/// Accepts only standard dotted-decimal notation with each octet in 0–255.
+/// Leading zeros are rejected to avoid octal ambiguity (RFC 3986 §3.2.2).
+///
 /// # Examples
 /// ```ignore
-/// use quasar_lib::validation::validate_ip;
 /// assert!(validate_ip("192.168.1.1").is_ok());
 /// assert!(validate_ip("256.1.1.1").is_err());
+/// assert!(validate_ip("001.002.003.004").is_err()); // leading zeros rejected
 /// ```
 pub fn validate_ip(ip: &str) -> Result<(), String> {
+    // Strict dotted-decimal: each octet 0-255, no leading zeros, exactly 4 parts.
     static IP_REGEX: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$").unwrap()
+        Regex::new(
+            r"^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$"
+        ).unwrap()
     });
-    
+
     if IP_REGEX.is_match(ip) {
         Ok(())
     } else {
@@ -46,20 +45,23 @@ pub fn validate_port(port: u16) -> Result<(), String> {
     }
 }
 
-/// Validates hostname format
+/// Validates hostname format (RFC 1123).
+///
+/// Each label must be 1-63 alphanumeric characters or hyphens, must not start
+/// or end with a hyphen, and the total length must not exceed 253 characters.
 pub fn validate_hostname(hostname: &str) -> Result<(), String> {
     static HOSTNAME_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$").unwrap()
     });
-    
+
     if hostname.is_empty() {
         return Err("Hostname cannot be empty".to_string());
     }
-    
+
     if hostname.len() > 253 {
         return Err("Hostname too long (max 253 characters)".to_string());
     }
-    
+
     if HOSTNAME_REGEX.is_match(hostname) {
         Ok(())
     } else {
@@ -72,15 +74,15 @@ pub fn validate_username(username: &str) -> Result<(), String> {
     if username.is_empty() {
         return Err("Username cannot be empty".to_string());
     }
-    
+
     if username.len() > 32 {
         return Err("Username too long (max 32 characters)".to_string());
     }
-    
+
     static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"^[a-zA-Z0-9_\-]+$").unwrap()
     });
-    
+
     if USERNAME_REGEX.is_match(username) {
         Ok(())
     } else {
@@ -91,9 +93,11 @@ pub fn validate_username(username: &str) -> Result<(), String> {
 /// Validates CIDR notation
 pub fn validate_cidr(cidr: &str) -> Result<(), String> {
     static CIDR_REGEX: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}/([0-9]|[1-2][0-9]|3[0-2])$").unwrap()
+        Regex::new(
+            r"^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)/([0-9]|[1-2][0-9]|3[0-2])$"
+        ).unwrap()
     });
-    
+
     if CIDR_REGEX.is_match(cidr) {
         Ok(())
     } else {
@@ -106,11 +110,11 @@ pub fn validate_credential_name(name: &str) -> Result<(), String> {
     if name.is_empty() {
         return Err("Credential name cannot be empty".to_string());
     }
-    
+
     if name.len() > 100 {
         return Err("Credential name too long (max 100 characters)".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -120,7 +124,7 @@ pub fn validate_password(password: &str) -> Result<(), String> {
     if password.len() < 8 {
         return Err("Password must be at least 8 characters".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -129,7 +133,28 @@ pub fn validate_master_password(password: &str) -> Result<(), String> {
     if password.len() < 12 {
         return Err("Master password must be at least 12 characters".to_string());
     }
-    
+
+    Ok(())
+}
+
+/// Validates a file-system path supplied by the user.
+///
+/// Rejects paths containing null bytes or `..` path traversal components.
+/// Does not check existence; callers must do that separately.
+pub fn validate_path(path: &str) -> Result<(), String> {
+    if path.is_empty() {
+        return Err("Path cannot be empty".to_string());
+    }
+    if path.contains('\0') {
+        return Err("Path contains invalid characters".to_string());
+    }
+    // Reject any component that is exactly ".." to prevent directory traversal.
+    let traversal = std::path::Path::new(path)
+        .components()
+        .any(|c| c == std::path::Component::ParentDir);
+    if traversal {
+        return Err("Path must not contain '..' components".to_string());
+    }
     Ok(())
 }
 
@@ -142,9 +167,13 @@ mod tests {
         assert!(validate_ip("192.168.1.1").is_ok());
         assert!(validate_ip("10.0.0.1").is_ok());
         assert!(validate_ip("255.255.255.255").is_ok());
+        assert!(validate_ip("0.0.0.0").is_ok());
         assert!(validate_ip("256.1.1.1").is_err());
         assert!(validate_ip("192.168.1").is_err());
         assert!(validate_ip("not-an-ip").is_err());
+        // Leading zeros must be rejected
+        assert!(validate_ip("001.002.003.004").is_err());
+        assert!(validate_ip("192.168.01.1").is_err());
     }
 
     #[test]
@@ -203,5 +232,16 @@ mod tests {
         assert!(validate_master_password("SecurePass123!").is_ok());
         assert!(validate_master_password("short").is_err());
         assert!(validate_master_password("11chars!!!!").is_err());
+    }
+
+    #[test]
+    fn test_validate_path() {
+        assert!(validate_path("/home/user/file.txt").is_ok());
+        assert!(validate_path("C:\\Users\\file.txt").is_ok());
+        assert!(validate_path("relative/path/file.txt").is_ok());
+        assert!(validate_path("").is_err());
+        assert!(validate_path("/home/user/../etc/passwd").is_err());
+        assert!(validate_path("../secret").is_err());
+        assert!(validate_path("file\0name").is_err());
     }
 }

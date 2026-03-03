@@ -69,7 +69,9 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
           <h2 className="text-lg font-bold text-white">Add New Host</h2>
@@ -81,10 +83,11 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Friendly Name</label>
-            <input 
+            <label htmlFor="add-host-name" className="block text-xs font-bold text-gray-400 uppercase mb-1">Friendly Name</label>
+            <input
+              id="add-host-name"
               required
-              type="text" 
+              type="text"
               className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
               placeholder="e.g. Production Web Server"
               value={name}
@@ -93,8 +96,9 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Protocol</label>
-              <select 
+              <label htmlFor="add-host-protocol" className="block text-xs font-bold text-gray-400 uppercase mb-1">Protocol</label>
+              <select
+                id="add-host-protocol"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                 value={protocol}
                 onChange={(e) => setProtocol(e.target.value as 'ssh' | 'rdp')}
@@ -104,9 +108,10 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Port (Optional)</label>
-              <input 
-                type="number" 
+              <label htmlFor="add-host-port" className="block text-xs font-bold text-gray-400 uppercase mb-1">Port (Optional)</label>
+              <input
+                id="add-host-port"
+                type="number"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                 placeholder={protocol === 'ssh' ? '22' : '3389'}
                 value={port}
@@ -115,10 +120,11 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Hostname or IP Address</label>
-            <input 
+            <label htmlFor="add-host-address" className="block text-xs font-bold text-gray-400 uppercase mb-1">Hostname or IP Address</label>
+            <input
+              id="add-host-address"
               required
-              type="text" 
+              type="text"
               className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
               placeholder="e.g. 192.168.1.100 or myserver.com"
               value={address}
@@ -126,9 +132,10 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Default Username (Optional)</label>
-            <input 
-              type="text" 
+            <label htmlFor="add-host-username" className="block text-xs font-bold text-gray-400 uppercase mb-1">Default Username (Optional)</label>
+            <input
+              id="add-host-username"
+              type="text"
               className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
               placeholder="e.g. admin"
               value={username}

@@ -40,6 +40,14 @@ interface NetworkScannerProps {
 
 const DEFAULT_CIDR = "192.168.1.0/24";
 
+/** Validate IPv4 CIDR notation client-side before invoking the backend. */
+function isValidCidr(value: string): boolean {
+  const cidrRegex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\/(\d|[1-2]\d|3[0-2])$/;
+  return cidrRegex.test(value.trim());
+}
+
+
+
 const NetworkScanner: React.FC<NetworkScannerProps> = ({
   initialResults,
   onResults,
@@ -125,14 +133,18 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
   }, [scanCompleted, onResults]);
 
   const handleStartScan = async () => {
+    if (!isValidCidr(cidr)) {
+      setError('Invalid CIDR notation. Use format: 192.168.1.0/24 (prefix 0–32)');
+      return;
+    }
     try {
       setError(null);
       setResults([]);
       resultsRef.current = [];
       setProgress({ total: 0, completed: 0 });
       setScanCompleted(false);
-      
-      await invoke('scan_network', { cidr });
+
+      await invoke('scan_network', { cidr: cidr.trim() });
       setIsScanning(true);
     } catch (err) {
       setError(`Failed to start scan: ${err}`);
@@ -194,15 +206,17 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
 
       {/* CIDR Input */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-400 mb-2">
+        <label htmlFor="cidr-input" className="block text-sm font-medium text-gray-400 mb-2">
           Target Network (CIDR)
         </label>
         <div className="flex space-x-2">
           <input
+            id="cidr-input"
             type="text"
             value={cidr}
             onChange={(e) => setCidr(e.target.value)}
             placeholder="192.168.1.0/24"
+            aria-describedby="cidr-hint"
             disabled={isScanning}
             className="flex-1 bg-bg-sidebar border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
           />
@@ -228,7 +242,7 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
         </div>
         
         {error && (
-          <p className="mt-2 text-sm text-red-500">{error}</p>
+          <p className="mt-2 text-sm text-red-500" role="alert" aria-live="assertive">{error}</p>
         )}
       </div>
 

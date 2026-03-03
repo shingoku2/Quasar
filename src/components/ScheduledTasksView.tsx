@@ -44,6 +44,27 @@ interface CredentialSummary {
   credential_type: string;
 }
 
+
+/** Validate a 6-field cron expression: sec min hour day month dow */
+function isValidCronExpression(expr: string): boolean {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 6) return false;
+  // Very basic field range check (not exhaustive, full validation is done backend-side)
+  const ranges = [
+    [0, 59],  // seconds
+    [0, 59],  // minutes
+    [0, 23],  // hours
+    [1, 31],  // day of month
+    [1, 12],  // month
+    [0, 7],   // day of week
+  ];
+  return parts.every((part, i) => {
+    if (part === '*') return true;
+    const n = parseInt(part, 10);
+    return Number.isInteger(n) && n >= ranges[i][0] && n <= ranges[i][1];
+  });
+}
+
 const DEFAULT_CRON = '0 0 9 * * *'; // 9:00 daily (6-field: sec min hour day month dow)
 
 const ScheduledTasksView: React.FC = () => {
@@ -113,6 +134,14 @@ const ScheduledTasksView: React.FC = () => {
   const handleSave = async () => {
     if (!form.name.trim() || !form.cron_expression.trim() || !form.host_id) {
       setError('Name, schedule, and host are required.');
+      return;
+    }
+    if (!isValidCronExpression(form.cron_expression)) {
+      setError('Invalid cron expression. Use 6-field format: sec min hour day month dow (e.g. 0 0 9 * * *)');
+      return;
+    }
+    if (!form.host_id) {
+      setError('Please select a host for this task.');
       return;
     }
     if (form.task_type === 'ssh') {
@@ -236,7 +265,7 @@ const ScheduledTasksView: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-alert/10 text-alert text-sm">{error}</div>
+          <div className="mb-4 p-3 rounded-lg bg-alert/10 text-alert text-sm" role="alert" aria-live="assertive">{error}</div>
         )}
 
         {lastRunResult && (

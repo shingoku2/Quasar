@@ -1,31 +1,28 @@
 import { describe, it, expect, vi } from 'vitest';
 import { initDatabase } from './db';
 
-// Mock the SQL plugin with a trackable execute function
-const mockExecute = vi.fn().mockResolvedValue({ rowsAffected: 0 });
-const mockSelect = vi.fn().mockResolvedValue([]);
+// Mock the SQL plugin
+const mockDb = { execute: vi.fn(), select: vi.fn() };
+const mockLoad = vi.fn().mockResolvedValue(mockDb);
 
 vi.mock('@tauri-apps/plugin-sql', () => ({
   default: {
-    load: vi.fn().mockResolvedValue({
-      execute: (...args: any[]) => mockExecute(...args),
-      select: (...args: any[]) => mockSelect(...args),
-    }),
+    load: (...args: unknown[]) => mockLoad(...args),
   },
 }));
 
 describe('Database Initialization', () => {
-  it('should call execute with correct table schemas', async () => {
+  it('should open the quasar.db database connection', async () => {
+    const db = await initDatabase();
+
+    expect(mockLoad).toHaveBeenCalledWith('sqlite:quasar.db');
+    expect(db).toBe(mockDb);
+  });
+
+  it('should not execute any DDL (schema is managed by Rust migrations)', async () => {
+    mockDb.execute.mockClear();
     await initDatabase();
 
-    expect(mockExecute).toHaveBeenCalled();
-
-    const queries = mockExecute.mock.calls.map((call: any) => call[0]);
-    const hostsQuery = queries.find((q: string) => q.includes('CREATE TABLE IF NOT EXISTS hosts'));
-
-    expect(hostsQuery).toBeDefined();
-    expect(hostsQuery).toContain('id TEXT PRIMARY KEY');
-    expect(hostsQuery).toContain('created_at INTEGER NOT NULL');
-    expect(hostsQuery).toContain('updated_at INTEGER NOT NULL');
+    expect(mockDb.execute).not.toHaveBeenCalled();
   });
 });

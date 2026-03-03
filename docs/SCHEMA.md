@@ -23,6 +23,10 @@ The application uses a single SQLite database (`quasar.db`) owned and migrated b
 - Migrations run in order via `rusqlite_migration`; see `src-tauri/src/lib.rs` for the migration list.
 - **Migrations 011 and 012** are applied by Rust hooks (not raw SQL) so they are idempotent: they add columns to `scheduled_tasks` only if missing (010 may already create the table with those columns on fresh installs).
 
+## Migration numbering gap
+
+Migration file `002_*.sql` does not exist — the sequence jumps from `001_initial_schema.sql` to `003_security_vault.sql`. This is intentional: `rusqlite_migration` tracks applied migrations by their **position** in the registered vector, not by filename. The filename numbering is for developer reference only. The gap exists because an early draft of migration 002 was merged into 003. **Do not create a new file named `002_*.sql`**: doing so would shift every subsequent migration index and corrupt existing databases. The next migration to add must be numbered `013_`.
+
 ## Error handling
 
 - **Backend**: Tauri commands return `Result<T, String>`. Internal errors are passed through `errors::sanitize_error()` so the frontend receives safe, generic messages while full details are logged server-side.

@@ -25,7 +25,7 @@ use log::error;
 use rusqlite::Transaction;
 use rusqlite_migration::{HookError, Migrations, M};
 use errors::sanitize_error;
-use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password};
+use validation::{validate_ip, validate_hostname, validate_port, validate_cidr, validate_username, validate_credential_name, validate_master_password, validate_path};
 
 /// Migration 011 hook: add last_run_status, last_run_error, last_run_output to scheduled_tasks
 /// only if missing (idempotent for DBs where 010 already created the table with these columns).
@@ -110,9 +110,10 @@ fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> 
     Ok(())
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+// Debug-only greeting command (removed from production handler).
+#[cfg(debug_assertions)]
 #[tauri::command]
-fn greet(name: &str) -> String {
+fn greet(name: &'static str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
@@ -185,6 +186,14 @@ async fn start_ssh_tunnel(
     remote_host: String,
     remote_port: u16,
 ) -> Result<ssh_tunnel::TunnelInfo, String> {
+    if validate_ip(&ssh_host).is_err() && validate_hostname(&ssh_host).is_err() {
+        return Err("Invalid SSH host format".to_string());
+    }
+    validate_port(ssh_port)?;
+    if validate_ip(&remote_host).is_err() && validate_hostname(&remote_host).is_err() {
+        return Err("Invalid remote host format".to_string());
+    }
+    validate_port(remote_port)?;
     let (username, password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
         let key = vault_state.get_master_key().await.map_err(|e| sanitize_error(e, "vault"))?;
         let cred = credential_manager.get_credential(&key, &cid).map_err(|e| sanitize_error(e, "credential"))?;
@@ -253,7 +262,7 @@ async fn connect_rdp(address: String) -> Result<(), String> {
 
 #[tauri::command]
 fn start_discovery(app: AppHandle, state: State<'_, discovery::DiscoveryState>) {
-    discovery::start_mdns_discovery(app, state.running.clone());
+    discovery::start_mdns_discovery(app, state.running.clone(), state.stop_requested.clone());
 }
 
 #[tauri::command]
@@ -417,7 +426,7 @@ pub struct RemoteHostMetric {
 }
 
 fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
@@ -454,7 +463,7 @@ async fn get_saved_hosts(app: AppHandle) -> Result<Vec<SavedHost>, String> {
 }
 
 fn scheduled_tasks_conn(app: &AppHandle) -> Result<rusqlite::Connection, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     db::open_connection(db_path_str).map_err(|e| sanitize_error(e, "database"))
@@ -603,7 +612,7 @@ async fn get_remote_hosts_health(
 
 #[tauri::command]
 async fn set_host_monitoring_credential(app: AppHandle, host_id: String, credential_id: Option<String>) -> Result<(), String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
@@ -975,6 +984,8 @@ async fn sftp_upload_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
+    validate_path(&local_path)?;
+    validate_path(&remote_path)?;
     sftp::upload_file(app_handle, &host, port, &username, &password, &local_path, &remote_path, None).await
         .map_err(|e| sanitize_error(e, "sftp"))
 }
@@ -994,6 +1005,8 @@ async fn sftp_download_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
+    validate_path(&remote_path)?;
+    validate_path(&local_path)?;
     sftp::download_file(app_handle, &host, port, &username, &password, &remote_path, &local_path, None).await
         .map_err(|e| sanitize_error(e, "sftp"))
 }
@@ -1067,7 +1080,7 @@ fn get_app_info(app: AppHandle) -> Result<AppInfo, String> {
 
 #[tauri::command]
 fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?;
     let conn = db::open_connection(db_path_str)?;
@@ -1100,7 +1113,7 @@ fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let db_path = app_dir.join(DB_FILENAME);
 
     // Validate that the source file is a readable SQLite database.
@@ -1115,7 +1128,7 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
         c.execute_batch("SELECT count(*) FROM sqlite_master;")?;
         Ok(())
     })
-    .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    .map_err(|_| "Source is not a valid SQLite database".to_string())?;
 
     // Backup current DB before replacing.
     let backup_path = app_dir.join(format!("{}.bak", DB_FILENAME));
@@ -1282,7 +1295,6 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            greet,
             hash_password,
             verify_password,
             get_metrics_history,

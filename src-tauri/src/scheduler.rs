@@ -301,6 +301,9 @@ pub fn remove_scheduled_task(conn: &rusqlite::Connection, id: &str) -> Result<()
 }
 
 /// Returns true if the next occurrence of the schedule after `after` is <= `now`.
+///
+/// **Note:** All cron expressions are evaluated in UTC. The UI should display this
+/// constraint so users schedule tasks at the correct UTC time.
 fn is_due(cron_expression: &str, last_run_at: Option<i64>, now: DateTime<Utc>) -> bool {
     let schedule = match Schedule::from_str(cron_expression) {
         Ok(s) => s,
@@ -327,7 +330,7 @@ async fn resolve_cred_for_task(
         let credential_manager = app.try_state::<crate::vault::CredentialManager>()
             .ok_or_else(|| "Credential manager not available".to_string())?;
         let key = vault_state.get_master_key().await
-            .map_err(|_| "Vault is locked".to_string())?;
+            .map_err(|_| "Vault is locked — unlock the vault for scheduled tasks to run".to_string())?;
         let cred = credential_manager.get_credential(&key, cid)
             .map_err(|e| format!("Credential error: {}", e))?;
         (
