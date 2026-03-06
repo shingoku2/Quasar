@@ -53,7 +53,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Vitest + React Testing Library (32 test files / 208 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
@@ -202,6 +202,12 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
+### March 6, 2026 - Comprehensive Test Coverage Expansion
+- ✅ **12 new test files** — Added tests for all previously untested components: ErrorBoundary, TopBar, VaultInitDialog, VaultUnlockDialog, CredentialSelector, CredentialManager, KnownHostsManager, AuditLogViewer, SshHostKeyPrompt, VaultSettings, AlertFeed, QuickConnectWidget
+- ✅ **Extended existing tests** — HostManagement gains onConnect/onSftp callbacks, remove-with-confirm, duplicate detection, empty state, and filter no-match; NetworkScanner gains CIDR validation error path, invocation failure, and initialResults prop
+- ✅ **208 tests passing** across 32 test files (up from ~120 across 20 files)
+- ✅ **CLAUDE.md and AGENTS.md updated** with full test inventory table and key testing patterns
+
 ### February 18, 2026 - Comprehensive Code Audit & Documentation
 - ✅ **Code audit (AUD-01–07)** — All 7 findings fixed: DB export/import safety (`VACUUM INTO`, atomic import), discovery singleton guard, SFTP credential filter (password-only; SSH key hidden in SFTP UI), scheduler persistence logging + in-memory cooldown, monitoring network units and mutex poison recovery, credential ID type (`string`). See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md`.
 - ✅ **Documentation** — AGENTS.md, CODEBASE_AUDIT_REPORT.md, MVP_COMPLETION_ROADMAP.md, README, and CORE_WORKFLOWS.md updated; merge conflicts resolved in roadmap; SQLite journal/temp files added to `.gitignore` (`**/*.db-journal`, `*.db-wal`, `*.db-shm`).
@@ -240,7 +246,6 @@ See `conductor/code_styleguides/` for detailed coding standards:
 - ✅ SystemHealthWidget supports metrics and summary variants
 - ✅ Topology view restyled with new device color palette
 - ✅ Status bar footer with connection indicator
-- ✅ All 69 tests passing with updated mocks and assertions
 
 ### February 3, 2026 - Critical Bug Fixes
 - ✅ Fixed React duplicate key warnings in NetworkScanner component
