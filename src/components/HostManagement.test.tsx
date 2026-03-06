@@ -140,6 +140,110 @@ describe('Host Management Components', () => {
       });
     });
 
+    it('calls onConnect callback when Connect is clicked', async () => {
+      const onConnect = vi.fn();
+      render(<HostList onConnect={onConnect} onSftp={() => {}} />);
+
+      await waitFor(() => expect(screen.getByText('Prod Server')).toBeInTheDocument());
+
+      const connectBtns = screen.getAllByRole('button', { name: /Connect/i });
+      fireEvent.click(connectBtns[0]);
+
+      expect(onConnect).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Prod Server', address: '1.2.3.4' })
+      );
+    });
+
+    it('calls onSftp callback when SFTP is clicked on an SSH host', async () => {
+      const onSftp = vi.fn();
+      render(<HostList onConnect={() => {}} onSftp={onSftp} />);
+
+      await waitFor(() => expect(screen.getByText('Prod Server')).toBeInTheDocument());
+
+      const sftpBtns = screen.getAllByRole('button', { name: /SFTP/i });
+      fireEvent.click(sftpBtns[0]);
+
+      expect(onSftp).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Prod Server', protocol: 'ssh' })
+      );
+    });
+
+    it('removes a host after Remove confirmation', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mockExecute.mockResolvedValue({ rowsAffected: 1 });
+      mockSelect
+        .mockResolvedValueOnce([
+          { id: 1, name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
+          { id: 2, name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
+        ])
+        .mockResolvedValueOnce([
+          { id: 2, name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
+        ]);
+
+      render(<HostList onConnect={() => {}} onSftp={() => {}} />);
+
+      await waitFor(() => expect(screen.getByText('Prod Server')).toBeInTheDocument());
+
+      // Use exact name 'Remove' to avoid matching the "Remove duplicates" button
+      const removeBtns = screen.getAllByRole('button', { name: 'Remove' });
+      fireEvent.click(removeBtns[0]);
+
+      await waitFor(() => {
+        expect(mockExecute).toHaveBeenCalledWith(
+          expect.stringContaining('DELETE FROM hosts'),
+          [1]
+        );
+      });
+      confirmSpy.mockRestore();
+    });
+
+    it('does not remove host when Remove confirmation is cancelled', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      render(<HostList onConnect={() => {}} onSftp={() => {}} />);
+      await waitFor(() => expect(screen.getByText('Prod Server')).toBeInTheDocument());
+
+      // Use exact name 'Remove' to avoid matching the "Remove duplicates" button
+      const removeBtns = screen.getAllByRole('button', { name: 'Remove' });
+      fireEvent.click(removeBtns[0]);
+
+      expect(mockExecute).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'), expect.anything());
+      confirmSpy.mockRestore();
+    });
+
+    it('detects and shows duplicate host count', async () => {
+      mockSelect.mockResolvedValueOnce([
+        { id: 1, name: 'Server A', address: '1.2.3.4', protocol: 'ssh', port: 22 },
+        { id: 2, name: 'Server A copy', address: '1.2.3.4', protocol: 'ssh', port: 22 },
+      ]);
+
+      render(<HostList onConnect={() => {}} onSftp={() => {}} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 duplicate/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows no-hosts message when list is empty', async () => {
+      mockSelect.mockResolvedValueOnce([]);
+
+      render(<HostList onConnect={() => {}} onSftp={() => {}} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No hosts added yet/i)).toBeInTheDocument();
+      });
+    });
+
+    it('shows filter no-match message when filter has no results', async () => {
+      render(<HostList onConnect={() => {}} onSftp={() => {}} />);
+      await waitFor(() => expect(screen.getByText('Prod Server')).toBeInTheDocument());
+
+      const filterInput = screen.getByPlaceholderText('Filter hosts...');
+      fireEvent.change(filterInput, { target: { value: 'zzz-nomatch-zzz' } });
+
+      expect(screen.getByText(/No hosts match your filter/i)).toBeInTheDocument();
+    });
+
     it('uses default SSH port when port input is left blank', async () => {
       const onAdded = vi.fn();
       mockSelect.mockResolvedValue([]);

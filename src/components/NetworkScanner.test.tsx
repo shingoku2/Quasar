@@ -66,8 +66,48 @@ describe('NetworkScanner', () => {
   it('calls onResults callback when provided', async () => {
     const onResults = vi.fn();
     render(<NetworkScanner onResults={onResults} />);
-    
+
     // Component should render
     expect(screen.getByText('Network Scanner')).toBeInTheDocument();
+  });
+
+  it('shows validation error for invalid CIDR before invoking backend', async () => {
+    render(<NetworkScanner />);
+
+    const input = screen.getByPlaceholderText('192.168.1.0/24');
+    fireEvent.change(input, { target: { value: 'not-a-cidr' } });
+    fireEvent.click(screen.getByText('Start'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/invalid/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error message when scan invocation fails', async () => {
+    const { invoke: mockedInvoke } = await import('@tauri-apps/api/core');
+    vi.mocked(mockedInvoke).mockRejectedValueOnce('Network unreachable');
+
+    render(<NetworkScanner />);
+    fireEvent.click(screen.getByText('Start'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network unreachable/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders with initialResults pre-populated', () => {
+    const initialResults = [
+      {
+        ip: '192.168.1.5',
+        is_alive: true,
+        open_ports: [22, 80],
+        device_type: 'server',
+        services: [],
+        last_seen: Date.now(),
+      },
+    ];
+    render(<NetworkScanner initialResults={initialResults as any} />);
+
+    expect(screen.getByText('192.168.1.5')).toBeInTheDocument();
   });
 });
