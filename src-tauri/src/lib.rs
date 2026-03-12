@@ -436,9 +436,13 @@ fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
 }
 
 /// Resolve hostname to an IP for ping. Returns None if resolution fails.
-fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
+async fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
     let port = port.max(1).min(65535) as u16;
-    (address, port).to_socket_addrs().ok().and_then(|mut addrs| addrs.next()).map(|sa| sa.ip().to_string())
+    tokio::net::lookup_host((address, port))
+        .await
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|sa| sa.ip().to_string())
 }
 
 #[tauri::command]
@@ -551,7 +555,7 @@ async fn get_remote_hosts_health(
         let ping_target = if h.address.parse::<std::net::IpAddr>().is_ok() {
             Some(h.address.clone())
         } else {
-            resolve_to_ip(&h.address, h.port)
+            resolve_to_ip(&h.address, h.port).await
         };
         let (reachable, latency_ms, error, metrics) = match ping_target {
             Some(ref ip) => match health::check_ping(ip).await {

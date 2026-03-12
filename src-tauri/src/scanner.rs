@@ -74,6 +74,13 @@ impl ScannerState {
 
 fn parse_cidr(cidr_str: &str) -> Result<Vec<IpAddr>, String> {
     let cidr: Ipv4Cidr = cidr_str.parse().map_err(|e| format!("Invalid CIDR: {}", e))?;
+    if cidr.get_bits() < 16 {
+        return Err(format!(
+            "CIDR range too large (/{} covers {} hosts). Maximum supported range is /16.",
+            cidr.get_bits(),
+            1u64 << (32 - cidr.get_bits())
+        ));
+    }
     Ok(cidr.iter().map(|ip_u32| IpAddr::from(std::net::Ipv4Addr::from(ip_u32))).collect())
 }
 
