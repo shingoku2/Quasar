@@ -71,7 +71,7 @@ fn add_scheduled_tasks_sftp_columns_if_missing(tx: &Transaction) -> Result<(), H
     Ok(())
 }
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -92,6 +92,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
             "SELECT 1;",
             add_scheduled_tasks_sftp_columns_if_missing,
         ),
+        M::up(include_str!("../migrations/013_indexes.sql")),
     ])
 });
 
@@ -110,24 +111,6 @@ fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> 
     Ok(())
 }
 
-// Debug-only greeting command (removed from production handler).
-#[cfg(debug_assertions)]
-#[tauri::command]
-fn greet(name: &'static str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn hash_password(password: String) -> Result<String, String> {
-    crypto::hash_password(&password)
-        .map_err(|e| sanitize_error(e, "credential"))
-}
-
-#[tauri::command]
-fn verify_password(password: String, hashed: String) -> Result<bool, String> {
-    crypto::verify_password(&password, &hashed)
-        .map_err(|e| sanitize_error(e, "credential"))
-}
 
 #[tauri::command]
 async fn connect_ssh(
@@ -1295,8 +1278,6 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            hash_password,
-            verify_password,
             get_metrics_history,
             get_alert_history,
             launch_ssh_external,
@@ -1369,13 +1350,3 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_greet() {
-        let result = greet("World");
-        assert_eq!(result, "Hello, World! You've been greeted from Rust!");
-    }
-}

@@ -11,7 +11,7 @@ import { cn } from '../../lib/utils';
 interface MetricChartCardProps {
   title: string;
   value: string;
-  data: any[];
+  data: Record<string, number | string>[];
   color?: string;
   className?: string;
 }
