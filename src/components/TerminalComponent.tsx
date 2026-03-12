@@ -181,7 +181,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
         const onDataDisposable = term.onData((data) => {
             invoke('write_ssh', { id: sessionId, data }).catch(e => {
-                if (!JSON.stringify(e).includes("Session not found")) {
+                if (!String(e).includes("Session not found")) {
                     console.error("Write error:", e);
                 }
             });
@@ -197,7 +197,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
                         rows: term.rows, 
                         cols: term.cols 
                     }).catch(e => {
-                        if (!JSON.stringify(e).includes("Session not found")) {
+                        if (!String(e).includes("Session not found")) {
                             console.error("Resize error:", e);
                         }
                     });

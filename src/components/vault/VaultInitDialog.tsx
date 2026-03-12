@@ -53,7 +53,7 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
       setConfirmPassword('');
       onInitialized();
     } catch (err) {
-      setError(err as string || 'Failed to initialize vault');
+      setError(String(err) || 'Failed to initialize vault');
     } finally {
       setMasterPassword('');
       setConfirmPassword('');

@@ -43,7 +43,7 @@ const AuditLogViewer: React.FC = () => {
       });
       setLogs(auditLogs);
     } catch (err) {
-      setError(err as string || 'Failed to load audit logs');
+      setError(String(err) || 'Failed to load audit logs');
     } finally {
       setIsLoading(false);
     }

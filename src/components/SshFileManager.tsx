@@ -82,7 +82,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
     } catch (err) {
       console.error('Failed to list directory:', err);
       if (isMounted.current) {
-        setError(err as string);
+        setError(String(err));
       }
     } finally {
       if (isMounted.current) {
