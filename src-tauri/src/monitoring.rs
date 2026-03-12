@@ -540,6 +540,8 @@ impl MetricsStore {
         if conn_guard.is_none() {
             let new_conn = rusqlite::Connection::open(&self.db_path)
                 .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
+            new_conn.execute_batch("PRAGMA foreign_keys = ON;")
+                .map_err(|e| format!("Failed to enable foreign keys for metrics DB: {}", e))?;
             *conn_guard = Some(new_conn);
         }
         

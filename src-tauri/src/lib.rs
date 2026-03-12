@@ -93,6 +93,7 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
             add_scheduled_tasks_sftp_columns_if_missing,
         ),
         M::up(include_str!("../migrations/013_indexes.sql")),
+        M::up(include_str!("../migrations/014_scheduled_tasks_cascade.sql")),
     ])
 });
 
