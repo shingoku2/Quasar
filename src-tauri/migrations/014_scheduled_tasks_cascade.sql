@@ -3,13 +3,8 @@
 --
 -- SQLite does not support ALTER TABLE ... ADD/DROP CONSTRAINT.
 -- We must recreate the table with the corrected FK definition.
--- Uses the standard SQLite rename-recreate-copy-drop pattern inside a
--- transaction so either the whole migration succeeds or the original table
--- is left intact.
-
-PRAGMA foreign_keys = OFF;
-
-BEGIN;
+-- Uses the standard SQLite rename-recreate-copy-drop pattern.
+-- Transaction boundaries are managed by rusqlite_migration.
 
 CREATE TABLE scheduled_tasks_new (
     id TEXT PRIMARY KEY,
@@ -46,6 +41,3 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_host     ON scheduled_tasks(host_
 CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_last_run ON scheduled_tasks(last_run_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_name     ON scheduled_tasks(name);
 
-COMMIT;
-
-PRAGMA foreign_keys = ON;
