@@ -20,6 +20,7 @@ mod validation;
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::net::ToSocketAddrs;
+use std::str::FromStr;
 use std::sync::Arc;
 use log::error;
 use rusqlite::Transaction;
@@ -174,6 +175,7 @@ async fn start_ssh_tunnel(
         return Err("Invalid SSH host format".to_string());
     }
     validate_port(ssh_port)?;
+    validate_port(local_port)?;
     if validate_ip(&remote_host).is_err() && validate_hostname(&remote_host).is_err() {
         return Err("Invalid remote host format".to_string());
     }
@@ -482,8 +484,18 @@ async fn add_scheduled_task(
     local_path: Option<String>,
     remote_path: Option<String>,
 ) -> Result<String, String> {
-    let conn = scheduled_tasks_conn(&app)?;
+    cron::Schedule::from_str(&cron_expression)
+        .map_err(|e| format!("Invalid cron expression: {}", e))?;
     let task_type = task_type.as_deref().unwrap_or("ssh");
+    if task_type == "sftp_upload" || task_type == "sftp_download" {
+        if let Some(ref lp) = local_path {
+            validate_path(lp)?;
+        }
+        if let Some(ref rp) = remote_path {
+            validate_path(rp)?;
+        }
+    }
+    let conn = scheduled_tasks_conn(&app)?;
     scheduler::add_scheduled_task(
         &conn,
         &name,
@@ -512,8 +524,18 @@ async fn update_scheduled_task(
     local_path: Option<String>,
     remote_path: Option<String>,
 ) -> Result<(), String> {
-    let conn = scheduled_tasks_conn(&app)?;
+    cron::Schedule::from_str(&cron_expression)
+        .map_err(|e| format!("Invalid cron expression: {}", e))?;
     let task_type = task_type.as_deref().unwrap_or("ssh");
+    if task_type == "sftp_upload" || task_type == "sftp_download" {
+        if let Some(ref lp) = local_path {
+            validate_path(lp)?;
+        }
+        if let Some(ref rp) = remote_path {
+            validate_path(rp)?;
+        }
+    }
+    let conn = scheduled_tasks_conn(&app)?;
     scheduler::update_scheduled_task(
         &conn,
         &id,
@@ -1081,6 +1103,7 @@ fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
+    validate_path(&dest_path)?;
     let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let src = app_dir.join(DB_FILENAME);
     if !src.exists() {

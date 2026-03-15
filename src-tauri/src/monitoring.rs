@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, System};
 use tauri::{Emitter, Manager};
 use tokio::time::interval;
+use uuid::Uuid;
 use log::{info, error, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -376,7 +377,6 @@ use std::collections::HashMap;
 pub struct AlertEngine {
     rules: Arc<Mutex<Vec<AlertRule>>>,
     active_alerts: Arc<Mutex<Vec<Alert>>>,
-    alert_counter: Arc<Mutex<u64>>,
     cooldown_tracker: Arc<Mutex<HashMap<String, Instant>>>,
     last_alert_state: Arc<Mutex<HashMap<String, bool>>>,
 }
@@ -386,7 +386,6 @@ impl AlertEngine {
         Self {
             rules: Arc::new(Mutex::new(Vec::new())),
             active_alerts: Arc::new(Mutex::new(Vec::new())),
-            alert_counter: Arc::new(Mutex::new(0)),
             cooldown_tracker: Arc::new(Mutex::new(HashMap::new())),
             last_alert_state: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -412,7 +411,6 @@ impl AlertEngine {
         let rules = self.rules.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut new_alerts = Vec::new();
         let mut recoveries = Vec::new();
-        let mut counter = self.alert_counter.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut cooldowns = self.cooldown_tracker.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut alert_states = self.last_alert_state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
@@ -456,9 +454,8 @@ impl AlertEngine {
                 }
 
                 // Trigger alert
-                *counter += 1;
                 let alert = Alert {
-                    id: format!("alert-{}", *counter),
+                    id: Uuid::new_v4().to_string(),
                     rule_id: rule.id.clone(),
                     message: format!("{:?} is {:.1}% (threshold: {:.1}%)", rule.metric, value, rule.threshold),
                     severity: rule.severity.clone(),

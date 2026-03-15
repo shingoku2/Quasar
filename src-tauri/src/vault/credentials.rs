@@ -340,26 +340,27 @@ impl CredentialManager {
         private_key: Option<String>,
         key_passphrase: Option<String>,
     ) -> Result<(), String> {
-        let conn = db::open_connection(&self.db_path)?;
+        let mut conn = db::open_connection(&self.db_path)?;
+        let tx = conn.transaction().map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
         let now = chrono::Utc::now().timestamp();
 
         if let Some(ct) = credential_type {
-            conn.execute(
+            tx.execute(
                 "UPDATE credentials SET credential_type = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![ct, now, credential_id],
             ).map_err(|e| format!("Failed to update credential type: {}", e))?;
         }
 
         if let Some(n) = name {
-            conn.execute(
+            tx.execute(
                 "UPDATE credentials SET name = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![n, now, credential_id],
             ).map_err(|e| format!("Failed to update credential name: {}", e))?;
         }
 
         if let Some(u) = username {
-            conn.execute(
+            tx.execute(
                 "UPDATE credentials SET username = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![u, now, credential_id],
             ).map_err(|e| format!("Failed to update credential username: {}", e))?;
@@ -367,14 +368,14 @@ impl CredentialManager {
 
         if let Some(p) = password {
             if p.is_empty() {
-                conn.execute(
+                tx.execute(
                     "UPDATE credentials SET encrypted_password = NULL, nonce = NULL, tag = NULL, updated_at = ?1 WHERE id = ?2",
                     rusqlite::params![now, credential_id],
                 ).map_err(|e| format!("Failed to clear credential password: {}", e))?;
             } else {
                 let password_bytes = p.as_bytes();
                 let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE credentials SET encrypted_password = ?1, nonce = ?2, tag = ?3, updated_at = ?4 WHERE id = ?5",
                     rusqlite::params![ciphertext, nonce.to_vec(), tag.to_vec(), now, credential_id],
                 ).map_err(|e| format!("Failed to update credential password: {}", e))?;
@@ -382,14 +383,14 @@ impl CredentialManager {
         }
 
         if let Some(m) = metadata {
-            conn.execute(
+            tx.execute(
                 "UPDATE credentials SET metadata = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![m, now, credential_id],
             ).map_err(|e| format!("Failed to update credential metadata: {}", e))?;
         }
 
         if let Some(kp) = key_path {
-            conn.execute(
+            tx.execute(
                 "UPDATE credentials SET key_path = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![if kp.is_empty() { None::<String> } else { Some(kp) }, now, credential_id],
             ).map_err(|e| format!("Failed to update credential key_path: {}", e))?;
@@ -397,13 +398,13 @@ impl CredentialManager {
 
         if let Some(pk) = private_key {
             if pk.is_empty() {
-                conn.execute(
+                tx.execute(
                     "UPDATE credentials SET encrypted_private_key = NULL, private_key_nonce = NULL, private_key_tag = NULL, updated_at = ?1 WHERE id = ?2",
                     rusqlite::params![now, credential_id],
                 ).map_err(|e| format!("Failed to clear credential private key: {}", e))?;
             } else {
                 let (ciphertext, nonce, tag) = crypto::encrypt(pk.as_bytes(), master_key)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE credentials SET encrypted_private_key = ?1, private_key_nonce = ?2, private_key_tag = ?3, updated_at = ?4 WHERE id = ?5",
                     rusqlite::params![ciphertext, nonce.to_vec(), tag.to_vec(), now, credential_id],
                 ).map_err(|e| format!("Failed to update credential private key: {}", e))?;
@@ -412,22 +413,22 @@ impl CredentialManager {
 
         if let Some(kp) = key_passphrase {
             if kp.is_empty() {
-                conn.execute(
+                tx.execute(
                     "UPDATE credentials SET encrypted_key_passphrase = NULL, key_passphrase_nonce = NULL, key_passphrase_tag = NULL, updated_at = ?1 WHERE id = ?2",
                     rusqlite::params![now, credential_id],
                 ).map_err(|e| format!("Failed to clear credential key passphrase: {}", e))?;
             } else {
                 let (ciphertext, nonce, tag) = crypto::encrypt(kp.as_bytes(), master_key)?;
-                conn.execute(
+                tx.execute(
                     "UPDATE credentials SET encrypted_key_passphrase = ?1, key_passphrase_nonce = ?2, key_passphrase_tag = ?3, updated_at = ?4 WHERE id = ?5",
                     rusqlite::params![ciphertext, nonce.to_vec(), tag.to_vec(), now, credential_id],
                 ).map_err(|e| format!("Failed to update credential key passphrase: {}", e))?;
             }
         }
 
-        // Log audit event
-        Self::log_audit_event(
-            &conn,
+        // Log audit event within the same transaction so it is atomic with the updates.
+        Self::log_audit_event_tx(
+            &tx,
             "credential_update",
             Some(credential_id),
             Some("credential"),
@@ -436,6 +437,7 @@ impl CredentialManager {
             None,
         )?;
 
+        tx.commit().map_err(|e| format!("Failed to commit credential update: {}", e))?;
         Ok(())
     }
 
