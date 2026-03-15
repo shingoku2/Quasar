@@ -26,7 +26,7 @@ const KnownHostsManager: React.FC = () => {
       const knownHosts = await invoke<KnownHost[]>('get_known_ssh_hosts');
       setHosts(knownHosts);
     } catch (err) {
-      setError(err as string || 'Failed to load known hosts');
+      setError(String(err) || 'Failed to load known hosts');
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +45,7 @@ const KnownHostsManager: React.FC = () => {
       await invoke('remove_ssh_host_key', { host, port });
       await loadHosts();
     } catch (err) {
-      setError(err as string || 'Failed to remove host key');
+      setError(String(err) || 'Failed to remove host key');
     }
   };
 
@@ -54,7 +54,7 @@ const KnownHostsManager: React.FC = () => {
       await invoke('update_ssh_host_trust', { host, port, trustStatus });
       await loadHosts();
     } catch (err) {
-      setError(err as string || 'Failed to update trust status');
+      setError(String(err) || 'Failed to update trust status');
     }
   };
 

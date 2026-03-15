@@ -70,7 +70,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
   const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
 
-  const mapSeverity = (severity: any): 'critical' | 'warning' | 'info' => {
+  const mapSeverity = (severity: unknown): 'critical' | 'warning' | 'info' => {
     const severityStr = String(severity).toLowerCase();
     if (severityStr.includes('critical')) return 'critical';
     if (severityStr.includes('warning')) return 'warning';
@@ -85,7 +85,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
 
     // Listen for triggered alerts
     const unlistenAlerts = listen<Alert[]>('alerts-triggered', (event) => {
-      const newAlerts: Alert[] = event.payload.map((a: any) => ({
+      const newAlerts: Alert[] = event.payload.map((a: Alert) => ({
         id: a.id,
         source: a.rule_id || 'System',
         message: a.message,
@@ -145,7 +145,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
       </div>
 
       {/* Metrics Summary */}
-      {metrics && (
+      {metrics && typeof metrics.cpu_usage_percent === 'number' && (
         <div className="grid grid-cols-3 gap-2 p-3 border-b border-border/50 bg-black/20">
           <div className="flex items-center space-x-2">
             <Cpu className="h-3 w-3 text-accent" />

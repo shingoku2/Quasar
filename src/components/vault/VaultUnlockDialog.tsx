@@ -29,7 +29,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
       setIsUnlocking(false);
       onUnlocked();
     } catch (err) {
-      setError(err as string || 'Failed to unlock vault');
+      setError(String(err) || 'Failed to unlock vault');
       setMasterPassword('');
       setIsUnlocking(false);
     }

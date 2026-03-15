@@ -69,24 +69,24 @@ pub fn validate_hostname(hostname: &str) -> Result<(), String> {
     }
 }
 
-/// Validates username (alphanumeric, underscore, hyphen, 1-32 chars)
+/// Validates username (alphanumeric, underscore, hyphen, dot, 1-64 chars)
 pub fn validate_username(username: &str) -> Result<(), String> {
     if username.is_empty() {
         return Err("Username cannot be empty".to_string());
     }
 
-    if username.len() > 32 {
-        return Err("Username too long (max 32 characters)".to_string());
+    if username.len() > 64 {
+        return Err("Username too long (max 64 characters)".to_string());
     }
 
     static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^[a-zA-Z0-9_\-]+$").unwrap()
+        Regex::new(r"^[a-zA-Z0-9_\-\.]+$").unwrap()
     });
 
     if USERNAME_REGEX.is_match(username) {
         Ok(())
     } else {
-        Err("Username must contain only alphanumeric characters, underscores, or hyphens".to_string())
+        Err("Username must contain only alphanumeric characters, underscores, hyphens, or dots".to_string())
     }
 }
 
@@ -199,8 +199,13 @@ mod tests {
         assert!(validate_username("user_name").is_ok());
         assert!(validate_username("user-name").is_ok());
         assert!(validate_username("user123").is_ok());
+        assert!(validate_username("john.doe").is_ok());
+        assert!(validate_username("_apt").is_ok());
+        assert!(validate_username("www-data").is_ok());
+        assert!(validate_username("systemd-network").is_ok());
         assert!(validate_username("").is_err());
         assert!(validate_username("user@name").is_err());
+        assert!(validate_username(&"a".repeat(65)).is_err());
     }
 
     #[test]

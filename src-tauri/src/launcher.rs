@@ -38,11 +38,27 @@ pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
 
     #[cfg(target_os = "linux")]
     {
-        // Simple fallback for linux MVP
-        Command::new("x-terminal-emulator")
-            .args(["-e", "ssh", &target])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        // Try common terminal emulators in order of preference.
+        let terminals: &[(&str, &[&str])] = &[
+            ("x-terminal-emulator", &["-e"]),
+            ("gnome-terminal", &["--"]),
+            ("konsole", &["-e"]),
+            ("xfce4-terminal", &["-e"]),
+            ("xterm", &["-e"]),
+        ];
+        let mut launched = false;
+        for (term, flag) in terminals {
+            let mut args: Vec<&str> = flag.to_vec();
+            args.push("ssh");
+            args.push(&target);
+            if Command::new(term).args(&args).spawn().is_ok() {
+                launched = true;
+                break;
+            }
+        }
+        if !launched {
+            return Err("No supported terminal emulator found. Install one of: x-terminal-emulator, gnome-terminal, konsole, xfce4-terminal, xterm".to_string());
+        }
     }
     
     Ok(())

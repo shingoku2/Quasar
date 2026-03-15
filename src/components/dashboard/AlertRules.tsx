@@ -237,7 +237,7 @@ const AlertRules: React.FC = () => {
             <div className="grid grid-cols-4 gap-2 mb-3">
               <select
                 value={newRule.metric}
-                onChange={(e) => setNewRule(prev => ({ ...prev, metric: e.target.value as any }))}
+                onChange={(e) => setNewRule(prev => ({ ...prev, metric: e.target.value as SimpleAlertRule['metric'] }))}
                 className="bg-zinc-900 border border-gray-800 rounded px-2 py-1 text-xs text-gray-300"
               >
                 <option value="CpuUsage">CPU</option>
@@ -247,7 +247,7 @@ const AlertRules: React.FC = () => {
               
               <select
                 value={newRule.operator}
-                onChange={(e) => setNewRule(prev => ({ ...prev, operator: e.target.value as any }))}
+                onChange={(e) => setNewRule(prev => ({ ...prev, operator: e.target.value as SimpleAlertRule['operator'] }))}
                 className="bg-zinc-900 border border-gray-800 rounded px-2 py-1 text-xs text-gray-300"
               >
                 <option value="GreaterThan">&gt;</option>
@@ -269,7 +269,7 @@ const AlertRules: React.FC = () => {
               
               <select
                 value={newRule.severity}
-                onChange={(e) => setNewRule(prev => ({ ...prev, severity: e.target.value as any }))}
+                onChange={(e) => setNewRule(prev => ({ ...prev, severity: e.target.value as SimpleAlertRule['severity'] }))}
                 className="bg-zinc-900 border border-gray-800 rounded px-2 py-1 text-xs text-gray-300"
               >
                 <option value="Info">Info</option>

@@ -51,7 +51,7 @@ const SshTunnelsView: React.FC = () => {
   useEffect(() => {
     invoke<CredentialSummary[]>('list_credentials')
       .then((creds) => setCredentials(creds.filter((c) => c.credential_type === 'ssh' || c.credential_type === 'ssh_key')))
-      .catch(() => {});
+      .catch((err) => setError(String(err)));
   }, []);
 
   const handleStart = async () => {

@@ -59,7 +59,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       
       setCredentials(creds);
     } catch (err) {
-      setError(err as string || 'Failed to load credentials');
+      setError(String(err) || 'Failed to load credentials');
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +70,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       const cred = await invoke<Credential>('get_credential', { credentialId: id });
       onSelect(cred);
     } catch (err) {
-      setError(err as string || 'Failed to retrieve credential');
+      setError(String(err) || 'Failed to retrieve credential');
     }
   };
 

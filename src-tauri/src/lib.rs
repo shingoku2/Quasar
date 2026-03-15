@@ -20,6 +20,7 @@ mod validation;
 use tauri::{AppHandle, Manager, State, Emitter};
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use std::net::ToSocketAddrs;
+use std::str::FromStr;
 use std::sync::Arc;
 use log::error;
 use rusqlite::Transaction;
@@ -71,7 +72,7 @@ fn add_scheduled_tasks_sftp_columns_if_missing(tx: &Transaction) -> Result<(), H
     Ok(())
 }
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -92,6 +93,8 @@ const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
             "SELECT 1;",
             add_scheduled_tasks_sftp_columns_if_missing,
         ),
+        M::up(include_str!("../migrations/013_indexes.sql")),
+        M::up(include_str!("../migrations/014_scheduled_tasks_cascade.sql")),
     ])
 });
 
@@ -110,24 +113,6 @@ fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> 
     Ok(())
 }
 
-// Debug-only greeting command (removed from production handler).
-#[cfg(debug_assertions)]
-#[tauri::command]
-fn greet(name: &'static str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn hash_password(password: String) -> Result<String, String> {
-    crypto::hash_password(&password)
-        .map_err(|e| sanitize_error(e, "credential"))
-}
-
-#[tauri::command]
-fn verify_password(password: String, hashed: String) -> Result<bool, String> {
-    crypto::verify_password(&password, &hashed)
-        .map_err(|e| sanitize_error(e, "credential"))
-}
 
 #[tauri::command]
 async fn connect_ssh(
@@ -190,6 +175,7 @@ async fn start_ssh_tunnel(
         return Err("Invalid SSH host format".to_string());
     }
     validate_port(ssh_port)?;
+    validate_port(local_port)?;
     if validate_ip(&remote_host).is_err() && validate_hostname(&remote_host).is_err() {
         return Err("Invalid remote host format".to_string());
     }
@@ -452,9 +438,13 @@ fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
 }
 
 /// Resolve hostname to an IP for ping. Returns None if resolution fails.
-fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
+async fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
     let port = port.max(1).min(65535) as u16;
-    (address, port).to_socket_addrs().ok().and_then(|mut addrs| addrs.next()).map(|sa| sa.ip().to_string())
+    tokio::net::lookup_host((address, port))
+        .await
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|sa| sa.ip().to_string())
 }
 
 #[tauri::command]
@@ -494,8 +484,18 @@ async fn add_scheduled_task(
     local_path: Option<String>,
     remote_path: Option<String>,
 ) -> Result<String, String> {
-    let conn = scheduled_tasks_conn(&app)?;
+    cron::Schedule::from_str(&cron_expression)
+        .map_err(|e| format!("Invalid cron expression: {}", e))?;
     let task_type = task_type.as_deref().unwrap_or("ssh");
+    if task_type == "sftp_upload" || task_type == "sftp_download" {
+        if let Some(ref lp) = local_path {
+            validate_path(lp)?;
+        }
+        if let Some(ref rp) = remote_path {
+            validate_path(rp)?;
+        }
+    }
+    let conn = scheduled_tasks_conn(&app)?;
     scheduler::add_scheduled_task(
         &conn,
         &name,
@@ -524,8 +524,18 @@ async fn update_scheduled_task(
     local_path: Option<String>,
     remote_path: Option<String>,
 ) -> Result<(), String> {
-    let conn = scheduled_tasks_conn(&app)?;
+    cron::Schedule::from_str(&cron_expression)
+        .map_err(|e| format!("Invalid cron expression: {}", e))?;
     let task_type = task_type.as_deref().unwrap_or("ssh");
+    if task_type == "sftp_upload" || task_type == "sftp_download" {
+        if let Some(ref lp) = local_path {
+            validate_path(lp)?;
+        }
+        if let Some(ref rp) = remote_path {
+            validate_path(rp)?;
+        }
+    }
+    let conn = scheduled_tasks_conn(&app)?;
     scheduler::update_scheduled_task(
         &conn,
         &id,
@@ -567,7 +577,7 @@ async fn get_remote_hosts_health(
         let ping_target = if h.address.parse::<std::net::IpAddr>().is_ok() {
             Some(h.address.clone())
         } else {
-            resolve_to_ip(&h.address, h.port)
+            resolve_to_ip(&h.address, h.port).await
         };
         let (reachable, latency_ms, error, metrics) = match ping_target {
             Some(ref ip) => match health::check_ping(ip).await {
@@ -1093,6 +1103,7 @@ fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
+    validate_path(&dest_path)?;
     let app_dir = app.path().app_data_dir().map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let src = app_dir.join(DB_FILENAME);
     if !src.exists() {
@@ -1295,8 +1306,6 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            hash_password,
-            verify_password,
             get_metrics_history,
             get_alert_history,
             launch_ssh_external,
@@ -1369,13 +1378,3 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_greet() {
-        let result = greet("World");
-        assert_eq!(result, "Hello, World! You've been greeted from Rust!");
-    }
-}
