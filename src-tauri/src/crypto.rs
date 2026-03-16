@@ -12,6 +12,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce
 };
 
+#[allow(dead_code)]
 pub fn hash_password(password: &str) -> Result<String, String> {
     let salt = SaltString::generate(&mut OsRng);
     
@@ -26,6 +27,7 @@ pub fn hash_password(password: &str) -> Result<String, String> {
     Ok(password_hash)
 }
 
+#[allow(dead_code)]
 pub fn verify_password(password: &str, hashed_password: &str) -> Result<bool, String> {
     let parsed_hash = PasswordHash::new(hashed_password)
         .map_err(|e| format!("Failed to parse password hash: {}", e))?;
