@@ -1202,3 +1202,35 @@ When working on this codebase:
 ---
 
 *Last Updated: February 20, 2026 (Light theme app UI text overrides, terminal app-theme sync reverted, Solarized Light theme foreground/cursor).*
+
+---
+
+## Cursor Cloud specific instructions
+
+### System dependencies (pre-installed, not in update script)
+
+Tauri v2 on Linux requires system libraries that must be installed once (these are handled by the VM snapshot, not the update script):
+
+```
+sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libgtk-3-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+```
+
+Rust must be at least 1.85+ (edition2024 support required by transitive dependency `ctutils`). The VM snapshot has Rust 1.93.1 via `rustup default stable`.
+
+### Running the application
+
+- **Dev mode**: `npm run tauri dev` (or `npm run tauri:dev`) — starts Vite on `:1420` + compiles and launches the Rust backend. First run takes ~2 min for Rust compilation; subsequent runs use incremental builds.
+- The app opens a native window (requires `$DISPLAY`). On first launch it shows the "Initialize Vault" dialog; set a master password (12+ chars, mixed case, number).
+- A Tauri version mismatch warning (`tauri v2.9.5 vs @tauri-apps/api v2.10.1`) appears in the console but does not affect functionality.
+
+### Testing
+
+- **Frontend**: `npm test` (vitest, 72 tests). Pre-existing `act(...)` warnings in stderr are expected and do not indicate failures.
+- **Backend**: `cd src-tauri && cargo test` (79 tests). All pass.
+- **TypeScript check**: `npx tsc --noEmit` reports pre-existing type errors (unused imports, `SettingsView.tsx` type issues). The project builds fine via Vite regardless.
+
+### Gotchas
+
+- The `scripts/tauri-dev.js` wrapper sets `CARGO_TARGET_DIR` to `src-tauri/target` to avoid stale path issues. Prefer `npm run tauri dev` over running `cargo tauri dev` directly.
+- SQLite is bundled via `rusqlite` `bundled` feature — no external database service needed.
+- Ollama (AI assistant) is optional; the app shows "Ollama Offline" gracefully if not running.
