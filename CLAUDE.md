@@ -17,7 +17,7 @@ Quasar/
 │   ├── db.ts                   # Tauri SQL plugin interface
 │   ├── test-setup.ts           # Vitest global mocks
 │   ├── App.tsx                 # Root component + routing
-│   └── *.test.tsx              # 20 test files (co-located with sources)
+│   └── *.test.tsx              # 32 test files / 208 tests (co-located with sources)
 ├── src-tauri/                  # Rust/Tauri backend
 │   ├── src/
 │   │   ├── lib.rs              # App setup, migrations, ALL Tauri commands
@@ -245,6 +245,43 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 - `@tauri-apps/api/path`
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
+
+#### Test file inventory (32 files / 208 tests as of March 2026)
+
+| Test file | Component tested | Key scenarios |
+|-----------|-----------------|---------------|
+| `App.test.tsx` | App root | Routing, sidebar navigation |
+| `Layout.test.tsx` | Layout | Render, vault integration |
+| `ErrorBoundary.test.tsx` | ErrorBoundary | Error catching, crash UI, reload |
+| `TopBar.test.tsx` | TopBar | View label mapping for all 7 views |
+| `HostManagement.test.tsx` | HostList, AddHostDialog | List, filter, connect/SFTP callbacks, remove, duplicates, empty state |
+| `NetworkScanner.test.tsx` | NetworkScanner | CIDR input, scan start/stop, CIDR validation error, scan failure, initialResults |
+| `SshFileManager.test.tsx` | SshFileManager | Path bar, loading, error, file listing |
+| `HealthCheckBadge.test.tsx` | HealthCheckBadge | Online/offline/checking states |
+| `PreflightDialog.test.tsx` | PreflightDialog | Health check flow |
+| `AIAssistant.test.tsx` | AIAssistant | Chat, streaming, error |
+| `vault/VaultProvider.test.tsx` | VaultProvider | Loading, init, unlock, error states |
+| `vault/VaultInitDialog.test.tsx` | VaultInitDialog | Password validation (all rules), strength indicator, invoke, error |
+| `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password, success, error, cancel, password toggle |
+| `vault/CredentialSelector.test.tsx` | CredentialSelector | Loading, type/host filter (incl. SFTP ssh_key exclusion), search, select, manual entry, error |
+| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error |
+| `vault/KnownHostsManager.test.tsx` | KnownHostsManager | List, search by host/fingerprint, remove with confirm, trust updates, error |
+| `vault/AuditLogViewer.test.tsx` | AuditLogViewer | List, search, event type filter, result filter, resource info, error |
+| `vault/SshHostKeyPrompt.test.tsx` | SshHostKeyPrompt | New vs changed key, trust/reject, permanent toggle, copy fingerprint, MITM warning |
+| `vault/VaultSettings.test.tsx` | VaultSettings | Load/save/error, auto-lock, lock vault, change password validation |
+| `dashboard/AlertFeed.test.tsx` | AlertFeed | Empty state, alert render, dismiss, acknowledge, clear all, metrics summary |
+| `dashboard/QuickConnectWidget.test.tsx` | QuickConnectWidget | Loading, host list, search, connect callback, overflow indicator |
+| `dashboard/AlertRules.test.tsx` | AlertRules | Rule CRUD |
+| `dashboard/MetricChartCard.test.tsx` | MetricChartCard | Rendering |
+| `dashboard/SystemHealthWidget.test.tsx` | SystemHealthWidget | Metrics display |
+
+#### Key testing patterns
+
+- Components with `export default` (most vault components, ErrorBoundary, TopBar, AlertFeed, QuickConnectWidget) are imported with default import syntax: `import VaultSettings from './VaultSettings'`
+- `window.confirm` must be stubbed via `vi.spyOn(window, 'confirm').mockReturnValue(true/false)` (not `vi.stubGlobal`) — restore with `spy.mockRestore()` after each test
+- Selects without `aria-label`/`id` (e.g. AuditLogViewer filters) are queried by index: `screen.getAllByRole('combobox')[0]`
+- When multiple elements match the same text (heading + button both say "Unlock Vault"), use `getAllByText(...)` or role-scoped queries like `getByRole('button', { name: ... })`
+- Components that use `Database.load(...)` directly (HostList, QuickConnectWidget) require the `@tauri-apps/plugin-sql` mock — see `HostManagement.test.tsx` for the hoisted mock pattern
 
 ### Rust Tests
 
