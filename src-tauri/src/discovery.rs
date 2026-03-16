@@ -30,6 +30,7 @@ impl DiscoveryState {
     }
 
     /// Request the background discovery thread to stop, if running.
+    #[allow(dead_code)]
     pub fn request_stop(&self) {
         self.stop_requested.store(true, Ordering::SeqCst);
     }
