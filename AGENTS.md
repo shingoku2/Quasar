@@ -7,6 +7,60 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Comprehensive Test Coverage Expansion - Complete (March 6, 2026)
+
+#### Overview
+Grew the frontend test suite from 20 files / ~120 tests to **32 files / 208 tests** (all passing). Added 12 new test files covering untested components and extended 2 existing ones with missing error-path and callback scenarios.
+
+#### New test files added
+
+| File | Component | Highlights |
+|------|-----------|------------|
+| `ErrorBoundary.test.tsx` | ErrorBoundary | Class component error catching, crash UI, reload |
+| `TopBar.test.tsx` | TopBar | All 7 `ViewId` → label mappings |
+| `vault/VaultInitDialog.test.tsx` | VaultInitDialog | All 4 password rules (length, upper, lower, number), mismatch, strength indicator, loading state |
+| `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password error, invoke flow, cancel button conditionality, visibility toggle |
+| `vault/CredentialSelector.test.tsx` | CredentialSelector | `allowedTypes` filtering (key SFTP exclusion), `hostAddress` scoping, search, select → `get_credential`, manual entry, error |
+| `vault/CredentialManager.test.tsx` | CredentialManager | Full CRUD dialogs, `search_credentials`, delete confirm, error state |
+| `vault/KnownHostsManager.test.tsx` | KnownHostsManager | Search by host + fingerprint, remove confirm, trust status update, error |
+| `vault/AuditLogViewer.test.tsx` | AuditLogViewer | Event type + result combobox filters (queried by index), resource info label, error |
+| `vault/SshHostKeyPrompt.test.tsx` | SshHostKeyPrompt | New vs changed key UI, MITM warning, trust permanently toggle, copy to clipboard |
+| `vault/VaultSettings.test.tsx` | VaultSettings | Settings load/save/error, lock vault, change password with all validation branches |
+| `dashboard/AlertFeed.test.tsx` | AlertFeed | Dismiss, acknowledge, clear all, metrics summary from invoke, unacknowledged count |
+| `dashboard/QuickConnectWidget.test.tsx` | QuickConnectWidget | Database mock, search, connect callback, "+N more" overflow |
+
+#### Existing files extended
+
+- **`HostManagement.test.tsx`**: Added onConnect/onSftp callback assertions, remove-with-confirm (using `vi.spyOn(window, 'confirm')`), duplicate detection display, empty state, filter no-match.
+- **`NetworkScanner.test.tsx`**: Added CIDR validation error path, scan invocation failure error display, `initialResults` prop pre-population.
+
+#### Key fixes discovered during implementation
+
+- **`window.confirm` stubbing**: `vi.stubGlobal('confirm', ...)` did not reliably intercept calls in jsdom. All confirm stubs use `vi.spyOn(window, 'confirm').mockReturnValue(true/false)` with `.mockRestore()` cleanup.
+- **Duplicate text matches**: Several components render the same text in both a heading and a button (e.g. "Unlock Vault", "Initialize Vault"). Switched to `getAllByText(...).length ≥ N` or role-scoped queries.
+- **"Remove duplicates" button vs "Remove" button**: `getAllByRole('button', { name: /Remove/i })` matched the "Remove duplicates" header button (disabled) first. Fixed with exact-string `name: 'Remove'`.
+- **Unlabelled `<select>` elements**: AuditLogViewer filter dropdowns have no `aria-label`/`id`, so `getByRole('combobox', { name: ... })` fails. Use `getAllByRole('combobox')[index]`.
+
+#### Files modified
+- `src/components/ErrorBoundary.test.tsx` (new)
+- `src/components/TopBar.test.tsx` (new)
+- `src/components/HostManagement.test.tsx` (extended)
+- `src/components/NetworkScanner.test.tsx` (extended)
+- `src/components/vault/VaultInitDialog.test.tsx` (new)
+- `src/components/vault/VaultUnlockDialog.test.tsx` (new)
+- `src/components/vault/CredentialSelector.test.tsx` (new)
+- `src/components/vault/CredentialManager.test.tsx` (new)
+- `src/components/vault/KnownHostsManager.test.tsx` (new)
+- `src/components/vault/AuditLogViewer.test.tsx` (new)
+- `src/components/vault/SshHostKeyPrompt.test.tsx` (new)
+- `src/components/vault/VaultSettings.test.tsx` (new)
+- `src/components/dashboard/AlertFeed.test.tsx` (new)
+- `src/components/dashboard/QuickConnectWidget.test.tsx` (new)
+- `CLAUDE.md` (test inventory table + patterns section)
+- `AGENTS.md` (this entry)
+
+---
+
 ### Light Theme App UI & Terminal Fixes - Complete (February 20, 2026)
 
 #### Overview

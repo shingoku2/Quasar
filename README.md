@@ -53,7 +53,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Vitest + React Testing Library (32 test files / 208 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
@@ -202,6 +202,12 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
+### March 6, 2026 - Comprehensive Test Coverage Expansion
+- ✅ **12 new test files** — Added tests for all previously untested components: ErrorBoundary, TopBar, VaultInitDialog, VaultUnlockDialog, CredentialSelector, CredentialManager, KnownHostsManager, AuditLogViewer, SshHostKeyPrompt, VaultSettings, AlertFeed, QuickConnectWidget
+- ✅ **Extended existing tests** — HostManagement gains onConnect/onSftp callbacks, remove-with-confirm, duplicate detection, empty state, and filter no-match; NetworkScanner gains CIDR validation error path, invocation failure, and initialResults prop
+- ✅ **208 tests passing** across 32 test files (up from ~120 across 20 files)
+- ✅ **CLAUDE.md and AGENTS.md updated** with full test inventory table and key testing patterns
+
 ### February 20, 2026 - Light Theme & Terminal
 - ✅ **Light theme app UI** — Selecting Light in Settings → Appearance now uses dark text on light backgrounds (sidebar, settings, headers, labels) so the app is readable. Implemented via `[data-theme="light"]` overrides in `App.css` for Tailwind text classes.
 - ✅ **Terminal** — Removed automatic terminal-theme sync with app theme; terminal uses its `theme` prop only. Solarized Light theme: foreground `#586e75` (base01), cursor `#073642` (base02) for visibility. In-place theme/font updates preserved so SSH stays connected when appearance or terminal settings change.
@@ -244,7 +250,6 @@ See `conductor/code_styleguides/` for detailed coding standards:
 - ✅ SystemHealthWidget supports metrics and summary variants
 - ✅ Topology view restyled with new device color palette
 - ✅ Status bar footer with connection indicator
-- ✅ All 69 tests passing with updated mocks and assertions
 
 ### February 3, 2026 - Critical Bug Fixes
 - ✅ Fixed React duplicate key warnings in NetworkScanner component
