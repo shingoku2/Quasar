@@ -63,7 +63,7 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
 
       nodes.add({
         id: host.ip,
-        label: `${host.hostname || host.ip}\n${host.device_type}`,
+        label: host.hostname || host.ip,
         shape: 'dot',
         color: {
           background: colors.bg,
@@ -97,6 +97,9 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
       });
     });
 
+    // Scale spring length so nodes spread out more on large networks
+    const springLength = Math.max(120, 80 + hosts.length * 6);
+
     // Network options
     const options = {
       nodes: {
@@ -120,16 +123,17 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
         enabled: true,
         stabilization: {
           enabled: true,
-          iterations: 100,
-          updateInterval: 25
+          iterations: 500,
+          updateInterval: 50,
+          fit: true,
         },
         barnesHut: {
-          gravitationalConstant: -2000,
-          centralGravity: 0.3,
-          springLength: 200,
-          springConstant: 0.04,
-          damping: 0.09,
-          avoidOverlap: 0.5
+          gravitationalConstant: -8000,
+          centralGravity: 0.05,
+          springLength,
+          springConstant: 0.05,
+          damping: 0.9,
+          avoidOverlap: 1.0
         }
       },
       interaction: {
@@ -151,6 +155,12 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
     // Create network
     const network = new Network(containerRef.current, { nodes, edges }, options);
     networkRef.current = network;
+
+    // Freeze layout once physics has settled — prevents perpetual bouncing
+    network.on('stabilizationIterationsDone', () => {
+      network.setOptions({ physics: { enabled: false } });
+      setPhysicsEnabled(false);
+    });
 
     // Event handlers
     network.on('click', (params) => {
