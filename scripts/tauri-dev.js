@@ -26,16 +26,21 @@ function ensureNpxAvailable() {
 
 const env = { ...process.env, CARGO_TARGET_DIR: targetDir };
 const args = ['tauri', ...process.argv.slice(2)];
-// On Windows use npx.cmd directly to avoid spawn EINVAL and the DEP0190 shell warning.
+// On Windows, spawn with shell: true to avoid spawn EINVAL (e.g. Node 24).
 const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 ensureNpxAvailable();
 
-const child = spawn(npxCmd, args, {
+const spawnOptions = {
   stdio: 'inherit',
   env,
   cwd: projectRoot,
-});
+};
+if (process.platform === 'win32') {
+  spawnOptions.shell = true;
+}
+
+const child = spawn(npxCmd, args, spawnOptions);
 
 child.on('close', (code) => process.exit(code ?? 1));
 child.on('error', (err) => {

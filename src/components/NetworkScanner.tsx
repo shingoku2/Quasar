@@ -62,6 +62,9 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [scanCompleted, setScanCompleted] = useState(false);
   const resultsRef = useRef<ScanResult[]>([]);
+  // Prevents the initialResults sync effect from clobbering fresh scan results in the
+  // render where isScanning flips false but the parent hasn't yet received the new data.
+  const scanJustFinishedRef = useRef(false);
 
   // Listen for scan events
   useEffect(() => {
@@ -92,6 +95,7 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
         });
 
         unlistenComplete = await listen('scan_complete', () => {
+          scanJustFinishedRef.current = true;
           setScanCompleted(true);
           setIsScanning(false);
         });
@@ -114,9 +118,11 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
     };
   }, [onHostFound]);
 
-  // When not scanning, keep list in sync with parent (e.g. persisted load, or after a host is deleted). Sync when lengths differ so deletions apply; avoid overwriting when lengths match (e.g. scan just finished, parent not yet re-rendered).
+  // When not scanning, keep list in sync with parent (e.g. persisted load, or after a host is deleted).
+  // Guard: skip if the scan just finished — the parent hasn't received the new results yet,
+  // so initialResults still holds stale DB data. The guard is cleared after onResults fires.
   useEffect(() => {
-    if (isScanning || !initialResults) return;
+    if (isScanning || !initialResults || scanJustFinishedRef.current) return;
     if (results.length === 0 || initialResults.length !== results.length) {
       setResults([...initialResults]);
       resultsRef.current = [...initialResults];
@@ -129,6 +135,7 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
     if (onResults) {
       onResults(resultsRef.current);
     }
+    scanJustFinishedRef.current = false;
     setScanCompleted(false);
   }, [scanCompleted, onResults]);
 
