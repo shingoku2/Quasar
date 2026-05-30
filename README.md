@@ -284,7 +284,7 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## License
 
-[Your License Here]
+Quasar is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Recommended IDE Setup
 
