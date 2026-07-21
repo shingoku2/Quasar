@@ -122,7 +122,7 @@ fn decrypt_optional_blob(
     nonce.copy_from_slice(&nonce_vec);
     tag.copy_from_slice(&tag_vec);
     let decrypted = crypto::decrypt(&ciphertext, master_key, &nonce, &tag)
-        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(e))))?;
     let s = String::from_utf8(decrypted)
         .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
     Ok(Some(s))
@@ -250,7 +250,7 @@ impl CredentialManager {
                     nonce.copy_from_slice(n);
                     tag.copy_from_slice(t);
                     let decrypted = crypto::decrypt(ep, master_key, &nonce, &tag)
-                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))))?;
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(e))))?;
                     String::from_utf8(decrypted)
                         .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
                 }

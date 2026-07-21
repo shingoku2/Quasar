@@ -424,7 +424,7 @@ impl VaultState {
                     credential_manager.delete_credential_tx(&tx, &id)?;
                     let new_id = credential_manager.add_credential_tx(
                         &tx,
-                        &*new_master_key,
+                        &new_master_key,
                         name,
                         username,
                         password,
@@ -446,7 +446,7 @@ impl VaultState {
                 // Validate re-encryption by attempting to decrypt first credential with new key
                 if let Some(cred_id) = first_credential_id {
                     // This will fail if encryption/decryption doesn't work with new key
-                    let _ = credential_manager.get_credential(&*new_master_key, &cred_id)
+                    let _ = credential_manager.get_credential(&new_master_key, &cred_id)
                         .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
                 }
                 

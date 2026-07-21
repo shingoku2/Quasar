@@ -7,10 +7,7 @@ use tauri::{AppHandle, Emitter};
 pub async fn check_ollama_status() -> bool {
     let ollama = Ollama::default();
     // A simple way to check connectivity is to list local models or generate a dummy request
-    match ollama.list_local_models().await {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    ollama.list_local_models().await.is_ok()
 }
 
 pub async fn list_models() -> Result<Vec<String>, String> {

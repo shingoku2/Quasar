@@ -73,7 +73,7 @@ fn add_scheduled_tasks_sftp_columns_if_missing(tx: &Transaction) -> Result<(), H
 
 // Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013)
 // The rusqlite_migration crate tracks applied migrations in user_version.
-const MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
+static MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
         M::up(include_str!("../migrations/001_initial_schema.sql")),
         M::up(include_str!("../migrations/003_security_vault.sql")),
@@ -438,7 +438,7 @@ fn get_saved_hosts_from_db(app: &AppHandle) -> Result<Vec<SavedHost>, String> {
 
 /// Resolve hostname to an IP for ping. Returns None if resolution fails.
 async fn resolve_to_ip(address: &str, port: i64) -> Option<String> {
-    let port = port.max(1).min(65535) as u16;
+    let port = port.clamp(1, 65535) as u16;
     tokio::net::lookup_host((address, port))
         .await
         .ok()
@@ -572,7 +572,7 @@ async fn get_remote_hosts_health(
     let master_key = vault_state.get_master_key().await.ok(); // None if vault locked
 
     for h in hosts {
-        let port_u16 = h.port.max(1).min(65535) as u16;
+        let port_u16 = h.port.clamp(1, 65535) as u16;
         let ping_target = if h.address.parse::<std::net::IpAddr>().is_ok() {
             Some(h.address.clone())
         } else {
@@ -582,7 +582,7 @@ async fn get_remote_hosts_health(
             Some(ref ip) => match health::check_ping(ip).await {
                 Ok(ms) => {
                     let mut metrics = None;
-                    if let (Some(ref cred_id), Some(ref key)) = (h.credential_id.as_ref(), &master_key) {
+                    if let (Some(cred_id), Some(ref key)) = (h.credential_id.as_ref(), &master_key) {
                         if let Ok(cred) = credential_manager.get_credential(key, cred_id) {
                             let password = if cred.password.is_empty() { None } else { Some(cred.password.as_str()) };
                             let ssh_result = health::check_ssh_health(
