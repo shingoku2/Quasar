@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{Duration, Instant};
 use zeroize::{Zeroize, Zeroizing};
-use secrecy::{Secret, ExposeSecret};
+use secrecy::{SecretString, ExposeSecret};
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier, SaltString, PasswordHasher, rand_core::OsRng},
     Argon2, Params, Version,
@@ -95,7 +95,7 @@ impl VaultState {
         Ok(matches!(result, Ok(val) if val == "true"))
     }
 
-    pub async fn initialize_vault(&self, master_password: Secret<String>) -> Result<(), String> {
+    pub async fn initialize_vault(&self, master_password: SecretString) -> Result<(), String> {
         if self.is_initialized().await? {
             return Err("Vault is already initialized".to_string());
         }
@@ -170,7 +170,7 @@ impl VaultState {
         Ok(())
     }
 
-    pub async fn unlock_vault(&self, master_password: Secret<String>) -> Result<(), String> {
+    pub async fn unlock_vault(&self, master_password: SecretString) -> Result<(), String> {
         let mut inner = self.inner.write().await;
 
         // Check if locked out
@@ -337,7 +337,7 @@ impl VaultState {
         }
     }
 
-    pub async fn change_master_password(&self, current_password: Secret<String>, new_password: Secret<String>) -> Result<(), String> {
+    pub async fn change_master_password(&self, current_password: SecretString, new_password: SecretString) -> Result<(), String> {
         let mut inner = self.inner.write().await;
 
         // Set flag to prevent auto-lock during password change
@@ -602,7 +602,7 @@ mod tests {
         assert!(!vault.is_initialized().await.unwrap());
         
         // Initialize vault
-        let result = vault.initialize_vault(Secret::new("TestPassword123!".to_string())).await;
+        let result = vault.initialize_vault(SecretString::from("TestPassword123!")).await;
         assert!(result.is_ok(), "Failed to initialize vault: {:?}", result);
         
         // Should now be initialized
@@ -616,7 +616,7 @@ mod tests {
         let db_path = setup_test_db();
         let vault = VaultState::new(db_path.clone());
         
-        vault.initialize_vault(Secret::new("TestPassword123!".to_string())).await.unwrap();
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
         
         // Vault is unlocked after initialization
         assert!(!vault.is_locked().await);
@@ -633,14 +633,14 @@ mod tests {
         let db_path = setup_test_db();
         let vault = VaultState::new(db_path.clone());
         
-        vault.initialize_vault(Secret::new("TestPassword123!".to_string())).await.unwrap();
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
         
         // Lock the vault first
         vault.lock_vault().await.unwrap();
         assert!(vault.is_locked().await);
         
         // Try to unlock with wrong password
-        let result = vault.unlock_vault(Secret::new("WrongPassword".to_string())).await;
+        let result = vault.unlock_vault(SecretString::from("WrongPassword")).await;
         assert!(result.is_err());
         assert!(vault.is_locked().await);
         
