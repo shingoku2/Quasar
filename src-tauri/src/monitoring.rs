@@ -274,7 +274,7 @@ impl MetricsCollector {
     fn get_network_io(networks: &Networks) -> (u64, u64) {
         let mut rx = 0u64;
         let mut tx = 0u64;
-        for (_, data) in networks.iter() {
+        for data in networks.values() {
             rx += data.total_received();
             tx += data.total_transmitted();
         }
@@ -286,7 +286,7 @@ impl MetricsCollector {
         let mut packets_tx = 0u64;
         let mut errors_rx = 0u64;
         let mut errors_tx = 0u64;
-        for (_, data) in networks.iter() {
+        for data in networks.values() {
             packets_rx += data.total_packets_received();
             packets_tx += data.total_packets_transmitted();
             errors_rx += data.total_errors_on_received();
@@ -368,7 +368,7 @@ impl MetricsCollector {
             })
             .collect();
         
-        processes.sort_by(|a, b| b.memory_mb.cmp(&a.memory_mb));
+        processes.sort_by_key(|p| std::cmp::Reverse(p.memory_mb));
         processes.truncate(limit);
         processes
     }
