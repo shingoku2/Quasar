@@ -76,26 +76,21 @@ pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>, stop_reque
             }
 
             for receiver in &receivers {
-                if let Ok(event) = receiver.recv_timeout(Duration::from_millis(100)) {
-                    match event {
-                        ServiceEvent::ServiceResolved(info) => {
-                            let addresses = info.get_addresses();
-                            let port = info.get_port();
-                            let name = info.get_fullname();
+                if let Ok(ServiceEvent::ServiceResolved(info)) = receiver.recv_timeout(Duration::from_millis(100)) {
+                    let addresses = info.get_addresses();
+                    let port = info.get_port();
+                    let name = info.get_fullname();
 
-                            if let Some(addr) = addresses.iter().next() {
-                                let host = DiscoveredHost {
-                                    name: name.to_string(),
-                                    address: addr.to_string(),
-                                    port,
-                                    service_type: "discovered".to_string(),
-                                };
+                    if let Some(addr) = addresses.iter().next() {
+                        let host = DiscoveredHost {
+                            name: name.to_string(),
+                            address: addr.to_string(),
+                            port,
+                            service_type: "discovered".to_string(),
+                        };
 
-                                // Emit event to frontend
-                                let _ = app.emit("host-discovered", host);
-                            }
-                        }
-                        _ => {}
+                        // Emit event to frontend
+                        let _ = app.emit("host-discovered", host);
                     }
                 }
             }

@@ -439,7 +439,7 @@ pub async fn run_scheduled_task_now(app: &AppHandle, task_id: &str) -> Result<Ta
         .ok_or_else(|| format!("Host not found: {}", task.host_id))?;
 
     let (address, port, username) = (host_info.0.clone(), host_info.1, host_info.2.clone());
-    let port_u16 = port.max(1).min(65535) as u16;
+    let port_u16 = port.clamp(1, 65535) as u16;
     let task_command = task.command.clone();
     let task_type = task.task_type.clone();
     let local_path = task.local_path.clone();
@@ -542,7 +542,7 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
             }
         };
         let (address, port, username) = (host_info.0.clone(), host_info.1, host_info.2.clone());
-        let port_u16 = port.max(1).min(65535) as u16;
+        let port_u16 = port.clamp(1, 65535) as u16;
         let task_id = task.id.clone();
         let task_name = task.name.clone();
         let task_command = task.command.clone();

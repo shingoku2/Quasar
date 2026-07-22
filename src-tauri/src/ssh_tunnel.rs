@@ -149,10 +149,11 @@ pub async fn start_tunnel(
         return Err(format!("Invalid SSH host: {}", ssh_host));
     }
 
-    let mut config = russh::client::Config::default();
-    config.window_size = 4 * 1024 * 1024;
-    config.maximum_packet_size = 32 * 1024;
-    let config = Arc::new(config);
+    let config = Arc::new(russh::client::Config {
+        window_size: 4 * 1024 * 1024,
+        maximum_packet_size: 32 * 1024,
+        ..Default::default()
+    });
 
     let client = Client {
         app_handle: app_handle.clone(),

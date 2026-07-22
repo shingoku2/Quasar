@@ -78,7 +78,7 @@ pub async fn check_ssh_health(
 
     let has_auth = password.is_some() || key_path.is_some() || private_key.is_some();
     let metrics = if has_auth {
-        match crate::ssh_exec::get_system_metrics(
+        crate::ssh_exec::get_system_metrics(
             app_handle,
             host,
             port,
@@ -87,10 +87,7 @@ pub async fn check_ssh_health(
             key_path,
             private_key,
             key_passphrase,
-        ).await {
-            Ok(m) => Some(m),
-            Err(_) => None,
-        }
+        ).await.ok()
     } else {
         None
     };

@@ -102,10 +102,10 @@ async fn scan_port(ip: IpAddr, port: u16) -> bool {
     use tokio::net::TcpStream;
     
     let addr = format!("{}:{}", ip, port);
-    match timeout(Duration::from_secs(1), TcpStream::connect(&addr)).await {
-        Ok(Ok(_)) => true,
-        _ => false,
-    }
+    matches!(
+        timeout(Duration::from_secs(1), TcpStream::connect(&addr)).await,
+        Ok(Ok(_))
+    )
 }
 
 async fn resolve_hostname(ip: IpAddr) -> Option<String> {
@@ -124,10 +124,7 @@ async fn resolve_hostname(ip: IpAddr) -> Option<String> {
                 Ok(mut addrs) => {
                     if let Some(addr) = addrs.next() {
                         // Try reverse lookup using DNS
-                        match dns_lookup::lookup_addr(&addr.ip()) {
-                            Ok(hostname) => Some(hostname),
-                            Err(_) => None,
-                        }
+                        dns_lookup::lookup_addr(&addr.ip()).ok()
                     } else {
                         None
                     }

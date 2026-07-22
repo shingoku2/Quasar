@@ -291,12 +291,12 @@ pub async fn get_system_metrics(
     let outputs = execute_ssh_commands_batch(app_handle, host, port, username, password, key_path, private_key, key_passphrase, &commands, 10).await?;
 
     // Parse outputs
-    let cpu_percent = outputs.get(0)
+    let cpu_percent = outputs.first()
         .and_then(|s| s.trim().parse::<f32>().ok());
     
     let (memory_used_mb, memory_total_mb) = outputs.get(1)
         .and_then(|s| {
-            let parts: Vec<&str> = s.trim().split_whitespace().collect();
+            let parts: Vec<&str> = s.split_whitespace().collect();
             if parts.len() >= 2 {
                 let used = parts[0].parse::<u64>().ok()?;
                 let total = parts[1].parse::<u64>().ok()?;
@@ -310,7 +310,7 @@ pub async fn get_system_metrics(
     
     let (disk_used_gb, disk_total_gb) = outputs.get(2)
         .and_then(|s| {
-            let parts: Vec<&str> = s.trim().split_whitespace().collect();
+            let parts: Vec<&str> = s.split_whitespace().collect();
             if parts.len() >= 2 {
                 let used = parts[0].parse::<u64>().ok()?;
                 let total = parts[1].parse::<u64>().ok()?;
@@ -327,8 +327,7 @@ pub async fn get_system_metrics(
     
     let load_average = outputs.get(4)
         .and_then(|s| {
-            let parts: Vec<f32> = s.trim()
-                .split_whitespace()
+            let parts: Vec<f32> = s.split_whitespace()
                 .filter_map(|p| p.parse::<f32>().ok())
                 .collect();
             if parts.len() >= 3 {

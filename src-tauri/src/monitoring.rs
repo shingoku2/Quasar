@@ -87,6 +87,8 @@ fn default_cooldown() -> u64 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+// Variant names are serialized into alert_rules.metric — renaming would break stored rules.
+#[allow(clippy::enum_variant_names)]
 pub enum MetricType {
     CpuUsage,
     MemoryUsage,

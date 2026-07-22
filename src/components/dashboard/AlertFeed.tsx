@@ -20,6 +20,16 @@ interface ProcessInfo {
   memory_mb: number;
 }
 
+/** Alert payload as emitted by the Rust backend (monitoring.rs `Alert`). */
+interface BackendAlert {
+  id: string;
+  rule_id: string;
+  message: string;
+  severity: string;
+  timestamp: number;
+  acknowledged: boolean;
+}
+
 export interface SystemMetrics {
   // Existing metrics
   cpu_usage_percent: number;
@@ -84,8 +94,8 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
     });
 
     // Listen for triggered alerts
-    const unlistenAlerts = listen<Alert[]>('alerts-triggered', (event) => {
-      const newAlerts: Alert[] = event.payload.map((a: Alert) => ({
+    const unlistenAlerts = listen<BackendAlert[]>('alerts-triggered', (event) => {
+      const newAlerts: Alert[] = event.payload.map((a: BackendAlert) => ({
         id: a.id,
         source: a.rule_id || 'System',
         message: a.message,
