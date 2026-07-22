@@ -73,15 +73,18 @@ impl ScannerState {
  }
 
 fn parse_cidr(cidr_str: &str) -> Result<Vec<IpAddr>, String> {
-    let cidr: Ipv4Cidr = cidr_str.parse().map_err(|e| format!("Invalid CIDR: {}", e))?;
-    if cidr.get_bits() < 16 {
+    // Parse as Ipv4Inet first: unlike Ipv4Cidr, it accepts host bits set
+    // (e.g. "192.168.1.5/24"), matching the old cidr-utils 0.5 behavior.
+    let inet: cidr_utils::cidr::Ipv4Inet = cidr_str.parse().map_err(|e| format!("Invalid CIDR: {}", e))?;
+    let cidr: Ipv4Cidr = inet.network();
+    if cidr.network_length() < 16 {
         return Err(format!(
             "CIDR range too large (/{} covers {} hosts). Maximum supported range is /16.",
-            cidr.get_bits(),
-            1u64 << (32 - cidr.get_bits())
+            cidr.network_length(),
+            1u64 << (32 - cidr.network_length())
         ));
     }
-    Ok(cidr.iter().map(|ip_u32| IpAddr::from(std::net::Ipv4Addr::from(ip_u32))).collect())
+    Ok(cidr.iter().map(|inet| IpAddr::from(inet.address())).collect())
 }
 
 async fn ping_host(client: &Client, ip: IpAddr) -> Result<u32, String> {
