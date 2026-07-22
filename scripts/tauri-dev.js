@@ -25,7 +25,8 @@ function ensureNpxAvailable() {
 }
 
 const env = { ...process.env, CARGO_TARGET_DIR: targetDir };
-const args = ['tauri', ...process.argv.slice(2)];
+const userArgs = process.argv.slice(2);
+const args = ['tauri', ...(userArgs.length > 0 ? userArgs : ['dev'])];
 // On Windows, spawn with shell: true to avoid spawn EINVAL (e.g. Node 24).
 const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
