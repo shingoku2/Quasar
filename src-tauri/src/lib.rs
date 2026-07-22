@@ -734,19 +734,19 @@ async fn is_vault_initialized(state: State<'_, vault::VaultState>) -> Result<boo
 
 #[tauri::command]
 async fn initialize_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
-    use secrecy::Secret;
+    use secrecy::SecretString;
     validate_master_password(&master_password)?;
-    state.initialize_vault(Secret::new(master_password)).await
+    state.initialize_vault(SecretString::from(master_password)).await
         .map_err(|e| sanitize_error(e, "vault"))
 }
 
 #[tauri::command]
 async fn unlock_vault(state: State<'_, vault::VaultState>, master_password: String) -> Result<(), String> {
-    use secrecy::Secret;
+    use secrecy::SecretString;
     if master_password.is_empty() {
         return Err("Password cannot be empty".to_string());
     }
-    state.unlock_vault(Secret::new(master_password)).await
+    state.unlock_vault(SecretString::from(master_password)).await
         .map_err(|e| sanitize_error(e, "vault"))
 }
 
@@ -953,8 +953,8 @@ async fn change_master_password(
     }
     validate_master_password(&new_password)?;
     state.change_master_password(
-        secrecy::Secret::new(current_password),
-        secrecy::Secret::new(new_password),
+        secrecy::SecretString::from(current_password),
+        secrecy::SecretString::from(new_password),
     ).await.map_err(|e| sanitize_error(e, "vault"))
 }
 
