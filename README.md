@@ -75,8 +75,8 @@ See `docs/SCHEMA.md` for the full consolidated schema. Main tables:
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Rust 1.70+ and Cargo
+- Node.js 24.15+ and npm 12.0.2+
+- Rust 1.95+ and Cargo
 - Windows, macOS, or Linux
 
 ### Installation

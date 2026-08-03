@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Server, Database as DatabaseIcon, Globe, Terminal } from 'lucide-react';
-import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 
 interface SavedHost {
-  id: number;
+  id: string;
   name: string;
   address: string;
   port: number | null;
@@ -27,8 +27,7 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
   const loadHosts = async () => {
     setIsLoading(true);
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      const result = await db.select<SavedHost[]>("SELECT * FROM hosts ORDER BY name ASC LIMIT 10");
+      const result = await invoke<SavedHost[]>("get_saved_hosts");
       setHosts(result);
     } catch (err) {
       console.error('Failed to load saved hosts:', err);

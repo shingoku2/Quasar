@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Trash2, Plus, Network } from 'lucide-react';
+import { useVisiblePolling } from '../hooks/useViewVisibility';
 
 interface CredentialSummary {
   id: string;
@@ -42,11 +43,7 @@ const SshTunnelsView: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadTunnels();
-    const interval = setInterval(loadTunnels, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  useVisiblePolling(loadTunnels, 10000);
 
   useEffect(() => {
     invoke<CredentialSummary[]>('list_credentials')

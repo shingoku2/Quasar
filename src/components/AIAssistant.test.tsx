@@ -4,14 +4,24 @@ import AIAssistant from './AIAssistant';
 import '@testing-library/jest-dom';
 
 // Mock Tauri invoke and event
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn((cmd) => {
+const { mockInvoke } = vi.hoisted(() => ({
+  mockInvoke: vi.fn((cmd: string, _args?: unknown) => {
     if (cmd === 'check_ai_status') return Promise.resolve(true);
     if (cmd === 'list_ai_models') return Promise.resolve(['llama3', 'mistral']);
+    if (cmd === 'get_saved_hosts') {
+      return Promise.resolve([
+        { id: 'host-1', name: 'Prod Server', address: '10.0.0.1', protocol: 'ssh', port: 22 },
+      ]);
+    }
+    if (cmd === 'get_discovered_hosts') return Promise.resolve([]);
+    if (cmd === 'is_scanning') return Promise.resolve(false);
+    if (cmd === 'get_scan_progress') return Promise.resolve(null);
     if (cmd === 'send_ai_chat') return Promise.resolve();
     return Promise.resolve(null);
   }),
 }));
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 
 vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn((event, callback) => {
@@ -52,6 +62,24 @@ describe('AIAssistant Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Hi')).toBeInTheDocument(); // User message
       expect(screen.getByText('Hello!')).toBeInTheDocument(); // AI response
+    });
+  });
+  it('includes saved hosts in the Rust-provided network context', async () => {
+    mockInvoke.mockClear();
+    render(<AIAssistant />);
+
+    await waitFor(() => expect(screen.getByText('Ollama Online')).toBeInTheDocument());
+    fireEvent.change(screen.getByPlaceholderText('Ask Quasar AI...'), { target: { value: 'Status?' } });
+    fireEvent.click(screen.getByText('Send'));
+
+    await waitFor(() => {
+      const sendCall = mockInvoke.mock.calls.find(([command]) => command === 'send_ai_chat');
+      expect(sendCall).toBeDefined();
+      expect(sendCall?.[1]).toEqual(expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: 'system', content: expect.stringContaining('Prod Server') }),
+        ]),
+      }));
     });
   });
 });

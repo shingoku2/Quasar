@@ -1,10 +1,10 @@
 //! SSH authentication: password or public key (key path or PEM string).
 
-use std::path::Path;
-use std::sync::Arc;
+use russh::client::Handler;
 use russh::client::{AuthResult, Handle};
 use russh::keys::{decode_secret_key, PrivateKeyWithHashAlg};
-use russh::client::Handler;
+use std::path::Path;
+use std::sync::Arc;
 
 /// Resolve private key PEM string from key_path (read file) or private_key (use as-is).
 pub fn resolve_key_material(
@@ -60,7 +60,12 @@ pub async fn authenticate<H: Handler + Send + 'static>(
     // Try key auth first if we have key material
     if let Some(key_pem) = resolve_key_material(key_path, private_key)? {
         let key = parse_private_key(&key_pem, key_passphrase)?;
-        let hash_alg = session.best_supported_rsa_hash().await.ok().flatten().flatten();
+        let hash_alg = session
+            .best_supported_rsa_hash()
+            .await
+            .ok()
+            .flatten()
+            .flatten();
         let key_with_alg = PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg);
         let res = session
             .authenticate_publickey(username, key_with_alg)

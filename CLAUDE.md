@@ -241,12 +241,11 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 - `@tauri-apps/api/core` (`invoke`)
 - `@tauri-apps/api/event` (`listen`, `emit`)
 - `@tauri-apps/plugin-dialog`
-- `@tauri-apps/plugin-sql`
 - `@tauri-apps/api/path`
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (32 files / 208 tests as of March 2026)
+#### Test file inventory (37 files / 243 tests as of August 2026)
 
 | Test file | Component tested | Key scenarios |
 |-----------|-----------------|---------------|
@@ -281,7 +280,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 - `window.confirm` must be stubbed via `vi.spyOn(window, 'confirm').mockReturnValue(true/false)` (not `vi.stubGlobal`) — restore with `spy.mockRestore()` after each test
 - Selects without `aria-label`/`id` (e.g. AuditLogViewer filters) are queried by index: `screen.getAllByRole('combobox')[0]`
 - When multiple elements match the same text (heading + button both say "Unlock Vault"), use `getAllByText(...)` or role-scoped queries like `getByRole('button', { name: ... })`
-- Components that use `Database.load(...)` directly (HostList, QuickConnectWidget) require the `@tauri-apps/plugin-sql` mock — see `HostManagement.test.tsx` for the hoisted mock pattern
+- Saved-host components mock `invoke` commands such as `get_saved_hosts`, `upsert_saved_host`, and `remove_saved_hosts`; frontend tests never open SQLite directly
 
 ### Rust Tests
 

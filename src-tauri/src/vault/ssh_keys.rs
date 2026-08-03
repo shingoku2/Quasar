@@ -1,8 +1,8 @@
-use rusqlite::{Connection, params};
+use crate::db;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use subtle::ConstantTimeEq;
-use crate::db;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TrustStatus {
@@ -65,7 +65,7 @@ pub struct SshKeyManager {
 impl SshKeyManager {
     pub fn new(db_path: String) -> Result<Self, String> {
         let conn = db::open_connection(&db_path)?;
-        
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -82,12 +82,12 @@ impl SshKeyManager {
         // Query database in a scope to ensure MutexGuard is dropped before await
         let existing = {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
-            
+
             // Check if we have a known key for this host
             conn.query_row(
-                "SELECT id, host, port, key_type, fingerprint, public_key, 
-                        first_seen_at, last_seen_at, trust_status 
-                 FROM ssh_known_hosts 
+                "SELECT id, host, port, key_type, fingerprint, public_key,
+                        first_seen_at, last_seen_at, trust_status
+                 FROM ssh_known_hosts
                  WHERE host = ?1 AND port = ?2",
                 params![host, port],
                 |row| {
@@ -121,36 +121,35 @@ impl SshKeyManager {
                 }
             }
             Some(known) => {
-                if known.fingerprint.as_bytes().ct_eq(fingerprint.as_bytes()).into() {
+                if known
+                    .fingerprint
+                    .as_bytes()
+                    .ct_eq(fingerprint.as_bytes())
+                    .into()
+                {
                     // Key matches - check trust status
                     match known.trust_status {
-                        TrustStatus::Trusted => {
-                            HostKeyVerificationResult {
-                                allowed: true,
-                                status: TrustStatus::Trusted,
-                                fingerprint: fingerprint.to_string(),
-                                message: format!("Trusted host key for {}:{}", host, port),
-                            }
-                        }
-                        TrustStatus::Rejected => {
-                            HostKeyVerificationResult {
-                                allowed: false,
-                                status: TrustStatus::Rejected,
-                                fingerprint: fingerprint.to_string(),
-                                message: format!("Rejected host key for {}:{}", host, port),
-                            }
-                        }
-                        _ => {
-                            HostKeyVerificationResult {
-                                allowed: false,
-                                status: known.trust_status.clone(),
-                                fingerprint: fingerprint.to_string(),
-                                message: format!(
-                                    "Host key for {}:{} requires confirmation",
-                                    host, port
-                                ),
-                            }
-                        }
+                        TrustStatus::Trusted => HostKeyVerificationResult {
+                            allowed: true,
+                            status: TrustStatus::Trusted,
+                            fingerprint: fingerprint.to_string(),
+                            message: format!("Trusted host key for {}:{}", host, port),
+                        },
+                        TrustStatus::Rejected => HostKeyVerificationResult {
+                            allowed: false,
+                            status: TrustStatus::Rejected,
+                            fingerprint: fingerprint.to_string(),
+                            message: format!("Rejected host key for {}:{}", host, port),
+                        },
+                        _ => HostKeyVerificationResult {
+                            allowed: false,
+                            status: known.trust_status.clone(),
+                            fingerprint: fingerprint.to_string(),
+                            message: format!(
+                                "Host key for {}:{} requires confirmation",
+                                host, port
+                            ),
+                        },
                     }
                 } else {
                     // Key has changed! Possible MITM attack
@@ -186,7 +185,7 @@ impl SshKeyManager {
         trust_status: TrustStatus,
     ) -> Result<(), String> {
         let now = chrono::Utc::now().timestamp();
-        
+
         {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
 
@@ -200,44 +199,44 @@ impl SshKeyManager {
                 .unwrap_or(false);
 
             if exists {
-            // Update existing entry
-            conn.execute(
-                "UPDATE ssh_known_hosts 
-                 SET key_type = ?1, fingerprint = ?2, public_key = ?3, 
+                // Update existing entry
+                conn.execute(
+                    "UPDATE ssh_known_hosts
+                 SET key_type = ?1, fingerprint = ?2, public_key = ?3,
                      last_seen_at = ?4, trust_status = ?5
                  WHERE host = ?6 AND port = ?7",
-                params![
-                    key_type,
-                    fingerprint,
-                    key_bytes,
-                    now,
-                    trust_status.to_string(),
-                    host,
-                    port
-                ],
-            )
-            .map_err(|e| format!("Failed to update host key: {}", e))?;
-        } else {
-            // Insert new entry
-            let id = uuid::Uuid::new_v4().to_string();
-            conn.execute(
-                "INSERT INTO ssh_known_hosts 
-                 (id, host, port, key_type, fingerprint, public_key, 
+                    params![
+                        key_type,
+                        fingerprint,
+                        key_bytes,
+                        now,
+                        trust_status.to_string(),
+                        host,
+                        port
+                    ],
+                )
+                .map_err(|e| format!("Failed to update host key: {}", e))?;
+            } else {
+                // Insert new entry
+                let id = uuid::Uuid::new_v4().to_string();
+                conn.execute(
+                    "INSERT INTO ssh_known_hosts
+                 (id, host, port, key_type, fingerprint, public_key,
                   first_seen_at, last_seen_at, trust_status)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                params![
-                    id,
-                    host,
-                    port,
-                    key_type,
-                    fingerprint,
-                    key_bytes,
-                    now,
-                    now,
-                    trust_status.to_string()
-                ],
-            )
-            .map_err(|e| format!("Failed to insert host key: {}", e))?;
+                    params![
+                        id,
+                        host,
+                        port,
+                        key_type,
+                        fingerprint,
+                        key_bytes,
+                        now,
+                        now,
+                        trust_status.to_string()
+                    ],
+                )
+                .map_err(|e| format!("Failed to insert host key: {}", e))?;
             }
         } // MutexGuard dropped here
 
@@ -246,7 +245,7 @@ impl SshKeyManager {
 
     async fn update_last_seen(&self, host: &str, port: u16) -> Result<(), String> {
         let now = chrono::Utc::now().timestamp();
-        
+
         {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
 
@@ -266,14 +265,15 @@ impl SshKeyManager {
 
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, host, port, key_type, fingerprint, public_key, 
-                            first_seen_at, last_seen_at, trust_status 
-                     FROM ssh_known_hosts 
+                    "SELECT id, host, port, key_type, fingerprint, public_key,
+                            first_seen_at, last_seen_at, trust_status
+                     FROM ssh_known_hosts
                      ORDER BY last_seen_at DESC",
                 )
                 .map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-            let hosts: Vec<SshHostKey> = stmt.query_map([], |row| {
+            let hosts: Vec<SshHostKey> = stmt
+                .query_map([], |row| {
                     Ok(SshHostKey {
                         id: row.get(0)?,
                         host: row.get(1)?,
@@ -334,10 +334,13 @@ mod tests {
 
     async fn create_test_manager() -> (SshKeyManager, String) {
         use std::time::{SystemTime, UNIX_EPOCH};
-        
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let db_path = format!("test_ssh_keys_{}.db", timestamp);
-        
+
         let conn = Connection::open(&db_path).unwrap();
         // Create only the ssh_known_hosts table needed for these tests
         conn.execute_batch(
@@ -353,8 +356,9 @@ mod tests {
                 trust_status TEXT NOT NULL DEFAULT 'trusted',
                 UNIQUE(host, port)
             );
-            CREATE INDEX IF NOT EXISTS idx_known_hosts_lookup ON ssh_known_hosts(host, port);"
-        ).unwrap();
+            CREATE INDEX IF NOT EXISTS idx_known_hosts_lookup ON ssh_known_hosts(host, port);",
+        )
+        .unwrap();
         drop(conn);
 
         let manager = SshKeyManager::new(db_path.clone()).unwrap();
@@ -376,12 +380,12 @@ mod tests {
     #[tokio::test]
     async fn test_unknown_host() {
         let (manager, db_path) = create_test_manager().await;
-        
+
         let result = manager
             .verify_host_key_by_fingerprint("example.com", 22, "SHA256:abc123", "ssh-ed25519")
             .await
             .unwrap();
-        
+
         assert!(!result.allowed);
         assert!(matches!(result.status, TrustStatus::Unknown));
         cleanup_test_db(&db_path);
@@ -390,7 +394,7 @@ mod tests {
     #[tokio::test]
     async fn test_trust_and_verify() {
         let (manager, db_path) = create_test_manager().await;
-        
+
         manager
             .trust_host_key(
                 "example.com",
@@ -407,7 +411,7 @@ mod tests {
             .verify_host_key_by_fingerprint("example.com", 22, "SHA256:abc123", "ssh-ed25519")
             .await
             .unwrap();
-        
+
         assert!(result.allowed);
         assert!(matches!(result.status, TrustStatus::Trusted));
         cleanup_test_db(&db_path);
@@ -416,7 +420,7 @@ mod tests {
     #[tokio::test]
     async fn test_key_changed_detection() {
         let (manager, db_path) = create_test_manager().await;
-        
+
         manager
             .trust_host_key(
                 "example.com",
@@ -433,7 +437,7 @@ mod tests {
             .verify_host_key_by_fingerprint("example.com", 22, "SHA256:different", "ssh-ed25519")
             .await
             .unwrap();
-        
+
         assert!(!result.allowed);
         assert!(matches!(result.status, TrustStatus::Changed));
         cleanup_test_db(&db_path);

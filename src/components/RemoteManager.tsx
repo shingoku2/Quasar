@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog, { AddHostInitialValues } from './AddHostDialog';
-import TerminalComponent from './TerminalComponent';
+// xterm.js is ~333 kB of the bundle and is only needed once a user actually opens
+// an SSH session, so it is split into its own chunk and loaded on demand.
+const TerminalComponent = React.lazy(() => import('./TerminalComponent'));
 import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
@@ -9,7 +11,6 @@ import CredentialSelector from './vault/CredentialSelector';
 import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
-import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
 
@@ -82,14 +83,16 @@ const RemoteManager: React.FC = () => {
     addTab(
       sessionId, 
       `SSH: ${host.name}`, 
-      <TerminalComponent 
-        sessionId={sessionId}
-        host={host.address}
-        port={host.port || 22}
-        username={sessionUsername}
-        password={password}
-        credentialId={credentialId}
-      />
+      <Suspense fallback={<div className="p-4 text-gray-400 text-sm">Loading terminal…</div>}>
+        <TerminalComponent
+          sessionId={sessionId}
+          host={host.address}
+          port={host.port || 22}
+          username={sessionUsername}
+          password={password}
+          credentialId={credentialId}
+        />
+      </Suspense>
     );
   };
 
@@ -254,8 +257,6 @@ const RemoteManager: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    initDatabase().catch(console.error);
-    
     setTabs([
       { 
         id: 'inventory', 

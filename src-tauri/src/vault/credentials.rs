@@ -1,8 +1,8 @@
+use crate::crypto;
+use crate::db;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::db;
-use crate::crypto;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
@@ -111,7 +111,8 @@ fn decrypt_optional_blob(
     nonce_vec: Option<Vec<u8>>,
     tag_vec: Option<Vec<u8>>,
 ) -> Result<Option<String>, rusqlite::Error> {
-    let (Some(ciphertext), Some(nonce_vec), Some(tag_vec)) = (ciphertext, nonce_vec, tag_vec) else {
+    let (Some(ciphertext), Some(nonce_vec), Some(tag_vec)) = (ciphertext, nonce_vec, tag_vec)
+    else {
         return Ok(None);
     };
     if nonce_vec.len() != 12 || tag_vec.len() != 16 {
@@ -225,66 +226,90 @@ impl CredentialManager {
              FROM credentials WHERE id = ?1"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let credential = stmt.query_row([credential_id], |row| {
-            let encrypted_password: Option<Vec<u8>> = row.get(3)?;
-            let nonce_vec: Option<Vec<u8>> = row.get(4)?;
-            let tag_vec: Option<Vec<u8>> = row.get(5)?;
+        let credential = stmt
+            .query_row([credential_id], |row| {
+                let encrypted_password: Option<Vec<u8>> = row.get(3)?;
+                let nonce_vec: Option<Vec<u8>> = row.get(4)?;
+                let tag_vec: Option<Vec<u8>> = row.get(5)?;
 
-            let password = match (&encrypted_password, &nonce_vec, &tag_vec) {
-                (None, _, _) | (_, None, _) | (_, _, None) => String::new(),
-                (Some(ep), Some(n), Some(t)) => {
-                    if n.len() != 12 {
-                        return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!("Invalid nonce length: expected 12, got {}", n.len()),
-                        ))));
+                let password = match (&encrypted_password, &nonce_vec, &tag_vec) {
+                    (None, _, _) | (_, None, _) | (_, _, None) => String::new(),
+                    (Some(ep), Some(n), Some(t)) => {
+                        if n.len() != 12 {
+                            return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(
+                                std::io::Error::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    format!("Invalid nonce length: expected 12, got {}", n.len()),
+                                ),
+                            )));
+                        }
+                        if t.len() != 16 {
+                            return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(
+                                std::io::Error::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    format!(
+                                        "Invalid auth tag length: expected 16, got {}",
+                                        t.len()
+                                    ),
+                                ),
+                            )));
+                        }
+                        let mut nonce = [0u8; 12];
+                        let mut tag = [0u8; 16];
+                        nonce.copy_from_slice(n);
+                        tag.copy_from_slice(t);
+                        let decrypted =
+                            crypto::decrypt(ep, master_key, &nonce, &tag).map_err(|e| {
+                                rusqlite::Error::ToSqlConversionFailure(Box::new(
+                                    std::io::Error::other(e),
+                                ))
+                            })?;
+                        String::from_utf8(decrypted)
+                            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
                     }
-                    if t.len() != 16 {
-                        return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!("Invalid auth tag length: expected 16, got {}", t.len()),
-                        ))));
-                    }
-                    let mut nonce = [0u8; 12];
-                    let mut tag = [0u8; 16];
-                    nonce.copy_from_slice(n);
-                    tag.copy_from_slice(t);
-                    let decrypted = crypto::decrypt(ep, master_key, &nonce, &tag)
-                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(e))))?;
-                    String::from_utf8(decrypted)
-                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
-                }
-            };
+                };
 
-            // Optional SSH key fields (columns 13..20; may be NULL if migration 008 not run or password-only cred)
-            let key_path: Option<String> = row.get(13).ok().flatten();
-            let private_key = decrypt_optional_blob(master_key, row.get(14).ok().flatten(), row.get(15).ok().flatten(), row.get(16).ok().flatten())?;
-            let key_passphrase = decrypt_optional_blob(master_key, row.get(17).ok().flatten(), row.get(18).ok().flatten(), row.get(19).ok().flatten())?;
+                // Optional SSH key fields (columns 13..20; may be NULL if migration 008 not run or password-only cred)
+                let key_path: Option<String> = row.get(13).ok().flatten();
+                let private_key = decrypt_optional_blob(
+                    master_key,
+                    row.get(14).ok().flatten(),
+                    row.get(15).ok().flatten(),
+                    row.get(16).ok().flatten(),
+                )?;
+                let key_passphrase = decrypt_optional_blob(
+                    master_key,
+                    row.get(17).ok().flatten(),
+                    row.get(18).ok().flatten(),
+                    row.get(19).ok().flatten(),
+                )?;
 
-            Ok(Credential {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                username: row.get(2)?,
-                password,
-                credential_type: row.get(6)?,
-                host: row.get(7)?,
-                port: row.get(8)?,
-                metadata: row.get(9)?,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
-                last_used_at: row.get(12)?,
-                key_path,
-                private_key,
-                key_passphrase,
+                Ok(Credential {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    username: row.get(2)?,
+                    password,
+                    credential_type: row.get(6)?,
+                    host: row.get(7)?,
+                    port: row.get(8)?,
+                    metadata: row.get(9)?,
+                    created_at: row.get(10)?,
+                    updated_at: row.get(11)?,
+                    last_used_at: row.get(12)?,
+                    key_path,
+                    private_key,
+                    key_passphrase,
+                })
             })
-        }).map_err(|e| format!("Failed to get credential: {}", e))?;
+            .map_err(|e| format!("Failed to get credential: {}", e))?;
 
         // Update last_used_at
         let now = chrono::Utc::now().timestamp();
         conn.execute(
             "UPDATE credentials SET last_used_at = ?1 WHERE id = ?2",
             rusqlite::params![now, credential_id],
-        ).map_err(|e| format!("Failed to update last_used_at: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to update last_used_at: {}", e))?;
 
         // Log audit event
         Self::log_audit_event(
@@ -308,21 +333,23 @@ impl CredentialManager {
              FROM credentials ORDER BY name ASC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let credentials = stmt.query_map([], |row| {
-            Ok(CredentialSummary {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                username: row.get(2)?,
-                credential_type: row.get(3)?,
-                host: row.get(4)?,
-                port: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-                last_used_at: row.get(8)?,
+        let credentials = stmt
+            .query_map([], |row| {
+                Ok(CredentialSummary {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    username: row.get(2)?,
+                    credential_type: row.get(3)?,
+                    host: row.get(4)?,
+                    port: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                    last_used_at: row.get(8)?,
+                })
             })
-        }).map_err(|e| format!("Failed to query credentials: {}", e))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("Failed to collect credentials: {}", e))?;
+            .map_err(|e| format!("Failed to query credentials: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to collect credentials: {}", e))?;
 
         Ok(credentials)
     }
@@ -341,7 +368,9 @@ impl CredentialManager {
         key_passphrase: Option<String>,
     ) -> Result<(), String> {
         let mut conn = db::open_connection(&self.db_path)?;
-        let tx = conn.transaction().map_err(|e| format!("Failed to begin transaction: {}", e))?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
         let now = chrono::Utc::now().timestamp();
 
@@ -349,21 +378,24 @@ impl CredentialManager {
             tx.execute(
                 "UPDATE credentials SET credential_type = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![ct, now, credential_id],
-            ).map_err(|e| format!("Failed to update credential type: {}", e))?;
+            )
+            .map_err(|e| format!("Failed to update credential type: {}", e))?;
         }
 
         if let Some(n) = name {
             tx.execute(
                 "UPDATE credentials SET name = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![n, now, credential_id],
-            ).map_err(|e| format!("Failed to update credential name: {}", e))?;
+            )
+            .map_err(|e| format!("Failed to update credential name: {}", e))?;
         }
 
         if let Some(u) = username {
             tx.execute(
                 "UPDATE credentials SET username = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![u, now, credential_id],
-            ).map_err(|e| format!("Failed to update credential username: {}", e))?;
+            )
+            .map_err(|e| format!("Failed to update credential username: {}", e))?;
         }
 
         if let Some(p) = password {
@@ -386,14 +418,24 @@ impl CredentialManager {
             tx.execute(
                 "UPDATE credentials SET metadata = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![m, now, credential_id],
-            ).map_err(|e| format!("Failed to update credential metadata: {}", e))?;
+            )
+            .map_err(|e| format!("Failed to update credential metadata: {}", e))?;
         }
 
         if let Some(kp) = key_path {
             tx.execute(
                 "UPDATE credentials SET key_path = ?1, updated_at = ?2 WHERE id = ?3",
-                rusqlite::params![if kp.is_empty() { None::<String> } else { Some(kp) }, now, credential_id],
-            ).map_err(|e| format!("Failed to update credential key_path: {}", e))?;
+                rusqlite::params![
+                    if kp.is_empty() {
+                        None::<String>
+                    } else {
+                        Some(kp)
+                    },
+                    now,
+                    credential_id
+                ],
+            )
+            .map_err(|e| format!("Failed to update credential key_path: {}", e))?;
         }
 
         if let Some(pk) = private_key {
@@ -437,17 +479,16 @@ impl CredentialManager {
             None,
         )?;
 
-        tx.commit().map_err(|e| format!("Failed to commit credential update: {}", e))?;
+        tx.commit()
+            .map_err(|e| format!("Failed to commit credential update: {}", e))?;
         Ok(())
     }
 
     pub fn delete_credential(&self, credential_id: &str) -> Result<(), String> {
         let conn = db::open_connection(&self.db_path)?;
 
-        conn.execute(
-            "DELETE FROM credentials WHERE id = ?1",
-            [credential_id],
-        ).map_err(|e| format!("Failed to delete credential: {}", e))?;
+        conn.execute("DELETE FROM credentials WHERE id = ?1", [credential_id])
+            .map_err(|e| format!("Failed to delete credential: {}", e))?;
 
         // Log audit event
         Self::log_audit_event(
@@ -463,11 +504,13 @@ impl CredentialManager {
         Ok(())
     }
 
-    pub fn delete_credential_tx(&self, tx: &rusqlite::Transaction, credential_id: &str) -> Result<(), String> {
-        tx.execute(
-            "DELETE FROM credentials WHERE id = ?1",
-            [credential_id],
-        ).map_err(|e| format!("Failed to delete credential: {}", e))?;
+    pub fn delete_credential_tx(
+        &self,
+        tx: &rusqlite::Transaction,
+        credential_id: &str,
+    ) -> Result<(), String> {
+        tx.execute("DELETE FROM credentials WHERE id = ?1", [credential_id])
+            .map_err(|e| format!("Failed to delete credential: {}", e))?;
 
         // Log audit event
         Self::log_audit_event_tx(
@@ -567,26 +610,28 @@ impl CredentialManager {
 
         let mut stmt = conn.prepare(
             "SELECT id, name, username, credential_type, host, port, created_at, updated_at, last_used_at
-             FROM credentials 
+             FROM credentials
              WHERE name LIKE ?1 OR username LIKE ?1 OR credential_type LIKE ?1
              ORDER BY name ASC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let credentials = stmt.query_map([&search_pattern], |row| {
-            Ok(CredentialSummary {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                username: row.get(2)?,
-                credential_type: row.get(3)?,
-                host: row.get(4)?,
-                port: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-                last_used_at: row.get(8)?,
+        let credentials = stmt
+            .query_map([&search_pattern], |row| {
+                Ok(CredentialSummary {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    username: row.get(2)?,
+                    credential_type: row.get(3)?,
+                    host: row.get(4)?,
+                    port: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                    last_used_at: row.get(8)?,
+                })
             })
-        }).map_err(|e| format!("Failed to query credentials: {}", e))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("Failed to collect credentials: {}", e))?;
+            .map_err(|e| format!("Failed to query credentials: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to collect credentials: {}", e))?;
 
         Ok(credentials)
     }
@@ -659,7 +704,10 @@ mod tests {
     fn setup_test_db() -> (String, [u8; 32]) {
         use std::time::{SystemTime, UNIX_EPOCH};
 
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let db_path = format!("test_credentials_{}.db", timestamp);
 
         let conn = Connection::open(&db_path).expect("Failed to open test database");
@@ -681,7 +729,8 @@ mod tests {
                 last_used_at INTEGER
             )",
             [],
-        ).expect("Failed to create credentials table");
+        )
+        .expect("Failed to create credentials table");
         // Migration 008 columns so get_credential SELECT works
         conn.execute_batch(
             "ALTER TABLE credentials ADD COLUMN key_path TEXT;
@@ -691,7 +740,8 @@ mod tests {
              ALTER TABLE credentials ADD COLUMN encrypted_key_passphrase BLOB;
              ALTER TABLE credentials ADD COLUMN key_passphrase_nonce BLOB;
              ALTER TABLE credentials ADD COLUMN key_passphrase_tag BLOB;",
-        ).expect("Failed to add key columns");
+        )
+        .expect("Failed to add key columns");
 
         conn.execute(
             "CREATE TABLE security_audit_log (
@@ -705,7 +755,8 @@ mod tests {
                 details TEXT
             )",
             [],
-        ).expect("Failed to create audit log table");
+        )
+        .expect("Failed to create audit log table");
 
         let master_key = [42u8; 32]; // Test key
         (db_path, master_key)
@@ -722,21 +773,24 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(
-            &master_key,
-            "Test Credential".to_string(),
-            "testuser".to_string(),
-            "SecurePassword123!".to_string(),
-            "password".to_string(),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ).expect("Failed to add credential");
+        let cred_id = manager
+            .add_credential(
+                &master_key,
+                "Test Credential".to_string(),
+                "testuser".to_string(),
+                "SecurePassword123!".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("Failed to add credential");
 
-        let credential = manager.get_credential(&master_key, &cred_id)
+        let credential = manager
+            .get_credential(&master_key, &cred_id)
             .expect("Failed to get credential");
 
         assert_eq!(credential.name, "Test Credential");
@@ -752,10 +806,40 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        manager.add_credential(&master_key, "Cred 1".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
-        manager.add_credential(&master_key, "Cred 2".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        manager
+            .add_credential(
+                &master_key,
+                "Cred 1".to_string(),
+                "user1".to_string(),
+                "pass1".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        manager
+            .add_credential(
+                &master_key,
+                "Cred 2".to_string(),
+                "user2".to_string(),
+                "pass2".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        let credentials = manager.list_credentials().expect("Failed to list credentials");
+        let credentials = manager
+            .list_credentials()
+            .expect("Failed to list credentials");
 
         assert_eq!(credentials.len(), 2);
         assert_eq!(credentials[0].name, "Cred 1");
@@ -769,20 +853,36 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(&master_key, "Original".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        let cred_id = manager
+            .add_credential(
+                &master_key,
+                "Original".to_string(),
+                "user".to_string(),
+                "pass".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        manager.update_credential(
-            &master_key,
-            &cred_id,
-            Some("Updated".to_string()),
-            Some("newuser".to_string()),
-            Some("newpass".to_string()),
-            None,
-            None, // credential_type
-            None,
-            None,
-            None,
-        ).expect("Failed to update credential");
+        manager
+            .update_credential(
+                &master_key,
+                &cred_id,
+                Some("Updated".to_string()),
+                Some("newuser".to_string()),
+                Some("newpass".to_string()),
+                None,
+                None, // credential_type
+                None,
+                None,
+                None,
+            )
+            .expect("Failed to update credential");
 
         let credential = manager.get_credential(&master_key, &cred_id).unwrap();
 
@@ -798,9 +898,25 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        let cred_id = manager.add_credential(&master_key, "To Delete".to_string(), "user".to_string(), "pass".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        let cred_id = manager
+            .add_credential(
+                &master_key,
+                "To Delete".to_string(),
+                "user".to_string(),
+                "pass".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        manager.delete_credential(&cred_id).expect("Failed to delete credential");
+        manager
+            .delete_credential(&cred_id)
+            .expect("Failed to delete credential");
 
         let result = manager.get_credential(&master_key, &cred_id);
         assert!(result.is_err());
@@ -813,11 +929,55 @@ mod tests {
         let (db_path, master_key) = setup_test_db();
         let manager = CredentialManager::new(db_path.clone());
 
-        manager.add_credential(&master_key, "GitHub Account".to_string(), "user1".to_string(), "pass1".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
-        manager.add_credential(&master_key, "GitLab Account".to_string(), "user2".to_string(), "pass2".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
-        manager.add_credential(&master_key, "AWS Console".to_string(), "user3".to_string(), "pass3".to_string(), "password".to_string(), None, None, None, None, None, None).unwrap();
+        manager
+            .add_credential(
+                &master_key,
+                "GitHub Account".to_string(),
+                "user1".to_string(),
+                "pass1".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        manager
+            .add_credential(
+                &master_key,
+                "GitLab Account".to_string(),
+                "user2".to_string(),
+                "pass2".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        manager
+            .add_credential(
+                &master_key,
+                "AWS Console".to_string(),
+                "user3".to_string(),
+                "pass3".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        let results = manager.search_credentials("Git").expect("Failed to search credentials");
+        let results = manager
+            .search_credentials("Git")
+            .expect("Failed to search credentials");
 
         assert_eq!(results.len(), 2);
         assert!(results.iter().any(|c| c.name == "GitHub Account"));
@@ -853,7 +1013,10 @@ mod tests {
         ).expect("Failed to insert malformed credential");
 
         let result = manager.get_credential(&master_key, "malformed-nonce");
-        assert!(result.is_err(), "Malformed nonce must return an error instead of panicking");
+        assert!(
+            result.is_err(),
+            "Malformed nonce must return an error instead of panicking"
+        );
 
         cleanup_test_db(&db_path);
     }
@@ -885,7 +1048,10 @@ mod tests {
         ).expect("Failed to insert malformed credential");
 
         let result = manager.get_credential(&master_key, "malformed-tag");
-        assert!(result.is_err(), "Malformed auth tag must return an error instead of panicking");
+        assert!(
+            result.is_err(),
+            "Malformed auth tag must return an error instead of panicking"
+        );
 
         cleanup_test_db(&db_path);
     }

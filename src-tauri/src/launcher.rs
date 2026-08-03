@@ -14,7 +14,7 @@ pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
         .args(["/C", "start", "ssh", &target])
         .spawn()
         .map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -30,7 +30,7 @@ pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
     // macOS: open ssh://...
     #[cfg(target_os = "macos")]
     {
-         Command::new("open")
+        Command::new("open")
             .arg(format!("ssh://{}", target))
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -60,7 +60,7 @@ pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
             return Err("No supported terminal emulator found. Install one of: x-terminal-emulator, gnome-terminal, konsole, xfce4-terminal, xterm".to_string());
         }
     }
-    
+
     Ok(())
 }
 
@@ -85,8 +85,8 @@ mod tests {
     #[test]
     fn test_ssh_target_formatting() {
         let address = "192.168.1.1";
-        let user = Some("admin");
-        let target = format!("{}@{}", user.unwrap(), address);
+        let user = "admin";
+        let target = format!("{}@{}", user, address);
         assert_eq!(target, "admin@192.168.1.1");
     }
 }

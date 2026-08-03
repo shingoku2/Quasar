@@ -6,8 +6,13 @@ import AddHostDialog from './AddHostDialog';
 import '@testing-library/jest-dom';
 
 // Mock Tauri invoke and event
-const { mockInvoke, mockSelect, mockExecute } = vi.hoisted(() => ({
-  mockInvoke: vi.fn((command: string) => {
+const { mockInvoke, mockSelect, mockExecute } = vi.hoisted(() => {
+  const mockSelect = vi.fn().mockResolvedValue([
+    { id: '1', name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
+    { id: '2', name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
+  ]);
+  const mockExecute = vi.fn().mockResolvedValue({ rowsAffected: 1 });
+  const mockInvoke = vi.fn((command: string, args?: unknown) => {
     if (command === 'get_discovered_hosts') {
       return Promise.resolve([
         {
@@ -17,15 +22,14 @@ const { mockInvoke, mockSelect, mockExecute } = vi.hoisted(() => ({
         },
       ]);
     }
+    if (command === 'get_saved_hosts') return mockSelect();
+    if (command === 'upsert_saved_host' || command === 'remove_saved_hosts') {
+      return mockExecute(command, args);
+    }
     return Promise.resolve();
-  }),
-  mockSelect: vi.fn().mockResolvedValue([
-    { id: 1, name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
-    { id: 2, name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
-  ]),
-  mockExecute: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
-}));
-
+  });
+  return { mockInvoke, mockSelect, mockExecute };
+});
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: mockInvoke,
 }));
@@ -34,23 +38,11 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(() => Promise.resolve(() => {})),
 }));
 
-// Mock SQL plugin
-vi.mock('@tauri-apps/plugin-sql', () => {
-  return {
-    default: {
-      load: vi.fn().mockResolvedValue({
-        select: mockSelect,
-        execute: mockExecute,
-      }),
-    },
-  };
-});
-
 beforeEach(() => {
   mockExecute.mockClear();
   mockSelect.mockResolvedValue([
-    { id: 1, name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
-    { id: 2, name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
+    { id: '1', name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
+    { id: '2', name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
   ]);
 });
 
@@ -173,11 +165,11 @@ describe('Host Management Components', () => {
       mockExecute.mockResolvedValue({ rowsAffected: 1 });
       mockSelect
         .mockResolvedValueOnce([
-          { id: 1, name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
-          { id: 2, name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
+          { id: '1', name: 'Prod Server', address: '1.2.3.4', protocol: 'ssh' },
+          { id: '2', name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
         ])
         .mockResolvedValueOnce([
-          { id: 2, name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
+          { id: '2', name: 'Dev Box', address: 'localhost', protocol: 'rdp' },
         ]);
 
       render(<HostList onConnect={() => {}} onSftp={() => {}} />);
@@ -190,8 +182,8 @@ describe('Host Management Components', () => {
 
       await waitFor(() => {
         expect(mockExecute).toHaveBeenCalledWith(
-          expect.stringContaining('DELETE FROM hosts'),
-          [1]
+          'remove_saved_hosts',
+          { ids: ['1'] }
         );
       });
       confirmSpy.mockRestore();
@@ -207,14 +199,14 @@ describe('Host Management Components', () => {
       const removeBtns = screen.getAllByRole('button', { name: 'Remove' });
       fireEvent.click(removeBtns[0]);
 
-      expect(mockExecute).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'), expect.anything());
+      expect(mockExecute).not.toHaveBeenCalled();
       confirmSpy.mockRestore();
     });
 
     it('detects and shows duplicate host count', async () => {
       mockSelect.mockResolvedValueOnce([
-        { id: 1, name: 'Server A', address: '1.2.3.4', protocol: 'ssh', port: 22 },
-        { id: 2, name: 'Server A copy', address: '1.2.3.4', protocol: 'ssh', port: 22 },
+        { id: '1', name: 'Server A', address: '1.2.3.4', protocol: 'ssh', port: 22 },
+        { id: '2', name: 'Server A copy', address: '1.2.3.4', protocol: 'ssh', port: 22 },
       ]);
 
       render(<HostList onConnect={() => {}} onSftp={() => {}} />);
@@ -259,13 +251,10 @@ describe('Host Management Components', () => {
         expect(onAdded).toHaveBeenCalled();
       });
 
-      const insertCall = mockExecute.mock.calls.find(([sql]) =>
-        typeof sql === 'string' && sql.includes('INSERT INTO hosts')
+      expect(mockExecute).toHaveBeenCalledWith(
+        'upsert_saved_host',
+        expect.objectContaining({ port: undefined })
       );
-      expect(insertCall).toBeDefined();
-
-      const executeArgs = insertCall?.[1] as unknown[];
-      expect(executeArgs[4]).toBe(22);
     });
   });
 });

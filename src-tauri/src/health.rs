@@ -25,16 +25,16 @@ pub struct HealthCheckResult {
 /// Check if a host is reachable via ping
 pub async fn check_ping(host: &str) -> Result<u32, String> {
     use surge_ping::{Client, Config, PingIdentifier, PingSequence};
-    
+
     let addr: std::net::IpAddr = host.parse().map_err(|_| "Invalid IP address".to_string())?;
-    
+
     let client = Client::new(&Config::default()).map_err(|e| e.to_string())?;
     let payload = vec![0; 56];
     let ident = PingIdentifier(rand::random::<u16>());
     let seq = PingSequence(0);
-    
+
     let mut pinger = client.pinger(addr, ident).await;
-    
+
     match timeout(Duration::from_secs(2), pinger.ping(seq, &payload)).await {
         Ok(Ok((_, dur))) => Ok(dur.as_millis() as u32),
         Ok(Err(e)) => Err(format!("Ping error: {}", e)),
@@ -87,7 +87,9 @@ pub async fn check_ssh_health(
             key_path,
             private_key,
             key_passphrase,
-        ).await.ok()
+        )
+        .await
+        .ok()
     } else {
         None
     };
@@ -104,24 +106,20 @@ pub async fn check_ssh_health(
 /// Quick pre-flight check without credentials
 pub async fn preflight_check(host: &str) -> HealthCheckResult {
     match check_ping(host).await {
-        Ok(latency_ms) => {
-            HealthCheckResult {
-                host: host.to_string(),
-                reachable: true,
-                latency_ms: Some(latency_ms),
-                metrics: None,
-                error: None,
-            }
-        }
-        Err(e) => {
-            HealthCheckResult {
-                host: host.to_string(),
-                reachable: false,
-                latency_ms: None,
-                metrics: None,
-                error: Some(e),
-            }
-        }
+        Ok(latency_ms) => HealthCheckResult {
+            host: host.to_string(),
+            reachable: true,
+            latency_ms: Some(latency_ms),
+            metrics: None,
+            error: None,
+        },
+        Err(e) => HealthCheckResult {
+            host: host.to_string(),
+            reachable: false,
+            latency_ms: None,
+            metrics: None,
+            error: Some(e),
+        },
     }
 }
 
@@ -140,7 +138,7 @@ mod tests {
             uptime_seconds: Some(86400),
             load_average: Some(vec![0.5, 0.6, 0.7]),
         };
-        
+
         let json = serde_json::to_string(&metrics).unwrap();
         assert!(json.contains("cpu_percent"));
         assert!(json.contains("45.5"));
@@ -155,7 +153,7 @@ mod tests {
             metrics: None,
             error: Some("Host unreachable".to_string()),
         };
-        
+
         assert!(!result.reachable);
         assert!(result.error.is_some());
     }
@@ -169,7 +167,7 @@ mod tests {
             metrics: None,
             error: None,
         };
-        
+
         assert!(result.reachable);
         assert_eq!(result.latency_ms, Some(10));
         assert!(result.error.is_none());

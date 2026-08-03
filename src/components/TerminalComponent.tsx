@@ -111,14 +111,14 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
 
-        // Fit after a small delay to ensure container is fully rendered
-        setTimeout(() => {
+        // Fit after a small delay to ensure container is fully rendered.
+        // Cleared on unmount so it cannot run against a disposed terminal.
+        const fitTimer = setTimeout(() => {
             try {
                 fitAddon.fit();
                 term.write('Dimensions set.\r\n');
             } catch (e) {
                 console.error('Fit error:', e);
-                term.write(`Fit error: ${e}\r\n`);
             }
         }, 150);
 
@@ -210,6 +210,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
         return () => {
             isMounted = false;
+            clearTimeout(fitTimer);
             resizeObserver.disconnect();
             onDataDisposable.dispose();
             if (unlistenData) unlistenData();

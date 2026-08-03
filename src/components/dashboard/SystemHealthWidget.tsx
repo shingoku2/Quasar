@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Server, AlertTriangle, Cpu, HardDrive, Shield } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { useVisiblePolling } from '../../hooks/useViewVisibility';
 import { cn } from '../../lib/utils';
 
 interface DiskInfo {
@@ -67,32 +68,25 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
 
     invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
 
-    // Fetch online hosts count (only for summary variant)
-    if (variant === 'summary') {
-      const fetchHostsHealth = async () => {
-        try {
-          const hosts = await invoke<RemoteHostMetric[]>('get_remote_hosts_health');
-          const onlineCount = Array.isArray(hosts) ? hosts.filter(h => h.reachable).length : 0;
-          setOnlineHostsCount(onlineCount);
-        } catch {
-          setOnlineHostsCount(0);
-        }
-      };
-      fetchHostsHealth();
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchHostsHealth, 30000);
-      return () => {
-        clearInterval(interval);
-        unlistenMetrics.then(fn => fn());
-        unlistenAlerts.then(fn => fn());
-      };
-    }
-
     return () => {
       unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
     };
   }, [variant]);
+
+  // Online hosts count (summary variant only). get_remote_hosts_health pings and
+  // SSHes into every saved host, so it is paused while the Dashboard is hidden.
+  const fetchHostsHealth = async () => {
+    if (variant !== 'summary') return;
+    try {
+      const hosts = await invoke<RemoteHostMetric[]>('get_remote_hosts_health');
+      const onlineCount = Array.isArray(hosts) ? hosts.filter(h => h.reachable).length : 0;
+      setOnlineHostsCount(onlineCount);
+    } catch {
+      setOnlineHostsCount(0);
+    }
+  };
+  useVisiblePolling(fetchHostsHealth, 30000);
 
   // Fetch vault settings for auto-lock timeout (only for summary variant)
   useEffect(() => {

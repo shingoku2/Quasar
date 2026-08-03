@@ -7,8 +7,8 @@
 //! - `Ok(())` indicates valid input
 //! - `Err(String)` contains a user-friendly error message
 
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Validates IPv4 address format.
 ///
@@ -79,14 +79,15 @@ pub fn validate_username(username: &str) -> Result<(), String> {
         return Err("Username too long (max 64 characters)".to_string());
     }
 
-    static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^[a-zA-Z0-9_\-\.]+$").unwrap()
-    });
+    static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-\.]+$").unwrap());
 
     if USERNAME_REGEX.is_match(username) {
         Ok(())
     } else {
-        Err("Username must contain only alphanumeric characters, underscores, hyphens, or dots".to_string())
+        Err(
+            "Username must contain only alphanumeric characters, underscores, hyphens, or dots"
+                .to_string(),
+        )
     }
 }
 

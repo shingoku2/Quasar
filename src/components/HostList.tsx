@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 import Discovery, { DiscoveredHost } from './Discovery';
 import HealthCheckBadge from './HealthCheckBadge';
 import { AddHostInitialValues } from './AddHostDialog';
@@ -24,8 +24,7 @@ const HostList: React.FC<{
 
   const fetchHosts = async () => {
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      const result = await db.select<Host[]>("SELECT * FROM hosts ORDER BY name ASC");
+      const result = await invoke<Host[]>("get_saved_hosts");
       setHosts(result);
     } catch (err) {
       console.error("Failed to fetch hosts:", err);
@@ -62,10 +61,7 @@ const HostList: React.FC<{
     }
 
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      for (const id of duplicateHostIds) {
-        await db.execute("DELETE FROM hosts WHERE id = ?", [id]);
-      }
+      await invoke("remove_saved_hosts", { ids: duplicateHostIds });
       await fetchHosts();
       window.dispatchEvent(new Event('hostsUpdated'));
     } catch (err) {
@@ -107,8 +103,7 @@ const HostList: React.FC<{
     }
 
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      await db.execute("DELETE FROM hosts WHERE id = ?", [host.id]);
+      await invoke("remove_saved_hosts", { ids: [host.id] });
       await fetchHosts();
       window.dispatchEvent(new Event('hostsUpdated'));
     } catch (err) {

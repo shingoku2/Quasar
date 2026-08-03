@@ -40,7 +40,7 @@ function persistedToScanResult(h: PersistedDiscoveredHost): ScanResult {
 }
 
 interface SavedHost {
-  id: number;
+  id: string;
   name: string;
   address: string;
   port: number | null;
@@ -86,7 +86,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   const handleHostConnect = (host: ScanResult) => {
     const savedHost: SavedHost = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: host.hostname || host.ip,
       address: host.ip,
       port: host.open_ports?.[0] ?? 22,

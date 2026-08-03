@@ -191,7 +191,7 @@ Pre-audit reconnaissance identified the following category totals requiring acti
 
 | File | Finding | Severity | Action |
 |------|---------|----------|--------|
-| `src/db.ts` | Creates `hosts` table client-side — duplicates backend migration 001 | Medium | Remove `initDatabase()` call from frontend; let backend own all schema |
+| Frontend host database helper | Resolved: helper removed; the Rust backend now owns all host database access | Resolved | No action |
 | `index.html` | `<title>Tauri + React + Typescript</title>` | Low | Change to `<title>Quasar</title>` |
 | `RemoteManager.tsx:223` | `processedQuickConnects.delete` deferred — 60ms race window | Medium | Delete immediately on dedup check, not after timeout |
 | `CredentialManager.tsx:298,440` | Single `showPassword` boolean controls multiple inputs | High | Use `showPasswordFor: string \| null` (keyed by field name) |
@@ -261,7 +261,7 @@ These apply across multiple components. Tackle by component type:
 
 | Finding | Severity | Action |
 |---------|----------|--------|
-| `src/db.ts` calls `CREATE TABLE IF NOT EXISTS hosts` — potentially races with backend migration on first launch | High | Remove the `execute()` call from `initDatabase()`; the function can remain for DB connection if used, but schema must come from Rust migrations only |
+| Frontend SQLite ownership | Resolved: the helper and SQL plugin were removed; Rust migrations and Tauri commands own the database | Resolved | No action |
 
 ### 5.3 Missing Indexes
 

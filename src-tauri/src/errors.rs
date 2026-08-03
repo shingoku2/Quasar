@@ -1,13 +1,13 @@
 use log::error;
 
 /// Sanitizes error messages for frontend display while logging full details server-side.
-/// 
+///
 /// This prevents information disclosure through error messages (OWASP ASVS v4.0 7.4.1, CWE-209).
 /// Detailed errors are logged server-side for debugging, while generic messages are returned to the frontend.
 pub fn sanitize_error(internal_error: String, context: &str) -> String {
     // Log full error server-side for debugging
     error!("[{}] {}", context, internal_error);
-    
+
     // Return generic error to frontend based on context
     match context {
         "database" => "Database operation failed. Check logs for details.".to_string(),
@@ -18,7 +18,9 @@ pub fn sanitize_error(internal_error: String, context: &str) -> String {
         "monitoring" => "Monitoring operation failed. Check logs for details.".to_string(),
         "scanner" => "Network scan operation failed. Check logs for details.".to_string(),
         "credential" => "Credential operation failed. Check logs for details.".to_string(),
-        "scheduled task" | "scheduled tasks" => "Scheduled task operation failed. Check logs for details.".to_string(),
+        "scheduled task" | "scheduled tasks" => {
+            "Scheduled task operation failed. Check logs for details.".to_string()
+        }
         "run task" => "Run task failed. Check logs for details.".to_string(),
         _ => "Operation failed. Check logs for details.".to_string(),
     }
@@ -30,7 +32,8 @@ mod tests {
 
     #[test]
     fn test_sanitize_error_does_not_leak_internal_details() {
-        let internal = "SQLITE error: no such table: credentials at /home/user/.local/quasar.db".to_string();
+        let internal =
+            "SQLITE error: no such table: credentials at /home/user/.local/quasar.db".to_string();
         let result = sanitize_error(internal.clone(), "database");
         assert!(!result.contains("SQLITE"));
         assert!(!result.contains("/home/user"));
@@ -56,7 +59,9 @@ mod tests {
             assert!(
                 result.starts_with(expected_prefix),
                 "Context '{}' should produce message starting with '{}', got '{}'",
-                context, expected_prefix, result
+                context,
+                expected_prefix,
+                result
             );
         }
     }

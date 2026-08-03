@@ -1,15 +1,16 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Database from '@tauri-apps/plugin-sql';
 import QuickConnectWidget from './QuickConnectWidget';
 import '@testing-library/jest-dom';
 
-const mockDb = vi.mocked(Database);
+const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 
 const mockHosts = [
-  { id: 1, name: 'Prod Web', address: '10.0.0.1', port: 22, username: 'root', protocol: 'ssh' },
-  { id: 2, name: 'Dev Box', address: '10.0.0.2', port: 3389, username: 'admin', protocol: 'rdp' },
-  { id: 3, name: 'DB Server', address: '10.0.0.3', port: null, username: null, protocol: 'database' },
+  { id: '1', name: 'Prod Web', address: '10.0.0.1', port: 22, username: 'root', protocol: 'ssh' },
+  { id: '2', name: 'Dev Box', address: '10.0.0.2', port: 3389, username: 'admin', protocol: 'rdp' },
+  { id: '3', name: 'DB Server', address: '10.0.0.3', port: null, username: null, protocol: 'database' },
 ];
 
 describe('QuickConnectWidget', () => {
@@ -17,15 +18,11 @@ describe('QuickConnectWidget', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (mockDb.load as ReturnType<typeof vi.fn>).mockResolvedValue({
-      select: vi.fn().mockResolvedValue(mockHosts),
-      execute: vi.fn().mockResolvedValue(undefined),
-      close: vi.fn().mockResolvedValue(undefined),
-    });
+    mockInvoke.mockResolvedValue(mockHosts);
   });
 
   it('shows loading state initially', () => {
-    (mockDb.load as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    mockInvoke.mockReturnValue(new Promise(() => {}));
     render(<QuickConnectWidget onConnect={onConnect} />);
     expect(screen.getByText(/Loading hosts/i)).toBeInTheDocument();
   });
@@ -39,11 +36,7 @@ describe('QuickConnectWidget', () => {
   });
 
   it('shows empty state when no hosts are saved', async () => {
-    (mockDb.load as ReturnType<typeof vi.fn>).mockResolvedValue({
-      select: vi.fn().mockResolvedValue([]),
-      execute: vi.fn(),
-      close: vi.fn(),
-    });
+    mockInvoke.mockResolvedValue([]);
     render(<QuickConnectWidget onConnect={onConnect} />);
     await waitFor(() => {
       expect(screen.getByText(/No saved hosts/i)).toBeInTheDocument();
@@ -91,18 +84,14 @@ describe('QuickConnectWidget', () => {
 
   it('shows "+N more hosts" when more than 6 hosts exist', async () => {
     const manyHosts = Array.from({ length: 8 }, (_, i) => ({
-      id: i + 1,
+      id: String(i + 1),
       name: `Host ${i + 1}`,
       address: `10.0.0.${i + 1}`,
       port: 22,
       username: 'root',
       protocol: 'ssh',
     }));
-    (mockDb.load as ReturnType<typeof vi.fn>).mockResolvedValue({
-      select: vi.fn().mockResolvedValue(manyHosts),
-      execute: vi.fn(),
-      close: vi.fn(),
-    });
+    mockInvoke.mockResolvedValue(manyHosts);
 
     render(<QuickConnectWidget onConnect={onConnect} />);
     await waitFor(() => {
