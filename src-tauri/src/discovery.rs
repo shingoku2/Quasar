@@ -1,11 +1,11 @@
-use tauri::{AppHandle, Emitter};
+use log::{error, info};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
 use serde::Serialize;
-use log::{error, info};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DiscoveredHost {
@@ -36,8 +36,15 @@ impl DiscoveryState {
     }
 }
 
-pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>, stop_requested: Arc<AtomicBool>) {
-    if running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+pub fn start_mdns_discovery(
+    app: AppHandle,
+    running: Arc<AtomicBool>,
+    stop_requested: Arc<AtomicBool>,
+) {
+    if running
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
         info!("[discovery] mDNS discovery already running, skipping duplicate spawn");
         return;
     }
@@ -76,7 +83,9 @@ pub fn start_mdns_discovery(app: AppHandle, running: Arc<AtomicBool>, stop_reque
             }
 
             for receiver in &receivers {
-                if let Ok(ServiceEvent::ServiceResolved(info)) = receiver.recv_timeout(Duration::from_millis(100)) {
+                if let Ok(ServiceEvent::ServiceResolved(info)) =
+                    receiver.recv_timeout(Duration::from_millis(100))
+                {
                     let addresses = info.get_addresses();
                     let port = info.get_port();
                     let name = info.get_fullname();

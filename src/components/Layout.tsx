@@ -8,6 +8,7 @@ import MonitoringView from './MonitoringView';
 import SecurityView from './vault/SecurityView';
 import ScheduledTasksView from './ScheduledTasksView';
 import SettingsView from './SettingsView';
+import { ViewVisibilityProvider } from '../hooks/useViewVisibility';
 
 const Layout: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewId>('dashboard');
@@ -22,28 +23,44 @@ const Layout: React.FC = () => {
         {/* Global Top Bar */}
         <TopBar activeView={activeView} />
 
-        {/* Content Container - Render all views but hide inactive ones */}
+        {/* Content Container - Render all views but hide inactive ones.
+            Each view is wrapped in a ViewVisibilityProvider so descendants can
+            pause background polling while they are hidden (useVisiblePolling). */}
         <main className="flex-1 overflow-hidden relative">
           <div className={`absolute inset-0 ${activeView === 'dashboard' ? 'block' : 'hidden'}`}>
-            <DashboardView onNavigate={setActiveView} />
+            <ViewVisibilityProvider visible={activeView === 'dashboard'}>
+              <DashboardView onNavigate={setActiveView} />
+            </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'remote' ? 'block' : 'hidden'}`}>
-            <RemoteManager />
+            <ViewVisibilityProvider visible={activeView === 'remote'}>
+              <RemoteManager />
+            </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'ai' ? 'block' : 'hidden'}`}>
-            <AIAssistant />
+            <ViewVisibilityProvider visible={activeView === 'ai'}>
+              <AIAssistant />
+            </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'monitoring' ? 'block' : 'hidden'}`}>
-            <MonitoringView />
+            <ViewVisibilityProvider visible={activeView === 'monitoring'}>
+              <MonitoringView />
+            </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'automation' ? 'block' : 'hidden'}`}>
-            <ScheduledTasksView />
+            <ViewVisibilityProvider visible={activeView === 'automation'}>
+              <ScheduledTasksView />
+            </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'security' ? 'block' : 'hidden'}`}>
-            <SecurityView />
+            <ViewVisibilityProvider visible={activeView === 'security'}>
+              <SecurityView />
+            </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'settings' ? 'block' : 'hidden'}`}>
-            <SettingsView />
+            <ViewVisibilityProvider visible={activeView === 'settings'}>
+              <SettingsView />
+            </ViewVisibilityProvider>
           </div>
         </main>
 

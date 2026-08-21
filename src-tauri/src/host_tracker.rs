@@ -28,13 +28,13 @@ impl HostTracker {
         Self { db_path }
     }
 
-     fn open_connection(&self) -> Result<Connection, String> {
-         let conn = Connection::open(&self.db_path)
-             .map_err(|e| format!("Failed to open database: {}", e))?;
-         conn.execute_batch("PRAGMA foreign_keys = ON;")
-             .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
-         Ok(conn)
-     }
+    fn open_connection(&self) -> Result<Connection, String> {
+        let conn = Connection::open(&self.db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
+        conn.execute_batch("PRAGMA foreign_keys = ON;")
+            .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
+        Ok(conn)
+    }
 
     pub fn save_host(&self, scan_result: &ScanResult) -> Result<String, String> {
         let conn = self.open_connection()?;
@@ -50,12 +50,12 @@ impl HostTracker {
             Ok((id, _first_seen, scan_count)) => {
                 // Update existing host
                 conn.execute(
-                    "UPDATE discovered_hosts SET 
-                        hostname = ?1, 
-                        mac_address = ?2, 
-                        device_type = ?3, 
-                        vendor = ?4, 
-                        last_seen = ?5, 
+                    "UPDATE discovered_hosts SET
+                        hostname = ?1,
+                        mac_address = ?2,
+                        device_type = ?3,
+                        vendor = ?4,
+                        last_seen = ?5,
                         scan_count = ?6
                     WHERE id = ?7",
                     rusqlite::params![
@@ -67,7 +67,8 @@ impl HostTracker {
                         scan_count + 1,
                         id,
                     ],
-                ).map_err(|e| format!("Failed to update host: {}", e))?;
+                )
+                .map_err(|e| format!("Failed to update host: {}", e))?;
                 id
             }
             Err(_) => {
@@ -179,21 +180,29 @@ impl HostTracker {
         }
     }
 
-    fn get_host_services(&self, conn: &Connection, host_id: &str) -> Result<Vec<ServiceInfo>, String> {
-        let mut stmt = conn.prepare(
-            "SELECT port, protocol, service, version FROM host_services WHERE host_id = ?1"
-        ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
+    fn get_host_services(
+        &self,
+        conn: &Connection,
+        host_id: &str,
+    ) -> Result<Vec<ServiceInfo>, String> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT port, protocol, service, version FROM host_services WHERE host_id = ?1",
+            )
+            .map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let services = stmt.query_map([host_id], |row| {
-            Ok(ServiceInfo {
-                port: row.get(0)?,
-                protocol: row.get(1)?,
-                service: row.get(2)?,
-                version: row.get(3)?,
+        let services = stmt
+            .query_map([host_id], |row| {
+                Ok(ServiceInfo {
+                    port: row.get(0)?,
+                    protocol: row.get(1)?,
+                    service: row.get(2)?,
+                    version: row.get(3)?,
+                })
             })
-        }).map_err(|e| format!("Failed to query services: {}", e))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("Failed to collect services: {}", e))?;
+            .map_err(|e| format!("Failed to query services: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to collect services: {}", e))?;
 
         Ok(services)
     }
@@ -210,22 +219,24 @@ impl HostTracker {
              FROM discovered_hosts ORDER BY last_seen DESC LIMIT ?1"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let hosts = stmt.query_map(rusqlite::params![effective_limit], |row| {
-            Ok(DiscoveredHost {
-                id: row.get(0)?,
-                ip: row.get(1)?,
-                hostname: row.get(2)?,
-                mac_address: row.get(3)?,
-                device_type: row.get(4)?,
-                vendor: row.get(5)?,
-                first_seen: row.get(6)?,
-                last_seen: row.get(7)?,
-                scan_count: row.get(8)?,
-                services: Vec::new(),
+        let hosts = stmt
+            .query_map(rusqlite::params![effective_limit], |row| {
+                Ok(DiscoveredHost {
+                    id: row.get(0)?,
+                    ip: row.get(1)?,
+                    hostname: row.get(2)?,
+                    mac_address: row.get(3)?,
+                    device_type: row.get(4)?,
+                    vendor: row.get(5)?,
+                    first_seen: row.get(6)?,
+                    last_seen: row.get(7)?,
+                    scan_count: row.get(8)?,
+                    services: Vec::new(),
+                })
             })
-        }).map_err(|e| format!("Failed to query hosts: {}", e))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("Failed to collect hosts: {}", e))?;
+            .map_err(|e| format!("Failed to query hosts: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to collect hosts: {}", e))?;
 
         // Load services for each host
         let mut hosts_with_services = Vec::new();
@@ -244,27 +255,29 @@ impl HostTracker {
 
         let mut stmt = conn.prepare(
             "SELECT id, ip, hostname, mac_address, device_type, vendor, first_seen, last_seen, scan_count
-             FROM discovered_hosts 
+             FROM discovered_hosts
              WHERE ip LIKE ?1 OR hostname LIKE ?1 OR device_type LIKE ?1
              ORDER BY last_seen DESC"
         ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
-        let hosts = stmt.query_map([&search_pattern], |row| {
-            Ok(DiscoveredHost {
-                id: row.get(0)?,
-                ip: row.get(1)?,
-                hostname: row.get(2)?,
-                mac_address: row.get(3)?,
-                device_type: row.get(4)?,
-                vendor: row.get(5)?,
-                first_seen: row.get(6)?,
-                last_seen: row.get(7)?,
-                scan_count: row.get(8)?,
-                services: Vec::new(),
+        let hosts = stmt
+            .query_map([&search_pattern], |row| {
+                Ok(DiscoveredHost {
+                    id: row.get(0)?,
+                    ip: row.get(1)?,
+                    hostname: row.get(2)?,
+                    mac_address: row.get(3)?,
+                    device_type: row.get(4)?,
+                    vendor: row.get(5)?,
+                    first_seen: row.get(6)?,
+                    last_seen: row.get(7)?,
+                    scan_count: row.get(8)?,
+                    services: Vec::new(),
+                })
             })
-        }).map_err(|e| format!("Failed to query hosts: {}", e))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("Failed to collect hosts: {}", e))?;
+            .map_err(|e| format!("Failed to query hosts: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to collect hosts: {}", e))?;
 
         // Load services for each host
         let mut hosts_with_services = Vec::new();
@@ -279,10 +292,8 @@ impl HostTracker {
     pub fn delete_host(&self, ip: &str) -> Result<(), String> {
         let conn = self.open_connection()?;
 
-        conn.execute(
-            "DELETE FROM discovered_hosts WHERE ip = ?1",
-            [ip],
-        ).map_err(|e| format!("Failed to delete host: {}", e))?;
+        conn.execute("DELETE FROM discovered_hosts WHERE ip = ?1", [ip])
+            .map_err(|e| format!("Failed to delete host: {}", e))?;
 
         Ok(())
     }
@@ -294,12 +305,16 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn setup_test_tracker() -> (HostTracker, String) {
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let db_path = format!("test_host_tracker_{}.db", timestamp);
 
         let conn = Connection::open(&db_path).unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-        conn.execute_batch(include_str!("../migrations/006_discovered_hosts.sql")).unwrap();
+        conn.execute_batch(include_str!("../migrations/006_discovered_hosts.sql"))
+            .unwrap();
         drop(conn);
 
         (HostTracker::new(db_path.clone()), db_path)
@@ -319,8 +334,18 @@ mod tests {
             mac_address: None,
             device_type: "server".to_string(),
             services: vec![
-                ServiceInfo { port: 22, protocol: "tcp".to_string(), service: "ssh".to_string(), version: Some("OpenSSH 8.9".to_string()) },
-                ServiceInfo { port: 80, protocol: "tcp".to_string(), service: "http".to_string(), version: None },
+                ServiceInfo {
+                    port: 22,
+                    protocol: "tcp".to_string(),
+                    service: "ssh".to_string(),
+                    version: Some("OpenSSH 8.9".to_string()),
+                },
+                ServiceInfo {
+                    port: 80,
+                    protocol: "tcp".to_string(),
+                    service: "http".to_string(),
+                    version: None,
+                },
             ],
             vendor: None,
             last_seen: 1700000000,
@@ -363,9 +388,15 @@ mod tests {
     fn test_list_hosts() {
         let (tracker, db_path) = setup_test_tracker();
 
-        tracker.save_host(&make_scan_result("192.168.1.10")).unwrap();
-        tracker.save_host(&make_scan_result("192.168.1.11")).unwrap();
-        tracker.save_host(&make_scan_result("192.168.1.12")).unwrap();
+        tracker
+            .save_host(&make_scan_result("192.168.1.10"))
+            .unwrap();
+        tracker
+            .save_host(&make_scan_result("192.168.1.11"))
+            .unwrap();
+        tracker
+            .save_host(&make_scan_result("192.168.1.12"))
+            .unwrap();
 
         let all = tracker.list_hosts(None).unwrap();
         assert_eq!(all.len(), 3);
@@ -380,7 +411,9 @@ mod tests {
     fn test_search_hosts() {
         let (tracker, db_path) = setup_test_tracker();
 
-        tracker.save_host(&make_scan_result("192.168.1.10")).unwrap();
+        tracker
+            .save_host(&make_scan_result("192.168.1.10"))
+            .unwrap();
         tracker.save_host(&make_scan_result("10.0.0.1")).unwrap();
 
         let results = tracker.search_hosts("192.168").unwrap();
@@ -394,7 +427,9 @@ mod tests {
     fn test_delete_host() {
         let (tracker, db_path) = setup_test_tracker();
 
-        tracker.save_host(&make_scan_result("192.168.1.10")).unwrap();
+        tracker
+            .save_host(&make_scan_result("192.168.1.10"))
+            .unwrap();
         assert!(tracker.get_host("192.168.1.10").unwrap().is_some());
 
         tracker.delete_host("192.168.1.10").unwrap();

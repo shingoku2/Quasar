@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import HostList, { Host } from './HostList';
 import AddHostDialog, { AddHostInitialValues } from './AddHostDialog';
-import TerminalComponent from './TerminalComponent';
+// xterm.js is ~333 kB of the bundle and is only needed once a user actually opens
+// an SSH session, so it is split into its own chunk and loaded on demand.
+const TerminalComponent = React.lazy(() => import('./TerminalComponent'));
 import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
@@ -9,7 +11,6 @@ import CredentialSelector from './vault/CredentialSelector';
 import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
-import { initDatabase } from '../db';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
 
@@ -82,14 +83,16 @@ const RemoteManager: React.FC = () => {
     addTab(
       sessionId, 
       `SSH: ${host.name}`, 
-      <TerminalComponent 
-        sessionId={sessionId}
-        host={host.address}
-        port={host.port || 22}
-        username={sessionUsername}
-        password={password}
-        credentialId={credentialId}
-      />
+      <Suspense fallback={<div className="p-4 text-gray-400 text-sm">Loading terminal…</div>}>
+        <TerminalComponent
+          sessionId={sessionId}
+          host={host.address}
+          port={host.port || 22}
+          username={sessionUsername}
+          password={password}
+          credentialId={credentialId}
+        />
+      </Suspense>
     );
   };
 
@@ -136,6 +139,10 @@ const RemoteManager: React.FC = () => {
         await invoke('connect_rdp', { address: host.address });
         const sessionId = Math.random().toString(36).substring(7);
         addTab(sessionId, `RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
+      } else {
+        // database / api / other hosts are inventory + monitoring entries; there is
+        // no built-in client to launch for them.
+        alert(`No built-in client for "${host.protocol}" hosts. This entry is available for inventory and monitoring.`);
       }
     } catch (error) {
       console.error('Failed to launch session:', error);
@@ -254,8 +261,6 @@ const RemoteManager: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    initDatabase().catch(console.error);
-    
     setTabs([
       { 
         id: 'inventory', 

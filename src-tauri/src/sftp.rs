@@ -1,5 +1,7 @@
-use russh::*;
+use crate::crypto;
+use crate::vault::SshKeyManager;
 use russh::keys::PublicKeyBase64;
+use russh::*;
 use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -8,8 +10,6 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use crate::crypto;
-use crate::vault::SshKeyManager;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RemoteFile {
@@ -37,19 +37,17 @@ impl client::Handler for SftpClient {
     ) -> Result<bool, Self::Error> {
         // Get SSH key manager from app state
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
-        
+
         // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
         let key_bytes = server_public_key.public_key_bytes();
         let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key";
-        
+
         // Verify host key
-        match ssh_key_manager.verify_host_key_by_fingerprint(
-            &self.host,
-            self.port,
-            &fingerprint,
-            key_type,
-        ).await {
+        match ssh_key_manager
+            .verify_host_key_by_fingerprint(&self.host, self.port, &fingerprint, key_type)
+            .await
+        {
             Ok(result) => {
                 if result.allowed {
                     Ok(true)
@@ -65,11 +63,9 @@ impl client::Handler for SftpClient {
 
 fn require_password_auth(password: &str) -> Result<(), String> {
     if password.is_empty() {
-        return Err(
-            "SFTP requires password-based authentication. \
+        return Err("SFTP requires password-based authentication. \
              SSH key authentication is not yet supported for SFTP operations."
-                .to_string(),
-        );
+            .to_string());
     }
     Ok(())
 }
@@ -104,33 +100,30 @@ pub async fn upload_file(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-    
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh)
-    ).await {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
-        let auth_res = session.authenticate_password(username, password)
+        let auth_res = session
+            .authenticate_password(username, password)
             .await
             .map_err(|e| format!("Authentication error: {}", e))?;
-        
+
         let is_success = matches!(auth_res, russh::client::AuthResult::Success);
         if !is_success {
             return Err("Authentication failed".to_string());
         }
 
         // Open SFTP channel
-        let channel = session.channel_open_session()
+        let channel = session
+            .channel_open_session()
             .await
             .map_err(|e| format!("Failed to open channel: {}", e))?;
-        
-        channel.request_subsystem(true, "sftp")
+
+        channel
+            .request_subsystem(true, "sftp")
             .await
             .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
@@ -142,14 +135,16 @@ pub async fn upload_file(
         let mut local_file = fs::File::open(&resolved_local_path)
             .await
             .map_err(|e| format!("Failed to open local file: {}", e))?;
-        
-        let file_size = local_file.metadata()
+
+        let file_size = local_file
+            .metadata()
             .await
             .map_err(|e| format!("Failed to get file metadata: {}", e))?
             .len();
 
         // Create remote file
-        let mut remote_file = sftp.create(remote_path)
+        let mut remote_file = sftp
+            .create(remote_path)
             .await
             .map_err(|e| format!("Failed to create remote file: {}", e))?;
 
@@ -158,15 +153,17 @@ pub async fn upload_file(
         let mut bytes_transferred = 0u64;
 
         loop {
-            let bytes_read = local_file.read(&mut buffer)
+            let bytes_read = local_file
+                .read(&mut buffer)
                 .await
                 .map_err(|e| format!("Failed to read local file: {}", e))?;
-            
+
             if bytes_read == 0 {
                 break;
             }
 
-            remote_file.write_all(&buffer[..bytes_read])
+            remote_file
+                .write_all(&buffer[..bytes_read])
                 .await
                 .map_err(|e| format!("Failed to write to remote file: {}", e))?;
 
@@ -179,19 +176,23 @@ pub async fn upload_file(
         }
 
         // Close files
-        remote_file.shutdown()
+        remote_file
+            .shutdown()
             .await
             .map_err(|e| format!("Failed to close remote file: {}", e))?;
 
         sftp.close()
             .await
             .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
-            
+
         Ok(())
-    }.await;
+    }
+    .await;
 
     // Explicitly disconnect SSH session regardless of result
-    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+    let _ = session
+        .disconnect(russh::Disconnect::ByApplication, "", "en")
+        .await;
 
     result
 }
@@ -217,33 +218,30 @@ pub async fn download_file(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-    
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh)
-    ).await {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
-        let auth_res = session.authenticate_password(username, password)
+        let auth_res = session
+            .authenticate_password(username, password)
             .await
             .map_err(|e| format!("Authentication error: {}", e))?;
-        
+
         let is_success = matches!(auth_res, russh::client::AuthResult::Success);
         if !is_success {
             return Err("Authentication failed".to_string());
         }
 
         // Open SFTP channel
-        let channel = session.channel_open_session()
+        let channel = session
+            .channel_open_session()
             .await
             .map_err(|e| format!("Failed to open channel: {}", e))?;
-        
-        channel.request_subsystem(true, "sftp")
+
+        channel
+            .request_subsystem(true, "sftp")
             .await
             .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
@@ -252,29 +250,34 @@ pub async fn download_file(
             .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
         // Open remote file
-        let mut remote_file = sftp.open(remote_path)
+        let mut remote_file = sftp
+            .open(remote_path)
             .await
             .map_err(|e| format!("Failed to open remote file: {}", e))?;
 
         // Get file size
-        let file_attrs = sftp.metadata(remote_path)
+        let file_attrs = sftp
+            .metadata(remote_path)
             .await
             .map_err(|e| format!("Failed to get remote file metadata: {}", e))?;
-        
+
         let file_size = file_attrs.size.unwrap_or(0);
 
         // Canonicalize the destination path to prevent directory traversal (e.g. ../../etc/passwd).
         // Resolve the parent directory to its canonical form, then re-attach the file name.
         let local_path_buf = std::path::Path::new(local_path);
-        let parent_dir = local_path_buf.parent()
+        let parent_dir = local_path_buf
+            .parent()
             .ok_or_else(|| "Invalid local path: missing parent directory".to_string())?;
         let resolved_local_path = if parent_dir.as_os_str().is_empty() {
             // Bare filename — resolve relative to current dir
             local_path_buf.to_path_buf()
         } else {
-            let canonical_parent = parent_dir.canonicalize()
-                .map_err(|_| "Download directory does not exist or cannot be resolved".to_string())?;
-            let file_name = local_path_buf.file_name()
+            let canonical_parent = parent_dir.canonicalize().map_err(|_| {
+                "Download directory does not exist or cannot be resolved".to_string()
+            })?;
+            let file_name = local_path_buf
+                .file_name()
                 .ok_or_else(|| "Invalid local path: missing file name".to_string())?;
             canonical_parent.join(file_name)
         };
@@ -289,15 +292,17 @@ pub async fn download_file(
         let mut bytes_transferred = 0u64;
 
         loop {
-            let bytes_read = remote_file.read(&mut buffer)
+            let bytes_read = remote_file
+                .read(&mut buffer)
                 .await
                 .map_err(|e| format!("Failed to read remote file: {}", e))?;
-            
+
             if bytes_read == 0 {
                 break;
             }
 
-            local_file.write_all(&buffer[..bytes_read])
+            local_file
+                .write_all(&buffer[..bytes_read])
                 .await
                 .map_err(|e| format!("Failed to write to local file: {}", e))?;
 
@@ -310,19 +315,23 @@ pub async fn download_file(
         }
 
         // Close files
-        local_file.sync_all()
+        local_file
+            .sync_all()
             .await
             .map_err(|e| format!("Failed to sync local file: {}", e))?;
 
         sftp.close()
             .await
             .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
-            
+
         Ok(())
-    }.await;
+    }
+    .await;
 
     // Explicitly disconnect SSH session regardless of result
-    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+    let _ = session
+        .disconnect(russh::Disconnect::ByApplication, "", "en")
+        .await;
 
     result
 }
@@ -346,33 +355,30 @@ pub async fn list_directory(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-    
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh)
-    ).await {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
-        let auth_res = session.authenticate_password(username, password)
+        let auth_res = session
+            .authenticate_password(username, password)
             .await
             .map_err(|e| format!("Authentication error: {}", e))?;
-        
+
         let is_success = matches!(auth_res, russh::client::AuthResult::Success);
         if !is_success {
             return Err("Authentication failed".to_string());
         }
 
         // Open SFTP channel
-        let channel = session.channel_open_session()
+        let channel = session
+            .channel_open_session()
             .await
             .map_err(|e| format!("Failed to open channel: {}", e))?;
-        
-        channel.request_subsystem(true, "sftp")
+
+        channel
+            .request_subsystem(true, "sftp")
             .await
             .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
@@ -381,7 +387,8 @@ pub async fn list_directory(
             .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
 
         // Read directory - russh-sftp returns a Vec of entries
-        let entries = sftp.read_dir(remote_path)
+        let entries = sftp
+            .read_dir(remote_path)
             .await
             .map_err(|e| format!("Failed to read directory: {}", e))?;
 
@@ -402,12 +409,15 @@ pub async fn list_directory(
         sftp.close()
             .await
             .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
-            
+
         Ok(files)
-    }.await;
+    }
+    .await;
 
     // Explicitly disconnect SSH session
-    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+    let _ = session
+        .disconnect(russh::Disconnect::ByApplication, "", "en")
+        .await;
 
     result
 }
@@ -431,33 +441,30 @@ pub async fn remote_exists(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-    
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh)
-    ).await {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
-        let auth_res = session.authenticate_password(username, password)
+        let auth_res = session
+            .authenticate_password(username, password)
             .await
             .map_err(|e| format!("Authentication error: {}", e))?;
-        
+
         let is_success = matches!(auth_res, russh::client::AuthResult::Success);
         if !is_success {
             return Err("Authentication failed".to_string());
         }
 
         // Open SFTP channel
-        let channel = session.channel_open_session()
+        let channel = session
+            .channel_open_session()
             .await
             .map_err(|e| format!("Failed to open channel: {}", e))?;
-        
-        channel.request_subsystem(true, "sftp")
+
+        channel
+            .request_subsystem(true, "sftp")
             .await
             .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
 
@@ -471,12 +478,15 @@ pub async fn remote_exists(
         sftp.close()
             .await
             .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
-            
+
         Ok(exists)
-    }.await;
+    }
+    .await;
 
     // Explicitly disconnect SSH session
-    let _ = session.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+    let _ = session
+        .disconnect(russh::Disconnect::ByApplication, "", "en")
+        .await;
 
     result
 }

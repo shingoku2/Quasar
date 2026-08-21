@@ -54,17 +54,3 @@ vi.mock('@tauri-apps/api/path', () => ({
   appDataDir: vi.fn(() => Promise.resolve('/mock/app/data')),
   appConfigDir: vi.fn(() => Promise.resolve('/mock/app/config')),
 }));
-
-// Global mock for @tauri-apps/plugin-sql
-vi.mock('@tauri-apps/plugin-sql', () => {
-  const mockDb = {
-    execute: vi.fn(() => Promise.resolve()),
-    select: vi.fn(() => Promise.resolve([])),
-    close: vi.fn(() => Promise.resolve()),
-  };
-  return {
-    default: {
-      load: vi.fn(() => Promise.resolve(mockDb)),
-    },
-  };
-});

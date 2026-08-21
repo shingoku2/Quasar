@@ -1,12 +1,12 @@
-use std::net::IpAddr;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::validation;
 use cidr_utils::cidr::Ipv4Cidr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde::Serialize;
+use std::net::IpAddr;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use surge_ping::{Client, Config, PingIdentifier, PingSequence};
 use tokio::time::timeout;
-use crate::validation;
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ServiceInfo {
@@ -60,22 +60,24 @@ impl ScannerState {
     }
 }
 
- struct ScanRunningGuard {
-     is_scanning: Arc<Mutex<bool>>,
- }
+struct ScanRunningGuard {
+    is_scanning: Arc<Mutex<bool>>,
+}
 
- impl Drop for ScanRunningGuard {
-     fn drop(&mut self) {
-         if let Ok(mut is_scanning) = self.is_scanning.lock() {
-             *is_scanning = false;
-         }
-     }
- }
+impl Drop for ScanRunningGuard {
+    fn drop(&mut self) {
+        if let Ok(mut is_scanning) = self.is_scanning.lock() {
+            *is_scanning = false;
+        }
+    }
+}
 
 fn parse_cidr(cidr_str: &str) -> Result<Vec<IpAddr>, String> {
     // Parse as Ipv4Inet first: unlike Ipv4Cidr, it accepts host bits set
     // (e.g. "192.168.1.5/24"), matching the old cidr-utils 0.5 behavior.
-    let inet: cidr_utils::cidr::Ipv4Inet = cidr_str.parse().map_err(|e| format!("Invalid CIDR: {}", e))?;
+    let inet: cidr_utils::cidr::Ipv4Inet = cidr_str
+        .parse()
+        .map_err(|e| format!("Invalid CIDR: {}", e))?;
     let cidr: Ipv4Cidr = inet.network();
     if cidr.network_length() < 16 {
         return Err(format!(
@@ -84,16 +86,19 @@ fn parse_cidr(cidr_str: &str) -> Result<Vec<IpAddr>, String> {
             1u64 << (32 - cidr.network_length())
         ));
     }
-    Ok(cidr.iter().map(|inet| IpAddr::from(inet.address())).collect())
+    Ok(cidr
+        .iter()
+        .map(|inet| IpAddr::from(inet.address()))
+        .collect())
 }
 
 async fn ping_host(client: &Client, ip: IpAddr) -> Result<u32, String> {
     let payload = vec![0; 56];
     let ident = PingIdentifier(rand::random::<u16>());
     let seq = PingSequence(0);
-    
+
     let mut pinger = client.pinger(ip, ident).await;
-    
+
     match timeout(Duration::from_secs(2), pinger.ping(seq, &payload)).await {
         Ok(Ok((_, dur))) => Ok(dur.as_millis() as u32),
         Ok(Err(e)) => Err(format!("Ping error: {}", e)),
@@ -103,7 +108,7 @@ async fn ping_host(client: &Client, ip: IpAddr) -> Result<u32, String> {
 
 async fn scan_port(ip: IpAddr, port: u16) -> bool {
     use tokio::net::TcpStream;
-    
+
     let addr = format!("{}:{}", ip, port);
     matches!(
         timeout(Duration::from_secs(1), TcpStream::connect(&addr)).await,
@@ -120,7 +125,7 @@ async fn resolve_hostname(ip: IpAddr) -> Option<String> {
             use std::net::ToSocketAddrs;
             // Create a socket address for reverse lookup
             let socket_addr = format!("{}:0", ip_clone);
-            
+
             // Try to resolve the hostname
             // Note: This uses the system's DNS resolver
             match socket_addr.to_socket_addrs() {
@@ -131,11 +136,13 @@ async fn resolve_hostname(ip: IpAddr) -> Option<String> {
                     } else {
                         None
                     }
-                },
+                }
                 Err(_) => None,
             }
-        })
-    ).await {
+        }),
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         _ => None,
     }
@@ -146,23 +153,23 @@ fn detect_device_type(open_ports: &[u16]) -> String {
     if open_ports.contains(&80) && open_ports.contains(&443) && open_ports.len() <= 3 {
         return "router".to_string();
     }
-    
+
     // Printer detection
     if open_ports.contains(&9100) || open_ports.contains(&515) || open_ports.contains(&631) {
         return "printer".to_string();
     }
-    
+
     // Server detection: multiple services or SMB file sharing
     // Note: RDP alone does NOT indicate a server (could be a workstation)
     if open_ports.len() >= 3 || open_ports.contains(&445) {
         return "server".to_string();
     }
-    
+
     // Workstation: SSH or RDP (with fewer than 3 open ports)
     if open_ports.contains(&22) || open_ports.contains(&3389) {
         return "workstation".to_string();
     }
-    
+
     "unknown".to_string()
 }
 
@@ -183,12 +190,66 @@ fn identify_service(port: u16) -> ServiceInfo {
         631 => ("IPP", "tcp"),
         _ => ("Unknown", "tcp"),
     };
-    
+
     ServiceInfo {
         port,
         protocol: protocol.to_string(),
         service: service.to_string(),
         version: None,
+    }
+}
+
+/// Number of hosts probed concurrently.
+const MAX_CONCURRENT_SCANS: usize = 50;
+
+/// Store, emit and count a single finished host probe.
+fn record_scan_result<P, R>(
+    scan_result: ScanResult,
+    state: &Arc<ScannerState>,
+    completed: &mut usize,
+    on_progress: &P,
+    on_result: &R,
+) where
+    P: Fn(ScanProgress) + Send + 'static,
+    R: Fn(ScanResult) + Send + 'static,
+{
+    // Store result
+    {
+        if let Ok(mut results) = state.results.lock() {
+            results.push(scan_result.clone());
+        }
+    }
+
+    // Emit result
+    on_result(scan_result);
+
+    *completed += 1;
+    {
+        if let Ok(mut progress) = state.progress.lock() {
+            progress.completed = *completed;
+        }
+    }
+    if let Ok(progress) = state.progress.lock() {
+        on_progress(progress.clone());
+    }
+}
+
+/// Retire exactly one finished probe, freeing a slot in the concurrency window.
+///
+/// Draining the whole batch at the limit made every window wait on its slowest
+/// host before any new probe could start.
+async fn drain_one_scan_future<P, R>(
+    futures: &mut FuturesUnordered<tokio::task::JoinHandle<ScanResult>>,
+    state: &Arc<ScannerState>,
+    completed: &mut usize,
+    on_progress: &P,
+    on_result: &R,
+) where
+    P: Fn(ScanProgress) + Send + 'static,
+    R: Fn(ScanResult) + Send + 'static,
+{
+    if let Some(Ok(scan_result)) = futures.next().await {
+        record_scan_result(scan_result, state, completed, on_progress, on_result);
     }
 }
 
@@ -198,32 +259,13 @@ async fn drain_scan_futures<P, R>(
     completed: &mut usize,
     on_progress: &P,
     on_result: &R,
-)
-where
+) where
     P: Fn(ScanProgress) + Send + 'static,
     R: Fn(ScanResult) + Send + 'static,
 {
     while let Some(result) = futures.next().await {
         if let Ok(scan_result) = result {
-            // Store result
-            {
-                if let Ok(mut results) = state.results.lock() {
-                    results.push(scan_result.clone());
-                }
-            }
-
-            // Emit result
-            on_result(scan_result);
-
-            *completed += 1;
-            {
-                if let Ok(mut progress) = state.progress.lock() {
-                    progress.completed = *completed;
-                }
-            }
-            if let Ok(progress) = state.progress.lock() {
-                on_progress(progress.clone());
-            }
+            record_scan_result(scan_result, state, completed, on_progress, on_result);
         }
     }
 }
@@ -236,67 +278,77 @@ pub async fn scan_network(
 ) -> Result<(), String> {
     // Input validation
     validation::validate_cidr(&cidr)?;
-    
+
     // FIX: Check-and-set atomically to prevent TOCTOU race condition
     // Keep lock held during entire check-and-set operation
     {
-        let mut is_scanning = state.is_scanning.lock()
+        let mut is_scanning = state
+            .is_scanning
+            .lock()
             .map_err(|e| format!("Failed to acquire scanning lock: {}", e))?;
         if *is_scanning {
             return Err("Scan already in progress".to_string());
         }
         *is_scanning = true;
-        
+
         // Reset stop signal while we have exclusive access
-        let mut stop = state.stop_signal.lock()
+        let mut stop = state
+            .stop_signal
+            .lock()
             .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
         *stop = false;
     }
 
-     let _guard = ScanRunningGuard {
-         is_scanning: Arc::clone(&state.is_scanning),
-     };
-    
+    let _guard = ScanRunningGuard {
+        is_scanning: Arc::clone(&state.is_scanning),
+    };
+
     // Clear previous results
     {
-        let mut results = state.results.lock()
+        let mut results = state
+            .results
+            .lock()
             .map_err(|e| format!("Failed to acquire results lock: {}", e))?;
         results.clear();
     }
-    
+
     let ips = parse_cidr(&cidr)?;
     let total = ips.len();
-    
+
     // Update total in progress
     {
-        let mut progress = state.progress.lock()
+        let mut progress = state
+            .progress
+            .lock()
             .map_err(|e| format!("Failed to acquire progress lock: {}", e))?;
         progress.total = total;
         progress.completed = 0;
     }
-    
+
     let client = Client::new(&Config::default()).map_err(|e| e.to_string())?;
     let client = Arc::new(client);
     let state_arc = Arc::clone(&state);
-    
+
     // Process IPs concurrently with a limit of 50 concurrent pings
     let mut futures = FuturesUnordered::new();
     let mut completed = 0;
-    
+
     for ip in ips.iter() {
         // Check stop signal
         {
-            let stop = state.stop_signal.lock()
+            let stop = state
+                .stop_signal
+                .lock()
                 .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
             if *stop {
                 break;
             }
         }
-        
+
         let ip = *ip;
         let client = Arc::clone(&client);
         let state_for_task = Arc::clone(&state_arc);
-        
+
         futures.push(tokio::spawn(async move {
             // Update current IP in progress
             {
@@ -304,39 +356,45 @@ pub async fn scan_network(
                     progress.current_ip = Some(ip.to_string());
                 }
             }
-            
+
             let ping_result = ping_host(&client, ip).await;
             let is_alive = ping_result.is_ok();
             let latency_ms = ping_result.ok();
-            
+
             let mut open_ports = Vec::new();
-            
+
             let mut services = Vec::new();
-            
+
             if is_alive {
-                // Scan expanded port list for alive hosts
-                let common_ports = [22, 23, 80, 443, 445, 3306, 3389, 5432, 6379, 8080, 9100, 515, 631];
-                for port in common_ports {
-                    if scan_port(ip, port).await {
+                // Scan expanded port list for alive hosts. The probes run
+                // concurrently — sequentially this cost up to one connect timeout
+                // per port (13 seconds a host in the worst case). `join_all`
+                // preserves order, so open_ports stays deterministic.
+                let common_ports = [
+                    22, 23, 80, 443, 445, 3306, 3389, 5432, 6379, 8080, 9100, 515, 631,
+                ];
+                let probes = common_ports.map(|port| async move { (port, scan_port(ip, port).await) });
+                for (port, is_open) in futures::future::join_all(probes).await {
+                    if is_open {
                         open_ports.push(port);
                         services.push(identify_service(port));
                     }
                 }
             }
-            
+
             // Resolve hostname (only for alive hosts to save time)
             let hostname = if is_alive {
                 resolve_hostname(ip).await
             } else {
                 None
             };
-            
+
             // Detect device type based on open ports
             let device_type = detect_device_type(&open_ports);
-            
+
             // Get current timestamp
             let last_seen = chrono::Utc::now().timestamp();
-            
+
             ScanResult {
                 ip: ip.to_string(),
                 is_alive,
@@ -350,19 +408,33 @@ pub async fn scan_network(
                 last_seen,
             }
         }));
-        
-        // Process completed futures when we hit concurrency limit
-        if futures.len() >= 50 {
-            drain_scan_futures(&mut futures, &state_arc, &mut completed, &on_progress, &on_result).await;
+
+        // Keep the window full: retire one finished probe rather than the whole batch.
+        if futures.len() >= MAX_CONCURRENT_SCANS {
+            drain_one_scan_future(
+                &mut futures,
+                &state_arc,
+                &mut completed,
+                &on_progress,
+                &on_result,
+            )
+            .await;
         }
     }
 
     // Always drain any already spawned tasks before returning.
     // This guarantees stop requests do not leave detached scan work running in background.
     if !futures.is_empty() {
-        drain_scan_futures(&mut futures, &state_arc, &mut completed, &on_progress, &on_result).await;
+        drain_scan_futures(
+            &mut futures,
+            &state_arc,
+            &mut completed,
+            &on_progress,
+            &on_result,
+        )
+        .await;
     }
-    
+
     Ok(())
 }
 
@@ -376,7 +448,9 @@ pub fn stop_scan(state: &ScannerState) {
 }
 
 pub fn get_scan_progress(state: &ScannerState) -> ScanProgress {
-    state.progress.lock()
+    state
+        .progress
+        .lock()
         .map(|p| p.clone())
         .unwrap_or_else(|_| ScanProgress {
             total: 0,
@@ -387,15 +461,11 @@ pub fn get_scan_progress(state: &ScannerState) -> ScanProgress {
 
 #[allow(dead_code)]
 pub fn get_scan_results(state: &ScannerState) -> Vec<ScanResult> {
-    state.results.lock()
-        .map(|r| r.clone())
-        .unwrap_or_default()
+    state.results.lock().map(|r| r.clone()).unwrap_or_default()
 }
 
 pub fn is_scanning(state: &ScannerState) -> bool {
-    state.is_scanning.lock()
-        .map(|s| *s)
-        .unwrap_or(false)
+    state.is_scanning.lock().map(|s| *s).unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -407,7 +477,7 @@ mod tests {
     fn test_parse_cidr() {
         let ips = parse_cidr("192.168.1.0/30").unwrap();
         assert_eq!(ips.len(), 4);
-        
+
         // Verify the IPs are correct
         assert_eq!(ips[0].to_string(), "192.168.1.0");
         assert_eq!(ips[1].to_string(), "192.168.1.1");
@@ -441,7 +511,7 @@ mod tests {
             vendor: None,
             last_seen: 1234567890,
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("192.168.1.1"));
         assert!(json.contains("is_alive"));
@@ -456,7 +526,7 @@ mod tests {
             completed: 100,
             current_ip: Some("192.168.1.100".to_string()),
         };
-        
+
         let json = serde_json::to_string(&progress).unwrap();
         assert!(json.contains("256"));
         assert!(json.contains("100"));
@@ -467,10 +537,10 @@ mod tests {
     fn test_scanner_state_new() {
         let state = ScannerState::new();
         assert!(!is_scanning(&state));
-        
+
         let results = get_scan_results(&state);
         assert!(results.is_empty());
-        
+
         let progress = get_scan_progress(&state);
         assert_eq!(progress.total, 0);
         assert_eq!(progress.completed, 0);
@@ -479,16 +549,22 @@ mod tests {
     #[test]
     fn test_stop_scan_only_sets_signal() {
         let state = ScannerState::new();
-        
+
         // Set scanning state manually (simulating an active scan)
         *state.is_scanning.lock().unwrap() = true;
         assert!(is_scanning(&state));
-        
+
         // stop_scan should only set the stop signal, NOT reset is_scanning.
         // The ScanRunningGuard (RAII) is the sole owner of is_scanning.
         stop_scan(&state);
-        assert!(is_scanning(&state), "stop_scan must not reset is_scanning; only the guard should");
-        assert!(*state.stop_signal.lock().unwrap(), "stop signal must be set");
+        assert!(
+            is_scanning(&state),
+            "stop_scan must not reset is_scanning; only the guard should"
+        );
+        assert!(
+            *state.stop_signal.lock().unwrap(),
+            "stop signal must be set"
+        );
     }
 
     #[test]
@@ -503,7 +579,10 @@ mod tests {
             assert!(is_scanning(&state));
         } // guard drops here
 
-        assert!(!is_scanning(&state), "Guard drop must reset is_scanning to false");
+        assert!(
+            !is_scanning(&state),
+            "Guard drop must reset is_scanning to false"
+        );
     }
 
     #[test]
@@ -533,7 +612,10 @@ mod tests {
         };
 
         // is_scanning must still be true — no stale guard can interfere
-        assert!(is_scanning(&state), "Scan 2 must remain active after scan 1's guard dropped");
+        assert!(
+            is_scanning(&state),
+            "Scan 2 must remain active after scan 1's guard dropped"
+        );
     }
 
     #[test]
@@ -550,7 +632,7 @@ mod tests {
             vendor: None,
             last_seen: 1234567890,
         };
-        
+
         assert_eq!(result.ip, "10.0.0.1");
         assert!(result.is_alive);
         assert_eq!(result.latency_ms, Some(5));
@@ -571,7 +653,7 @@ mod tests {
             vendor: None,
             last_seen: 1234567890,
         };
-        
+
         assert!(!result.is_alive);
         assert!(result.open_ports.is_empty());
         assert_eq!(result.latency_ms, None);
@@ -657,15 +739,65 @@ mod tests {
         let on_progress = |_p: ScanProgress| {};
         let on_result = |_r: ScanResult| {};
 
-        drain_scan_futures(&mut futures, &state, &mut completed, &on_progress, &on_result).await;
+        drain_scan_futures(
+            &mut futures,
+            &state,
+            &mut completed,
+            &on_progress,
+            &on_result,
+        )
+        .await;
 
-        assert!(futures.is_empty(), "All spawned futures must be drained before returning");
-        assert_eq!(completed, 3, "Completed count must include all pending tasks");
+        assert!(
+            futures.is_empty(),
+            "All spawned futures must be drained before returning"
+        );
+        assert_eq!(
+            completed, 3,
+            "Completed count must include all pending tasks"
+        );
 
         let stored = state.results.lock().unwrap();
-        assert_eq!(stored.len(), 3, "All drained task results must be persisted");
+        assert_eq!(
+            stored.len(),
+            3,
+            "All drained task results must be persisted"
+        );
 
         let progress = state.progress.lock().unwrap();
         assert_eq!(progress.completed, 3, "Progress must reflect drained tasks");
+    }
+
+    #[tokio::test]
+    async fn test_drain_one_scan_future_retires_exactly_one_task() {
+        let state = Arc::new(ScannerState::new());
+        let mut futures = FuturesUnordered::new();
+
+        for ip in ["10.0.0.1", "10.0.0.2", "10.0.0.3"] {
+            futures.push(tokio::spawn(async move {
+                sleep(TokioDuration::from_millis(1)).await;
+                build_test_scan_result(ip)
+            }));
+        }
+
+        let mut completed = 0;
+        let on_progress = |_p: ScanProgress| {};
+        let on_result = |_r: ScanResult| {};
+
+        drain_one_scan_future(
+            &mut futures,
+            &state,
+            &mut completed,
+            &on_progress,
+            &on_result,
+        )
+        .await;
+
+        // A sliding window frees a single slot; the rest must stay in flight so the
+        // scan is not gated on the slowest host in the batch.
+        assert_eq!(completed, 1, "exactly one task should be retired");
+        assert_eq!(futures.len(), 2, "remaining tasks must stay pending");
+        assert_eq!(state.results.lock().unwrap().len(), 1);
+        assert_eq!(state.progress.lock().unwrap().completed, 1);
     }
 }

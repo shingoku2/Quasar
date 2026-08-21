@@ -90,13 +90,13 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
    - Action nodes for SSH command execution, file transfer, notifications
    - Canvas.tsx component for building workflows
    - Workflow engine in Rust to execute automation flows
-- **Rust/Cargo:** **Functional**. (v1.93.0). 
-  - `russh` 0.57 - SSH client library
-  - `surge-ping` 0.7 - ICMP ping for network scanning
-  - `cidr-utils` 0.5 - CIDR notation parsing
-  - `tokio` 1.49 - Async runtime with full features
-- **Node.js:** Functional.
-- **Dependencies:** `xterm.js`, `lucide-react`, `recharts`, `@tauri-apps/api`, `@tauri-apps/plugin-sql`
+- **Rust/Cargo:** **Functional**. (minimum v1.95; current stable in CI).
+  - `russh` 0.62.5 - SSH client library
+  - `surge-ping` 0.9 - ICMP ping for network scanning
+  - `cidr-utils` 0.7 - CIDR notation parsing
+  - `tokio` 1.53 - Async runtime with full features
+- **Node.js:** 24.15+ with npm 12.0.2+.
+- **Dependencies:** `xterm.js`, `lucide-react`, `recharts`, `@tauri-apps/api`
 
 ## Next Steps / Pending Tasks
 - **Module D: Automation Workflow Editor:** Implement the React Flow canvas for visual playbooks.

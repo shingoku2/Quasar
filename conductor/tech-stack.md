@@ -14,7 +14,7 @@
     - `rust-vnc`: Native VNC implementation.
     - `argon2`: Password hashing (Argon2id).
     - `aes-gcm`: AES-256-GCM encryption.
-    - `tauri-plugin-sql`: SQLite database interaction.
+    - `rusqlite`: Backend-owned SQLite database interaction and migrations.
     - `mdns-sd`: Zero-config LAN discovery.
     - `ollama-rs`: Ollama REST API interaction.
     - `tokio-stream`: Async stream utilities for AI chat.
@@ -30,7 +30,7 @@
 ## Data & Storage
 - **Database:** SQLite (WAL mode)
 - **Schema Management:** Automated migrations on startup.
-- **Encryption:** Sensitive fields (passwords, keys) encrypted at rest using libsodium.
+- **Encryption:** Sensitive fields (passwords, keys) encrypted at rest using AES-256-GCM.
 
 ## External Tools & Sidecars
 - **AI/LLM:** Ollama (Local inference, optional sidecar)
@@ -39,6 +39,6 @@
 
 ## Infrastructure & Build
 - **Build Tool:** Cargo (Rust), Vite (Frontend)
-- **Package Manager:** npm / pnpm
+- **Package Manager:** npm 12.0.2
 - **CI/CD:** GitHub Actions
 - **Distribution:** MSI (Windows), DMG (macOS), Deb/AppImage (Linux)

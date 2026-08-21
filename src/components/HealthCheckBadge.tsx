@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Activity, AlertCircle, CheckCircle } from 'lucide-react';
+import { useVisiblePolling } from '../hooks/useViewVisibility';
 
 interface HealthStatus {
   reachable: boolean;
@@ -17,25 +18,22 @@ const HealthCheckBadge: React.FC<HealthCheckBadgeProps> = ({ host, className = '
   const [status, setStatus] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const checkHealth = async () => {
-      setLoading(true);
-      try {
-        const result = await invoke<HealthStatus>('preflight_check', { host });
-        setStatus(result);
-      } catch (err) {
-        setStatus({ reachable: false, error: 'Check failed' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkHealth();
-
-    // Refresh every 30 seconds
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
-  }, [host]);
+  // One badge is rendered per saved host, so each of these is an independent
+  // ICMP probe. Gating on visibility stops the whole fleet of them from pinging
+  // while the host list is off screen; `[host]` keeps the immediate refetch when
+  // the row's address changes.
+  const checkHealth = async () => {
+    setLoading(true);
+    try {
+      const result = await invoke<HealthStatus>('preflight_check', { host });
+      setStatus(result);
+    } catch {
+      setStatus({ reachable: false, error: 'Check failed' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  useVisiblePolling(checkHealth, 30000, [host]);
 
   if (loading && !status) {
     return (

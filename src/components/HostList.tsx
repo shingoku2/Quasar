@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 import Discovery, { DiscoveredHost } from './Discovery';
 import HealthCheckBadge from './HealthCheckBadge';
 import { AddHostInitialValues } from './AddHostDialog';
@@ -13,6 +13,17 @@ export interface Host {
   username?: string;
 }
 
+const PROTOCOL_BADGE_STYLES: Record<string, string> = {
+  ssh: 'bg-blue-900/50 text-blue-300',
+  rdp: 'bg-purple-900/50 text-purple-300',
+  database: 'bg-emerald-900/50 text-emerald-300',
+  api: 'bg-amber-900/50 text-amber-300',
+};
+const DEFAULT_BADGE_STYLE = 'bg-gray-700/50 text-gray-300';
+
+/** Protocols the app can actually open a session for (terminal or RDP client). */
+const CONNECTABLE_PROTOCOLS = ['ssh', 'rdp'];
+
 const HostList: React.FC<{ 
   onConnect: (host: Host) => void;
   onSftp: (host: Host) => void;
@@ -24,8 +35,7 @@ const HostList: React.FC<{
 
   const fetchHosts = async () => {
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      const result = await db.select<Host[]>("SELECT * FROM hosts ORDER BY name ASC");
+      const result = await invoke<Host[]>("get_saved_hosts");
       setHosts(result);
     } catch (err) {
       console.error("Failed to fetch hosts:", err);
@@ -62,10 +72,7 @@ const HostList: React.FC<{
     }
 
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      for (const id of duplicateHostIds) {
-        await db.execute("DELETE FROM hosts WHERE id = ?", [id]);
-      }
+      await invoke("remove_saved_hosts", { ids: duplicateHostIds });
       await fetchHosts();
       window.dispatchEvent(new Event('hostsUpdated'));
     } catch (err) {
@@ -107,8 +114,7 @@ const HostList: React.FC<{
     }
 
     try {
-      const db = await Database.load("sqlite:quasar.db");
-      await db.execute("DELETE FROM hosts WHERE id = ?", [host.id]);
+      await invoke("remove_saved_hosts", { ids: [host.id] });
       await fetchHosts();
       window.dispatchEvent(new Event('hostsUpdated'));
     } catch (err) {
@@ -171,7 +177,7 @@ const HostList: React.FC<{
                   <td className="px-4 py-3 font-medium text-gray-200">{host.name}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                      host.protocol === 'ssh' ? 'bg-blue-900/50 text-blue-300' : 'bg-purple-900/50 text-purple-300'
+                      PROTOCOL_BADGE_STYLES[host.protocol] ?? DEFAULT_BADGE_STYLE
                     }`}>
                       {host.protocol}
                     </span>
@@ -191,19 +197,21 @@ const HostList: React.FC<{
                         Remove
                       </button>
                       {host.protocol === 'ssh' && (
-                        <button 
+                        <button
                           onClick={() => onSftp(host)}
                           className="text-gray-400 hover:text-accent font-medium transition-colors"
                         >
                           SFTP
                         </button>
                       )}
-                      <button 
-                        onClick={() => onConnect(host)}
-                        className="text-accent hover:text-accent/80 font-medium transition-colors"
-                      >
-                        Connect
-                      </button>
+                      {CONNECTABLE_PROTOCOLS.includes(host.protocol) && (
+                        <button
+                          onClick={() => onConnect(host)}
+                          className="text-accent hover:text-accent/80 font-medium transition-colors"
+                        >
+                          Connect
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

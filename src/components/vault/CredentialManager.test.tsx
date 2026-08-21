@@ -185,4 +185,39 @@ describe('CredentialManager', () => {
       }));
     });
   });
+
+  it('sends camelCase argument keys when updating a credential', async () => {
+    const fullCred = { ...mockCredentials[0], password: 'secret123' };
+    mockInvoke
+      .mockResolvedValueOnce(mockCredentials as any) // initial list
+      .mockResolvedValueOnce(fullCred as any) // get_credential for edit dialog
+      .mockResolvedValueOnce(undefined) // update_credential
+      .mockResolvedValueOnce(mockCredentials as any); // reload
+
+    render(<CredentialManager />);
+    await waitFor(() => expect(screen.getByText('Prod SSH')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByTitle('Edit')[0]);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Edit Credential/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('update_credential', expect.objectContaining({
+        credentialId: '1',
+        credentialType: 'ssh',
+      }));
+    });
+
+    // Tauri matches invoke args against camelCased Rust parameter names and
+    // silently drops unmatched keys, so a snake_case key here means the field
+    // never reaches the backend. Guard the whole payload.
+    const updateCall = mockInvoke.mock.calls.find(([cmd]) => cmd === 'update_credential');
+    expect(updateCall).toBeDefined();
+    for (const key of Object.keys(updateCall![1] as Record<string, unknown>)) {
+      expect(key).not.toMatch(/_/);
+    }
+  });
 });

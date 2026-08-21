@@ -1,14 +1,14 @@
+use crate::crypto;
+use crate::validation;
+use crate::vault::SshKeyManager;
+use log::error;
+use russh::keys::PublicKeyBase64;
+use russh::*;
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
-use russh::*;
-use russh::keys::PublicKeyBase64;
-use log::error;
-use crate::crypto;
-use crate::vault::SshKeyManager;
-use crate::validation;
 
 #[derive(Clone)]
 pub struct Client {
@@ -30,12 +30,10 @@ impl client::Handler for Client {
         let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key";
 
-        match ssh_key_manager.verify_host_key_by_fingerprint(
-            &self.host,
-            self.port,
-            &fingerprint,
-            key_type,
-        ).await {
+        match ssh_key_manager
+            .verify_host_key_by_fingerprint(&self.host, self.port, &fingerprint, key_type)
+            .await
+        {
             Ok(result) => {
                 if result.allowed {
                     Ok(true)
@@ -43,15 +41,18 @@ impl client::Handler for Client {
                     // keyBytes is included because trust_ssh_host_key needs the raw public key
                     // bytes to store in the ssh_known_hosts table. Omitting it would require
                     // server-side caching of pending host keys by fingerprint.
-                    let _ = self.app_handle.emit("ssh-host-key-verification", serde_json::json!({
-                        "host": self.host,
-                        "port": self.port,
-                        "fingerprint": fingerprint,
-                        "keyType": key_type,
-                        "keyBytes": key_bytes,
-                        "status": format!("{:?}", result.status),
-                        "message": result.message,
-                    }));
+                    let _ = self.app_handle.emit(
+                        "ssh-host-key-verification",
+                        serde_json::json!({
+                            "host": self.host,
+                            "port": self.port,
+                            "fingerprint": fingerprint,
+                            "keyType": key_type,
+                            "keyBytes": key_bytes,
+                            "status": format!("{:?}", result.status),
+                            "message": result.message,
+                        }),
+                    );
                     Err(russh::Error::Disconnect)
                 }
             }
@@ -125,15 +126,9 @@ pub async fn connect_ssh(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(5),
-        russh::client::connect(config, addr, sh)
-    ).await {
-        Ok(res) => res.map_err(|e| e.to_string())?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, &host, port, sh, Duration::from_secs(10))
+            .await?;
 
     crate::ssh_auth::authenticate(
         &mut session,
@@ -142,14 +137,24 @@ pub async fn connect_ssh(
         key_path.as_deref(),
         private_key.as_deref(),
         key_passphrase.as_deref(),
-    ).await?;
+    )
+    .await?;
 
-    let mut channel = session.channel_open_session().await.map_err(|e| e.to_string())?;
+    let mut channel = session
+        .channel_open_session()
+        .await
+        .map_err(|e| e.to_string())?;
     if enable_agent_forwarding {
         let _ = channel.agent_forward(true).await; // best-effort; server may not support it
     }
-    channel.request_pty(false, "xterm", 80, 24, 0, 0, &[]).await.map_err(|e| e.to_string())?;
-    channel.request_shell(true).await.map_err(|e| e.to_string())?;
+    channel
+        .request_pty(false, "xterm", 80, 24, 0, 0, &[])
+        .await
+        .map_err(|e| e.to_string())?;
+    channel
+        .request_shell(true)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let bytes_received = Arc::new(AtomicU64::new(0));
 
@@ -187,11 +192,15 @@ pub async fn connect_ssh(
         loop {
             // Drain pending writes before blocking on wait() (FIFO so order is preserved)
             while let Some(data) = pending_writes.pop_front() {
-                if channel.data(data.as_slice()).await.is_err() { return; }
+                if channel.data(data.as_slice()).await.is_err() {
+                    return;
+                }
             }
             // Drain any freshly-queued writes (non-blocking)
             while let Ok(data) = write_rx.try_recv() {
-                if channel.data(data.as_slice()).await.is_err() { return; }
+                if channel.data(data.as_slice()).await.is_err() {
+                    return;
+                }
             }
             // Drain pending + freshly-queued resizes (FIFO so order is preserved)
             while let Some((cols, rows)) = pending_resizes.pop_front() {
@@ -282,7 +291,9 @@ pub async fn connect_ssh(
         resize_tx,
     };
 
-    state.sessions.lock()
+    state
+        .sessions
+        .lock()
         .map_err(|e| format!("Failed to acquire session lock: {}", e))?
         .insert(id.clone(), conn);
 
@@ -349,9 +360,12 @@ pub async fn write_ssh(
     data: String,
 ) -> Result<(), String> {
     let (write_tx, last_activity) = {
-        let sessions = state.sessions.lock()
+        let sessions = state
+            .sessions
+            .lock()
             .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
-        sessions.get(&id)
+        sessions
+            .get(&id)
             .map(|c| (c.write_tx.clone(), c.last_activity.clone()))
             .ok_or("Session not found")?
     };
@@ -360,7 +374,9 @@ pub async fn write_ssh(
         *activity = Instant::now();
     }
 
-    write_tx.send(data.into_bytes()).map_err(|_| "Session write channel closed".to_string())?;
+    write_tx
+        .send(data.into_bytes())
+        .map_err(|_| "Session write channel closed".to_string())?;
     Ok(())
 }
 
@@ -372,24 +388,28 @@ pub async fn resize_ssh(
     cols: u32,
 ) -> Result<(), String> {
     let resize_tx = {
-        let sessions = state.sessions.lock()
+        let sessions = state
+            .sessions
+            .lock()
             .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
-        sessions.get(&id)
+        sessions
+            .get(&id)
             .map(|c| c.resize_tx.clone())
             .ok_or("Session not found")?
     };
 
-    resize_tx.send((cols, rows)).map_err(|_| "Resize channel closed".to_string())?;
+    resize_tx
+        .send((cols, rows))
+        .map_err(|_| "Resize channel closed".to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn disconnect_ssh(
-    state: tauri::State<'_, SshState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn disconnect_ssh(state: tauri::State<'_, SshState>, id: String) -> Result<(), String> {
     let conn = {
-        let mut sessions = state.sessions.lock()
+        let mut sessions = state
+            .sessions
+            .lock()
             .map_err(|e| format!("Failed to acquire session lock: {}", e))?;
         sessions.remove(&id)
     };

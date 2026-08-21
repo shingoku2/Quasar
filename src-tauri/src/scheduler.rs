@@ -3,12 +3,12 @@
 
 use chrono::{DateTime, Utc};
 use cron::Schedule;
+use log::{error, info};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::time::interval;
-use log::{error, info};
 
 use crate::db;
 use crate::ssh_exec;
@@ -73,23 +73,27 @@ fn load_enabled_tasks(conn: &rusqlite::Connection) -> Result<Vec<TaskRow>, Strin
         "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, created_at, updated_at, task_type, local_path, remote_path
          FROM scheduled_tasks WHERE enabled = 1"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([], |row| {
-        Ok(TaskRow {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            cron_expression: row.get(2)?,
-            host_id: row.get(3)?,
-            command: row.get(4)?,
-            credential_id: row.get(5)?,
-            enabled: row.get::<_, i64>(6)?,
-            last_run_at: row.get(7)?,
-            created_at: row.get(8)?,
-            updated_at: row.get(9)?,
-            task_type: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "ssh".to_string()),
-            local_path: row.get(11)?,
-            remote_path: row.get(12)?,
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(TaskRow {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                cron_expression: row.get(2)?,
+                host_id: row.get(3)?,
+                command: row.get(4)?,
+                credential_id: row.get(5)?,
+                enabled: row.get::<_, i64>(6)?,
+                last_run_at: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+                task_type: row
+                    .get::<_, Option<String>>(10)?
+                    .unwrap_or_else(|| "ssh".to_string()),
+                local_path: row.get(11)?,
+                remote_path: row.get(12)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
     rows.map(|r| r.map_err(|e| e.to_string())).collect()
 }
 
@@ -97,16 +101,19 @@ fn get_host_credentials(
     conn: &rusqlite::Connection,
     host_id: &str,
 ) -> Result<Option<(String, i64, String)>, String> {
-    let mut stmt = conn.prepare(
-        "SELECT address, port, username FROM hosts WHERE id = ?1"
-    ).map_err(|e| e.to_string())?;
-    let mut rows = stmt.query_map(rusqlite::params![host_id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, i64>(1)?,
-            row.get::<_, Option<String>>(2)?.unwrap_or_else(|| "root".to_string()),
-        ))
-    }).map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT address, port, username FROM hosts WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map(rusqlite::params![host_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?
+                    .unwrap_or_else(|| "root".to_string()),
+            ))
+        })
+        .map_err(|e| e.to_string())?;
     rows.next().transpose().map_err(|e| e.to_string())
 }
 
@@ -122,7 +129,13 @@ fn set_run_result(
 ) -> Result<(), String> {
     let output_trunc = output_opt.map(|s| {
         if s.len() > MAX_OUTPUT_LEN {
-            format!("{}...", &s[..MAX_OUTPUT_LEN])
+            // Truncate on a UTF-8 char boundary: remote command output is arbitrary
+            // text, and slicing mid-codepoint would panic.
+            let mut end = MAX_OUTPUT_LEN;
+            while end > 0 && !s.is_char_boundary(end) {
+                end -= 1;
+            }
+            format!("{}...", &s[..end])
         } else {
             s.to_string()
         }
@@ -140,55 +153,66 @@ pub fn list_scheduled_tasks(conn: &rusqlite::Connection) -> Result<Vec<Scheduled
         "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, last_run_status, last_run_error, last_run_output, created_at, updated_at, task_type, local_path, remote_path
          FROM scheduled_tasks ORDER BY name ASC"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([], |row| {
-        Ok(ScheduledTask {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            cron_expression: row.get(2)?,
-            host_id: row.get(3)?,
-            command: row.get(4)?,
-            credential_id: row.get(5)?,
-            enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
-            last_run_at: row.get(7)?,
-            last_run_status: row.get(8)?,
-            last_run_error: row.get(9)?,
-            last_run_output: row.get(10)?,
-            created_at: row.get(11)?,
-            updated_at: row.get(12)?,
-            task_type: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "ssh".to_string()),
-            local_path: row.get(14)?,
-            remote_path: row.get(15)?,
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(ScheduledTask {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                cron_expression: row.get(2)?,
+                host_id: row.get(3)?,
+                command: row.get(4)?,
+                credential_id: row.get(5)?,
+                enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
+                last_run_at: row.get(7)?,
+                last_run_status: row.get(8)?,
+                last_run_error: row.get(9)?,
+                last_run_output: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
+                task_type: row
+                    .get::<_, Option<String>>(13)?
+                    .unwrap_or_else(|| "ssh".to_string()),
+                local_path: row.get(14)?,
+                remote_path: row.get(15)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
     rows.map(|r| r.map_err(|e| e.to_string())).collect()
 }
 
 /// Fetch a single task by id.
-pub fn get_scheduled_task(conn: &rusqlite::Connection, id: &str) -> Result<Option<ScheduledTask>, String> {
+pub fn get_scheduled_task(
+    conn: &rusqlite::Connection,
+    id: &str,
+) -> Result<Option<ScheduledTask>, String> {
     let mut stmt = conn.prepare(
         "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, last_run_status, last_run_error, last_run_output, created_at, updated_at, task_type, local_path, remote_path
          FROM scheduled_tasks WHERE id = ?1"
     ).map_err(|e| e.to_string())?;
-    let mut rows = stmt.query_map(rusqlite::params![id], |row| {
-        Ok(ScheduledTask {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            cron_expression: row.get(2)?,
-            host_id: row.get(3)?,
-            command: row.get(4)?,
-            credential_id: row.get(5)?,
-            enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
-            last_run_at: row.get(7)?,
-            last_run_status: row.get(8)?,
-            last_run_error: row.get(9)?,
-            last_run_output: row.get(10)?,
-            created_at: row.get(11)?,
-            updated_at: row.get(12)?,
-            task_type: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "ssh".to_string()),
-            local_path: row.get(14)?,
-            remote_path: row.get(15)?,
+    let mut rows = stmt
+        .query_map(rusqlite::params![id], |row| {
+            Ok(ScheduledTask {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                cron_expression: row.get(2)?,
+                host_id: row.get(3)?,
+                command: row.get(4)?,
+                credential_id: row.get(5)?,
+                enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
+                last_run_at: row.get(7)?,
+                last_run_status: row.get(8)?,
+                last_run_error: row.get(9)?,
+                last_run_output: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
+                task_type: row
+                    .get::<_, Option<String>>(13)?
+                    .unwrap_or_else(|| "ssh".to_string()),
+                local_path: row.get(14)?,
+                remote_path: row.get(15)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
     rows.next().transpose().map_err(|e| e.to_string())
 }
 
@@ -198,23 +222,27 @@ fn load_task_by_id(conn: &rusqlite::Connection, task_id: &str) -> Result<Option<
         "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, created_at, updated_at, task_type, local_path, remote_path
          FROM scheduled_tasks WHERE id = ?1"
     ).map_err(|e| e.to_string())?;
-    let mut rows = stmt.query_map(rusqlite::params![task_id], |row| {
-        Ok(TaskRow {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            cron_expression: row.get(2)?,
-            host_id: row.get(3)?,
-            command: row.get(4)?,
-            credential_id: row.get(5)?,
-            enabled: row.get::<_, i64>(6)?,
-            last_run_at: row.get(7)?,
-            created_at: row.get(8)?,
-            updated_at: row.get(9)?,
-            task_type: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "ssh".to_string()),
-            local_path: row.get(11)?,
-            remote_path: row.get(12)?,
+    let mut rows = stmt
+        .query_map(rusqlite::params![task_id], |row| {
+            Ok(TaskRow {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                cron_expression: row.get(2)?,
+                host_id: row.get(3)?,
+                command: row.get(4)?,
+                credential_id: row.get(5)?,
+                enabled: row.get::<_, i64>(6)?,
+                last_run_at: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+                task_type: row
+                    .get::<_, Option<String>>(10)?
+                    .unwrap_or_else(|| "ssh".to_string()),
+                local_path: row.get(11)?,
+                remote_path: row.get(12)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
     rows.next().transpose().map_err(|e| e.to_string())
 }
 
@@ -293,7 +321,12 @@ pub fn update_scheduled_task(
 
 /// Remove a scheduled task.
 pub fn remove_scheduled_task(conn: &rusqlite::Connection, id: &str) -> Result<(), String> {
-    let updated = conn.execute("DELETE FROM scheduled_tasks WHERE id = ?1", rusqlite::params![id]).map_err(|e| e.to_string())?;
+    let updated = conn
+        .execute(
+            "DELETE FROM scheduled_tasks WHERE id = ?1",
+            rusqlite::params![id],
+        )
+        .map_err(|e| e.to_string())?;
     if updated == 0 {
         return Err("Task not found".to_string());
     }
@@ -325,13 +358,17 @@ async fn resolve_cred_for_task(
     credential_id: Option<&str>,
 ) -> Result<(String, Option<String>, Option<String>, Option<String>), String> {
     let (password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
-        let vault_state = app.try_state::<crate::vault::VaultState>()
+        let vault_state = app
+            .try_state::<crate::vault::VaultState>()
             .ok_or_else(|| "Vault not available".to_string())?;
-        let credential_manager = app.try_state::<crate::vault::CredentialManager>()
+        let credential_manager = app
+            .try_state::<crate::vault::CredentialManager>()
             .ok_or_else(|| "Credential manager not available".to_string())?;
-        let key = vault_state.get_master_key().await
-            .map_err(|_| "Vault is locked — unlock the vault for scheduled tasks to run".to_string())?;
-        let cred = credential_manager.get_credential(&key, cid)
+        let key = vault_state.get_master_key().await.map_err(|_| {
+            "Vault is locked — unlock the vault for scheduled tasks to run".to_string()
+        })?;
+        let cred = credential_manager
+            .get_credential(&key, cid)
             .map_err(|e| format!("Credential error: {}", e))?;
         (
             cred.password,
@@ -375,9 +412,19 @@ async fn run_one_task(
                 local,
                 remote,
                 None,
-            ).await {
-                Ok(()) => Ok(TaskRunResult { success: true, output: Some("Upload completed.".to_string()), error: None }),
-                Err(e) => Ok(TaskRunResult { success: false, output: None, error: Some(e) }),
+            )
+            .await
+            {
+                Ok(()) => Ok(TaskRunResult {
+                    success: true,
+                    output: Some("Upload completed.".to_string()),
+                    error: None,
+                }),
+                Err(e) => Ok(TaskRunResult {
+                    success: false,
+                    output: None,
+                    error: Some(e),
+                }),
             }
         }
         "sftp_download" => {
@@ -394,9 +441,19 @@ async fn run_one_task(
                 remote,
                 local,
                 None,
-            ).await {
-                Ok(()) => Ok(TaskRunResult { success: true, output: Some("Download completed.".to_string()), error: None }),
-                Err(e) => Ok(TaskRunResult { success: false, output: None, error: Some(e) }),
+            )
+            .await
+            {
+                Ok(()) => Ok(TaskRunResult {
+                    success: true,
+                    output: Some("Download completed.".to_string()),
+                    error: None,
+                }),
+                Err(e) => Ok(TaskRunResult {
+                    success: false,
+                    output: None,
+                    error: Some(e),
+                }),
             }
         }
         _ => {
@@ -411,7 +468,9 @@ async fn run_one_task(
                 key_passphrase,
                 command,
                 SSH_TIMEOUT_SECS,
-            ).await {
+            )
+            .await
+            {
                 Ok(output) => Ok(TaskRunResult {
                     success: true,
                     output: Some(output),
@@ -428,13 +487,18 @@ async fn run_one_task(
 }
 
 /// Run a scheduled task once by id (manual run). Updates last_run_* and returns the result.
-pub async fn run_scheduled_task_now(app: &AppHandle, task_id: &str) -> Result<TaskRunResult, String> {
+pub async fn run_scheduled_task_now(
+    app: &AppHandle,
+    task_id: &str,
+) -> Result<TaskRunResult, String> {
     let db_path = get_db_path(app)?;
-    let db_path_str = db_path.to_str().ok_or_else(|| "Invalid database path".to_string())?.to_string();
+    let db_path_str = db_path
+        .to_str()
+        .ok_or_else(|| "Invalid database path".to_string())?
+        .to_string();
     let conn = db::open_connection(&db_path_str)?;
 
-    let task = load_task_by_id(&conn, task_id)?
-        .ok_or_else(|| "Task not found".to_string())?;
+    let task = load_task_by_id(&conn, task_id)?.ok_or_else(|| "Task not found".to_string())?;
     let host_info = get_host_credentials(&conn, &task.host_id)?
         .ok_or_else(|| format!("Host not found: {}", task.host_id))?;
 
@@ -461,7 +525,8 @@ pub async fn run_scheduled_task_now(app: &AppHandle, task_id: &str) -> Result<Ta
         &task_command,
         local_path.as_deref(),
         remote_path.as_deref(),
-    ).await?;
+    )
+    .await?;
 
     let conn2 = db::open_connection(&db_path_str)?;
     let status = if result.success { "success" } else { "failure" };
@@ -533,7 +598,10 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
         let host_info = match get_host_credentials(&conn, &task.host_id) {
             Ok(Some(h)) => h,
             Ok(None) => {
-                error!("scheduler: host_id {} not found for task {}", task.host_id, task.name);
+                error!(
+                    "scheduler: host_id {} not found for task {}",
+                    task.host_id, task.name
+                );
                 continue;
             }
             Err(e) => {
@@ -567,11 +635,16 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
                     &task_command,
                     local_path.as_deref(),
                     remote_path.as_deref(),
-                ).await
+                )
+                .await
             }
             Err(e) => {
                 error!("scheduler: task '{}' cred error: {}", task_name, e);
-                Ok(TaskRunResult { success: false, output: None, error: Some(e) })
+                Ok(TaskRunResult {
+                    success: false,
+                    output: None,
+                    error: Some(e),
+                })
             }
         };
 
@@ -609,7 +682,9 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
             }
             Err(e) => {
                 error!("scheduler: task '{}' run error: {}", task_name, e);
-                if let Err(pe) = set_run_result(&conn2, &task_id, now_ts, "failure", Some(e.as_str()), None) {
+                if let Err(pe) =
+                    set_run_result(&conn2, &task_id, now_ts, "failure", Some(e.as_str()), None)
+                {
                     error!(
                         "scheduler: failed to persist run result for task '{}': {}",
                         task_name, pe
@@ -728,8 +803,20 @@ mod tests {
 
         // set_run_result success
         let now_ts = Utc::now().timestamp();
-        set_run_result(&conn, &id, now_ts, "success", None, Some("Backup completed.")).unwrap();
-        let task = list_scheduled_tasks(&conn).unwrap().into_iter().next().unwrap();
+        set_run_result(
+            &conn,
+            &id,
+            now_ts,
+            "success",
+            None,
+            Some("Backup completed."),
+        )
+        .unwrap();
+        let task = list_scheduled_tasks(&conn)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
         assert_eq!(task.last_run_at, Some(now_ts));
         assert_eq!(task.last_run_status.as_deref(), Some("success"));
         assert!(task.last_run_error.is_none());
@@ -758,17 +845,62 @@ mod tests {
     #[test]
     fn test_load_enabled_tasks_only_returns_enabled() {
         let conn = test_conn();
-        conn.execute("INSERT INTO hosts (id, address, port, username) VALUES ('h1', '127.0.0.1', 22, 'u')", []).unwrap();
-        conn.execute("INSERT INTO hosts (id, address, port, username) VALUES ('h2', '127.0.0.1', 22, 'u')", []).unwrap();
-        let id1 = add_scheduled_task(&conn, "Task1", "0 0 * * * *", "h1", "cmd1", None, true, "ssh", None, None).unwrap();
-        let id2 = add_scheduled_task(&conn, "Task2", "0 0 * * * *", "h2", "cmd2", None, false, "ssh", None, None).unwrap();
+        conn.execute(
+            "INSERT INTO hosts (id, address, port, username) VALUES ('h1', '127.0.0.1', 22, 'u')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO hosts (id, address, port, username) VALUES ('h2', '127.0.0.1', 22, 'u')",
+            [],
+        )
+        .unwrap();
+        let id1 = add_scheduled_task(
+            &conn,
+            "Task1",
+            "0 0 * * * *",
+            "h1",
+            "cmd1",
+            None,
+            true,
+            "ssh",
+            None,
+            None,
+        )
+        .unwrap();
+        let id2 = add_scheduled_task(
+            &conn,
+            "Task2",
+            "0 0 * * * *",
+            "h2",
+            "cmd2",
+            None,
+            false,
+            "ssh",
+            None,
+            None,
+        )
+        .unwrap();
 
         let enabled = load_enabled_tasks(&conn).unwrap();
         assert_eq!(enabled.len(), 1);
         assert_eq!(enabled[0].id, id1);
         assert_eq!(enabled[0].name, "Task1");
 
-        update_scheduled_task(&conn, &id2, "Task2", "0 0 * * * *", "h2", "cmd2", None, true, "ssh", None, None).unwrap();
+        update_scheduled_task(
+            &conn,
+            &id2,
+            "Task2",
+            "0 0 * * * *",
+            "h2",
+            "cmd2",
+            None,
+            true,
+            "ssh",
+            None,
+            None,
+        )
+        .unwrap();
         let enabled = load_enabled_tasks(&conn).unwrap();
         assert_eq!(enabled.len(), 2);
     }
@@ -778,8 +910,24 @@ mod tests {
         let conn = test_conn();
         assert!(load_task_by_id(&conn, "nonexistent").unwrap().is_none());
 
-        conn.execute("INSERT INTO hosts (id, address, port, username) VALUES ('host', '127.0.0.1', 22, 'u')", []).unwrap();
-        let id = add_scheduled_task(&conn, "One", "0 0 0 * * *", "host", "echo ok", None, true, "ssh", None, None).unwrap();
+        conn.execute(
+            "INSERT INTO hosts (id, address, port, username) VALUES ('host', '127.0.0.1', 22, 'u')",
+            [],
+        )
+        .unwrap();
+        let id = add_scheduled_task(
+            &conn,
+            "One",
+            "0 0 0 * * *",
+            "host",
+            "echo ok",
+            None,
+            true,
+            "ssh",
+            None,
+            None,
+        )
+        .unwrap();
         let row = load_task_by_id(&conn, &id).unwrap().unwrap();
         assert_eq!(row.id, id);
         assert_eq!(row.name, "One");
@@ -789,12 +937,64 @@ mod tests {
     #[test]
     fn test_set_run_result_truncates_long_output() {
         let conn = test_conn();
-        conn.execute("INSERT INTO hosts (id, address, port, username) VALUES ('h', '127.0.0.1', 22, 'u')", []).unwrap();
-        let id = add_scheduled_task(&conn, "Big", "0 0 0 * * *", "h", "cmd", None, true, "ssh", None, None).unwrap();
+        conn.execute(
+            "INSERT INTO hosts (id, address, port, username) VALUES ('h', '127.0.0.1', 22, 'u')",
+            [],
+        )
+        .unwrap();
+        let id = add_scheduled_task(
+            &conn,
+            "Big",
+            "0 0 0 * * *",
+            "h",
+            "cmd",
+            None,
+            true,
+            "ssh",
+            None,
+            None,
+        )
+        .unwrap();
         let now = Utc::now().timestamp();
         let long = "x".repeat(5000);
         set_run_result(&conn, &id, now, "success", None, Some(&long)).unwrap();
         let task = get_scheduled_task(&conn, &id).unwrap().unwrap();
         assert!(task.last_run_output.as_ref().map(|s| s.len()).unwrap_or(0) <= MAX_OUTPUT_LEN + 3);
+    }
+
+    #[test]
+    fn test_set_run_result_truncates_multibyte_output_without_panicking() {
+        let conn = test_conn();
+        conn.execute(
+            "INSERT INTO hosts (id, address, port, username) VALUES ('h', '127.0.0.1', 22, 'u')",
+            [],
+        )
+        .unwrap();
+        let id = add_scheduled_task(
+            &conn,
+            "Unicode",
+            "0 0 0 * * *",
+            "h",
+            "cmd",
+            None,
+            true,
+            "ssh",
+            None,
+            None,
+        )
+        .unwrap();
+
+        // 'é' is two bytes and straddles the MAX_OUTPUT_LEN cut point, so a naive
+        // byte slice at that index panics.
+        let output = format!("{}é{}", "x".repeat(MAX_OUTPUT_LEN - 1), "y".repeat(100));
+        assert!(!output.is_char_boundary(MAX_OUTPUT_LEN));
+
+        let now = Utc::now().timestamp();
+        set_run_result(&conn, &id, now, "success", None, Some(&output)).unwrap();
+
+        let task = get_scheduled_task(&conn, &id).unwrap().unwrap();
+        let stored = task.last_run_output.unwrap();
+        assert!(stored.ends_with("..."));
+        assert!(stored.len() <= MAX_OUTPUT_LEN + 3);
     }
 }

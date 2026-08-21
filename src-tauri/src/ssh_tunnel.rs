@@ -2,17 +2,17 @@
 //! Listens on a local port and forwards each connection through the SSH session
 //! to a remote host:port via direct-tcpip channels.
 
+use log::{error, info};
+use russh::client::Handle;
+use russh::Disconnect;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use tauri::AppHandle;
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
-use tauri::AppHandle;
-use russh::client::Handle;
-use russh::Disconnect;
-use log::{error, info};
 
 use crate::ssh::Client;
 use crate::ssh_auth;
@@ -145,7 +145,9 @@ pub async fn start_tunnel(
     validation::validate_port(local_port)?;
     validation::validate_port(remote_port)?;
     validation::validate_username(&ssh_user)?;
-    if validation::validate_ip(&ssh_host).is_err() && validation::validate_hostname(&ssh_host).is_err() {
+    if validation::validate_ip(&ssh_host).is_err()
+        && validation::validate_hostname(&ssh_host).is_err()
+    {
         return Err(format!("Invalid SSH host: {}", ssh_host));
     }
 
@@ -161,17 +163,14 @@ pub async fn start_tunnel(
         port: ssh_port,
     };
 
-    let addr = format!("{}:{}", ssh_host, ssh_port);
-    let mut handle = match tokio::time::timeout(
+    let mut handle = crate::ssh_connect::connect_with_diagnostics(
+        config,
+        &ssh_host,
+        ssh_port,
+        client,
         Duration::from_secs(10),
-        russh::client::connect(config, addr, client),
     )
-    .await
-    {
-        Ok(Ok(h)) => h,
-        Ok(Err(e)) => return Err(e.to_string()),
-        Err(_) => return Err("SSH connection timed out".to_string()),
-    };
+    .await?;
 
     ssh_auth::authenticate(
         &mut handle,
@@ -203,7 +202,10 @@ pub async fn start_tunnel(
     };
 
     {
-        let mut guard = tunnel_state.tunnels.lock().unwrap_or_else(|e| e.into_inner());
+        let mut guard = tunnel_state
+            .tunnels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         guard.insert(tunnel_id.clone(), (cancel_tx, info.clone()));
     }
 
@@ -219,7 +221,10 @@ pub async fn start_tunnel(
         )
         .await;
         // Remove from state when loop exits (e.g. connection dropped)
-        let mut guard = state_for_cleanup.tunnels.lock().unwrap_or_else(|e| e.into_inner());
+        let mut guard = state_for_cleanup
+            .tunnels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         guard.remove(&tunnel_id);
     });
 

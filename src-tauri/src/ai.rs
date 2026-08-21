@@ -1,8 +1,8 @@
-use ollama_rs::Ollama;
-use ollama_rs::generation::chat::{ChatMessage, ChatMessageResponseStream};
 use ollama_rs::generation::chat::request::ChatMessageRequest;
-use tokio_stream::StreamExt;
+use ollama_rs::generation::chat::{ChatMessage, ChatMessageResponseStream};
+use ollama_rs::Ollama;
 use tauri::{AppHandle, Emitter};
+use tokio_stream::StreamExt;
 
 pub async fn check_ollama_status() -> bool {
     let ollama = Ollama::default();
@@ -12,7 +12,10 @@ pub async fn check_ollama_status() -> bool {
 
 pub async fn list_models() -> Result<Vec<String>, String> {
     let ollama = Ollama::default();
-    let models = ollama.list_local_models().await.map_err(|e| e.to_string())?;
+    let models = ollama
+        .list_local_models()
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(models.into_iter().map(|m| m.name).collect())
 }
 
@@ -43,9 +46,9 @@ pub async fn chat_request(
             };
             let _ = app.emit("ai-chat-response", payload);
         }
-        
+
         if res.done {
-             let payload = ChatStreamPayload {
+            let payload = ChatStreamPayload {
                 content: String::new(),
                 done: true,
             };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
+import { useVisiblePolling } from '../hooks/useViewVisibility';
 
 interface ProcessInfo {
   pid: number;
@@ -154,11 +155,9 @@ const MonitoringView: React.FC = () => {
       setRemoteHosts([]);
     }
   };
-  useEffect(() => {
-    fetchRemoteHealth();
-    const interval = setInterval(fetchRemoteHealth, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  // get_remote_hosts_health pings and SSHes into every saved host, so it must not
+  // run while the Monitoring view is hidden.
+  useVisiblePolling(fetchRemoteHealth, 30000);
   useEffect(() => {
     invoke<SavedHost[]>('get_saved_hosts').then((data) => setSavedHosts(Array.isArray(data) ? data : [])).catch(() => setSavedHosts([]));
     invoke<CredentialSummary[]>('list_credentials').then((data) => setCredentials(Array.isArray(data) ? data : [])).catch(() => setCredentials([]));

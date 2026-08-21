@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import Database from '@tauri-apps/plugin-sql';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -69,10 +68,7 @@ const AIAssistant: React.FC = () => {
         invoke<boolean>('is_scanning'),
         invoke<ScanProgress>('get_scan_progress'),
         invoke<DiscoveredHost[]>('get_discovered_hosts', { limit: 50 }),
-        (async () => {
-          const db = await Database.load('sqlite:quasar.db');
-          return db.select<SavedHost[]>('SELECT id, name, address, protocol, port FROM hosts ORDER BY name ASC LIMIT 100');
-        })(),
+        invoke<SavedHost[]>('get_saved_hosts'),
       ]);
 
       const isScanning = isScanningResult.status === 'fulfilled' ? isScanningResult.value : false;
