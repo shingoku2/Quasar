@@ -53,7 +53,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library (32 test files / 208 tests)
+- **Testing**: Vitest + React Testing Library (38 test files / 256 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
@@ -201,6 +201,12 @@ See `conductor/code_styleguides/` for detailed coding standards:
 5. Submit a pull request
 
 ## Recent Updates
+
+### August 21, 2026 - SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity
+- ✅ **Phase-aware SSH connection errors** — New `ssh_connect.rs` module replaces the old one-shot "Connection timed out" with per-phase diagnostics: DNS lookup, TCP connect (tried per resolved address, so a dead IPv6 record no longer starves a working IPv4 one), and SSH handshake, each reporting the specific address and reason (refused / no response / handshake failure). Shared by the interactive terminal, SFTP, one-shot exec, the scheduled-task connection pool, and SSH tunnels. Terminal's connect timeout raised from an outlier 5s to the 10s used everywhere else.
+- ✅ **Credential save bug fixed** — `CredentialManager.tsx` was sending `credential_type`/`key_path`/`private_key`/`key_passphrase` (snake_case) in `update_credential`/`add_credential` payloads. Tauri matches `invoke()` args against camelCased Rust parameter names with no "unknown key" error, so these fields silently never saved — editing a credential's type or SSH key material appeared to succeed but was discarded. Fixed to camelCase; regression test asserts no payload key contains `_`.
+- ✅ **Host protocol options expanded** — `AddHostDialog` now offers all 5 protocols also available in the credential vault (SSH, RDP, Database, API, Other), previously only SSH/RDP. Port becomes required for protocols without a backend default port; Connect button only shows for protocols with an actual client (SSH/RDP); other protocols are inventory/monitoring-only entries with their own badge color.
+- ✅ **Dependency updates** — russh 0.62.5 → 0.62.7, russh-sftp 2.3.0 → 2.4.0, rusqlite, thiserror, uuid, futures, and 60+ other Rust crates; vite, vitest, lucide-react, and 5 other npm packages. Full clippy/cargo test/npm test/tsc verification after update.
 
 ### March 6, 2026 - Comprehensive Test Coverage Expansion
 - ✅ **12 new test files** — Added tests for all previously untested components: ErrorBoundary, TopBar, VaultInitDialog, VaultUnlockDialog, CredentialSelector, CredentialManager, KnownHostsManager, AuditLogViewer, SshHostKeyPrompt, VaultSettings, AlertFeed, QuickConnectWidget

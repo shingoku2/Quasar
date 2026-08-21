@@ -27,9 +27,13 @@ Quasar/
 │   │   │   ├── ssh_keys.rs     # SSH host key trust management
 │   │   │   └── audit.rs        # Security event logging
 │   │   ├── ssh.rs              # Interactive SSH sessions (Channel::wait())
+│   │   ├── ssh_auth.rs         # Shared password/key authentication
+│   │   ├── ssh_connect.rs      # Phase-aware connect (DNS/TCP/handshake), used by all SSH/SFTP paths
 │   │   ├── ssh_exec.rs         # One-shot SSH command execution
+│   │   ├── ssh_pool.rs         # Pooled/reused SSH sessions for scheduled tasks
 │   │   ├── ssh_tunnel.rs       # SSH port forwarding
 │   │   ├── sftp.rs             # SFTP file transfer (password-auth only)
+│   │   ├── launcher.rs         # External SSH/RDP client launch (OS terminal, mstsc)
 │   │   ├── scheduler.rs        # Cron task runner
 │   │   ├── monitoring.rs       # System metrics + alert rules
 │   │   ├── scanner.rs          # Network port scanning
@@ -76,7 +80,7 @@ Quasar/
 | Network graph | vis-network + vis-data |
 | Backend language | Rust (edition 2021), async via Tokio 1 |
 | Database | SQLite (rusqlite bundled, migrations via rusqlite_migration) |
-| SSH/SFTP | russh 0.57, russh-keys 0.49, russh-sftp 2.0 |
+| SSH/SFTP | russh 0.62 (host key + auth bundled in), russh-sftp 2.4 |
 | Encryption | aes-gcm 0.10 (AES-256-GCM), argon2 0.5 (Argon2id) |
 | Secure memory | zeroize 1.8, secrecy 0.8 |
 | Network scan | surge-ping, cidr-utils, dns-lookup, mdns-sd |
@@ -137,6 +141,7 @@ All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key g
 **Hosts**
 - `add_host(hostname, port, username, protocol)` / `update_host(...)` / `remove_host(id)`
 - `list_hosts()` / `get_saved_hosts()`
+- `upsert_saved_host(name, address, protocol, port?, username?)` — `protocol` is a free-form string (`AddHostDialog` offers `ssh` / `rdp` / `database` / `api` / `other`); only `ssh` and `rdp` have an in-app client (Connect button, port default). Other protocols are inventory/monitoring-only entries.
 
 **SSH**
 - `start_ssh_session(host_id, credential_id?, password?)` → returns `session_id`
@@ -245,7 +250,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (37 files / 243 tests as of August 2026)
+#### Test file inventory (38 files / 256 tests as of August 2026)
 
 | Test file | Component tested | Key scenarios |
 |-----------|-----------------|---------------|
@@ -253,7 +258,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 | `Layout.test.tsx` | Layout | Render, vault integration |
 | `ErrorBoundary.test.tsx` | ErrorBoundary | Error catching, crash UI, reload |
 | `TopBar.test.tsx` | TopBar | View label mapping for all 7 views |
-| `HostManagement.test.tsx` | HostList, AddHostDialog | List, filter, connect/SFTP callbacks, remove, duplicates, empty state |
+| `HostManagement.test.tsx` | HostList, AddHostDialog | List, filter, connect/SFTP callbacks, remove, duplicates, empty state, full protocol option list (ssh/rdp/database/api/other), required-port toggle for protocols without a backend default |
 | `NetworkScanner.test.tsx` | NetworkScanner | CIDR input, scan start/stop, CIDR validation error, scan failure, initialResults |
 | `SshFileManager.test.tsx` | SshFileManager | Path bar, loading, error, file listing |
 | `HealthCheckBadge.test.tsx` | HealthCheckBadge | Online/offline/checking states |
@@ -263,7 +268,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 | `vault/VaultInitDialog.test.tsx` | VaultInitDialog | Password validation (all rules), strength indicator, invoke, error |
 | `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password, success, error, cancel, password toggle |
 | `vault/CredentialSelector.test.tsx` | CredentialSelector | Loading, type/host filter (incl. SFTP ssh_key exclusion), search, select, manual entry, error |
-| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error |
+| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error, camelCase `invoke` payload keys on update (regression guard) |
 | `vault/KnownHostsManager.test.tsx` | KnownHostsManager | List, search by host/fingerprint, remove with confirm, trust updates, error |
 | `vault/AuditLogViewer.test.tsx` | AuditLogViewer | List, search, event type filter, result filter, resource info, error |
 | `vault/SshHostKeyPrompt.test.tsx` | SshHostKeyPrompt | New vs changed key, trust/reject, permanent toggle, copy fingerprint, MITM warning |
@@ -281,6 +286,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 - Selects without `aria-label`/`id` (e.g. AuditLogViewer filters) are queried by index: `screen.getAllByRole('combobox')[0]`
 - When multiple elements match the same text (heading + button both say "Unlock Vault"), use `getAllByText(...)` or role-scoped queries like `getByRole('button', { name: ... })`
 - Saved-host components mock `invoke` commands such as `get_saved_hosts`, `upsert_saved_host`, and `remove_saved_hosts`; frontend tests never open SQLite directly
+- **`invoke()` payload keys must be lowerCamelCase.** Tauri's command macro matches JSON keys against the camelCased Rust parameter name and silently treats a missing key as `None` for `Option<T>` params — there is no "unknown key" error. A snake_case key (e.g. `key_path` instead of `keyPath`) doesn't fail, it just never updates that field. This bit `CredentialManager.tsx`'s update/add payloads once; `CredentialManager.test.tsx` now asserts no payload key contains `_`.
 
 ### Rust Tests
 
@@ -348,6 +354,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 4. **Discovery is a singleton.** Calling `start_network_scan` when already running returns early; there is no duplicate-thread risk.
 5. **Database export** uses `VACUUM INTO` (not file copy) to get a consistent snapshot while connections are live.
 6. **Input validation** (`validation.rs`) must be called on all user-supplied network values before use in commands.
+7. **Interactive SSH connect errors bypass `sanitize_error()` by design.** `connect_ssh` (the terminal path in `ssh.rs`) returns `ssh_connect::connect_with_diagnostics()` errors verbatim to the frontend — including the resolved IP/port and the phase that failed (DNS/TCP/handshake) — so users can self-diagnose (wrong port, firewalled host, dead DNS record). SFTP and pooled/scheduled-task SSH paths still route through `sanitize_error(e, "sftp"/"ssh")` at the `lib.rs` command boundary.
 
 See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
 
@@ -375,6 +382,7 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 | Add a database table/column | New migration in `src-tauri/migrations/` + register in `lib.rs` |
 | Change alert/monitoring logic | `src-tauri/src/monitoring.rs` |
 | Change SSH session handling | `src-tauri/src/ssh.rs` (interactive) or `ssh_exec.rs` (one-shot) |
+| Change SSH connect/timeout/error-reporting | `src-tauri/src/ssh_connect.rs` — shared by `ssh.rs`, `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs`; reports which phase (DNS/TCP/handshake) failed instead of one opaque timeout |
 | Change cron/scheduler logic | `src-tauri/src/scheduler.rs` |
 | Change encryption | `src-tauri/src/crypto.rs` |
 | Change input validation | `src-tauri/src/validation.rs` |

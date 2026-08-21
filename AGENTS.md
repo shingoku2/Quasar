@@ -7,6 +7,46 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity - Complete (August 21, 2026)
+
+#### Overview
+User reported SSH connections from the terminal always timing out on one server, despite `ssh`/PowerShell remoting working fine from the same machine. Root-caused through three narrowing steps and fixed along with two bugs found along the way.
+
+#### 1) Phase-aware SSH connection errors
+- **Root cause of the reported bug**: the saved host's port (22) didn't match the server's actual sshd port (6969, per the user's `~/.ssh/config`). The old code wrapped DNS + TCP + handshake in one `tokio::time::timeout(5s, russh::client::connect(...))` and collapsed every failure into `"Connection timed out"` — no way to tell wrong-port from firewalled from dead-DNS.
+- **Fix**: new `src-tauri/src/ssh_connect.rs::connect_with_diagnostics()` — resolves DNS separately (5s budget), tries each resolved address for TCP individually (so a dead IPv6 AAAA record can't starve a working IPv4 address under one shared timer — the classic dual-stack trap), then runs the SSH handshake via `russh::client::connect_stream()`. Each phase's error names the phase and the specific address, e.g. `TCP connection to host:22 failed — 1.2.3.4:22: no response after 10s (host down, or port filtered by a firewall)`.
+- Wired into all 6 production connect call sites: `ssh.rs` (interactive terminal — also raised its outlier 5s cap to the 10s used everywhere else), all 4 SFTP operations in `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs`.
+- Interactive terminal errors intentionally bypass `sanitize_error()` (pre-existing behavior, unchanged) — the diagnostic detail is the point.
+- Regression tests in `ssh_connect.rs`: TCP-phase failure (closed port) vs handshake-phase failure (open port, silent server) produce distinguishable error text.
+
+#### 2) Credential save silently discarding SSH key / type changes
+- **Symptom**: editing a credential in the vault appeared to succeed (no error) but type switches and SSH key material never persisted.
+- **Root cause**: `CredentialManager.tsx`'s `update_credential`/`add_credential` payloads used snake_case keys (`credential_type`, `key_path`, `private_key`, `key_passphrase`). Tauri's command macro matches `invoke()` JSON keys against the **camelCased** Rust parameter name (confirmed in vendored `tauri-macros` 2.6.3 and `tauri` 2.11.5 source) — a missing key for an `Option<T>` parameter silently becomes `None` rather than erroring. So those four fields never reached the backend.
+- **Fix**: renamed to `credentialType`/`keyPath`/`privateKey`/`keyPassphrase`. Every other `invoke()` call site in the frontend was already correct.
+- Regression test in `CredentialManager.test.tsx` asserts the full `update_credential` payload contains no key with an underscore, to catch this class of bug generally.
+
+#### 3) Host protocol options didn't match the credential vault's list
+- **User ask**: `AddHostDialog` (Remote tab) only offered SSH/RDP; the credential dialog (Security tab) already supported Database/API/Other.
+- **Fix**: `AddHostDialog` now offers all 5 (SSH, RDP, Database, API, Other). Port is required for protocols without a backend default (only SSH=22 and RDP=3389 have one in `upsert_saved_host_in_conn`). `HostList` only shows the Connect button for SSH/RDP (the only protocols with an actual client); other protocols get their own badge color and remain inventory/monitoring-only entries. `RemoteManager.handleConnect` has a defensive branch explaining "no built-in client" if a non-connectable host is triggered via another path (e.g. Quick Connect).
+- New tests in `HostManagement.test.tsx`: full option list pinned, port-required toggle verified.
+
+#### Dependency updates
+- Rust: `cargo update` applied 71 available in-range bumps, notably `russh` 0.62.5 → 0.62.7 and `russh-sftp` 2.3.0 → 2.4.0. Re-verified with `cargo clippy -- -D warnings` and `cargo test` (113 tests passing).
+- npm: `vite`, `vitest`, `lucide-react`, `@vitejs/plugin-react`, `vis-network`, `vis-data`, `postcss`, `@testing-library/jest-dom` updated. Re-verified with `npm test` (256 tests / 38 files) and `tsc --noEmit`.
+
+#### Files modified
+- `src-tauri/src/ssh_connect.rs` (new)
+- `src-tauri/src/lib.rs` (`mod ssh_connect;`)
+- `src-tauri/src/ssh.rs`, `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs` (use shared connect helper)
+- `src/components/vault/CredentialManager.tsx` (camelCase payload keys)
+- `src/components/vault/CredentialManager.test.tsx` (regression test)
+- `src/components/AddHostDialog.tsx` (protocol options, required-port logic)
+- `src/components/HostList.tsx` (badge colors, Connect-button gating)
+- `src/components/RemoteManager.tsx` (defensive branch for non-connectable protocols)
+- `src/components/HostManagement.test.tsx` (new tests)
+- `src-tauri/Cargo.lock`, `package-lock.json` (dependency updates)
+- `CLAUDE.md`, `README.md`, `GEMINI.md`, `.claude/agents/security-reviewer.md` (this entry + doc sync)
+
 ### Comprehensive Test Coverage Expansion - Complete (March 6, 2026)
 
 #### Overview

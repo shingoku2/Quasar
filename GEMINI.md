@@ -4,8 +4,23 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **Credential edit & type-switch fixes complete (Feb 16, 2026)**.
-- **Last Action:** Full credential update flow: SSH key fields on update, credential_type column sync, clear-on-type-switch (password ↔ ssh_key), nullable password columns (migration 009) with explicit clear.
+- **Status:** **SSH connection diagnostics, credential save fix, and host protocol parity complete (Aug 21, 2026)**.
+- **Last Action:** Root-caused a user-reported SSH timeout to a saved host's port not matching the server's actual sshd port; replaced the single opaque "Connection timed out" with phase-aware DNS/TCP/handshake diagnostics (`ssh_connect.rs`). Along the way found and fixed a silent credential-save bug (Tauri `invoke()` requires camelCase argument keys — snake_case keys are dropped, not errored) and brought `AddHostDialog`'s protocol list up to parity with the credential vault's (added Database/API/Other). See `AGENTS.md` for full detail.
+
+## SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity (2026-08-21)
+
+### Summary
+- **`ssh_connect.rs`** (new) — shared connect helper used by all 6 SSH/SFTP call sites. Separately times DNS resolution, TCP connect per resolved address, and the SSH handshake, so errors name the failing phase and address instead of one generic timeout. Fixes the dual-stack trap where a dead IPv6 record starves a working IPv4 address under a shared timer.
+- **Credential save bug**: `CredentialManager.tsx` sent snake_case `invoke()` keys (`credential_type`, `key_path`, etc.); Tauri matches against camelCase and silently no-ops missing `Option<T>` keys rather than erroring. Renamed to camelCase; added a regression test asserting no payload key contains `_`.
+- **Host protocols**: `AddHostDialog` now offers SSH/RDP/Database/API/Other (previously SSH/RDP only), matching the credential vault. Port required when the protocol has no backend default; Connect button only for SSH/RDP.
+- **Dependency updates**: russh 0.62.5 → 0.62.7, russh-sftp → 2.4.0, plus ~70 other Rust crates and 8 npm packages, all re-verified (clippy, cargo test, npm test, tsc).
+
+### Verification
+- `cargo clippy --tests -- -D warnings` — clean
+- `cargo test` — 113 passing
+- `npm test` — 256 passing / 38 files
+- `npx tsc --noEmit` — clean
+- Live-verified against a real Ubuntu VPS: old code timed out silently; new diagnostics reported the exact port mismatch, which the user then confirmed fixed the connection.
 
 ## Credential Edit & Type-Switch Fixes (2026-02-16)
 
@@ -91,7 +106,7 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
    - Canvas.tsx component for building workflows
    - Workflow engine in Rust to execute automation flows
 - **Rust/Cargo:** **Functional**. (minimum v1.95; current stable in CI).
-  - `russh` 0.62.5 - SSH client library
+  - `russh` 0.62.7 - SSH client library
   - `surge-ping` 0.9 - ICMP ping for network scanning
   - `cidr-utils` 0.7 - CIDR notation parsing
   - `tokio` 1.53 - Async runtime with full features
