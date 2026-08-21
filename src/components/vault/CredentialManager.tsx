@@ -15,6 +15,9 @@ interface CredentialSummary {
 
 interface Credential extends CredentialSummary {
   password: string;
+  key_path?: string;
+  // get_credential never returns decrypted key material (security by design) —
+  // these flags are how the edit form knows a key already exists server-side.
   has_private_key: boolean;
   has_key_passphrase: boolean;
 }
@@ -293,7 +296,7 @@ const CredentialDialog: React.FC<{
     credential_type: credential?.credential_type || 'ssh',
     host: credential?.host || '',
     port: credential?.port || 22,
-    key_path: (credential as { key_path?: string })?.key_path || '',
+    key_path: credential?.key_path || '',
     private_key: '',
     key_passphrase: '',
   });
@@ -307,7 +310,16 @@ const CredentialDialog: React.FC<{
     setIsSaving(true);
     setError('');
 
-    if (formData.credential_type === 'ssh_key' && !formData.key_path.trim() && !formData.private_key.trim()) {
+    // get_credential never returns decrypted key material, so an existing ssh_key
+    // credential's private_key field is always blank in the form — that must not
+    // be mistaken for "no key material provided" or every edit gets blocked.
+    const hasStoredKeyMaterial = Boolean(credential?.key_path) || Boolean(credential?.has_private_key);
+    if (
+      formData.credential_type === 'ssh_key' &&
+      !formData.key_path.trim() &&
+      !formData.private_key.trim() &&
+      !hasStoredKeyMaterial
+    ) {
       setError('Provide either key path or paste private key PEM.');
       setIsSaving(false);
       return;

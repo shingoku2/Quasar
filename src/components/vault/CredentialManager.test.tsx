@@ -220,4 +220,44 @@ describe('CredentialManager', () => {
       expect(key).not.toMatch(/_/);
     }
   });
+
+  it('saves an SSH-key credential edit without requiring the key to be re-entered', async () => {
+    // get_credential never returns decrypted key material — an ssh_key credential
+    // whose key was originally pasted as PEM (no key_path) comes back with
+    // key_path unset and has_private_key: true. Editing anything about it (e.g.
+    // just the name) must not be blocked by a "provide a key" validation error.
+    const sshKeyCred = {
+      id: '3',
+      name: 'VPS Key',
+      username: 'edward',
+      credential_type: 'ssh_key',
+      created_at: '2024-01-03T00:00:00Z',
+      password: '',
+      has_private_key: true,
+      has_key_passphrase: false,
+    };
+    mockInvoke
+      .mockResolvedValueOnce([sshKeyCred] as any) // initial list
+      .mockResolvedValueOnce(sshKeyCred as any) // get_credential for edit dialog
+      .mockResolvedValueOnce(undefined) // update_credential
+      .mockResolvedValueOnce([sshKeyCred] as any); // reload
+
+    render(<CredentialManager />);
+    await waitFor(() => expect(screen.getByText('VPS Key')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByTitle('Edit')[0]);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Edit Credential/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('update_credential', expect.objectContaining({
+        credentialId: '3',
+        credentialType: 'ssh_key',
+      }));
+    });
+    expect(screen.queryByText(/Provide either key path or paste private key PEM/i)).not.toBeInTheDocument();
+  });
 });
