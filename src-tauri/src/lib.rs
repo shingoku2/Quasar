@@ -12,6 +12,7 @@ mod scheduler;
 mod sftp;
 mod ssh;
 mod ssh_auth;
+mod ssh_connect;
 mod ssh_exec;
 mod ssh_pool;
 mod ssh_tunnel;
@@ -1549,27 +1550,53 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
         })
         .map_err(|_| "Source is not a valid SQLite database".to_string())?;
 
-    // Backup current DB before replacing.
+    // Both the backup and the restore go through SQLite's backup API rather than
+    // touching files directly.
+    //
+    // The database runs in WAL mode, so committed data may live in `-wal` beside
+    // the main file. Copying only `quasar.db` could capture an incomplete backup,
+    // and renaming a replacement over the main file would leave the previous
+    // `-wal`/`-shm` next to it — stale frames that SQLite could then apply to the
+    // imported database. Going through SQLite keeps the main file, WAL and shared
+    // index consistent with each other, and cooperates with the connections that
+    // monitoring and the scheduler already hold open.
     let backup_path = app_dir.join(format!("{}.bak", DB_FILENAME));
     if db_path.exists() {
-        std::fs::copy(&db_path, &backup_path)
+        // Start from a clean destination so no previous backup's WAL lingers.
+        let _ = std::fs::remove_file(&backup_path);
+        let src = db::open_connection(
+            db_path
+                .to_str()
+                .ok_or_else(|| "Invalid database path".to_string())?,
+        )?;
+        let mut dst = rusqlite::Connection::open(&backup_path)
+            .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+        rusqlite::backup::Backup::new(&src, &mut dst)
+            .map_err(|e| sanitize_error(e.to_string(), "database"))?
+            .run_to_completion(100, std::time::Duration::from_millis(0), None)
             .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     }
 
-    // Atomic replace: copy to a temp file next to target, then rename over the target.
-    let tmp_path = app_dir.join(format!("{}.import_tmp", DB_FILENAME));
-    std::fs::copy(&source_path, &tmp_path)
+    // Restore into the live database file in place.
+    let src = rusqlite::Connection::open_with_flags(
+        &source_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    let mut dst = db::open_connection(
+        db_path
+            .to_str()
+            .ok_or_else(|| "Invalid database path".to_string())?,
+    )?;
+    rusqlite::backup::Backup::new(&src, &mut dst)
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?
+        .run_to_completion(100, std::time::Duration::from_millis(0), None)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-    std::fs::rename(&tmp_path, &db_path).map_err(|e| {
-        let _ = std::fs::remove_file(&tmp_path);
-        sanitize_error(e.to_string(), "database")
-    })?;
 
-    // Active background connections (monitoring, scheduler) still reference the old
-    // file-descriptor. An application restart is required for them to pick up the
-    // imported database.
+    // Long-lived connections may still serve cached reads, so a restart is
+    // recommended — but the file itself is now consistent either way.
     log::warn!(
-        "Database imported from '{}'. Application restart required for changes to take full effect.",
+        "Database imported from '{}'. Restart recommended so background tasks reload it.",
         source_path
     );
     Ok(())

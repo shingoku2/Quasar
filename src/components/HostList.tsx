@@ -13,6 +13,17 @@ export interface Host {
   username?: string;
 }
 
+const PROTOCOL_BADGE_STYLES: Record<string, string> = {
+  ssh: 'bg-blue-900/50 text-blue-300',
+  rdp: 'bg-purple-900/50 text-purple-300',
+  database: 'bg-emerald-900/50 text-emerald-300',
+  api: 'bg-amber-900/50 text-amber-300',
+};
+const DEFAULT_BADGE_STYLE = 'bg-gray-700/50 text-gray-300';
+
+/** Protocols the app can actually open a session for (terminal or RDP client). */
+const CONNECTABLE_PROTOCOLS = ['ssh', 'rdp'];
+
 const HostList: React.FC<{ 
   onConnect: (host: Host) => void;
   onSftp: (host: Host) => void;
@@ -166,7 +177,7 @@ const HostList: React.FC<{
                   <td className="px-4 py-3 font-medium text-gray-200">{host.name}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                      host.protocol === 'ssh' ? 'bg-blue-900/50 text-blue-300' : 'bg-purple-900/50 text-purple-300'
+                      PROTOCOL_BADGE_STYLES[host.protocol] ?? DEFAULT_BADGE_STYLE
                     }`}>
                       {host.protocol}
                     </span>
@@ -186,19 +197,21 @@ const HostList: React.FC<{
                         Remove
                       </button>
                       {host.protocol === 'ssh' && (
-                        <button 
+                        <button
                           onClick={() => onSftp(host)}
                           className="text-gray-400 hover:text-accent font-medium transition-colors"
                         >
                           SFTP
                         </button>
                       )}
-                      <button 
-                        onClick={() => onConnect(host)}
-                        className="text-accent hover:text-accent/80 font-medium transition-colors"
-                      >
-                        Connect
-                      </button>
+                      {CONNECTABLE_PROTOCOLS.includes(host.protocol) && (
+                        <button
+                          onClick={() => onConnect(host)}
+                          className="text-accent hover:text-accent/80 font-medium transition-colors"
+                        >
+                          Connect
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

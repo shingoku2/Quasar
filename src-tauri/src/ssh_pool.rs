@@ -262,17 +262,14 @@ async fn connect_and_authenticate(
 ) -> Result<Handle<ExecClient>, String> {
     let config = Arc::new(russh::client::Config::default());
     let handler = ExecClient::new(app_handle.clone(), params.host.to_string(), params.port);
-    let addr = format!("{}:{}", params.host, params.port);
-
-    let mut session = match tokio::time::timeout(
+    let mut session = crate::ssh_connect::connect_with_diagnostics(
+        config,
+        params.host,
+        params.port,
+        handler,
         Duration::from_secs(params.timeout_secs),
-        russh::client::connect(config, addr, handler),
     )
-    .await
-    {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    .await?;
 
     crate::ssh_auth::authenticate(
         &mut session,

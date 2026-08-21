@@ -163,17 +163,14 @@ pub async fn start_tunnel(
         port: ssh_port,
     };
 
-    let addr = format!("{}:{}", ssh_host, ssh_port);
-    let mut handle = match tokio::time::timeout(
+    let mut handle = crate::ssh_connect::connect_with_diagnostics(
+        config,
+        &ssh_host,
+        ssh_port,
+        client,
         Duration::from_secs(10),
-        russh::client::connect(config, addr, client),
     )
-    .await
-    {
-        Ok(Ok(h)) => h,
-        Ok(Err(e)) => return Err(e.to_string()),
-        Err(_) => return Err("SSH connection timed out".to_string()),
-    };
+    .await?;
 
     ssh_auth::authenticate(
         &mut handle,

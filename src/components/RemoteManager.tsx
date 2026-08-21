@@ -139,6 +139,10 @@ const RemoteManager: React.FC = () => {
         await invoke('connect_rdp', { address: host.address });
         const sessionId = Math.random().toString(36).substring(7);
         addTab(sessionId, `RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
+      } else {
+        // database / api / other hosts are inventory + monitoring entries; there is
+        // no built-in client to launch for them.
+        alert(`No built-in client for "${host.protocol}" hosts. This entry is available for inventory and monitoring.`);
       }
     } catch (error) {
       console.error('Failed to launch session:', error);

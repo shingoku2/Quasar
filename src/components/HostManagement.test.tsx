@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import HostList from './HostList';
-import AddHostDialog from './AddHostDialog';
+import AddHostDialog, { AddHostInitialValues } from './AddHostDialog';
 import '@testing-library/jest-dom';
 
 // Mock Tauri invoke and event
@@ -72,13 +72,7 @@ describe('Host Management Components', () => {
     it('opens add dialog prefilled when clicking Discovery Add', async () => {
       const HostListHarness = () => {
         const [showAddHost, setShowAddHost] = useState(false);
-        const [initialValues, setInitialValues] = useState<{
-          name?: string;
-          address?: string;
-          protocol?: 'ssh' | 'rdp';
-          port?: number | null;
-          username?: string;
-        } | undefined>(undefined);
+        const [initialValues, setInitialValues] = useState<AddHostInitialValues | undefined>(undefined);
 
         return (
           <>
@@ -116,6 +110,27 @@ describe('Host Management Components', () => {
   });
 
   describe('AddHostDialog', () => {
+    it('offers all host protocol options', () => {
+      render(<AddHostDialog onClose={() => {}} onAdded={() => {}} />);
+
+      const protocolSelect = screen.getByLabelText(/Protocol/i);
+      const options = Array.from(protocolSelect.querySelectorAll('option')).map(
+        (o) => o.getAttribute('value'),
+      );
+      expect(options).toEqual(['ssh', 'rdp', 'database', 'api', 'other']);
+    });
+
+    it('requires a port for protocols without a default port', () => {
+      render(<AddHostDialog onClose={() => {}} onAdded={() => {}} />);
+
+      const portInput = screen.getByLabelText(/Port/i);
+      expect(portInput).not.toBeRequired();
+
+      fireEvent.change(screen.getByLabelText(/Protocol/i), { target: { value: 'database' } });
+      expect(portInput).toBeRequired();
+      expect(portInput).toHaveAttribute('placeholder', '5432');
+    });
+
     it('calls execute on submit', async () => {
       const onAdded = vi.fn();
       mockSelect.mockResolvedValue([]);

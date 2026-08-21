@@ -100,17 +100,9 @@ pub async fn upload_file(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh),
-    )
-    .await
-    {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
@@ -226,17 +218,9 @@ pub async fn download_file(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh),
-    )
-    .await
-    {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
@@ -371,17 +355,9 @@ pub async fn list_directory(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh),
-    )
-    .await
-    {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate
@@ -465,17 +441,9 @@ pub async fn remote_exists(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(10),
-        russh::client::connect(config, addr, sh),
-    )
-    .await
-    {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
+            .await?;
 
     let result = async {
         // Authenticate

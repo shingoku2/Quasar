@@ -320,27 +320,30 @@ const CredentialDialog: React.FC<{
           host: formData.host || null,
           port: formData.port || null,
         });
+        // Keys must be camelCase: Tauri matches invoke args against the
+        // camelCased Rust parameter names and silently ignores unknown keys,
+        // so a snake_case key here would make the field never update.
         const payload: Record<string, unknown> = {
           credentialId: credential.id,
           name: formData.name,
           username: formData.username,
           metadata,
-          credential_type: formData.credential_type,
+          credentialType: formData.credential_type,
         };
         if (formData.credential_type === 'ssh_key') {
-          payload.key_path = formData.key_path;
+          payload.keyPath = formData.key_path;
           // Send null (not empty string) when the key field is blank so the backend
           // keeps the existing encrypted key. The backend only updates when non-null.
-          payload.private_key = formData.private_key || null;
-          payload.key_passphrase = formData.key_passphrase || null;
+          payload.privateKey = formData.private_key || null;
+          payload.keyPassphrase = formData.key_passphrase || null;
           // Clear password when switching to SSH key so stale password is not left in DB
           payload.password = '';
         } else {
           payload.password = formData.password || null;
           // Clear SSH key fields when switching to password-based so stale key data is not left in DB
-          payload.key_path = '';
-          payload.private_key = '';
-          payload.key_passphrase = '';
+          payload.keyPath = '';
+          payload.privateKey = '';
+          payload.keyPassphrase = '';
         }
         await invoke('update_credential', payload);
       } else {
@@ -353,9 +356,9 @@ const CredentialDialog: React.FC<{
           host: formData.host || null,
           port: formData.port ? Number(formData.port) : null,
           metadata: null,
-          key_path: isKey && formData.key_path ? formData.key_path : null,
-          private_key: isKey && formData.private_key ? formData.private_key : null,
-          key_passphrase: isKey && formData.key_passphrase ? formData.key_passphrase : null,
+          keyPath: isKey && formData.key_path ? formData.key_path : null,
+          privateKey: isKey && formData.private_key ? formData.private_key : null,
+          keyPassphrase: isKey && formData.key_passphrase ? formData.key_passphrase : null,
         });
       }
       onSaved();

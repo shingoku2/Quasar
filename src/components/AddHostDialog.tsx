@@ -1,10 +1,32 @@
 import React, { useState } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 
+export type HostProtocol = 'ssh' | 'rdp' | 'database' | 'api' | 'other';
+
+const PROTOCOL_OPTIONS: { value: HostProtocol; label: string }[] = [
+  { value: 'ssh', label: 'SSH' },
+  { value: 'rdp', label: 'RDP' },
+  { value: 'database', label: 'Database' },
+  { value: 'api', label: 'API' },
+  { value: 'other', label: 'Other' },
+];
+
+/** Port hint per protocol; shown as the input placeholder. */
+const PORT_PLACEHOLDERS: Record<HostProtocol, string> = {
+  ssh: '22',
+  rdp: '3389',
+  database: '5432',
+  api: '443',
+  other: 'e.g. 8080',
+};
+
+/** Only SSH and RDP have backend port defaults; other protocols need an explicit port. */
+const PROTOCOLS_WITH_DEFAULT_PORT: HostProtocol[] = ['ssh', 'rdp'];
+
 export interface AddHostInitialValues {
   name?: string;
   address?: string;
-  protocol?: 'ssh' | 'rdp';
+  protocol?: HostProtocol;
   port?: number | null;
   username?: string;
 }
@@ -18,7 +40,7 @@ interface AddHostDialogProps {
 const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initialValues }) => {
   const [name, setName] = useState(initialValues?.name ?? '');
   const [address, setAddress] = useState(initialValues?.address ?? '');
-  const [protocol, setProtocol] = useState<'ssh' | 'rdp'>(initialValues?.protocol ?? 'ssh');
+  const [protocol, setProtocol] = useState<HostProtocol>(initialValues?.protocol ?? 'ssh');
   const [port, setPort] = useState(initialValues?.port != null ? String(initialValues.port) : '');
   const [username, setUsername] = useState(initialValues?.username ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -82,19 +104,24 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
                 id="add-host-protocol"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                 value={protocol}
-                onChange={(e) => setProtocol(e.target.value as 'ssh' | 'rdp')}
+                // Safe: the select only renders PROTOCOL_OPTIONS values, all of type HostProtocol.
+                onChange={(e) => setProtocol(e.target.value as HostProtocol)}
               >
-                <option value="ssh">SSH</option>
-                <option value="rdp">RDP</option>
+                {PROTOCOL_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label htmlFor="add-host-port" className="block text-xs font-bold text-gray-400 uppercase mb-1">Port (Optional)</label>
+              <label htmlFor="add-host-port" className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                {PROTOCOLS_WITH_DEFAULT_PORT.includes(protocol) ? 'Port (Optional)' : 'Port'}
+              </label>
               <input
                 id="add-host-port"
                 type="number"
+                required={!PROTOCOLS_WITH_DEFAULT_PORT.includes(protocol)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                placeholder={protocol === 'ssh' ? '22' : '3389'}
+                placeholder={PORT_PLACEHOLDERS[protocol]}
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
               />

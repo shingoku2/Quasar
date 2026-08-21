@@ -262,18 +262,14 @@ async fn execute_one_shot(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    // Connect with timeout
-    let mut session = match tokio::time::timeout(
+    let mut session = crate::ssh_connect::connect_with_diagnostics(
+        config,
+        host,
+        port,
+        sh,
         Duration::from_secs(timeout_secs),
-        russh::client::connect(config, addr, sh),
     )
-    .await
-    {
-        Ok(res) => res.map_err(|e| format!("Connection failed: {}", e))?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    .await?;
 
     let result = async {
         crate::ssh_auth::authenticate(

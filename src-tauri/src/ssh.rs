@@ -126,17 +126,9 @@ pub async fn connect_ssh(
         port,
     };
 
-    let addr = format!("{}:{}", host, port);
-
-    let mut session = match tokio::time::timeout(
-        Duration::from_secs(5),
-        russh::client::connect(config, addr, sh),
-    )
-    .await
-    {
-        Ok(res) => res.map_err(|e| e.to_string())?,
-        Err(_) => return Err("Connection timed out".to_string()),
-    };
+    let mut session =
+        crate::ssh_connect::connect_with_diagnostics(config, &host, port, sh, Duration::from_secs(10))
+            .await?;
 
     crate::ssh_auth::authenticate(
         &mut session,
