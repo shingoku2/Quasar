@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Trash2, Plus, Network } from 'lucide-react';
 import { useVisiblePolling } from '../hooks/useViewVisibility';
+import { getErrorMessage } from '../lib/utils';
 
 interface CredentialSummary {
   id: string;
@@ -39,7 +40,7 @@ const SshTunnelsView: React.FC = () => {
       const list = await invoke<TunnelInfo[]>('list_ssh_tunnels');
       setTunnels(Array.isArray(list) ? list : []);
     } catch (e) {
-      setError(String(e));
+      setError(getErrorMessage(e));
     }
   };
 
@@ -48,7 +49,7 @@ const SshTunnelsView: React.FC = () => {
   useEffect(() => {
     invoke<CredentialSummary[]>('list_credentials')
       .then((creds) => setCredentials(creds.filter((c) => c.credential_type === 'ssh' || c.credential_type === 'ssh_key')))
-      .catch((err) => setError(String(err)));
+      .catch((err) => setError(getErrorMessage(err)));
   }, []);
 
   const handleStart = async () => {
@@ -78,7 +79,7 @@ const SshTunnelsView: React.FC = () => {
       await loadTunnels();
       setForm((f) => ({ ...f, credential_id: '' }));
     } catch (e) {
-      setError(String(e));
+      setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ const SshTunnelsView: React.FC = () => {
       await invoke('close_ssh_tunnel', { tunnelId: id });
       await loadTunnels();
     } catch (e) {
-      setError(String(e));
+      setError(getErrorMessage(e));
     }
   };
 

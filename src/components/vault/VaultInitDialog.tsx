@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 
 interface VaultInitDialogProps {
@@ -53,7 +54,7 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
       setConfirmPassword('');
       onInitialized();
     } catch (err) {
-      setError(String(err) || 'Failed to initialize vault');
+      setError(getErrorMessage(err, 'Failed to initialize vault'));
     } finally {
       setMasterPassword('');
       setConfirmPassword('');

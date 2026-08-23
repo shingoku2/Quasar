@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, X, Search } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 
 interface CredentialSummary {
   id: string;
@@ -59,7 +60,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       
       setCredentials(creds);
     } catch (err) {
-      setError(String(err) || 'Failed to load credentials');
+      setError(getErrorMessage(err, 'Failed to load credentials'));
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +71,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       const cred = await invoke<Credential>('get_credential', { credentialId: id });
       onSelect(cred);
     } catch (err) {
-      setError(String(err) || 'Failed to retrieve credential');
+      setError(getErrorMessage(err, 'Failed to retrieve credential'));
     }
   };
 

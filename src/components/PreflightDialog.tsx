@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Activity, Cpu, HardDrive, Clock, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { getErrorMessage } from '../lib/utils';
 
 interface HealthMetrics {
   cpu_percent?: number;
@@ -54,7 +55,7 @@ const PreflightDialog: React.FC<PreflightDialogProps> = ({
         setResult({
           host,
           reachable: false,
-          error: String(err)
+          error: getErrorMessage(err)
         });
       } finally {
         setLoading(false);

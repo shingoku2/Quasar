@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { FileText, Search, Filter, AlertCircle, CheckCircle, XCircle, Info } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 
 interface AuditLogEntry {
   id: string;
@@ -43,7 +44,7 @@ const AuditLogViewer: React.FC = () => {
       });
       setLogs(auditLogs);
     } catch (err) {
-      setError(String(err) || 'Failed to load audit logs');
+      setError(getErrorMessage(err, 'Failed to load audit logs'));
     } finally {
       setIsLoading(false);
     }

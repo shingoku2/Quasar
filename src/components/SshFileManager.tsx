@@ -13,7 +13,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, getErrorMessage } from '../lib/utils';
 
 interface RemoteFile {
   name: string;
@@ -82,7 +82,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
     } catch (err) {
       console.error('Failed to list directory:', err);
       if (isMounted.current) {
-        setError(String(err));
+        setError(getErrorMessage(err));
       }
     } finally {
       if (isMounted.current) {

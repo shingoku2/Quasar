@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, Plus, Edit2, Trash2, Search, Server, User, Lock, Save, X, Eye, EyeOff } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 
 interface CredentialSummary {
   id: string;
@@ -34,14 +35,7 @@ interface CredentialFormData {
   key_passphrase: string;
 }
 
-function getErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === 'string') return err;
-  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
-    return (err as { message: string }).message;
-  }
-  return fallback;
-}
+// Helper moved to utils
 
 const CredentialManager: React.FC = () => {
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, ShieldAlert, X, Eye, EyeOff } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 
 interface VaultUnlockDialogProps {
@@ -29,7 +30,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
       setIsUnlocking(false);
       onUnlocked();
     } catch (err) {
-      setError(String(err) || 'Failed to unlock vault');
+      setError(getErrorMessage(err, 'Failed to unlock vault'));
       setMasterPassword('');
       setIsUnlocking(false);
     }

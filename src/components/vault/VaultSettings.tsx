@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Settings, Lock, Clock, Shield, Save, AlertTriangle } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 
 interface VaultSettings {
   auto_lock_timeout_minutes: number;
@@ -35,7 +36,7 @@ const VaultSettings: React.FC = () => {
       const vaultSettings = await invoke<VaultSettings>('get_vault_settings');
       setSettings(vaultSettings);
     } catch (err) {
-      setError(String(err) || 'Failed to load vault settings');
+      setError(getErrorMessage(err, 'Failed to load vault settings'));
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +52,7 @@ const VaultSettings: React.FC = () => {
       setSuccessMessage('Settings saved successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setError(String(err) || 'Failed to save settings');
+      setError(getErrorMessage(err, 'Failed to save settings'));
     } finally {
       setIsSaving(false);
     }
@@ -63,7 +64,7 @@ const VaultSettings: React.FC = () => {
       setSuccessMessage('Vault locked successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setError(String(err) || 'Failed to lock vault');
+      setError(getErrorMessage(err, 'Failed to lock vault'));
     }
   };
 
@@ -276,7 +277,7 @@ const VaultSettings: React.FC = () => {
                             setConfirmPassword('');
                             setTimeout(() => setSuccessMessage(''), 3000);
                           } catch (err) {
-                            setError(String(err) || 'Failed to change master password');
+                            setError(getErrorMessage(err, 'Failed to change master password'));
                           } finally {
                             setIsChangingPassword(false);
                           }

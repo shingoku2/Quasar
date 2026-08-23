@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Shield, Trash2, Search, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { getErrorMessage } from '../../lib/utils';
 
 interface KnownHost {
   id: number;
@@ -26,7 +27,7 @@ const KnownHostsManager: React.FC = () => {
       const knownHosts = await invoke<KnownHost[]>('get_known_ssh_hosts');
       setHosts(knownHosts);
     } catch (err) {
-      setError(String(err) || 'Failed to load known hosts');
+      setError(getErrorMessage(err, 'Failed to load known hosts'));
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +46,7 @@ const KnownHostsManager: React.FC = () => {
       await invoke('remove_ssh_host_key', { host, port });
       await loadHosts();
     } catch (err) {
-      setError(String(err) || 'Failed to remove host key');
+      setError(getErrorMessage(err, 'Failed to remove host key'));
     }
   };
 
@@ -54,7 +55,7 @@ const KnownHostsManager: React.FC = () => {
       await invoke('update_ssh_host_trust', { host, port, trustStatus });
       await loadHosts();
     } catch (err) {
-      setError(String(err) || 'Failed to update trust status');
+      setError(getErrorMessage(err, 'Failed to update trust status'));
     }
   };
 

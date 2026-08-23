@@ -261,47 +261,52 @@ const RemoteManager: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    setTabs([
-      { 
-        id: 'inventory', 
-        title: 'Inventory', 
-        content: (
-          <div className="flex flex-col h-full bg-bg-root">
-            <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-              <h1 className="text-xl font-bold text-white">Remote Hosts</h1>
-              <button 
-                onClick={() => {
-                  setAddHostInitialValues(undefined);
-                  setShowAddHost(true);
-                }}
-                className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center shadow-lg shadow-accent/10"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Host
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <HostList 
-                key={refreshTrigger} 
-                onConnect={handleConnect} 
-                onSftp={handleSftp}
-                onAddHost={(values) => {
-                  setAddHostInitialValues(values);
-                  setShowAddHost(true);
-                }}
-              />
-            </div>
+    const inventoryTab: SessionTab = {
+      id: 'inventory',
+      title: 'Inventory',
+      content: (
+        <div className="flex flex-col h-full bg-bg-root">
+          <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+            <h1 className="text-xl font-bold text-white">Remote Hosts</h1>
+            <button
+              onClick={() => {
+                setAddHostInitialValues(undefined);
+                setShowAddHost(true);
+              }}
+              className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center shadow-lg shadow-accent/10"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Host
+            </button>
           </div>
-        ),
-        closable: false
-      },
-      {
-        id: 'tunnels',
-        title: 'Tunnels',
-        content: <SshTunnelsView />,
-        closable: false
-      }
-    ]);
+          <div className="flex-1 overflow-hidden">
+            <HostList
+              key={refreshTrigger}
+              onConnect={handleConnect}
+              onSftp={handleSftp}
+              onAddHost={(values) => {
+                setAddHostInitialValues(values);
+                setShowAddHost(true);
+              }}
+            />
+          </div>
+        </div>
+      ),
+      closable: false
+    };
+    const tunnelsTab: SessionTab = {
+      id: 'tunnels',
+      title: 'Tunnels',
+      content: <SshTunnelsView />,
+      closable: false
+    };
+    // Merge, don't replace — this effect reruns on every refreshTrigger bump
+    // (e.g. adding a host), and replacing the whole array would unmount every
+    // open SSH/SFTP session tab, disconnecting live sessions.
+    setTabs(prev => {
+      const dynamicTabs = prev.filter(tab => tab.id !== 'inventory' && tab.id !== 'tunnels');
+      return [inventoryTab, tunnelsTab, ...dynamicTabs];
+    });
   }, [refreshTrigger]);
 
   const handleTabClose = (id: string) => {

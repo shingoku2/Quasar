@@ -333,13 +333,19 @@ mod tests {
     use super::*;
 
     async fn create_test_manager() -> (SshKeyManager, String) {
+        use std::sync::atomic::{AtomicU64, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
 
+        // A nanosecond timestamp alone isn't a reliable uniqueness guarantee
+        // (clock resolution can be coarser than 1ns, and concurrent test threads
+        // can race), so a per-process counter is appended to rule out collisions.
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let db_path = format!("test_ssh_keys_{}.db", timestamp);
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let db_path = format!("test_ssh_keys_{}_{}.db", timestamp, seq);
 
         let conn = Connection::open(&db_path).unwrap();
         // Create only the ssh_known_hosts table needed for these tests

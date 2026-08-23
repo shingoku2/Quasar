@@ -96,10 +96,6 @@ impl VaultState {
     }
 
     pub async fn initialize_vault(&self, master_password: SecretString) -> Result<(), String> {
-        if self.is_initialized().await? {
-            return Err("Vault is already initialized".to_string());
-        }
-
         // Validate password strength
         if master_password.expose_secret().len() < 12 {
             return Err("Master password must be at least 12 characters".to_string());
@@ -107,6 +103,18 @@ impl VaultState {
 
         let mut inner = self.inner.write().await;
         let conn = db::open_connection(&inner.db_path)?;
+
+        // Check-then-act under the same write-lock acquisition used for the write
+        // below, so two concurrent initialize_vault calls (e.g. a double-submit)
+        // can't both pass this check before either has written the salt/hash.
+        let already_initialized: Result<String, rusqlite::Error> = conn.query_row(
+            "SELECT value FROM vault_settings WHERE key = 'vault_initialized'",
+            [],
+            |row| row.get(0),
+        );
+        if matches!(already_initialized, Ok(val) if val == "true") {
+            return Err("Vault is already initialized".to_string());
+        }
 
         // Generate salt for key derivation
         let salt = crate::crypto::generate_salt()?;
@@ -407,24 +415,35 @@ impl VaultState {
         current_password: SecretString,
         new_password: SecretString,
     ) -> Result<(), String> {
-        let mut inner = self.inner.write().await;
+        let (old_key, db_path) = {
+            let mut inner = self.inner.write().await;
 
-        // The vault MUST be unlocked: re-encrypting stored credentials requires the
-        // current master key. Proceeding while locked would rewrite the password hash
-        // and salt without re-encrypting, permanently orphaning every credential.
-        let old_key = match inner.master_key.as_ref().map(|mk| mk.key) {
-            Some(key) => key,
-            None => {
-                return Err("Vault must be unlocked to change the master password".to_string())
+            if inner.changing_password {
+                return Err("A password change is already in progress".to_string());
             }
+
+            // The vault MUST be unlocked: re-encrypting stored credentials requires the
+            // current master key. Proceeding while locked would rewrite the password hash
+            // and salt without re-encrypting, permanently orphaning every credential.
+            let old_key = match inner.master_key.as_ref().map(|mk| mk.key) {
+                Some(key) => key,
+                None => {
+                    return Err("Vault must be unlocked to change the master password".to_string())
+                }
+            };
+
+            // Set flag to prevent auto-lock during password change. `check_auto_lock`
+            // checks this flag under its own brief write-lock acquisition, so it's
+            // safe to drop our lock here: other vault reads (e.g. an in-flight SSH
+            // credential lookup) proceed with the old key instead of stalling for the
+            // whole re-encryption pass, and we swap in the new key atomically below.
+            inner.changing_password = true;
+
+            (old_key, inner.db_path.clone())
         };
 
-        // Set flag to prevent auto-lock during password change
-        inner.changing_password = true;
-
-        let db_path = inner.db_path.clone();
-
-        // Perform heavy crypto and DB operations in a blocking thread
+        // Perform heavy crypto and DB operations in a blocking thread, without holding
+        // the vault lock.
         let result = tauri::async_runtime::spawn_blocking(move || {
             // FIX: Use single connection for entire operation to prevent connection leak
             let mut conn = db::open_connection(&db_path)?;
@@ -552,6 +571,13 @@ impl VaultState {
             .map_err(|e| format!("Task failed: {}", e))
             .and_then(|inner_result| inner_result);
 
+        // Narrow torn-state window: the DB transaction above already committed
+        // credentials/hash/salt under the new key, but `inner.master_key` (below)
+        // isn't swapped until we reacquire the lock here. A `get_master_key()` call
+        // that lands in this gap gets the old key and will fail to decrypt against
+        // the now-new-key ciphertext; the caller sees a transient error and can retry.
+        let mut inner = self.inner.write().await;
+
         // CRITICAL: Always reset changing_password on ALL code paths (success, error, panic).
         // If this flag stays true, auto-lock is permanently disabled (security vulnerability).
         inner.changing_password = false;
@@ -559,12 +585,17 @@ impl VaultState {
         // Now propagate the error (flag is already reset)
         let mut new_master_key = result?;
 
-        // Update master key in memory, then clear the stack copy
-        inner.master_key = Some(MasterKey {
-            key: new_master_key,
-        });
+        // The vault lock was dropped for the (multi-second) re-encryption work above,
+        // so it's possible lock_vault() ran and completed in that window. Respect an
+        // explicit lock instead of silently reviving it: the new password is already
+        // persisted, so the next unlock_vault() call will derive the right key from it.
+        if inner.master_key.is_some() {
+            inner.master_key = Some(MasterKey {
+                key: new_master_key,
+            });
+            inner.last_activity = Some(Instant::now());
+        }
         new_master_key.zeroize();
-        inner.last_activity = Some(Instant::now());
 
         Ok(())
     }
@@ -623,14 +654,20 @@ mod tests {
     use super::*;
 
     fn setup_test_db() -> String {
+        use std::sync::atomic::{AtomicU64, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
 
-        // Create a unique temporary file for each test
+        // Create a unique temporary file for each test. A nanosecond timestamp
+        // alone isn't a reliable uniqueness guarantee (clock resolution can be
+        // coarser than 1ns, and concurrent test threads can race), so a
+        // per-process counter is appended to make collisions impossible.
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let db_path = format!("test_vault_{}.db", timestamp);
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let db_path = format!("test_vault_{}_{}.db", timestamp, seq);
 
         let conn = rusqlite::Connection::open(&db_path).expect("Failed to open test database");
 
@@ -660,6 +697,39 @@ mod tests {
             [],
         )
         .expect("Failed to create audit log table");
+
+        // Create credentials table so change_master_password's re-encryption pass
+        // (which lists/reads/rewrites every credential) has somewhere to operate,
+        // even when a test doesn't add any credentials itself.
+        conn.execute(
+            "CREATE TABLE credentials (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                username TEXT NOT NULL,
+                encrypted_password BLOB NOT NULL,
+                nonce BLOB NOT NULL,
+                tag BLOB NOT NULL,
+                credential_type TEXT NOT NULL DEFAULT 'password',
+                host TEXT,
+                port INTEGER,
+                metadata TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                last_used_at INTEGER
+            )",
+            [],
+        )
+        .expect("Failed to create credentials table");
+        conn.execute_batch(
+            "ALTER TABLE credentials ADD COLUMN key_path TEXT;
+             ALTER TABLE credentials ADD COLUMN encrypted_private_key BLOB;
+             ALTER TABLE credentials ADD COLUMN private_key_nonce BLOB;
+             ALTER TABLE credentials ADD COLUMN private_key_tag BLOB;
+             ALTER TABLE credentials ADD COLUMN encrypted_key_passphrase BLOB;
+             ALTER TABLE credentials ADD COLUMN key_passphrase_nonce BLOB;
+             ALTER TABLE credentials ADD COLUMN key_passphrase_tag BLOB;",
+        )
+        .expect("Failed to add key columns");
 
         db_path
     }
@@ -736,6 +806,62 @@ mod tests {
             .unlock_vault(SecretString::from("TestPassword123!"))
             .await
             .expect("original password must still work after the rejected change");
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[tokio::test]
+    async fn test_lock_vault_during_password_change_stays_locked() {
+        // Regression test: change_master_password() drops the vault's write lock
+        // for the duration of its spawn_blocking re-encryption work, so an explicit
+        // lock_vault() call can land in that window. It must not be silently undone
+        // when the password change finishes installing the new key.
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+
+        vault
+            .initialize_vault(SecretString::from("TestPassword123!"))
+            .await
+            .unwrap();
+        assert!(!vault.is_locked().await);
+
+        let vault_clone = vault.clone();
+        let change_handle = tokio::spawn(async move {
+            vault_clone
+                .change_master_password(
+                    SecretString::from("TestPassword123!"),
+                    SecretString::from("NewPassword456!"),
+                )
+                .await
+        });
+
+        // Give the password-change task a chance to run past its initial lock
+        // acquisition (which drops the write lock before the blocking Argon2id /
+        // re-encryption work) and reach its `.await` point on that blocking task.
+        tokio::task::yield_now().await;
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        // An explicit lock during that window must win: finishing the password
+        // change must not silently re-unlock the vault.
+        vault.lock_vault().await.unwrap();
+
+        let change_result = change_handle.await.unwrap();
+        assert!(
+            change_result.is_ok(),
+            "password change should still succeed: {:?}",
+            change_result
+        );
+
+        assert!(
+            vault.is_locked().await,
+            "explicit lock must not be reverted by a concurrently-finishing password change"
+        );
+
+        // The new password must already be persisted even though we stayed locked.
+        vault
+            .unlock_vault(SecretString::from("NewPassword456!"))
+            .await
+            .expect("new password must work after the interleaved lock");
 
         cleanup_test_db(&db_path);
     }

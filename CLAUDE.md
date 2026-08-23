@@ -250,7 +250,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (38 files / 256 tests as of August 2026)
+#### Test file inventory (38 files / 257 tests as of August 2026)
 
 | Test file | Component tested | Key scenarios |
 |-----------|-----------------|---------------|
@@ -268,7 +268,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 | `vault/VaultInitDialog.test.tsx` | VaultInitDialog | Password validation (all rules), strength indicator, invoke, error |
 | `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password, success, error, cancel, password toggle |
 | `vault/CredentialSelector.test.tsx` | CredentialSelector | Loading, type/host filter (incl. SFTP ssh_key exclusion), search, select, manual entry, error |
-| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error, camelCase `invoke` payload keys on update (regression guard) |
+| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error, camelCase `invoke` payload keys on update (regression guard), editing an SSH-key credential with no `key_path` (`has_private_key`-gated validation, regression guard) |
 | `vault/KnownHostsManager.test.tsx` | KnownHostsManager | List, search by host/fingerprint, remove with confirm, trust updates, error |
 | `vault/AuditLogViewer.test.tsx` | AuditLogViewer | List, search, event type filter, result filter, resource info, error |
 | `vault/SshHostKeyPrompt.test.tsx` | SshHostKeyPrompt | New vs changed key, trust/reject, permanent toggle, copy fingerprint, MITM warning |
@@ -287,6 +287,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 - When multiple elements match the same text (heading + button both say "Unlock Vault"), use `getAllByText(...)` or role-scoped queries like `getByRole('button', { name: ... })`
 - Saved-host components mock `invoke` commands such as `get_saved_hosts`, `upsert_saved_host`, and `remove_saved_hosts`; frontend tests never open SQLite directly
 - **`invoke()` payload keys must be lowerCamelCase.** Tauri's command macro matches JSON keys against the camelCased Rust parameter name and silently treats a missing key as `None` for `Option<T>` params — there is no "unknown key" error. A snake_case key (e.g. `key_path` instead of `keyPath`) doesn't fail, it just never updates that field. This bit `CredentialManager.tsx`'s update/add payloads once; `CredentialManager.test.tsx` now asserts no payload key contains `_`.
+- **`get_credential` never returns decrypted private-key/passphrase material** — only `has_private_key`/`has_key_passphrase` booleans (see `CredentialFrontendView` in `vault/credentials.rs`). Any form/validation built on the result of `get_credential` must treat an empty `private_key` field as "not shown", not "not stored" — check the `has_*` flag (or `key_path`, which *is* returned in cleartext) before concluding no key exists. Got this backwards once in `CredentialManager.tsx`'s edit-submit validation, which blocked saving any change to a credential whose key was originally pasted as PEM rather than a file path.
 
 ### Rust Tests
 
@@ -355,6 +356,8 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 5. **Database export** uses `VACUUM INTO` (not file copy) to get a consistent snapshot while connections are live.
 6. **Input validation** (`validation.rs`) must be called on all user-supplied network values before use in commands.
 7. **Interactive SSH connect errors bypass `sanitize_error()` by design.** `connect_ssh` (the terminal path in `ssh.rs`) returns `ssh_connect::connect_with_diagnostics()` errors verbatim to the frontend — including the resolved IP/port and the phase that failed (DNS/TCP/handshake) — so users can self-diagnose (wrong port, firewalled host, dead DNS record). SFTP and pooled/scheduled-task SSH paths still route through `sanitize_error(e, "sftp"/"ssh")` at the `lib.rs` command boundary.
+8. **All SQLite connections must go through `db::open_connection()`.** It sets the 5s busy-timeout, WAL journal mode, and the foreign-keys pragma. `HostTracker` and `MetricsStore` used to open raw `rusqlite::Connection`s directly and got none of these — under normal write contention (scheduler + monitoring + a network scan writing concurrently) they'd fail fast with `SQLITE_BUSY` instead of waiting, and the caller only logged it, so scanned hosts and monitoring samples were silently dropped. Fixed Aug 22, 2026 by routing both through `db::open_connection()`; don't reintroduce a raw `Connection::open()` call outside `db.rs`.
+9. **`VaultState.changing_password` only gates `check_auto_lock()`, not `lock_vault()`.** `change_master_password` drops its write lock during the multi-second Argon2id + credential re-encryption pass (so other vault reads, e.g. an in-flight SSH credential lookup, aren't stalled for the whole operation) and only reacquires it briefly at the start and end. Because of that window, an explicit `lock_vault()` call can land mid-change — the reacquire-and-install step at the end checks `inner.master_key.is_some()` before installing the new key, so an explicit lock is respected instead of silently reverted. If you touch `change_master_password` again, preserve that check; see `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full locking model and a regression test at `vault::tests::test_lock_vault_during_password_change_stays_locked`.
 
 See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
 

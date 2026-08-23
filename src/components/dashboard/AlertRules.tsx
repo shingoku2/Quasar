@@ -99,7 +99,9 @@ const AlertRules: React.FC = () => {
     setRules(prev => prev.map(r => r.id === id ? updatedRule : r));
 
     try {
-      await invoke('remove_alert_rule', { ruleId: id });
+      // add_alert_rule upserts by id (retain(id != new.id) then push) on the backend,
+      // so a single call is an atomic replace. Doing remove-then-add here left a window
+      // where the backend rule was deleted but the re-add hadn't succeeded yet.
       await invoke('add_alert_rule', { rule: convertToBackendRule(updatedRule) });
     } catch (err) {
       console.error('Failed to toggle rule:', err);

@@ -7,6 +7,79 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Full Codebase Bug Audit - Complete (August 22, 2026)
+
+#### Overview
+User asked for a full pass over the codebase looking for errors and bugs. Ran `tsc --noEmit`, the full Vitest suite, `cargo clippy -- -D warnings`, and `cargo test` first (all clean going in — one exception, see #1), then dispatched parallel `code-auditor` reviews over the Rust backend and the React frontend since the mechanical checks alone don't catch logic/race/security bugs. Fixed everything found; a `security-reviewer` pass on the highest-risk fix (the vault lock change, #6 below) caught a real regression before it shipped.
+
+#### 1) `CredentialManager.tsx` called an unimported function
+- **Symptom**: `getErrorMessage()` used in 6 places, never imported — `ReferenceError` at runtime / would have failed `tsc --noEmit` on the next build. Leftover from an incomplete refactor mid-session (a scratch script, `fix-errors.js`, had moved the helper to `src/lib/utils.ts` and rewritten call sites but never got a chance to add the import).
+- **Fix**: added the import. Then finished the refactor properly across the rest of the frontend (see #10).
+
+#### 2) `RemoteManager.tsx` — adding a host disconnected every open SSH/SFTP session
+- **Root cause**: the effect that (re)builds the Inventory/Tunnels tabs was keyed on `refreshTrigger` (bumped every time `AddHostDialog` succeeds) and did `setTabs([inventoryTab, tunnelsTab])` — an unconditional **replace**, not a merge. Any terminal or SFTP tab opened via `addTab()` (which appends) got wiped, unmounting `TerminalComponent` and triggering its `disconnect_ssh` cleanup. `activeTabId` was left pointing at a tab that no longer existed, so the content pane went blank.
+- **Fix**: the effect now filters out any existing `inventory`/`tunnels` entries and prepends the freshly-built ones ahead of whatever dynamic (session) tabs were already open, instead of discarding the array.
+
+#### 3) `NetworkScanner.tsx` / `DashboardView.tsx` — scan results dropped mid-scan
+- **Root cause**: `DashboardView` passed a new inline `onHostFound` arrow function on every render. `NetworkScanner`'s listener-setup effect depends on `[onHostFound]`, and `onHostFound` itself triggers a `setDiscoveredHosts` that re-renders `DashboardView` — a feedback loop that unlistened/relistened all four `scan_*` event channels on (up to) every discovered host during an active `/24` scan. Any event landing in the gap between `unlisten()` and the next `listen()` resolving was lost; if `scan_complete` landed there, `isScanning` never flipped false and the UI showed "Scanning…" forever.
+- **Fix**: wrapped the callback in `useCallback` in `DashboardView` (stable identity, empty deps — it only calls the `setDiscoveredHosts` functional updater).
+
+#### 4) `AlertRules.tsx` — toggling a rule could silently delete it
+- **Root cause**: `toggleRule()` did `remove_alert_rule` then `add_alert_rule` (no dedicated update command). If the add failed after the remove succeeded, the `catch` only reverted local React state — the rule was already gone from the backend, with the UI showing it unchanged.
+- **Fix**: dropped the `remove_alert_rule` call. The backend's `AlertEngine::add_rule` already does `rules.retain(|r| r.id != rule.id)` then `push` — it's already an atomic upsert by id, so a single `add_alert_rule` call is both simpler and closes the failure window entirely.
+
+#### 5) `HostTracker` / `MetricsStore` bypassed the shared DB busy-timeout
+- **Location**: `src-tauri/src/host_tracker.rs`, `src-tauri/src/monitoring.rs`
+- **Root cause**: both opened raw `rusqlite::Connection`s directly instead of going through `db::open_connection()` (which every other DB consumer uses), so they never got the 5s busy-timeout. Under write contention — scheduler + monitoring + a scan all writing around the same tick — SQLite returned `SQLITE_BUSY` immediately instead of waiting, and the caller only logged the failure (`lib.rs`), so scanned hosts and monitoring samples were silently dropped while the UI reported success.
+- **Fix**: both now delegate to `db::open_connection()`.
+
+#### 6) `vault.rs` — lock-holding, TOCTOU, and a self-inflicted regression
+- **`initialize_vault` TOCTOU**: `is_initialized()` took and released its own read lock before `initialize_vault` separately acquired the write lock — two concurrent calls (e.g. a double-submit) could both pass the check before either wrote. Fixed by moving the check inside the same write-lock acquisition as the write.
+- **`change_master_password` held the write lock across the entire operation**, including a `spawn_blocking` that does 2+ Argon2id hashes (47 MiB/2 iter each) plus a full credential re-encryption transaction — multi-second work that stalled every other vault read (`get_master_key`, `is_locked`, `check_auto_lock`) for an in-flight SSH/SFTP credential lookup. Fixed to acquire the lock only briefly at the start (snapshot `old_key`/`db_path`, check `changing_password` isn't already set, set it) and briefly at the end (install the new key).
+- **Regression this introduced, caught by a `security-reviewer` pass before it shipped**: `changing_password` is only checked by `check_auto_lock()` — `lock_vault()` isn't gated by it at all. With the lock dropped for the re-encryption window, a `lock_vault()` call could land mid-change; when `change_master_password` reacquired the lock at the end it unconditionally reinstalled the new key, silently re-unlocking a vault the user had just explicitly locked. Fixed by only installing the new key if `inner.master_key.is_some()` at that point — an explicit lock wins, and the new password is already persisted so the next `unlock_vault` works correctly either way.
+- Added `vault::tests::test_lock_vault_during_password_change_stays_locked` — spawns the password change, yields until it's inside the `spawn_blocking` window, calls `lock_vault()`, and asserts the vault stays locked and the new password is already usable.
+- See `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full locking model writeup.
+
+#### 7) `scheduler.rs` — one dead host delayed every other due task
+- **Root cause**: `run_due_tasks` ran due tasks in a plain sequential `for` loop; each SSH/SFTP task can take up to `SSH_TIMEOUT_SECS` (120s) to time out, so one unreachable host in a batch delayed every other task due in the same tick behind its full timeout.
+- **Fix**: due tasks now run concurrently, bounded by a `tokio::sync::Semaphore` (`MAX_CONCURRENT_TASKS = 5`), matching the bounded-concurrency pattern already used in `scanner.rs`. Per-task execution/persistence logic was extracted into `run_and_record_task()`; results are joined and folded into `last_executed` after all spawned tasks complete (kept as plain sequential code — no shared-mutable-state concerns since it runs after the join, not during).
+
+#### 8) `update_credential` skipped validation `add_credential` enforces
+- **Location**: `src-tauri/src/lib.rs`
+- **Fix**: added `validate_credential_name`/`validate_username` checks for `Some(name)`/`Some(username)`, matching `add_credential`.
+
+#### 9) Flaky test-DB fixtures (found while testing #6)
+- **Root cause**: 5 test modules (`vault.rs`, `vault/credentials.rs`, `vault/ssh_keys.rs`, `host_tracker.rs`, `monitoring.rs`) named their per-test SQLite file from a nanosecond timestamp alone. Adding one more concurrently-running test (#6's regression test) was enough to trigger an actual collision (`table vault_settings already exists`) — clock resolution isn't a reliable uniqueness guarantee under real thread scheduling.
+- **Fix**: appended a per-process `AtomicU64` counter to the filename in all 5. (`vault/audit.rs` has the same timestamp-only pattern but only one call site — no collision is possible there, left as-is.) Also added a `credentials` table to `vault.rs`'s `setup_test_db()`, which was missing it — the new regression test was the first test in that module to actually execute `change_master_password` to completion, and it needs the table to re-encrypt against.
+
+#### 10) `String(err)` instead of `getErrorMessage()` across ~20 call sites / 12 files
+- **Risk**: `String(err)` on a plain object (rather than an `Error` or a string) renders `[object Object]` to the user. `String(err) || 'fallback'` additionally never falls back for any non-empty string, including a raw `"Error: ..."` stringification.
+- **Fix**: completed a refactor a previous session had started (see `CredentialManager.tsx`'s already-fixed case) — replaced every remaining instance with `getErrorMessage(err[, fallback])` in `PreflightDialog.tsx`, `ScheduledTasksView.tsx`, `SettingsView.tsx`, `SshFileManager.tsx`, `SshTunnelsView.tsx`, `main.tsx`, and `vault/{AuditLogViewer,CredentialSelector,KnownHostsManager,VaultInitDialog,VaultSettings,VaultUnlockDialog}.tsx`. Left `TerminalComponent.tsx`'s two `String(e).includes(...)` uses alone — they're substring checks, not user-facing display.
+- Deleted `fix-errors.js` (the scratch script that started this refactor) now that it's finished by hand.
+
+#### Verification
+- `npx tsc --noEmit` — clean
+- `npm test` — 257 passing / 38 files (unchanged; no new frontend tests added, all fixes verified against the existing suite)
+- `cargo clippy --all-targets -- -D warnings` — clean
+- `cargo test` — 114 passing (110 lib + 4 integration; up from 113, +1 for the new vault regression test), re-run twice to confirm the test-isolation fix held
+- Also cleaned up ~300 stray gitignored `test_*.db` files accumulated from prior local test runs (`src-tauri/.gitignore` already excludes them; disk clutter only, not a git concern)
+
+#### Files modified
+- `src/components/vault/CredentialManager.tsx` (missing import)
+- `src/components/RemoteManager.tsx` (tab-merge fix)
+- `src/components/dashboard/DashboardView.tsx` (`useCallback` on `onHostFound`)
+- `src/components/dashboard/AlertRules.tsx` (single-call upsert)
+- `src-tauri/src/host_tracker.rs`, `src-tauri/src/monitoring.rs` (route through `db::open_connection`)
+- `src-tauri/src/vault.rs` (TOCTOU fix, lock-holding fix, `lock_vault` race fix, new regression test, `credentials` table in test fixture)
+- `src-tauri/src/scheduler.rs` (bounded-concurrency task execution)
+- `src-tauri/src/lib.rs` (`update_credential` validation)
+- `src-tauri/src/vault/credentials.rs`, `src-tauri/src/vault/ssh_keys.rs` (test-DB-filename collision fix)
+- `src/components/{PreflightDialog,ScheduledTasksView,SettingsView,SshFileManager,SshTunnelsView}.tsx`, `src/main.tsx`, `src/components/vault/{AuditLogViewer,CredentialSelector,KnownHostsManager,VaultInitDialog,VaultSettings,VaultUnlockDialog}.tsx` (`getErrorMessage` refactor)
+- `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` (new — vault.rs locking model, written by the security-reviewer subagent during this session)
+- `fix-errors.js` (deleted — completed scratch script)
+
+---
+
 ### SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity - Complete (August 21, 2026)
 
 #### Overview
@@ -30,16 +103,24 @@ User reported SSH connections from the terminal always timing out on one server,
 - **Fix**: `AddHostDialog` now offers all 5 (SSH, RDP, Database, API, Other). Port is required for protocols without a backend default (only SSH=22 and RDP=3389 have one in `upsert_saved_host_in_conn`). `HostList` only shows the Connect button for SSH/RDP (the only protocols with an actual client); other protocols get their own badge color and remain inventory/monitoring-only entries. `RemoteManager.handleConnect` has a defensive branch explaining "no built-in client" if a non-connectable host is triggered via another path (e.g. Quick Connect).
 - New tests in `HostManagement.test.tsx`: full option list pinned, port-required toggle verified.
 
+#### 4) Credential-edit validation still blocked saves on existing SSH keys (found in live re-test, follow-up commit)
+- **Symptom**: after fix #2 shipped, the user tried editing a real SSH-key credential (one originally created by pasting a PEM, no `key_path`) and saving was still blocked with "Provide either key path or paste private key PEM."
+- **Root cause**: a second, distinct bug in the same dialog. `get_credential` intentionally never returns decrypted key material to the frontend (security by design — see `CredentialFrontendView` in `vault/credentials.rs`, which sends only `has_private_key`/`has_key_passphrase` booleans). The edit form's `private_key` field is therefore always blank on load, by design. But the pre-submit validation checked only the *form fields* (`key_path`/`private_key` both empty ⇒ error), with no awareness that key material could already exist server-side — so it blocked every edit to any ssh_key credential that didn't originally use a `key_path`, regardless of what the user was actually changing (even just the name).
+- **Fix**: added `key_path` to the frontend `Credential` interface (removing an ad-hoc type-assertion cast in the process) and gated the validation on `credential?.key_path || credential?.has_private_key` in addition to the form fields — i.e. skip the "provide a key" error when editing a credential that's already known to have one stored.
+- Regression test in `CredentialManager.test.tsx`: edits a credential with `has_private_key: true` and no `key_path`, asserts `update_credential` is called and the validation error never renders.
+- Verified live against a real SSH-key credential (OVH VPS, `vps-ed25519`) after the fix — edit saved successfully.
+- Commit `cc761a23` (separate from the `c4491b8d` doc-sync commit that closed out items 1–3 above).
+
 #### Dependency updates
 - Rust: `cargo update` applied 71 available in-range bumps, notably `russh` 0.62.5 → 0.62.7 and `russh-sftp` 2.3.0 → 2.4.0. Re-verified with `cargo clippy -- -D warnings` and `cargo test` (113 tests passing).
-- npm: `vite`, `vitest`, `lucide-react`, `@vitejs/plugin-react`, `vis-network`, `vis-data`, `postcss`, `@testing-library/jest-dom` updated. Re-verified with `npm test` (256 tests / 38 files) and `tsc --noEmit`.
+- npm: `vite`, `vitest`, `lucide-react`, `@vitejs/plugin-react`, `vis-network`, `vis-data`, `postcss`, `@testing-library/jest-dom` updated. Re-verified with `npm test` (257 tests / 38 files) and `tsc --noEmit`.
 
 #### Files modified
 - `src-tauri/src/ssh_connect.rs` (new)
 - `src-tauri/src/lib.rs` (`mod ssh_connect;`)
 - `src-tauri/src/ssh.rs`, `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs` (use shared connect helper)
-- `src/components/vault/CredentialManager.tsx` (camelCase payload keys)
-- `src/components/vault/CredentialManager.test.tsx` (regression test)
+- `src/components/vault/CredentialManager.tsx` (camelCase payload keys; `has_private_key`/`key_path`-aware edit validation)
+- `src/components/vault/CredentialManager.test.tsx` (regression tests for both credential bugs)
 - `src/components/AddHostDialog.tsx` (protocol options, required-port logic)
 - `src/components/HostList.tsx` (badge colors, Connect-button gating)
 - `src/components/RemoteManager.tsx` (defensive branch for non-connectable protocols)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import AlertFeed from './AlertFeed';
@@ -84,6 +84,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     setSelectedHost(host);
   };
 
+  // Stable identity: NetworkScanner's listener-registration effect depends on
+  // this callback. An inline arrow here would get a new identity every time a
+  // scan result updates discoveredHosts, causing it to unlisten/relisten all
+  // scan event channels mid-scan and drop events in the gap.
+  const handleHostFound = useCallback((host: ScanResult) => {
+    setDiscoveredHosts(prev => {
+      const idx = prev.findIndex(h => h.ip === host.ip);
+      if (idx === -1) return [...prev, host];
+      const next = [...prev];
+      next[idx] = host;
+      return next;
+    });
+  }, []);
+
   const handleHostConnect = (host: ScanResult) => {
     const savedHost: SavedHost = {
       id: String(Date.now()),
@@ -163,15 +177,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 <NetworkScanner
                   initialResults={discoveredHosts}
                   onResults={setDiscoveredHosts}
-                  onHostFound={(host) => {
-                    setDiscoveredHosts(prev => {
-                      const idx = prev.findIndex(h => h.ip === host.ip);
-                      if (idx === -1) return [...prev, host];
-                      const next = [...prev];
-                      next[idx] = host;
-                      return next;
-                    });
-                  }}
+                  onHostFound={handleHostFound}
                   onHostClick={handleHostClick}
                 />
               </div>

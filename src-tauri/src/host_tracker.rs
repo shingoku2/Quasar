@@ -2,6 +2,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::db;
 use crate::scanner::{ScanResult, ServiceInfo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,11 +30,7 @@ impl HostTracker {
     }
 
     fn open_connection(&self) -> Result<Connection, String> {
-        let conn = Connection::open(&self.db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")
-            .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
-        Ok(conn)
+        db::open_connection(&self.db_path)
     }
 
     pub fn save_host(&self, scan_result: &ScanResult) -> Result<String, String> {
@@ -305,11 +302,17 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn setup_test_tracker() -> (HostTracker, String) {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        // A nanosecond timestamp alone isn't a reliable uniqueness guarantee
+        // (clock resolution can be coarser than 1ns, and concurrent test threads
+        // can race), so a per-process counter is appended to rule out collisions.
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let db_path = format!("test_host_tracker_{}.db", timestamp);
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let db_path = format!("test_host_tracker_{}_{}.db", timestamp, seq);
 
         let conn = Connection::open(&db_path).unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();

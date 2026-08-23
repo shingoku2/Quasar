@@ -1174,6 +1174,12 @@ async fn update_credential(
     private_key: Option<String>,
     key_passphrase: Option<String>,
 ) -> Result<(), String> {
+    if let Some(ref n) = name {
+        validate_credential_name(n)?;
+    }
+    if let Some(ref u) = username {
+        validate_username(u)?;
+    }
     let master_key = vault_state
         .get_master_key()
         .await

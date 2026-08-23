@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { Settings, Shield, Bell, Palette, Database, Info } from 'lucide-react';
 import VaultSettings from './vault/VaultSettings';
+import { getErrorMessage } from '../lib/utils';
 
 const SETTINGS_STORAGE_KEY = 'quasar_settings';
 
@@ -330,7 +331,7 @@ const DataSettings: React.FC = () => {
       const info = await invoke<AppInfo>('get_app_info');
       setAppInfo(info);
     } catch (err) {
-      setError(String(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -355,7 +356,7 @@ const DataSettings: React.FC = () => {
       setTimeout(() => setSuccess(''), 3000);
       await loadInfo();
     } catch (err) {
-      setError(String(err));
+      setError(getErrorMessage(err));
     } finally {
       setExporting(false);
     }
@@ -377,7 +378,7 @@ const DataSettings: React.FC = () => {
       setTimeout(() => setSuccess(''), 5000);
       await loadInfo();
     } catch (err) {
-      setError(String(err));
+      setError(getErrorMessage(err));
     } finally {
       setImporting(false);
     }
@@ -394,7 +395,7 @@ const DataSettings: React.FC = () => {
       setTimeout(() => setSuccess(''), 3000);
       await loadInfo();
     } catch (err) {
-      setError(String(err));
+      setError(getErrorMessage(err));
     } finally {
       setClearing(false);
     }

@@ -4,23 +4,41 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **SSH connection diagnostics, credential save fix, and host protocol parity complete (Aug 21, 2026)**.
-- **Last Action:** Root-caused a user-reported SSH timeout to a saved host's port not matching the server's actual sshd port; replaced the single opaque "Connection timed out" with phase-aware DNS/TCP/handshake diagnostics (`ssh_connect.rs`). Along the way found and fixed a silent credential-save bug (Tauri `invoke()` requires camelCase argument keys — snake_case keys are dropped, not errored) and brought `AddHostDialog`'s protocol list up to parity with the credential vault's (added Database/API/Other). See `AGENTS.md` for full detail.
+- **Status:** **Full codebase bug audit complete (Aug 22, 2026)**.
+- **Last Action:** User asked for a full pass over the codebase for errors/bugs. Ran the full mechanical check suite (`tsc --noEmit`, Vitest, `cargo clippy -D warnings`, `cargo test`) then dispatched parallel `code-auditor` reviews over the Rust backend and React frontend for logic/race/security bugs the mechanical checks can't catch. Fixed 10 categories of real bugs, most notably: `RemoteManager.tsx` was disconnecting every open SSH/SFTP session whenever a host was added (tab array replaced instead of merged), `NetworkScanner.tsx` was dropping live scan results mid-scan (unstable callback identity causing listener churn), `HostTracker`/`MetricsStore` bypassed the shared DB busy-timeout causing silent data loss under write contention, and `vault.rs`'s `change_master_password` held the vault lock across a multi-second operation (fixed to drop it — then a security review caught a regression the fix itself introduced, where an explicit `lock_vault()` mid-change could get silently undone; fixed and regression-tested before shipping). See `AGENTS.md` for full detail on all 10.
+- **Previous status:** SSH connection diagnostics, credential save fix, and host protocol parity complete (Aug 21, 2026) — see below.
+
+## Full Codebase Bug Audit (2026-08-22)
+
+### Summary
+- **Mechanical checks first**: `tsc --noEmit`, `npm test` (257/257), `cargo clippy -- -D warnings`, `cargo test` (113/113) all clean going in.
+- **Then two parallel `code-auditor` subagents** (Rust backend, React frontend) for logic/race/security bugs — found real, verified issues in both.
+- **Frontend fixes**: unimported `getErrorMessage` in `CredentialManager.tsx` (would have broken the build); `RemoteManager.tsx` wiping open session tabs whenever a host was added; `NetworkScanner.tsx`/`DashboardView.tsx` dropping scan events via listener churn from an unstable callback; `AlertRules.tsx` toggle able to silently delete a rule on a partial remove-then-add failure.
+- **Backend fixes**: `HostTracker`/`MetricsStore` bypassing the shared SQLite busy-timeout (silent data loss under contention); a TOCTOU in `initialize_vault`; `change_master_password` holding the vault lock across multi-second Argon2id + re-encryption work (fixed to drop it, then a `security-reviewer` subagent caught a real regression in that fix — `lock_vault()` mid-change being silently undone — fixed and regression-tested); `scheduler.rs` running due tasks strictly sequentially so one dead host delayed everything else (now bounded-concurrency, matching `scanner.rs`'s pattern); `update_credential` missing validation `add_credential` had.
+- **Cleanup**: completed an in-progress `String(err)` → `getErrorMessage()` refactor across ~20 call sites in 12 frontend files (the unfinished version was the root cause of the unimported-helper bug above); fixed a flaky test-DB-filename collision pattern in 5 Rust test modules; deleted the scratch script and ~300 stray gitignored test-DB files.
+
+### Verification
+- `npx tsc --noEmit` — clean
+- `npm test` — 257 passing / 38 files
+- `cargo clippy --all-targets -- -D warnings` — clean
+- `cargo test` — 114 passing (110 lib + 4 integration), re-run twice to confirm the flaky-fixture fix held
+- Security review of the vault.rs lock-holding change (via `security-reviewer` subagent) — found and fixed one regression before it shipped; see `.claude/agent-memory/security-reviewer/vault_rs_patterns.md`
 
 ## SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity (2026-08-21)
 
 ### Summary
 - **`ssh_connect.rs`** (new) — shared connect helper used by all 6 SSH/SFTP call sites. Separately times DNS resolution, TCP connect per resolved address, and the SSH handshake, so errors name the failing phase and address instead of one generic timeout. Fixes the dual-stack trap where a dead IPv6 record starves a working IPv4 address under a shared timer.
-- **Credential save bug**: `CredentialManager.tsx` sent snake_case `invoke()` keys (`credential_type`, `key_path`, etc.); Tauri matches against camelCase and silently no-ops missing `Option<T>` keys rather than erroring. Renamed to camelCase; added a regression test asserting no payload key contains `_`.
+- **Credential save bug (1 of 2)**: `CredentialManager.tsx` sent snake_case `invoke()` keys (`credential_type`, `key_path`, etc.); Tauri matches against camelCase and silently no-ops missing `Option<T>` keys rather than erroring. Renamed to camelCase; added a regression test asserting no payload key contains `_`.
+- **Credential save bug (2 of 2)**: found in live re-test *after* the fix above shipped. Editing an SSH-key credential whose key was originally pasted as PEM (no `key_path`) was still blocked — `get_credential` never returns decrypted key material by design, so the form's blank `private_key` field was wrongly read as "no key stored" by the submit validation. Fixed by gating on `has_private_key`/`key_path` instead of the form field. Separate commit (`cc761a23`).
 - **Host protocols**: `AddHostDialog` now offers SSH/RDP/Database/API/Other (previously SSH/RDP only), matching the credential vault. Port required when the protocol has no backend default; Connect button only for SSH/RDP.
 - **Dependency updates**: russh 0.62.5 → 0.62.7, russh-sftp → 2.4.0, plus ~70 other Rust crates and 8 npm packages, all re-verified (clippy, cargo test, npm test, tsc).
 
 ### Verification
 - `cargo clippy --tests -- -D warnings` — clean
 - `cargo test` — 113 passing
-- `npm test` — 256 passing / 38 files
+- `npm test` — 257 passing / 38 files (final count, after both credential-bug fixes)
 - `npx tsc --noEmit` — clean
-- Live-verified against a real Ubuntu VPS: old code timed out silently; new diagnostics reported the exact port mismatch, which the user then confirmed fixed the connection.
+- Live-verified against two real hosts: an Ubuntu VPS (old code timed out silently; new diagnostics reported the exact port mismatch, which the user confirmed fixed the connection) and a home-LAN Ubuntu laptop (separately diagnosed a stale SSH known_hosts entry + wrong `IdentityFile` in the user's own `~/.ssh/config`, unrelated to the app). Both credential-save bugs were confirmed fixed by successfully editing/using real SSH-key credentials for these hosts, with both terminal sessions connected side by side in the app.
 
 ## Credential Edit & Type-Switch Fixes (2026-02-16)
 

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { VaultProvider } from "./components/vault/VaultProvider";
+import { getErrorMessage } from "./lib/utils";
 
 const rootElement = document.getElementById("root");
 
@@ -24,7 +25,7 @@ if (!rootElement) {
     console.error("Failed to mount React app:", error);
     rootElement.innerHTML = `<div style="color: red; padding: 20px;">
       <h1>Failed to load app</h1>
-      <pre>${error instanceof Error ? error.message : String(error)}</pre>
+      <pre>${getErrorMessage(error)}</pre>
     </div>`;
   }
 }

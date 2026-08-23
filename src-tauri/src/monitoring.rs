@@ -1,3 +1,4 @@
+use crate::db;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -631,12 +632,8 @@ impl MetricsStore {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         // Check if connection exists and is valid
         if conn_guard.is_none() {
-            let new_conn = rusqlite::Connection::open(&self.db_path).map_err(|e| {
-                format!("Failed to open metrics database at {}: {}", self.db_path, e)
-            })?;
-            new_conn
-                .execute_batch("PRAGMA foreign_keys = ON;")
-                .map_err(|e| format!("Failed to enable foreign keys for metrics DB: {}", e))?;
+            let new_conn = db::open_connection(&self.db_path)
+                .map_err(|e| format!("Failed to open metrics database at {}: {}", self.db_path, e))?;
             *conn_guard = Some(new_conn);
         }
 
@@ -1042,12 +1039,19 @@ mod tests {
     }
 
     fn metrics_store_db() -> (MetricsStore, String) {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        // A nanosecond timestamp alone isn't a reliable uniqueness guarantee
+        // (clock resolution can be coarser than 1ns, and concurrent test threads
+        // can race), so a per-process counter is appended to rule out collisions.
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
         let db_path = format!(
-            "test_metrics_store_{}.db",
+            "test_metrics_store_{}_{}.db",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            seq
         );
         let conn = rusqlite::Connection::open(&db_path).unwrap();
         conn.execute_batch(include_str!("../migrations/004_monitoring.sql"))

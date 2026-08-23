@@ -53,7 +53,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library (38 test files / 256 tests)
+- **Testing**: Vitest + React Testing Library (38 test files / 257 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
@@ -202,9 +202,20 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ## Recent Updates
 
+### August 22, 2026 - Full Codebase Bug Audit
+- ✅ **Session-killing tab bug fixed** — adding a host from the Inventory tab was resetting the entire session tab list, silently disconnecting every open SSH terminal and SFTP session. Fixed to merge instead of replace.
+- ✅ **Live network scan data loss fixed** — an unstable callback identity was causing `NetworkScanner` to unlisten/relisten its scan-event channels mid-scan, dropping discovered hosts and occasionally leaving the UI stuck on "Scanning…" forever.
+- ✅ **Alert rule toggle no longer risks silent deletion** — toggling a rule's enabled state used to remove it then re-add it; a failure between those two steps could delete the rule while the UI still showed it as present. Now a single atomic upsert.
+- ✅ **Silent data loss in scan/monitoring history fixed** — `HostTracker` and `MetricsStore` were opening database connections that skipped the app's shared busy-timeout, so a write landing during contention (scheduler + monitoring + a scan all writing near the same moment) could fail outright and get silently dropped instead of waiting.
+- ✅ **Vault password-change performance and safety hardened** — changing the master password used to hold the vault locked (internally) for the entire multi-second re-encryption operation, stalling any other in-flight credential use. Fixed to only hold the lock briefly at each end; a security review of that fix caught and closed a race where an explicit vault lock during the change could have been silently undone.
+- ✅ **Scheduled tasks no longer block on one dead host** — due tasks used to run strictly one at a time, so a single unreachable host could delay every other scheduled task behind its full timeout. Tasks now run concurrently (bounded).
+- ✅ **Error messages cleaned up app-wide** — completed a partial refactor so ~20 error-handling call sites across 12 components use a helper that reliably extracts a readable message instead of risking a raw `[object Object]` being shown to the user.
+- ✅ **Verification** — `tsc --noEmit`, `npm test` (257/257), `cargo clippy -- -D warnings`, and `cargo test` (114/114) all clean; see `AGENTS.md` for the full technical writeup of all fixes.
+
 ### August 21, 2026 - SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity
 - ✅ **Phase-aware SSH connection errors** — New `ssh_connect.rs` module replaces the old one-shot "Connection timed out" with per-phase diagnostics: DNS lookup, TCP connect (tried per resolved address, so a dead IPv6 record no longer starves a working IPv4 one), and SSH handshake, each reporting the specific address and reason (refused / no response / handshake failure). Shared by the interactive terminal, SFTP, one-shot exec, the scheduled-task connection pool, and SSH tunnels. Terminal's connect timeout raised from an outlier 5s to the 10s used everywhere else.
 - ✅ **Credential save bug fixed** — `CredentialManager.tsx` was sending `credential_type`/`key_path`/`private_key`/`key_passphrase` (snake_case) in `update_credential`/`add_credential` payloads. Tauri matches `invoke()` args against camelCased Rust parameter names with no "unknown key" error, so these fields silently never saved — editing a credential's type or SSH key material appeared to succeed but was discarded. Fixed to camelCase; regression test asserts no payload key contains `_`.
+- ✅ **Second credential-edit bug fixed** — even after the camelCase fix, editing an SSH-key credential whose key was originally pasted as PEM (no `key_path`) was still blocked by a "provide a key" validation error on every save, because `get_credential` never returns decrypted key material (by design) and the form's empty `private_key` field was misread as "no key stored." Validation now checks `has_private_key`/`key_path` instead.
 - ✅ **Host protocol options expanded** — `AddHostDialog` now offers all 5 protocols also available in the credential vault (SSH, RDP, Database, API, Other), previously only SSH/RDP. Port becomes required for protocols without a backend default port; Connect button only shows for protocols with an actual client (SSH/RDP); other protocols are inventory/monitoring-only entries with their own badge color.
 - ✅ **Dependency updates** — russh 0.62.5 → 0.62.7, russh-sftp 2.3.0 → 2.4.0, rusqlite, thiserror, uuid, futures, and 60+ other Rust crates; vite, vitest, lucide-react, and 5 other npm packages. Full clippy/cargo test/npm test/tsc verification after update.
 

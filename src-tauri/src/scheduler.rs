@@ -6,8 +6,10 @@ use cron::Schedule;
 use log::{error, info};
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
+use tokio::sync::Semaphore;
 use tokio::time::interval;
 
 use crate::db;
@@ -17,6 +19,10 @@ use uuid::Uuid;
 const DB_FILENAME: &str = "quasar.db";
 const CHECK_INTERVAL_SECS: u64 = 60;
 const SSH_TIMEOUT_SECS: u64 = 120;
+/// Bounds how many scheduled tasks run at once. Without this, tasks due in the
+/// same tick ran strictly sequentially, so one unreachable host could delay
+/// every other due task behind its full SSH_TIMEOUT_SECS timeout.
+const MAX_CONCURRENT_TASKS: usize = 5;
 
 /// Result of a single task run (scheduled or manual).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -574,125 +580,167 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
     let now_ts = now.timestamp();
     let guard_duration = chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64);
 
-    for task in tasks {
-        if !is_due(&task.cron_expression, task.last_run_at, now) {
-            continue;
-        }
-
-        // Guard against repeated execution when DB persistence of last_run_at failed.
-        if let Some(last) = last_executed.get(&task.id) {
-            if now.signed_duration_since(*last) < guard_duration {
-                continue;
+    // Guard against repeated execution when DB persistence of last_run_at failed.
+    let due_tasks: Vec<TaskRow> = tasks
+        .into_iter()
+        .filter(|task| {
+            if !is_due(&task.cron_expression, task.last_run_at, now) {
+                return false;
             }
-        }
-
-        info!("scheduler: running task '{}'", task.name);
-
-        let conn = match db::open_connection(db_path_str) {
-            Ok(c) => c,
-            Err(e) => {
-                error!("scheduler: failed to open db: {}", e);
-                continue;
+            if let Some(last) = last_executed.get(&task.id) {
+                if now.signed_duration_since(*last) < guard_duration {
+                    return false;
+                }
             }
-        };
-        let host_info = match get_host_credentials(&conn, &task.host_id) {
-            Ok(Some(h)) => h,
-            Ok(None) => {
+            true
+        })
+        .collect();
+
+    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS));
+    let mut handles = Vec::with_capacity(due_tasks.len());
+
+    for task in due_tasks {
+        let semaphore = semaphore.clone();
+        let app = app.clone();
+        let db_path_str = db_path_str.to_string();
+        handles.push(tokio::spawn(async move {
+            // Held for the duration of this task's run so at most
+            // MAX_CONCURRENT_TASKS execute at once; released on drop. The semaphore
+            // is never closed, so acquire_owned only errors if that ever changes.
+            let _permit = match semaphore.acquire_owned().await {
+                Ok(p) => p,
+                Err(e) => {
+                    error!("scheduler: semaphore closed unexpectedly: {}", e);
+                    return None;
+                }
+            };
+            run_and_record_task(&app, &db_path_str, task, now, now_ts).await
+        }));
+    }
+
+    for handle in handles {
+        match handle.await {
+            Ok(Some((task_id, ran_at))) => {
+                last_executed.insert(task_id, ran_at);
+            }
+            Ok(None) => {}
+            Err(e) => error!("scheduler: task join failed: {}", e),
+        }
+    }
+}
+
+/// Runs a single due task (credential resolution, execution, result persistence)
+/// and reports the (task_id, ran_at) pair to record in `last_executed`, or `None`
+/// if the task never got far enough to run (matching the pre-refactor behavior of
+/// `continue`-ing before that point without recording an execution).
+async fn run_and_record_task(
+    app: &AppHandle,
+    db_path_str: &str,
+    task: TaskRow,
+    now: DateTime<Utc>,
+    now_ts: i64,
+) -> Option<(String, DateTime<Utc>)> {
+    info!("scheduler: running task '{}'", task.name);
+
+    let conn = match db::open_connection(db_path_str) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("scheduler: failed to open db: {}", e);
+            return None;
+        }
+    };
+    let host_info = match get_host_credentials(&conn, &task.host_id) {
+        Ok(Some(h)) => h,
+        Ok(None) => {
+            error!(
+                "scheduler: host_id {} not found for task {}",
+                task.host_id, task.name
+            );
+            return None;
+        }
+        Err(e) => {
+            error!("scheduler: get host failed: {}", e);
+            return None;
+        }
+    };
+    let (address, port, username) = (host_info.0.clone(), host_info.1, host_info.2.clone());
+    let port_u16 = port.clamp(1, 65535) as u16;
+    let task_id = task.id.clone();
+    let task_name = task.name.clone();
+    drop(conn);
+
+    let result = match resolve_cred_for_task(app, task.credential_id.as_deref()).await {
+        Ok(cred) => {
+            run_one_task(
+                app,
+                &address,
+                port_u16,
+                &username,
+                &cred.0,
+                cred.1.as_deref(),
+                cred.2.as_deref(),
+                cred.3.as_deref(),
+                &task.task_type,
+                &task.command,
+                task.local_path.as_deref(),
+                task.remote_path.as_deref(),
+            )
+            .await
+        }
+        Err(e) => {
+            error!("scheduler: task '{}' cred error: {}", task_name, e);
+            Ok(TaskRunResult {
+                success: false,
+                output: None,
+                error: Some(e),
+            })
+        }
+    };
+
+    let conn2 = match db::open_connection(db_path_str) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("scheduler: failed to open db for result: {}", e);
+            // Record in-memory regardless of DB persistence outcome.
+            return Some((task_id, now));
+        }
+    };
+    match result {
+        Ok(r) => {
+            let status = if r.success { "success" } else { "failure" };
+            if r.success {
+                info!("scheduler: task '{}' completed", task_name);
+            } else {
+                error!("scheduler: task '{}' failed: {:?}", task_name, r.error);
+            }
+            if let Err(e) = set_run_result(
+                &conn2,
+                &task_id,
+                now_ts,
+                status,
+                r.error.as_deref(),
+                r.output.as_deref(),
+            ) {
                 error!(
-                    "scheduler: host_id {} not found for task {}",
-                    task.host_id, task.name
+                    "scheduler: failed to persist run result for task '{}': {}",
+                    task_name, e
                 );
-                continue;
             }
-            Err(e) => {
-                error!("scheduler: get host failed: {}", e);
-                continue;
-            }
-        };
-        let (address, port, username) = (host_info.0.clone(), host_info.1, host_info.2.clone());
-        let port_u16 = port.clamp(1, 65535) as u16;
-        let task_id = task.id.clone();
-        let task_name = task.name.clone();
-        let task_command = task.command.clone();
-        let task_type = task.task_type.clone();
-        let local_path = task.local_path.clone();
-        let remote_path = task.remote_path.clone();
-        let cred_id = task.credential_id.clone();
-        drop(conn);
-
-        let result = match resolve_cred_for_task(app, cred_id.as_deref()).await {
-            Ok(cred) => {
-                run_one_task(
-                    app,
-                    &address,
-                    port_u16,
-                    &username,
-                    &cred.0,
-                    cred.1.as_deref(),
-                    cred.2.as_deref(),
-                    cred.3.as_deref(),
-                    &task_type,
-                    &task_command,
-                    local_path.as_deref(),
-                    remote_path.as_deref(),
-                )
-                .await
-            }
-            Err(e) => {
-                error!("scheduler: task '{}' cred error: {}", task_name, e);
-                Ok(TaskRunResult {
-                    success: false,
-                    output: None,
-                    error: Some(e),
-                })
-            }
-        };
-
-        // Record in-memory regardless of DB persistence outcome.
-        last_executed.insert(task_id.clone(), now);
-
-        let conn2 = match db::open_connection(db_path_str) {
-            Ok(c) => c,
-            Err(e) => {
-                error!("scheduler: failed to open db for result: {}", e);
-                continue;
-            }
-        };
-        match result {
-            Ok(r) => {
-                let status = if r.success { "success" } else { "failure" };
-                if r.success {
-                    info!("scheduler: task '{}' completed", task_name);
-                } else {
-                    error!("scheduler: task '{}' failed: {:?}", task_name, r.error);
-                }
-                if let Err(e) = set_run_result(
-                    &conn2,
-                    &task_id,
-                    now_ts,
-                    status,
-                    r.error.as_deref(),
-                    r.output.as_deref(),
-                ) {
-                    error!(
-                        "scheduler: failed to persist run result for task '{}': {}",
-                        task_name, e
-                    );
-                }
-            }
-            Err(e) => {
-                error!("scheduler: task '{}' run error: {}", task_name, e);
-                if let Err(pe) =
-                    set_run_result(&conn2, &task_id, now_ts, "failure", Some(e.as_str()), None)
-                {
-                    error!(
-                        "scheduler: failed to persist run result for task '{}': {}",
-                        task_name, pe
-                    );
-                }
+        }
+        Err(e) => {
+            error!("scheduler: task '{}' run error: {}", task_name, e);
+            if let Err(pe) =
+                set_run_result(&conn2, &task_id, now_ts, "failure", Some(e.as_str()), None)
+            {
+                error!(
+                    "scheduler: failed to persist run result for task '{}': {}",
+                    task_name, pe
+                );
             }
         }
     }
+
+    Some((task_id, now))
 }
 
 /// Start the scheduler background task. Call once during app setup.
