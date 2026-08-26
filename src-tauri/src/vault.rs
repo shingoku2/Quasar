@@ -201,8 +201,85 @@ impl VaultState {
         Ok(())
     }
 
+    /// Loads any lockout state persisted in `vault_settings` and folds it into
+    /// the in-memory tracking. `VaultStateInner` starts fresh on every process
+    /// launch, so without this an attacker with local access to the database
+    /// file could bypass the escalating lockout below entirely — just by
+    /// relaunching the app every 4 guesses to reset the in-memory counter.
+    /// Only ever raises `inner`'s state (the DB is strictly more up to date
+    /// than a fresh process), so this is safe to call unconditionally.
+    fn load_persisted_lockout(conn: &rusqlite::Connection, inner: &mut VaultStateInner) {
+        let persisted_attempts: u32 = conn
+            .query_row(
+                "SELECT value FROM vault_settings WHERE key = 'lockout_failed_attempts'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        if persisted_attempts > inner.failed_attempts {
+            inner.failed_attempts = persisted_attempts;
+        }
+
+        let persisted_until_unix: Option<i64> = conn
+            .query_row(
+                "SELECT value FROM vault_settings WHERE key = 'lockout_until_unix'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|v| v.parse().ok());
+
+        if let Some(until_unix) = persisted_until_unix {
+            let remaining_secs = until_unix - chrono::Utc::now().timestamp();
+            if remaining_secs > 0 {
+                let candidate = Instant::now() + Duration::from_secs(remaining_secs as u64);
+                if inner.lockout_until.map(|c| candidate > c).unwrap_or(true) {
+                    inner.lockout_until = Some(candidate);
+                }
+            }
+        }
+    }
+
+    /// Persists lockout state so it survives an app restart. `lockout_until`
+    /// is converted from the process-local monotonic clock to a wall-clock
+    /// unix timestamp, since `Instant` has no meaning across process runs.
+    fn persist_lockout(
+        conn: &rusqlite::Connection,
+        failed_attempts: u32,
+        lockout_until: Option<Instant>,
+    ) -> Result<(), String> {
+        let now = chrono::Utc::now().timestamp();
+        conn.execute(
+            "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
+            rusqlite::params!["lockout_failed_attempts", failed_attempts.to_string(), now],
+        )
+        .map_err(|e| format!("Failed to persist lockout state: {}", e))?;
+
+        match lockout_until {
+            Some(instant) => {
+                let remaining = instant.checked_duration_since(Instant::now()).unwrap_or_default();
+                let until_unix = now + remaining.as_secs() as i64;
+                conn.execute(
+                    "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
+                    rusqlite::params!["lockout_until_unix", until_unix.to_string(), now],
+                )
+                .map_err(|e| format!("Failed to persist lockout deadline: {}", e))?;
+            }
+            None => {
+                conn.execute("DELETE FROM vault_settings WHERE key = 'lockout_until_unix'", [])
+                    .map_err(|e| format!("Failed to clear lockout deadline: {}", e))?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn unlock_vault(&self, master_password: SecretString) -> Result<(), String> {
         let mut inner = self.inner.write().await;
+        let conn = db::open_connection(&inner.db_path)?;
+        Self::load_persisted_lockout(&conn, &mut inner);
 
         // Check if locked out
         if let Some(lockout_until) = inner.lockout_until {
@@ -218,10 +295,9 @@ impl VaultState {
                 // counter here would pin every lockout at the 5-minute tier forever.
                 // The counter is cleared on a successful unlock.
                 inner.lockout_until = None;
+                Self::persist_lockout(&conn, inner.failed_attempts, None)?;
             }
         }
-
-        let conn = db::open_connection(&inner.db_path)?;
 
         // Get stored password hash
         let stored_hash: String = conn
@@ -256,21 +332,27 @@ impl VaultState {
             inner.failed_attempts += 1;
 
             // Implement lockout policy
-            if inner.failed_attempts >= 15 {
+            let lockout_message = if inner.failed_attempts >= 15 {
                 inner.lockout_until = Some(Instant::now() + Duration::from_secs(3600));
-                return Err("Too many failed attempts. Vault locked for 60 minutes".to_string());
+                Some("Too many failed attempts. Vault locked for 60 minutes".to_string())
             } else if inner.failed_attempts >= 10 {
                 inner.lockout_until = Some(Instant::now() + Duration::from_secs(900));
-                return Err("Too many failed attempts. Vault locked for 15 minutes".to_string());
+                Some("Too many failed attempts. Vault locked for 15 minutes".to_string())
             } else if inner.failed_attempts >= 5 {
                 inner.lockout_until = Some(Instant::now() + Duration::from_secs(300));
-                return Err("Too many failed attempts. Vault locked for 5 minutes".to_string());
-            }
+                Some("Too many failed attempts. Vault locked for 5 minutes".to_string())
+            } else {
+                None
+            };
 
-            return Err(format!(
-                "Invalid master password. {} attempts remaining before lockout",
-                5u32.saturating_sub(inner.failed_attempts)
-            ));
+            Self::persist_lockout(&conn, inner.failed_attempts, inner.lockout_until)?;
+
+            return Err(lockout_message.unwrap_or_else(|| {
+                format!(
+                    "Invalid master password. {} attempts remaining before lockout",
+                    5u32.saturating_sub(inner.failed_attempts)
+                )
+            }));
         }
 
         // Derive master key from password using hash_password_into for direct key derivation
@@ -301,6 +383,7 @@ impl VaultState {
         inner.last_activity = Some(Instant::now());
         inner.failed_attempts = 0;
         inner.lockout_until = None;
+        Self::persist_lockout(&conn, 0, None)?;
 
         // Log audit event
         Self::log_audit_event(
@@ -886,6 +969,73 @@ mod tests {
             .await;
         assert!(result.is_err());
         assert!(vault.is_locked().await);
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[tokio::test]
+    async fn test_lockout_persists_across_vault_state_restart() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+
+        vault
+            .initialize_vault(SecretString::from("TestPassword123!"))
+            .await
+            .unwrap();
+        vault.lock_vault().await.unwrap();
+
+        // 5 failed attempts trips the first lockout tier.
+        for _ in 0..5 {
+            let _ = vault
+                .unlock_vault(SecretString::from("WrongPassword"))
+                .await;
+        }
+
+        // A brand-new VaultState (simulating an app restart, which resets all
+        // in-memory tracking) pointed at the same database must still honor
+        // the lockout — even with the *correct* password.
+        let restarted = VaultState::new(db_path.clone());
+        let result = restarted
+            .unlock_vault(SecretString::from("TestPassword123!"))
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("locked out"));
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[tokio::test]
+    async fn test_successful_unlock_clears_persisted_lockout() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+
+        vault
+            .initialize_vault(SecretString::from("TestPassword123!"))
+            .await
+            .unwrap();
+        vault.lock_vault().await.unwrap();
+
+        // A few failed attempts (short of a lockout tier), then a success.
+        for _ in 0..3 {
+            let _ = vault
+                .unlock_vault(SecretString::from("WrongPassword"))
+                .await;
+        }
+        vault
+            .unlock_vault(SecretString::from("TestPassword123!"))
+            .await
+            .unwrap();
+        vault.lock_vault().await.unwrap();
+
+        // A fresh VaultState should see no residual lockout from those
+        // earlier failed attempts — the successful unlock must have cleared
+        // the persisted state, not just the in-memory counter.
+        let restarted = VaultState::new(db_path.clone());
+        let result = restarted
+            .unlock_vault(SecretString::from("TestPassword123!"))
+            .await;
+        assert!(result.is_ok());
 
         cleanup_test_db(&db_path);
     }

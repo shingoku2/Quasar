@@ -7,6 +7,57 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Vault Lockout Persistence & Security Policy - Complete (August 26, 2026)
+
+#### Overview
+Second follow-up from the production-readiness assessment. The assessment's first pass had
+flagged "no brute-force throttling on vault unlock" as a gap — that turned out to be wrong:
+`unlock_vault` already has an escalating lockout (5 failed attempts → 5 min, 10 → 15 min,
+15 → 60 min, reset on success), just not surfaced anywhere in `CLAUDE.md`. Investigating it
+turned up a real, narrower gap instead: the lockout state lives only in `VaultStateInner`,
+which is rebuilt fresh on every process launch. An attacker with local access to the
+(encrypted) database file could brute-force the master password in batches of 4 guesses by
+relaunching the app before each lockout tier, since Argon2id's per-guess cost (~50-100ms at
+the app's params) is the only thing slowing them down between relaunches.
+
+#### 1) Persist lockout state across restarts (`src-tauri/src/vault.rs`)
+- Two new private `VaultState` methods: `load_persisted_lockout()` (reads
+  `lockout_failed_attempts` / `lockout_until_unix` from `vault_settings`, folds them into
+  `inner` — only ever raising its state, since the DB is always at least as strict as a
+  fresh process) and `persist_lockout()` (writes them back, converting `Instant` — which has
+  no meaning across process runs — to a wall-clock unix timestamp via `chrono::Utc::now()`).
+- `unlock_vault()` now opens its DB connection and calls `load_persisted_lockout()` before
+  the existing in-memory lockout check (previously the connection was opened after), and
+  calls `persist_lockout()` on every failed attempt (with the newly-escalated tier, if any),
+  when an expired lockout is cleared, and on success (clearing both counters).
+- The escalation policy itself (5/10/15 attempts → 5/15/60 min) is unchanged — this only
+  makes it survive a restart.
+- New tests: `vault::tests::test_lockout_persists_across_vault_state_restart` (5 failed
+  attempts, then a brand-new `VaultState` on the same DB is still locked out even with the
+  *correct* password) and `test_successful_unlock_clears_persisted_lockout` (a successful
+  unlock clears the persisted counters too, not just the in-memory ones).
+
+#### 2) `SECURITY.md` (new)
+Vulnerability disclosure policy: directs reports to GitHub's private Security Advisories
+(Security tab → "Report a vulnerability") rather than public issues, states response-time
+expectations, defines scope (backend/frontend/release pipeline in; already-unlocked-vault
+or already-compromised-machine scenarios out), and documents two things that look like
+vulnerabilities but are intentional design (`connect_ssh`'s unsanitized diagnostic errors,
+`list_credentials` working without an unlocked vault) so reports about them can go straight
+to "is the existing handling actually safe" instead of being re-litigated from scratch.
+
+#### Verification
+- `cargo clippy --all-targets -- -D warnings` — clean.
+- `cargo test` — 112 passed (up from 110; the two new lockout tests), including the full
+  `vault::tests::` module (7 tests, all passing).
+
+#### Files modified
+- `src-tauri/src/vault.rs` (lockout persistence + 2 new tests)
+- `SECURITY.md` (new)
+- `CLAUDE.md` (Security Notes item 10, Key Files table)
+
+---
+
 ### Code Signing & Auto-Updater - Complete (August 26, 2026)
 
 #### Overview
