@@ -92,6 +92,27 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # tagName below only names the GitHub release — it doesn't touch the
+      # packaged app version, which tauri.conf.json's "version" field pins
+      # at 0.1.0. Without this, every build (and the latest.json the
+      # updater compares against) would keep reporting 0.1.0 forever
+      # regardless of the tag pushed, so an already-installed build would
+      # never see a newer release as newer and the updater would silently
+      # stop working after the very first release.
+      - name: Stamp package version from release tag
+        shell: bash
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+            const p = 'src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+            c.version = version;
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+          "
+
       # Windows builds sign via a certificate thumbprint in tauri.conf.json,
       # not an env var, so the cert has to be imported into the runner's
       # store and its thumbprint patched into the config before `tauri build`
