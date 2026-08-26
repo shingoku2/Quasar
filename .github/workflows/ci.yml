@@ -109,6 +109,24 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # This job is a cross-platform smoke build (does it compile and bundle
+      # on each OS?), not a release — it has no TAURI_SIGNING_PRIVATE_KEY and
+      # shouldn't need one. bundle.createUpdaterArtifacts is on in
+      # tauri.conf.json for the real release build (release.yml, which does
+      # have the signing key), but with it on here too `tauri build` refuses
+      # to run at all ("A public key has been found, but no private key").
+      # Disabling it for just this checkout keeps this job self-contained.
+      - name: Disable updater artifacts for this smoke build
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+            c.bundle.createUpdaterArtifacts = false;
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+          "
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v1
         env:
