@@ -1,0 +1,28 @@
+# Config for `cargo audit` (run in CI: .github/workflows/ci.yml, "cargo audit" step).
+# `cargo audit` exits non-zero on any advisory in this list unless explicitly
+# ignored here; "unmaintained"/"unsound" advisories are warnings only and
+# don't fail the build by default, so only real vulnerabilities need an entry.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2023-0071 ("Marvin Attack": RSA PKCS#1v1.5 timing side-channel
+    # in the `rsa` crate, https://rustsec.org/advisories/RUSTSEC-2023-0071).
+    # Pulled in transitively by russh/ssh-key for RSA SSH key support
+    # (`cargo tree -i rsa`): russh -> quasar, and ssh-key -> russh -> quasar.
+    # No fixed version exists upstream as of this writing.
+    #
+    # Risk assessment: the Marvin Attack targets a *decryption* oracle
+    # (an attacker who can time many PKCS#1v1.5 decryptions against the same
+    # key to recover key bits, à la Bleichenbacher/TLS). Quasar only uses
+    # `rsa` via russh for SSH client authentication, which *signs* a
+    # challenge with the user's private key rather than decrypting
+    # attacker-supplied ciphertext — the specific oracle this advisory
+    # targets isn't present in that flow. Accepted as a tracked risk rather
+    # than dropped, since removing RSA key support would break every user
+    # currently authenticating with an RSA SSH key.
+    #
+    # Re-evaluate when russh/ssh-key bump their `rsa` dependency past a
+    # fixed release, or if RSA usage in this codebase ever grows beyond
+    # SSH client auth (e.g. decrypting attacker-influenced ciphertext).
+    "RUSTSEC-2023-0071",
+]

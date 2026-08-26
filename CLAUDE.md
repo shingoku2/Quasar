@@ -87,6 +87,7 @@ Quasar/
 | System info | sysinfo 0.33 |
 | Cron | cron 0.12 |
 | AI (optional) | ollama-rs 0.3 |
+| Auto-update | tauri-plugin-updater / `@tauri-apps/plugin-updater` 2.x (signed artifacts, verified against an embedded pubkey) |
 | Testing | Vitest 4, React Testing Library 16, jsdom |
 
 ---
@@ -358,6 +359,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 7. **Interactive SSH connect errors bypass `sanitize_error()` by design.** `connect_ssh` (the terminal path in `ssh.rs`) returns `ssh_connect::connect_with_diagnostics()` errors verbatim to the frontend — including the resolved IP/port and the phase that failed (DNS/TCP/handshake) — so users can self-diagnose (wrong port, firewalled host, dead DNS record). SFTP and pooled/scheduled-task SSH paths still route through `sanitize_error(e, "sftp"/"ssh")` at the `lib.rs` command boundary.
 8. **All SQLite connections must go through `db::open_connection()`.** It sets the 5s busy-timeout, WAL journal mode, and the foreign-keys pragma. `HostTracker` and `MetricsStore` used to open raw `rusqlite::Connection`s directly and got none of these — under normal write contention (scheduler + monitoring + a network scan writing concurrently) they'd fail fast with `SQLITE_BUSY` instead of waiting, and the caller only logged it, so scanned hosts and monitoring samples were silently dropped. Fixed Aug 22, 2026 by routing both through `db::open_connection()`; don't reintroduce a raw `Connection::open()` call outside `db.rs`.
 9. **`VaultState.changing_password` only gates `check_auto_lock()`, not `lock_vault()`.** `change_master_password` drops its write lock during the multi-second Argon2id + credential re-encryption pass (so other vault reads, e.g. an in-flight SSH credential lookup, aren't stalled for the whole operation) and only reacquires it briefly at the start and end. Because of that window, an explicit `lock_vault()` call can land mid-change — the reacquire-and-install step at the end checks `inner.master_key.is_some()` before installing the new key, so an explicit lock is respected instead of silently reverted. If you touch `change_master_password` again, preserve that check; see `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full locking model and a regression test at `vault::tests::test_lock_vault_during_password_change_stays_locked`.
+10. **`unlock_vault`'s failed-attempt lockout (5 → 5 min, 10 → 15 min, 15 → 60 min) is persisted to `vault_settings`** (`lockout_failed_attempts` / `lockout_until_unix`), not just tracked in-memory. `VaultStateInner` is rebuilt fresh on every app launch, so an in-memory-only counter would let an attacker with local file access bypass the lockout by relaunching the app every 4 guesses. `load_persisted_lockout()` folds the persisted state into `inner` at the top of every `unlock_vault` call (only ever raising it, never lowering) and `persist_lockout()` writes it back on every failure and on success (clearing it). Regression tests: `vault::tests::test_lockout_persists_across_vault_state_restart`, `test_successful_unlock_clears_persisted_lockout`.
 
 See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
 
@@ -365,13 +367,15 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 
 ## CI/CD
 
-`.github/workflows/ci.yml` runs on every push/PR to `main` or `develop`:
+`.github/workflows/ci.yml` runs on every push/PR to `master` (the repo's only branch — it
+targeted `main`/`develop` until Aug 26, 2026, neither of which exist here, so CI had never
+actually run on GitHub before that fix; see `AGENTS.md`):
 
-1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test`
-2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test`
+1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test` + `npm audit --audit-level=high`
+2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
 3. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
-`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, and creates a GitHub release with bundles attached.
+`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers.
 
 ---
 
@@ -391,6 +395,8 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 | Change input validation | `src-tauri/src/validation.rs` |
 | Understand DB schema | `docs/SCHEMA.md` + `src-tauri/migrations/` |
 | Understand user workflows | `docs/CORE_WORKFLOWS.md` |
+| Configure release code signing / auto-updater secrets | `docs/RELEASE_SIGNING.md` |
+| Report a vulnerability / see security scope | `SECURITY.md` |
 | Review past bug fixes | `AGENTS.md` |
 
 ---

@@ -27,6 +27,22 @@ vi.mock('./vault/VaultSettings', () => ({
   default: () => <div data-testid="vault-settings">VaultSettings</div>,
 }));
 
+interface MockUpdate {
+  version: string;
+  close: () => void;
+  downloadAndInstall: () => Promise<void>;
+}
+
+const { checkMock } = vi.hoisted(() => ({
+  checkMock: vi.fn<() => Promise<MockUpdate | null>>(() => Promise.resolve(null)),
+}));
+vi.mock('@tauri-apps/plugin-updater', () => ({
+  check: checkMock,
+}));
+vi.mock('@tauri-apps/plugin-process', () => ({
+  relaunch: vi.fn(() => Promise.resolve()),
+}));
+
 describe('SettingsView', () => {
   it('renders settings sidebar with all categories', () => {
     render(<SettingsView />);
@@ -53,6 +69,23 @@ describe('SettingsView', () => {
     await waitFor(() => {
       expect(screen.getByText(/v0\.1\.0/)).toBeInTheDocument();
     });
+  });
+
+  it('checks for updates from the About tab', async () => {
+    checkMock.mockResolvedValueOnce({
+      version: '9.9.9',
+      close: vi.fn(),
+      downloadAndInstall: vi.fn(() => Promise.resolve()),
+    });
+    render(<SettingsView />);
+
+    fireEvent.click(screen.getByText('About'));
+    fireEvent.click(screen.getByRole('button', { name: 'Check for Updates' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/9\.9\.9 is available/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Install & Restart' })).toBeInTheDocument();
   });
 
   it('switches to Notifications category', () => {

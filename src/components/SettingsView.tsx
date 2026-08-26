@@ -4,6 +4,7 @@ import { save, open } from '@tauri-apps/plugin-dialog';
 import { Settings, Shield, Bell, Palette, Database, Info } from 'lucide-react';
 import VaultSettings from './vault/VaultSettings';
 import { getErrorMessage } from '../lib/utils';
+import { useUpdater } from '../hooks/useUpdater';
 
 const SETTINGS_STORAGE_KEY = 'quasar_settings';
 
@@ -494,6 +495,7 @@ const DataSettings: React.FC = () => {
 
 const AboutSettings: React.FC = () => {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const { status: updateStatus, version: updateVersion, error: updateError, checkForUpdates, installUpdate } = useUpdater(false);
 
   useEffect(() => {
     invoke<AppInfo>('get_app_info')
@@ -547,6 +549,41 @@ const AboutSettings: React.FC = () => {
                 <span className="text-white">19.x</span>
               </div>
             </div>
+          </div>
+
+          <div className="bg-bg-card border border-border rounded-lg p-6">
+            <h3 className="text-white font-bold mb-4">Updates</h3>
+            {updateStatus === 'available' ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-300">Version {updateVersion} is available.</p>
+                <button
+                  type="button"
+                  onClick={installUpdate}
+                  className="w-full bg-accent hover:bg-accent/90 text-black py-2.5 px-4 rounded-lg text-sm font-medium transition-all"
+                >
+                  Install & Restart
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={checkForUpdates}
+                disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
+                className="w-full bg-bg-root border border-border hover:border-accent text-white py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-left disabled:opacity-50"
+              >
+                {updateStatus === 'checking'
+                  ? 'Checking…'
+                  : updateStatus === 'downloading'
+                    ? 'Downloading update…'
+                    : 'Check for Updates'}
+              </button>
+            )}
+            {updateStatus === 'upToDate' && (
+              <p className="text-xs text-success mt-3">You're on the latest version.</p>
+            )}
+            {updateStatus === 'error' && (
+              <p className="text-xs text-alert mt-3">{updateError}</p>
+            )}
           </div>
 
           <div className="bg-bg-card border border-border rounded-lg p-6">

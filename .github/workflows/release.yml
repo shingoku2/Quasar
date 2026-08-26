@@ -92,10 +92,66 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # tagName below only names the GitHub release — it doesn't touch the
+      # packaged app version, which tauri.conf.json's "version" field pins
+      # at 0.1.0. Without this, every build (and the latest.json the
+      # updater compares against) would keep reporting 0.1.0 forever
+      # regardless of the tag pushed, so an already-installed build would
+      # never see a newer release as newer and the updater would silently
+      # stop working after the very first release.
+      - name: Stamp package version from release tag
+        shell: bash
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+            const p = 'src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+            c.version = version;
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+          "
+
+      # Windows builds sign via a certificate thumbprint in tauri.conf.json,
+      # not an env var, so the cert has to be imported into the runner's
+      # store and its thumbprint patched into the config before `tauri build`
+      # runs. Skipped (both the import and the later Windows signing) when
+      # WINDOWS_CERTIFICATE isn't configured, so forks/PRs without the secret
+      # still produce an (unsigned) build. See docs/RELEASE_SIGNING.md.
+      - name: Import Windows code-signing certificate
+        if: runner.os == 'Windows' && secrets.WINDOWS_CERTIFICATE != ''
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path certificate -Force | Out-Null
+          Set-Content -Path certificate\cert.b64 -Value $env:WINDOWS_CERTIFICATE
+          certutil -decode certificate\cert.b64 certificate\cert.pfx
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath certificate\cert.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+          Remove-Item -Recurse -Force certificate
+          $thumbprint = $cert.Thumbprint
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p,'utf8'));c.bundle.windows.certificateThumbprint='$thumbprint';fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');"
+
       - name: Build and release
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update artifacts (.sig files) tauri.conf.json's
+          # bundle.createUpdaterArtifacts asks for, so the updater plugin can
+          # verify downloads against the pubkey embedded in the app.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS signing + notarization. Read directly by the Tauri
+          # bundler; unused (and harmless) on the Windows/Linux runners.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Quasar ${{ github.ref_name }}'
