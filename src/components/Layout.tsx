@@ -8,6 +8,7 @@ import MonitoringView from './MonitoringView';
 import SecurityView from './vault/SecurityView';
 import ScheduledTasksView from './ScheduledTasksView';
 import SettingsView from './SettingsView';
+import UpdateBanner from './UpdateBanner';
 import { ViewVisibilityProvider } from '../hooks/useViewVisibility';
 
 const Layout: React.FC = () => {
@@ -22,6 +23,8 @@ const Layout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
         {/* Global Top Bar */}
         <TopBar activeView={activeView} />
+
+        <UpdateBanner />
 
         {/* Content Container - Render all views but hide inactive ones.
             Each view is wrapped in a ViewVisibilityProvider so descendants can

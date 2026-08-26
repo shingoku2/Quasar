@@ -54,3 +54,16 @@ vi.mock('@tauri-apps/api/path', () => ({
   appDataDir: vi.fn(() => Promise.resolve('/mock/app/data')),
   appConfigDir: vi.fn(() => Promise.resolve('/mock/app/config')),
 }));
+
+// Global mock for @tauri-apps/plugin-updater — resolves "no update available"
+// by default so components using useUpdater() don't trigger real network/IPC
+// calls in tests that never mock this module locally.
+vi.mock('@tauri-apps/plugin-updater', () => ({
+  check: vi.fn(() => Promise.resolve(null)),
+}));
+
+// Global mock for @tauri-apps/plugin-process
+vi.mock('@tauri-apps/plugin-process', () => ({
+  relaunch: vi.fn(() => Promise.resolve()),
+  exit: vi.fn(() => Promise.resolve()),
+}));

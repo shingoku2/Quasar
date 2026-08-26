@@ -7,6 +7,83 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Code Signing & Auto-Updater - Complete (August 26, 2026)
+
+#### Overview
+Follow-up to a production-readiness assessment that flagged unsigned release builds (Windows
+SmartScreen / macOS Gatekeeper warnings) and no update mechanism as blockers for a public
+release. Added Tauri's updater plugin and wired code signing into the release pipeline.
+
+#### 1) Auto-updater (`tauri-plugin-updater` + `@tauri-apps/plugin-updater`)
+- **Backend**: `src-tauri/Cargo.toml` — `tauri-plugin-updater` and `tauri-plugin-process`
+  added under `[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]`
+  (desktop-only; this app has no mobile target). Registered in `lib.rs`'s builder chain behind
+  the same `cfg` guard — `Builder::default()` is now bound to a `let builder` so the two
+  plugin registrations can be conditionally chained before `.invoke_handler(...)`.
+- **Capabilities**: `src-tauri/capabilities/default.json` grants `updater:default` and
+  `process:allow-restart` (the latter is what lets the app call `relaunch()` after installing).
+- **Config**: `tauri.conf.json` sets `bundle.createUpdaterArtifacts: true` (produces signed
+  `.sig` files per platform) and `plugins.updater` with the embedded pubkey and a GitHub
+  Releases `latest.json` endpoint (`https://github.com/shingoku2/quasar/releases/latest/download/latest.json`).
+- **Frontend**: new `src/hooks/useUpdater.ts` wraps `check()` / `Update.downloadAndInstall()` /
+  `relaunch()` behind a small status machine (`idle → checking → available|upToDate|error →
+  downloading`), explicitly `.close()`s the `Update` resource on re-check or unmount per the
+  plugin's resource-management contract. Two consumers:
+  - `src/components/UpdateBanner.tsx` (new) — auto-checks on mount, rendered in `Layout.tsx`
+    just below `TopBar`; dismissible, shows an "Install & Restart" action when available.
+  - `SettingsView.tsx`'s `AboutSettings` — manual "Check for Updates" button/status card,
+    same hook with `autoCheck=false`.
+- **Test mocks**: `src/test-setup.ts` globally mocks `@tauri-apps/plugin-updater` (`check()` →
+  resolves `null`, i.e. "no update") and `@tauri-apps/plugin-process` (`relaunch()`), so every
+  existing test continues to pass unmodified — `UpdateBanner` renders nothing by default and
+  no component triggers a real IPC call. New regression tests: `UpdateBanner.test.tsx` (no
+  update / available / install-and-relaunch / dismiss / check-failure) and a
+  `SettingsView.test.tsx` case for the About-tab check-for-updates flow.
+
+#### 2) Code signing (`.github/workflows/release.yml`)
+- **Updater artifact signing**: `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  passed to every matrix OS — required on all three, since `createUpdaterArtifacts` isn't
+  platform-specific.
+- **Windows**: `certificateThumbprint` isn't settable via env var (unlike everything else
+  here), so a new step imports the base64 `WINDOWS_CERTIFICATE` (.pfx) into the runner's cert
+  store via PowerShell and patches the resulting thumbprint into `tauri.conf.json` with a
+  one-line Node script before `tauri build` runs. Skipped when the secret isn't set, so forks
+  still get an (unsigned) Windows build.
+- **macOS**: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`,
+  `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` passed straight through as env vars — the
+  Tauri bundler handles keychain import, signing, and notarytool submission itself; no
+  `tauri.conf.json` changes needed. Unused (harmless) on the Windows/Linux runners.
+- Full secret setup instructions: `docs/RELEASE_SIGNING.md` (new).
+
+#### Verification
+- `cargo check` / `cargo clippy --all-targets -- -D warnings` / `cargo test` — clean, 110
+  passed (Rust toolchain in the dev sandbox needed bumping from 1.94.1 to 1.98 to satisfy the
+  crate's `rust-version = "1.95"`; unrelated to this change, just a stale local toolchain).
+- `npx tsc --noEmit` / `npm test` — clean, 39 files / 263 tests (up from 38/257 — the two new
+  updater test files/cases).
+- Did not attempt an actual signed build (no real certificates available in this environment)
+  — verified the config/workflow changes parse correctly (`python3 -c "import yaml/json..."`)
+  and that the plugin wiring compiles and passes existing tests. The real signing path can
+  only be exercised once the secrets in `docs/RELEASE_SIGNING.md` are added and a `v*` tag is
+  pushed.
+
+#### Files modified
+- `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` (new deps)
+- `src-tauri/src/lib.rs` (plugin registration)
+- `src-tauri/capabilities/default.json` (updater/process permissions)
+- `src-tauri/tauri.conf.json` (updater plugin config, `createUpdaterArtifacts`, Windows digest/timestamp fields)
+- `package.json`, `package-lock.json` (new deps)
+- `src/hooks/useUpdater.ts` (new)
+- `src/components/UpdateBanner.tsx`, `UpdateBanner.test.tsx` (new)
+- `src/components/Layout.tsx` (renders `UpdateBanner`)
+- `src/components/SettingsView.tsx`, `SettingsView.test.tsx` (About-tab update UI + test)
+- `src/test-setup.ts` (global plugin mocks)
+- `.github/workflows/release.yml` (signing steps/env vars)
+- `docs/RELEASE_SIGNING.md` (new)
+- `CLAUDE.md` (tech stack table, Key Files table, CI/CD section)
+
+---
+
 ### Full Codebase Bug Audit - Complete (August 22, 2026)
 
 #### Overview

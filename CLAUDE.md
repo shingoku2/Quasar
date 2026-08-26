@@ -87,6 +87,7 @@ Quasar/
 | System info | sysinfo 0.33 |
 | Cron | cron 0.12 |
 | AI (optional) | ollama-rs 0.3 |
+| Auto-update | tauri-plugin-updater / `@tauri-apps/plugin-updater` 2.x (signed artifacts, verified against an embedded pubkey) |
 | Testing | Vitest 4, React Testing Library 16, jsdom |
 
 ---
@@ -371,7 +372,7 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test`
 3. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
-`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, and creates a GitHub release with bundles attached.
+`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers.
 
 ---
 
@@ -391,6 +392,7 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 | Change input validation | `src-tauri/src/validation.rs` |
 | Understand DB schema | `docs/SCHEMA.md` + `src-tauri/migrations/` |
 | Understand user workflows | `docs/CORE_WORKFLOWS.md` |
+| Configure release code signing / auto-updater secrets | `docs/RELEASE_SIGNING.md` |
 | Review past bug fixes | `AGENTS.md` |
 
 ---
