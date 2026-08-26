@@ -61,6 +61,20 @@ made against the latest release; please upgrade to the newest version before rep
 confirm the issue is still present. Once 1.0 ships, this section will define which major
 versions receive backported fixes.
 
+## Known Dependency Advisories
+
+Tracked, accepted risks in third-party dependencies — checked by `cargo audit` in CI
+(`.github/workflows/ci.yml`) and suppressed with a documented rationale in
+`src-tauri/.cargo/audit.toml` rather than silently ignored:
+
+- **[RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071)** ("Marvin
+  Attack" timing side-channel in the `rsa` crate). Pulled in transitively by `russh`/
+  `ssh-key` for RSA SSH key support; no fixed version exists upstream yet. The attack
+  targets an RSA *decryption* oracle — Quasar only uses `rsa` via russh for SSH client
+  auth, which *signs* a challenge rather than decrypting attacker-supplied ciphertext, so
+  the specific timing oracle this advisory describes isn't reachable through that path.
+  Re-evaluate when russh/ssh-key bump past a fixed `rsa` release.
+
 ## Known Design Notes
 
 A few things that look like vulnerabilities at first glance but are intentional — documented

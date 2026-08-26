@@ -7,6 +7,63 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Dependabot Alert Triage: RUSTSEC-2023-0071 - Complete (August 26, 2026)
+
+#### Overview
+Third follow-up from the production-readiness assessment: checking the "1 moderate
+vulnerability" Dependabot flagged on the default branch (surfaced on every `git push`).
+No GitHub tool in this environment exposes Dependabot alerts or the `gh` CLI directly, so
+identified it by extracting `master`'s exact `Cargo.lock`/`package-lock.json` into an
+isolated temp dir and running `npm audit` and `cargo audit` against each independently.
+`npm audit` was clean; `cargo audit` (after installing it — not preinstalled) found exactly
+one real vulnerability (17 other "unmaintained"/"unsound" advisories are warnings that
+don't fail the build): **RUSTSEC-2023-0071**, a timing side-channel ("Marvin Attack") in
+the `rsa` crate, severity 5.9/medium — matches GitHub's "moderate" label.
+
+`cargo tree -i rsa` traced it to `russh` (both directly and via `ssh-key` → `russh`) — i.e.
+Quasar's own SSH implementation, not an optional or droppable dependency. RustSec lists "no
+fixed upgrade is available" for this advisory (open since Nov 2023).
+
+While tracing this, checked whether CI had ever actually caught it: `list_workflow_runs`
+for the `CI` workflow returned **zero runs, ever**, on `master`. Root cause was in
+`.github/workflows/ci.yml` itself — its `on: push`/`pull_request` triggers were scoped to
+`branches: [main, develop]`, but this repository's only branch has always been `master`.
+Every "CI: clean" claim throughout this file's history was from running `tsc`/`vitest`/
+`clippy`/`cargo test` locally in-session — accurate for what was actually run, but the
+GitHub Actions gate itself had never once executed on a real push or PR. Fixed by changing
+both triggers to `branches: [master]`. (`release.yml` is unaffected — it triggers on `v*`
+tags, and zero runs there is expected since no tag has been pushed yet.)
+
+Risk assessment before deciding how to handle it: the Marvin Attack targets an RSA
+*decryption* oracle (attacker times many PKCS#1v1.5 decryptions against the same key to
+recover key bits — the same family as the classic Bleichenbacher/TLS attack). Quasar only
+exercises `rsa` through russh's SSH client authentication path, which *signs* a challenge
+with the user's private key rather than decrypting attacker-supplied ciphertext — the
+specific oracle this advisory describes isn't reachable through that flow. Presented this
+analysis and three options to the user (accept-and-document, accept-and-open-a-tracking-
+issue, or leave `cargo audit` red until upstream fixes it); they chose accept-and-document.
+
+#### Fix
+- **`src-tauri/.cargo/audit.toml`** (new) — `cargo audit`'s ignore config, `ignore =
+  ["RUSTSEC-2023-0071"]` with the full rationale above as an inline comment. Verified
+  locally: `cargo audit` in `src-tauri/` went from exit 1 ("error: 1 vulnerability found!")
+  to exit 0 (only the pre-existing 17 allowed warnings). This is also what makes the CI
+  `cargo audit` step in `ci.yml` pass — unclear whether it was actually red before this,
+  since GitHub Actions shows zero recorded runs of the CI workflow on `master` for this
+  repo (a separate, pre-existing gap worth someone's attention — the workflow files are
+  correct and pass locally, but nothing indicates they've ever actually executed on GitHub).
+- **`SECURITY.md`** — new "Known Dependency Advisories" section documenting the same
+  accepted risk where a reporter would actually look for it.
+
+#### Files modified
+- `src-tauri/.cargo/audit.toml` (new)
+- `SECURITY.md` (Known Dependency Advisories section)
+- `.github/workflows/ci.yml` (branch triggers `[main, develop]` → `[master]`)
+- `CLAUDE.md` (CI/CD section — actual branch, audit steps)
+- `AGENTS.md` (this entry)
+
+---
+
 ### Vault Lockout Persistence & Security Policy - Complete (August 26, 2026)
 
 #### Overview

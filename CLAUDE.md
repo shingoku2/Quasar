@@ -367,10 +367,12 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 
 ## CI/CD
 
-`.github/workflows/ci.yml` runs on every push/PR to `main` or `develop`:
+`.github/workflows/ci.yml` runs on every push/PR to `master` (the repo's only branch — it
+targeted `main`/`develop` until Aug 26, 2026, neither of which exist here, so CI had never
+actually run on GitHub before that fix; see `AGENTS.md`):
 
-1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test`
-2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test`
+1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test` + `npm audit --audit-level=high`
+2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
 3. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
 `.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers.
