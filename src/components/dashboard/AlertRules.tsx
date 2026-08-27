@@ -3,12 +3,19 @@ import { Bell, Plus, Trash2, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 
+/**
+ * Alert rule as it crosses Tauri IPC. `metric`/`operator`/`severity` are fieldless
+ * Rust enums (monitoring.rs `MetricType`/`ComparisonOperator`/`AlertSeverity`) with
+ * no custom serde tagging, so serde serializes them as bare strings (e.g. "CpuUsage"),
+ * not as `{ CpuUsage: null }` — that shape is only something serde's deserializer
+ * happens to also accept, not what it actually sends.
+ */
 export interface AlertRule {
   id: string;
-  metric: { CpuUsage?: null; MemoryUsage?: null; DiskUsage?: null };
-  operator: { GreaterThan?: null; LessThan?: null; Equals?: null; GreaterThanOrEqual?: null; LessThanOrEqual?: null };
+  metric: 'CpuUsage' | 'MemoryUsage' | 'DiskUsage';
+  operator: 'GreaterThan' | 'LessThan' | 'Equals' | 'GreaterThanOrEqual' | 'LessThanOrEqual';
   threshold: number;
-  severity: { Info?: null; Warning?: null; Critical?: null };
+  severity: 'Info' | 'Warning' | 'Critical';
   enabled: boolean;
   cooldown_seconds: number;
 }
@@ -63,33 +70,25 @@ const AlertRules: React.FC = () => {
     }
   };
 
-  const convertToSimpleRule = (rule: AlertRule): SimpleAlertRule => {
-    const metric = Object.keys(rule.metric)[0] as 'CpuUsage' | 'MemoryUsage' | 'DiskUsage';
-    const operator = Object.keys(rule.operator)[0] as 'GreaterThan' | 'LessThan' | 'Equals' | 'GreaterThanOrEqual' | 'LessThanOrEqual';
-    const severity = Object.keys(rule.severity)[0] as 'Info' | 'Warning' | 'Critical';
-    
-    return {
-      id: rule.id,
-      metric,
-      operator,
-      threshold: rule.threshold,
-      severity,
-      enabled: rule.enabled,
-      cooldown_seconds: rule.cooldown_seconds
-    };
-  };
+  const convertToSimpleRule = (rule: AlertRule): SimpleAlertRule => ({
+    id: rule.id,
+    metric: rule.metric,
+    operator: rule.operator,
+    threshold: rule.threshold,
+    severity: rule.severity,
+    enabled: rule.enabled,
+    cooldown_seconds: rule.cooldown_seconds
+  });
 
-  const convertToBackendRule = (rule: SimpleAlertRule): AlertRule => {
-    return {
-      id: rule.id,
-      metric: { [rule.metric]: null },
-      operator: { [rule.operator]: null },
-      threshold: rule.threshold,
-      severity: { [rule.severity]: null },
-      enabled: rule.enabled,
-      cooldown_seconds: rule.cooldown_seconds
-    };
-  };
+  const convertToBackendRule = (rule: SimpleAlertRule): AlertRule => ({
+    id: rule.id,
+    metric: rule.metric,
+    operator: rule.operator,
+    threshold: rule.threshold,
+    severity: rule.severity,
+    enabled: rule.enabled,
+    cooldown_seconds: rule.cooldown_seconds
+  });
 
   const toggleRule = async (id: string) => {
     const rule = rules.find(r => r.id === id);

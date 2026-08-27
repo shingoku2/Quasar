@@ -47,10 +47,11 @@ describe('SessionContainer', () => {
       />
     );
     // Both 1 and 2 should be visible
-    expect(screen.getByText('Content 1')).toBeInTheDocument();
-    expect(screen.getByText('Content 2')).toBeInTheDocument();
-    
-    // 3 should be missing (not rendered in split mode)
-    expect(screen.queryByText('Content 3')).not.toBeInTheDocument();
+    expect(screen.getByText('Content 1').parentElement).not.toHaveClass('hidden');
+    expect(screen.getByText('Content 2').parentElement).not.toHaveClass('hidden');
+
+    // 3 stays mounted (not part of the split set) so its underlying session
+    // isn't torn down, but it must be hidden from view.
+    expect(screen.getByText('Content 3').parentElement).toHaveClass('hidden');
   });
 });

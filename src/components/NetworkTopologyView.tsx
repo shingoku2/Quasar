@@ -23,6 +23,13 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
   const networkRef = useRef<Network | null>(null);
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  // Tracks the latest physicsEnabled value for the host-rebuild effect below, without
+  // making that effect depend on it (which would tear down and rebuild the network,
+  // resetting the layout, on every play/pause toggle).
+  const physicsEnabledRef = useRef(physicsEnabled);
+  useEffect(() => {
+    physicsEnabledRef.current = physicsEnabled;
+  }, [physicsEnabled]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -120,7 +127,9 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
         }
       },
       physics: {
-        enabled: true,
+        // Rebuilding the network (e.g. when a scan discovers a new host) must not
+        // silently re-enable physics if the user had frozen the layout.
+        enabled: physicsEnabledRef.current,
         stabilization: {
           enabled: true,
           iterations: 500,
