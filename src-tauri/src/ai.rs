@@ -38,21 +38,35 @@ pub async fn chat_request(
         .await
         .map_err(|e| e.to_string())?;
 
-    while let Some(Ok(res)) = stream.next().await {
-        if let Some(content) = Some(res.message) {
-            let payload = ChatStreamPayload {
-                content: content.content,
-                done: false,
-            };
-            let _ = app.emit("ai-chat-response", payload);
-        }
+    loop {
+        match stream.next().await {
+            Some(Ok(res)) => {
+                let payload = ChatStreamPayload {
+                    content: res.message.content,
+                    done: false,
+                };
+                let _ = app.emit("ai-chat-response", payload);
 
-        if res.done {
-            let payload = ChatStreamPayload {
-                content: String::new(),
-                done: true,
-            };
-            let _ = app.emit("ai-chat-response", payload);
+                if res.done {
+                    let payload = ChatStreamPayload {
+                        content: String::new(),
+                        done: true,
+                    };
+                    let _ = app.emit("ai-chat-response", payload);
+                    break;
+                }
+            }
+            Some(Err(())) => {
+                log::error!("Ollama chat stream error");
+                // Ensure the frontend's streaming UI always resolves, even on a mid-stream error.
+                let payload = ChatStreamPayload {
+                    content: String::new(),
+                    done: true,
+                };
+                let _ = app.emit("ai-chat-response", payload);
+                return Err("Ollama chat stream failed".to_string());
+            }
+            None => break,
         }
     }
 

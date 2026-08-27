@@ -2,6 +2,7 @@ pub mod audit;
 pub mod credentials;
 pub mod ssh_keys;
 
+use crate::crypto;
 use crate::db;
 use argon2::password_hash::Salt;
 use argon2::{
@@ -585,6 +586,7 @@ impl VaultState {
                     let credential = credential_manager.get_credential(&old_key, &summary.id)?;
                     re_encrypted_credentials.push((
                         summary.id.clone(),
+                        credential.created_at,
                         credential.name,
                         credential.username,
                         credential.password,
@@ -598,13 +600,14 @@ impl VaultState {
                     ));
                 }
 
-                // Now delete and re-add within transaction
-                let mut first_credential_id: Option<String> = None;
-                for (id, name, username, password, cred_type, host, port, metadata, key_path, private_key, key_passphrase) in re_encrypted_credentials {
-                    credential_manager.delete_credential_tx(&tx, &id)?;
-                    let new_id = credential_manager.add_credential_tx(
+                // Re-encrypt each credential in place, preserving its id so that
+                // references in scheduled_tasks/monitoring_host_credential stay valid.
+                for (id, created_at, name, username, password, cred_type, host, port, metadata, key_path, private_key, key_passphrase) in re_encrypted_credentials {
+                    credential_manager.reencrypt_credential_tx(
                         &tx,
                         &new_master_key,
+                        &id,
+                        created_at,
                         name,
                         username,
                         password,
@@ -616,18 +619,20 @@ impl VaultState {
                         private_key,
                         key_passphrase,
                     )?;
-
-                    // Store first credential ID for validation
-                    if first_credential_id.is_none() {
-                        first_credential_id = Some(new_id);
-                    }
                 }
 
-                // Validate re-encryption by attempting to decrypt first credential with new key
-                if let Some(cred_id) = first_credential_id {
-                    // This will fail if encryption/decryption doesn't work with new key
-                    let _ = credential_manager.get_credential(&new_master_key, &cred_id)
-                        .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
+                // Validate that the new key round-trips through the same AEAD encrypt/decrypt
+                // path used above, before committing. This is deliberately done in-memory rather
+                // than by reading a credential back through a fresh `db::open_connection()` call:
+                // that connection wouldn't see this transaction's uncommitted writes, so it would
+                // either find nothing or (worse, if a row happens to already exist at that id)
+                // read back the *old* ciphertext and spuriously fail to decrypt it with the new key.
+                let (probe_ct, probe_nonce, probe_tag) =
+                    crypto::encrypt(b"vault-reencryption-validation", &new_master_key)?;
+                let probe_plaintext = crypto::decrypt(&probe_ct, &new_master_key, &probe_nonce, &probe_tag)
+                    .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
+                if probe_plaintext != b"vault-reencryption-validation" {
+                    return Err("Re-encryption validation failed: round-trip mismatch".to_string());
                 }
 
                 // Update stored hash and salt within same transaction
@@ -945,6 +950,71 @@ mod tests {
             .unlock_vault(SecretString::from("NewPassword456!"))
             .await
             .expect("new password must work after the interleaved lock");
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[tokio::test]
+    async fn test_change_master_password_preserves_credential_ids() {
+        // Regression test: change_master_password() used to re-encrypt every credential
+        // via delete + re-insert, which minted a brand-new UUID for each row. That
+        // silently orphaned any foreign key pointing at the old id (scheduled_tasks.credential_id,
+        // monitoring_host_credential.credential_id). A password change must rewrite each
+        // credential's encrypted material in place, keeping its id (and created_at) stable.
+        use crate::vault::credentials::CredentialManager;
+
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+
+        vault
+            .initialize_vault(SecretString::from("TestPassword123!"))
+            .await
+            .unwrap();
+
+        let master_key = vault.get_master_key().await.unwrap();
+        let credential_manager = CredentialManager::new(db_path.clone());
+        let id = credential_manager
+            .add_credential(
+                &master_key,
+                "Test Host".to_string(),
+                "root".to_string(),
+                "hunter2".to_string(),
+                "password".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("failed to add credential");
+
+        let before = credential_manager
+            .get_credential(&master_key, &id)
+            .expect("credential should exist before password change");
+
+        vault
+            .change_master_password(
+                SecretString::from("TestPassword123!"),
+                SecretString::from("NewPassword456!"),
+            )
+            .await
+            .expect("password change should succeed");
+
+        let new_master_key = vault.get_master_key().await.unwrap();
+        let after = credential_manager
+            .get_credential(&new_master_key, &id)
+            .expect("credential must still be reachable under its original id after password change");
+
+        assert_eq!(after.id, before.id);
+        assert_eq!(after.created_at, before.created_at);
+        assert_eq!(after.password, "hunter2");
+
+        let summaries = credential_manager
+            .list_credentials()
+            .expect("failed to list credentials");
+        assert_eq!(summaries.len(), 1, "password change must not duplicate credentials");
+        assert_eq!(summaries[0].id, id);
 
         cleanup_test_db(&db_path);
     }

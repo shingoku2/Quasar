@@ -91,32 +91,25 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
         ))}
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-hidden relative bg-bg-root">
-        {isSplitMode ? (
-          <div style={gridStyle}>
-            {visibleIds.map(id => {
-                const tab = tabs.find(t => t.id === id);
-                if (!tab) return null;
-                return (
-                  <div key={tab.id} className="relative w-full h-full border-r border-gray-800 last:border-r-0">
-                    {tab.content}
-                    {/* Overlay to indicate active tab in split mode if we want? */}
-                  </div>
-                );
-            })}
-          </div>
-        ) : (
-          // Render all tabs but hide inactive ones to keep sessions alive
-          tabs.map(tab => (
-              <div 
-                key={tab.id} 
-                className={`absolute inset-0 w-full h-full ${activeTabId === tab.id ? 'block' : 'hidden'}`}
-              >
-                  {tab.content}
-              </div>
-          ))
-        )}
+      {/* Content Area. Every tab always stays mounted (hidden via `hidden`/display:none
+          when not visible) so toggling split view never unmounts a tab that isn't part
+          of the split set — an unmount would tear down its live SSH/SFTP session. */}
+      <div className="flex-1 overflow-hidden relative bg-bg-root" style={isSplitMode ? gridStyle : undefined}>
+        {tabs.map(tab => {
+          const isVisible = visibleIds.includes(tab.id);
+          return (
+            <div
+              key={tab.id}
+              className={
+                isSplitMode
+                  ? `relative w-full h-full border-r border-gray-800 last:border-r-0 ${isVisible ? '' : 'hidden'}`
+                  : `absolute inset-0 w-full h-full ${isVisible ? 'block' : 'hidden'}`
+              }
+            >
+              {tab.content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

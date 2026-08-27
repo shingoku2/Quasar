@@ -504,32 +504,18 @@ impl CredentialManager {
         Ok(())
     }
 
-    pub fn delete_credential_tx(
-        &self,
-        tx: &rusqlite::Transaction,
-        credential_id: &str,
-    ) -> Result<(), String> {
-        tx.execute("DELETE FROM credentials WHERE id = ?1", [credential_id])
-            .map_err(|e| format!("Failed to delete credential: {}", e))?;
-
-        // Log audit event
-        Self::log_audit_event_tx(
-            tx,
-            "credential_delete",
-            Some(credential_id),
-            Some("credential"),
-            "delete",
-            "success",
-            None,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn add_credential_tx(
+    /// Re-encrypts an existing credential's secret material under a new master key,
+    /// updating it in place. Unlike a delete-and-reinsert, this preserves the
+    /// original `id` and `created_at` so foreign-key references elsewhere in the
+    /// database (e.g. `scheduled_tasks.credential_id`, `monitoring_host_credential.credential_id`)
+    /// keep pointing at a valid row across a master password change.
+    #[allow(clippy::too_many_arguments)]
+    pub fn reencrypt_credential_tx(
         &self,
         tx: &rusqlite::Transaction,
         master_key: &[u8; 32],
+        id: &str,
+        created_at: i64,
         name: String,
         username: String,
         password: String,
@@ -540,10 +526,7 @@ impl CredentialManager {
         key_path: Option<String>,
         private_key: Option<String>,
         key_passphrase: Option<String>,
-    ) -> Result<String, String> {
-        let id = Uuid::new_v4().to_string();
-        let now = chrono::Utc::now().timestamp();
-
+    ) -> Result<(), String> {
         let password_bytes = password.as_bytes();
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
@@ -563,11 +546,12 @@ impl CredentialManager {
         };
 
         tx.execute(
-            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at,
-             key_path, encrypted_private_key, private_key_nonce, private_key_tag, encrypted_key_passphrase, key_passphrase_nonce, key_passphrase_tag)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+            "UPDATE credentials SET name = ?1, username = ?2, encrypted_password = ?3, nonce = ?4, tag = ?5,
+             credential_type = ?6, host = ?7, port = ?8, metadata = ?9, created_at = ?10,
+             key_path = ?11, encrypted_private_key = ?12, private_key_nonce = ?13, private_key_tag = ?14,
+             encrypted_key_passphrase = ?15, key_passphrase_nonce = ?16, key_passphrase_tag = ?17
+             WHERE id = ?18",
             rusqlite::params![
-                id,
                 name,
                 username,
                 ciphertext,
@@ -577,8 +561,7 @@ impl CredentialManager {
                 host,
                 port,
                 metadata,
-                now,
-                now,
+                created_at,
                 key_path,
                 encrypted_key,
                 key_nonce,
@@ -586,21 +569,21 @@ impl CredentialManager {
                 encrypted_kp,
                 kp_nonce,
                 kp_tag,
+                id,
             ],
-        ).map_err(|e| format!("Failed to insert credential: {}", e))?;
+        ).map_err(|e| format!("Failed to re-encrypt credential: {}", e))?;
 
-        // Log audit event
         Self::log_audit_event_tx(
             tx,
-            "credential_create",
-            Some(&id),
+            "credential_reencrypt",
+            Some(id),
             Some("credential"),
-            "create",
+            "update",
             "success",
             None,
         )?;
 
-        Ok(id)
+        Ok(())
     }
 
     pub fn search_credentials(&self, query: &str) -> Result<Vec<CredentialSummary>, String> {

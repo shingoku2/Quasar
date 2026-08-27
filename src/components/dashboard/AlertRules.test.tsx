@@ -7,13 +7,15 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(() => Promise.resolve([])),
 }));
 
+// Matches the wire format serde actually produces for these fieldless Rust enums:
+// a bare string (e.g. "CpuUsage"), not a `{ CpuUsage: null }` object.
 const mockBackendRules = [
   {
     id: 'rule-1',
-    metric: { CpuUsage: null },
-    operator: { GreaterThan: null },
+    metric: 'CpuUsage',
+    operator: 'GreaterThan',
     threshold: 90,
-    severity: { Critical: null },
+    severity: 'Critical',
     enabled: true,
     cooldown_seconds: 300,
   },

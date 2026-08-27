@@ -28,7 +28,19 @@ interface SystemMetrics {
 
 interface Alert {
   id: string;
+  rule_id: string;
   severity: string;
+  acknowledged: boolean;
+}
+
+/** Alert payload as emitted by the Rust backend (monitoring.rs `Alert`). */
+interface BackendAlert {
+  id: string;
+  rule_id: string;
+  message: string;
+  severity: string;
+  timestamp: number;
+  acknowledged: boolean;
 }
 
 interface RemoteHostMetric {
@@ -62,8 +74,23 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
       setMetrics(event.payload);
     });
 
-    const unlistenAlerts = listen<Alert[]>('alerts-triggered', (event) => {
-      setAlerts(prev => [...event.payload, ...prev].slice(0, 50));
+    const unlistenAlerts = listen<BackendAlert[]>('alerts-triggered', (event) => {
+      const newAlerts: Alert[] = event.payload.map(a => ({
+        id: a.id,
+        rule_id: a.rule_id,
+        severity: a.severity,
+        acknowledged: false,
+      }));
+      setAlerts(prev => [...newAlerts, ...prev].slice(0, 50));
+    });
+
+    // A recovered rule clears the "active" status of any alert(s) still counted
+    // against it, so the summary count actually goes back down.
+    const unlistenRecovered = listen<Array<{ rule_id: string }>>('alerts-recovered', (event) => {
+      const recoveredRuleIds = new Set(event.payload.map(r => r.rule_id));
+      setAlerts(prev => prev.map(a =>
+        recoveredRuleIds.has(a.rule_id) ? { ...a, acknowledged: true } : a
+      ));
     });
 
     invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
@@ -71,6 +98,7 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
     return () => {
       unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
+      unlistenRecovered.then(fn => fn());
     };
   }, [variant]);
 
@@ -97,7 +125,7 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
     }
   }, [variant]);
 
-  const activeAlertCount = alerts.filter(a => !a.id.includes('acknowledged')).length;
+  const activeAlertCount = alerts.filter(a => !a.acknowledged).length;
 
   if (variant === 'summary') {
     return (

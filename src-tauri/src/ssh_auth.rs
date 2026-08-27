@@ -57,24 +57,46 @@ pub async fn authenticate<H: Handler + Send + 'static>(
     private_key: Option<&str>,
     key_passphrase: Option<&str>,
 ) -> Result<(), String> {
-    // Try key auth first if we have key material
-    if let Some(key_pem) = resolve_key_material(key_path, private_key)? {
-        let key = parse_private_key(&key_pem, key_passphrase)?;
-        let hash_alg = session
-            .best_supported_rsa_hash()
-            .await
-            .ok()
-            .flatten()
-            .flatten();
-        let key_with_alg = PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg);
-        let res = session
-            .authenticate_publickey(username, key_with_alg)
-            .await
-            .map_err(|e| e.to_string())?;
-        if matches!(res, AuthResult::Success) {
-            return Ok(());
+    // Try key auth first if we have key material. Any failure along this path
+    // (unreadable key file, unparseable/wrong-passphrase key, or a transport-level
+    // auth error) falls through to password auth if one was provided, rather than
+    // aborting the whole attempt — mirroring the "key not accepted" case below.
+    // If no password is available to fall back to, the specific key error (rather
+    // than a generic "no credentials" message) is what gets returned.
+    let mut key_error: Option<String> = None;
+
+    match resolve_key_material(key_path, private_key) {
+        Ok(Some(key_pem)) => match parse_private_key(&key_pem, key_passphrase) {
+            Ok(key) => {
+                let hash_alg = session
+                    .best_supported_rsa_hash()
+                    .await
+                    .ok()
+                    .flatten()
+                    .flatten();
+                let key_with_alg = PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg);
+                match session.authenticate_publickey(username, key_with_alg).await {
+                    Ok(AuthResult::Success) => return Ok(()),
+                    Ok(_) => {
+                        // Key not accepted by the server; fall through to password if provided
+                        key_error = Some("SSH key was not accepted by the server".to_string());
+                    }
+                    Err(e) => {
+                        log::warn!("SSH publickey auth error, falling back to password if available: {}", e);
+                        key_error = Some(e.to_string());
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!("SSH key parse error, falling back to password if available: {}", e);
+                key_error = Some(e);
+            }
+        },
+        Ok(None) => {}
+        Err(e) => {
+            log::warn!("SSH key resolution error, falling back to password if available: {}", e);
+            key_error = Some(e);
         }
-        // Key auth failed (e.g. key not accepted); fall through to password if provided
     }
 
     if let Some(pass) = password {
@@ -88,5 +110,5 @@ pub async fn authenticate<H: Handler + Send + 'static>(
         return Err("Authentication failed".to_string());
     }
 
-    Err("No password or SSH key provided".to_string())
+    Err(key_error.unwrap_or_else(|| "No password or SSH key provided".to_string()))
 }

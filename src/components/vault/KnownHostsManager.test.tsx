@@ -180,7 +180,7 @@ describe('KnownHostsManager', () => {
 
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('update_ssh_host_trust', expect.objectContaining({
-        trustStatus: 'Trusted',
+        trustStatus: 'trusted',
       }));
     });
   });

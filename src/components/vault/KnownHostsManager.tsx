@@ -187,14 +187,14 @@ const KnownHostsManager: React.FC = () => {
                   {host.trust_status.toLowerCase() !== 'trusted' && (
                     <div className="pt-2 border-t border-gray-800 flex space-x-2">
                       <button
-                        onClick={() => handleUpdateTrust(host.host, host.port, 'Trusted')}
+                        onClick={() => handleUpdateTrust(host.host, host.port, 'trusted')}
                         className="flex-1 bg-success/10 border border-success/30 hover:bg-success/20 text-success py-2 rounded-lg text-xs font-medium transition-all"
                       >
                         Mark as Trusted
                       </button>
                       {host.trust_status.toLowerCase() !== 'rejected' && (
                         <button
-                          onClick={() => handleUpdateTrust(host.host, host.port, 'Rejected')}
+                          onClick={() => handleUpdateTrust(host.host, host.port, 'rejected')}
                           className="flex-1 bg-alert/10 border border-alert/30 hover:bg-alert/20 text-alert py-2 rounded-lg text-xs font-medium transition-all"
                         >
                           Mark as Rejected
