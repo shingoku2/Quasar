@@ -363,6 +363,8 @@ impl CredentialManager {
         password: Option<String>,
         metadata: Option<String>,
         credential_type: Option<String>,
+        host: Option<String>,
+        port: Option<u16>,
         key_path: Option<String>,
         private_key: Option<String>,
         key_passphrase: Option<String>,
@@ -380,6 +382,30 @@ impl CredentialManager {
                 rusqlite::params![ct, now, credential_id],
             )
             .map_err(|e| format!("Failed to update credential type: {}", e))?;
+        }
+
+        if let Some(h) = host {
+            tx.execute(
+                "UPDATE credentials SET host = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![
+                    if h.is_empty() {
+                        None::<String>
+                    } else {
+                        Some(h)
+                    },
+                    now,
+                    credential_id
+                ],
+            )
+            .map_err(|e| format!("Failed to update credential host: {}", e))?;
+        }
+
+        if let Some(p) = port {
+            tx.execute(
+                "UPDATE credentials SET port = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![p, now, credential_id],
+            )
+            .map_err(|e| format!("Failed to update credential port: {}", e))?;
         }
 
         if let Some(n) = name {
@@ -867,6 +893,8 @@ mod tests {
                 Some("newpass".to_string()),
                 None,
                 None, // credential_type
+                Some("15.204.11.162".to_string()),
+                Some(6969),
                 None,
                 None,
                 None,
@@ -878,6 +906,8 @@ mod tests {
         assert_eq!(credential.name, "Updated");
         assert_eq!(credential.username, "newuser");
         assert_eq!(credential.password, "newpass");
+        assert_eq!(credential.host.as_deref(), Some("15.204.11.162"));
+        assert_eq!(credential.port, Some(6969));
 
         cleanup_test_db(&db_path);
     }

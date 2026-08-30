@@ -25,6 +25,18 @@ function ensureNpxAvailable() {
 }
 
 const env = { ...process.env, CARGO_TARGET_DIR: targetDir };
+const isHyprland =
+  process.platform === 'linux' &&
+  (process.env.XDG_CURRENT_DESKTOP ?? '').toLowerCase().includes('hyprland');
+
+if (isHyprland) {
+  // Native GTK Wayland can terminate WebKit with GDK protocol error 71 on
+  // Hyprland. XWayland is stable here; disabling DMA-BUF also avoids GBM
+  // allocation failures seen with high-resolution windows.
+  env.GDK_BACKEND = 'x11';
+  env.WEBKIT_DISABLE_DMABUF_RENDERER = '1';
+}
+
 const userArgs = process.argv.slice(2);
 const args = ['tauri', ...(userArgs.length > 0 ? userArgs : ['dev'])];
 // On Windows, spawn with shell: true to avoid spawn EINVAL (e.g. Node 24).

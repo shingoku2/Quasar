@@ -587,6 +587,44 @@ fn upsert_saved_host_in_conn(
         .ok_or_else(|| "Saved host was not found after upsert".to_string())
 }
 
+fn update_saved_host_in_conn(
+    conn: &rusqlite::Connection,
+    host_id: &str,
+    name: &str,
+    address: &str,
+    protocol: &str,
+    port: Option<u16>,
+    username: Option<&str>,
+) -> Result<SavedHost, String> {
+    let port = port.unwrap_or(if protocol.eq_ignore_ascii_case("rdp") {
+        3389
+    } else {
+        22
+    });
+    validate_port(port)?;
+    let updated = conn
+        .execute(
+            "UPDATE hosts SET name = ?1, address = ?2, protocol = ?3, port = ?4, username = ?5, updated_at = ?6 WHERE id = ?7",
+            rusqlite::params![
+                name,
+                address,
+                protocol,
+                i64::from(port),
+                username.filter(|value| !value.is_empty()),
+                chrono::Utc::now().timestamp(),
+                host_id,
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+
+    if updated == 0 {
+        return Err("Saved host was not found".to_string());
+    }
+
+    get_saved_host_by_id(conn, host_id)?
+        .ok_or_else(|| "Saved host was not found after update".to_string())
+}
+
 fn remove_saved_hosts_in_conn(
     conn: &mut rusqlite::Connection,
     ids: &[String],
@@ -628,6 +666,29 @@ async fn upsert_saved_host(
     let mut conn = app_db_connection(&app).map_err(|e| sanitize_error(e, "database"))?;
     upsert_saved_host_in_conn(
         &mut conn,
+        &name,
+        &address,
+        &protocol,
+        port,
+        username.as_deref(),
+    )
+    .map_err(|e| sanitize_error(e, "database"))
+}
+
+#[tauri::command]
+async fn update_saved_host(
+    app: AppHandle,
+    host_id: String,
+    name: String,
+    address: String,
+    protocol: String,
+    port: Option<u16>,
+    username: Option<String>,
+) -> Result<SavedHost, String> {
+    let conn = app_db_connection(&app).map_err(|e| sanitize_error(e, "database"))?;
+    update_saved_host_in_conn(
+        &conn,
+        &host_id,
         &name,
         &address,
         &protocol,
@@ -1170,6 +1231,8 @@ async fn update_credential(
     password: Option<String>,
     metadata: Option<String>,
     credential_type: Option<String>,
+    host: Option<String>,
+    port: Option<u16>,
     key_path: Option<String>,
     private_key: Option<String>,
     key_passphrase: Option<String>,
@@ -1193,6 +1256,8 @@ async fn update_credential(
             password,
             metadata,
             credential_type,
+            host,
+            port,
             key_path,
             private_key,
             key_passphrase,
@@ -1241,12 +1306,14 @@ async fn verify_ssh_host_key(
 #[tauri::command]
 async fn trust_ssh_host_key(
     ssh_key_manager: State<'_, vault::SshKeyManager>,
+    approval_state: State<'_, ssh::HostKeyApprovalState>,
     host: String,
     port: u16,
     fingerprint: String,
     key_type: String,
     key_bytes: Vec<u8>,
     trust_status: vault::TrustStatus,
+    request_id: Option<String>,
 ) -> Result<(), String> {
     if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
         return Err("Invalid host format".to_string());
@@ -1262,7 +1329,21 @@ async fn trust_ssh_host_key(
             trust_status,
         )
         .await
-        .map_err(|e| sanitize_error(e, "ssh"))
+        .map_err(|e| sanitize_error(e, "ssh"))?;
+
+    if let Some(request_id) = request_id {
+        approval_state.resolve(&request_id, true)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn respond_ssh_host_key_verification(
+    approval_state: State<'_, ssh::HostKeyApprovalState>,
+    request_id: String,
+    accepted: bool,
+) -> Result<(), String> {
+    approval_state.resolve(&request_id, accepted)
 }
 
 #[tauri::command]
@@ -1632,6 +1713,7 @@ pub fn run() {
             let db_path_str = db_path_str.to_string();
 
             app.manage(ssh::SshState::new());
+            app.manage(ssh::HostKeyApprovalState::new());
             // Reuses authenticated sessions for one-shot commands (monitoring
             // probes, scheduled tasks) instead of re-handshaking every time.
             app.manage(ssh_pool::SshConnectionPool::new());
@@ -1783,6 +1865,7 @@ pub fn run() {
             delete_discovered_host,
             get_saved_hosts,
             upsert_saved_host,
+            update_saved_host,
             remove_saved_hosts,
             get_remote_hosts_health,
             set_host_monitoring_credential,
@@ -1808,6 +1891,7 @@ pub fn run() {
             search_credentials,
             verify_ssh_host_key,
             trust_ssh_host_key,
+            respond_ssh_host_key_verification,
             get_known_ssh_hosts,
             remove_ssh_host_key,
             update_ssh_host_trust,
@@ -1898,6 +1982,39 @@ mod saved_host_tests {
         assert_eq!(updated.id, original.id);
         assert_eq!(updated.name, "New name");
         assert_eq!(updated.username.as_deref(), Some("admin"));
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM hosts", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn update_saved_host_changes_connection_port_in_place() {
+        let mut conn = host_conn();
+        let original = upsert_saved_host_in_conn(
+            &mut conn,
+            "VPS",
+            "15.204.11.162",
+            "ssh",
+            Some(22),
+            Some("edward"),
+        )
+        .unwrap();
+
+        let updated = update_saved_host_in_conn(
+            &conn,
+            &original.id,
+            "VPS",
+            "15.204.11.162",
+            "ssh",
+            Some(6969),
+            Some("edward"),
+        )
+        .unwrap();
+
+        assert_eq!(updated.id, original.id);
+        assert_eq!(updated.port, 6969);
         assert_eq!(
             conn.query_row("SELECT COUNT(*) FROM hosts", [], |row| row.get::<_, i64>(0))
                 .unwrap(),

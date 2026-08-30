@@ -34,7 +34,7 @@ describe('UpdateBanner', () => {
 
   it('renders nothing when no update is available', async () => {
     checkMock.mockResolvedValue(null);
-    const { container } = render(<UpdateBanner />);
+    const { container } = render(<UpdateBanner autoCheck />);
 
     await waitFor(() => expect(checkMock).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
@@ -42,7 +42,7 @@ describe('UpdateBanner', () => {
 
   it('shows an install prompt when an update is available', async () => {
     checkMock.mockResolvedValue(makeUpdate('1.2.0'));
-    render(<UpdateBanner />);
+    render(<UpdateBanner autoCheck />);
 
     await waitFor(() => {
       expect(screen.getByText(/1\.2\.0 is available/)).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe('UpdateBanner', () => {
   it('downloads, installs, and relaunches when Install & Restart is clicked', async () => {
     const downloadAndInstall = vi.fn(() => Promise.resolve());
     checkMock.mockResolvedValue(makeUpdate('1.2.0', { downloadAndInstall }));
-    render(<UpdateBanner />);
+    render(<UpdateBanner autoCheck />);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Install & Restart' })).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe('UpdateBanner', () => {
 
   it('can be dismissed', async () => {
     checkMock.mockResolvedValue(makeUpdate('1.2.0'));
-    const { container } = render(<UpdateBanner />);
+    const { container } = render(<UpdateBanner autoCheck />);
 
     await waitFor(() => {
       expect(screen.getByText(/1\.2\.0 is available/)).toBeInTheDocument();
@@ -77,12 +77,11 @@ describe('UpdateBanner', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows an error message when the update check fails', async () => {
+  it('stays hidden when the background update check fails', async () => {
     checkMock.mockRejectedValue(new Error('network unreachable'));
-    render(<UpdateBanner />);
+    const { container } = render(<UpdateBanner autoCheck />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/Update check failed: network unreachable/)).toBeInTheDocument();
-    });
+    await waitFor(() => expect(checkMock).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
   });
 });

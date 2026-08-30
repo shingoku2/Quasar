@@ -202,12 +202,15 @@ describe('CredentialManager', () => {
       expect(screen.getByRole('dialog', { name: /Edit Credential/i })).toBeInTheDocument();
     });
 
+    fireEvent.change(screen.getByDisplayValue('22'), { target: { value: '6969' } });
     fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('update_credential', expect.objectContaining({
         credentialId: '1',
         credentialType: 'ssh',
+        host: '10.0.0.1',
+        port: 6969,
       }));
     });
 

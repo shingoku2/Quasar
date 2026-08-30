@@ -19,6 +19,7 @@ interface HostKeyPromptData {
 }
 
 interface SshHostKeyEvent {
+  requestId: string;
   host: string;
   port: number;
   fingerprint: string;
@@ -39,7 +40,7 @@ export const useSshHostKeyVerification = () => {
 
     const setupListener = async () => {
       unlisten = await listen<SshHostKeyEvent>('ssh-host-key-verification', (event) => {
-        const { host, port, fingerprint, keyType, keyBytes, status, message } = event.payload;
+        const { requestId, host, port, fingerprint, keyType, keyBytes, status, message } = event.payload;
         const isChanged = status.toLowerCase().includes('changed');
 
         setPromptData({
@@ -51,10 +52,11 @@ export const useSshHostKeyVerification = () => {
           oldFingerprint: isChanged ? message : undefined,
         });
 
-        // Set up trust callback
+        // Resolve the exact handshake that emitted this request. Permanent trust
+        // stores the key first; one-time trust only releases this connection.
         setOnTrustCallback(() => async (permanent: boolean) => {
-          if (permanent) {
-            try {
+          try {
+            if (permanent) {
               await invoke('trust_ssh_host_key', {
                 host,
                 port,
@@ -62,17 +64,31 @@ export const useSshHostKeyVerification = () => {
                 keyType,
                 keyBytes,
                 trustStatus: 'trusted',
+                requestId,
               });
-            } catch (err) {
-              console.error('Failed to trust host key:', err);
+            } else {
+              await invoke('respond_ssh_host_key_verification', {
+                requestId,
+                accepted: true,
+              });
             }
+            setPromptData(null);
+          } catch (err) {
+            console.error('Failed to approve host key:', err);
           }
-          setPromptData(null);
         });
 
-        // Set up reject callback
-        setOnRejectCallback(() => () => {
-          setPromptData(null);
+        setOnRejectCallback(() => async () => {
+          try {
+            await invoke('respond_ssh_host_key_verification', {
+              requestId,
+              accepted: false,
+            });
+          } catch (err) {
+            console.error('Failed to reject host key:', err);
+          } finally {
+            setPromptData(null);
+          }
         });
       });
     };

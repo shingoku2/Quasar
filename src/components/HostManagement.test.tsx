@@ -23,7 +23,11 @@ const { mockInvoke, mockSelect, mockExecute } = vi.hoisted(() => {
       ]);
     }
     if (command === 'get_saved_hosts') return mockSelect();
-    if (command === 'upsert_saved_host' || command === 'remove_saved_hosts') {
+    if (
+      command === 'upsert_saved_host' ||
+      command === 'update_saved_host' ||
+      command === 'remove_saved_hosts'
+    ) {
       return mockExecute(command, args);
     }
     return Promise.resolve();
@@ -67,6 +71,21 @@ describe('Host Management Components', () => {
       
       expect(screen.getByText('Prod Server')).toBeInTheDocument();
       expect(screen.queryByText('Dev Box')).not.toBeInTheDocument();
+    });
+
+    it('passes an existing host to the edit dialog callback', async () => {
+      const onAddHost = vi.fn();
+      render(<HostList onConnect={() => {}} onSftp={() => {}} onAddHost={onAddHost} />);
+
+      await waitFor(() => expect(screen.getByText('Prod Server')).toBeInTheDocument());
+      fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+
+      expect(onAddHost).toHaveBeenCalledWith(expect.objectContaining({
+        id: '1',
+        name: 'Prod Server',
+        address: '1.2.3.4',
+        protocol: 'ssh',
+      }));
     });
 
     it('opens add dialog prefilled when clicking Discovery Add', async () => {
@@ -143,6 +162,36 @@ describe('Host Management Components', () => {
       fireEvent.click(saveButton);
       
       await waitFor(() => {
+        expect(onAdded).toHaveBeenCalled();
+      });
+    });
+
+    it('updates an existing host port in place', async () => {
+      const onAdded = vi.fn();
+      render(
+        <AddHostDialog
+          initialValues={{
+            id: 'vps-1',
+            name: 'VPS',
+            address: '15.204.11.162',
+            protocol: 'ssh',
+            port: 22,
+            username: 'edward',
+          }}
+          onClose={() => {}}
+          onAdded={onAdded}
+        />,
+      );
+
+      expect(screen.getByText('Edit Host')).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText(/Port/i), { target: { value: '6969' } });
+      fireEvent.click(screen.getByText('Save Host'));
+
+      await waitFor(() => {
+        expect(mockExecute).toHaveBeenCalledWith(
+          'update_saved_host',
+          expect.objectContaining({ hostId: 'vps-1', port: 6969 }),
+        );
         expect(onAdded).toHaveBeenCalled();
       });
     });

@@ -335,6 +335,8 @@ const CredentialDialog: React.FC<{
           username: formData.username,
           metadata,
           credentialType: formData.credential_type,
+          host: formData.host,
+          port: Number(formData.port),
         };
         if (formData.credential_type === 'ssh_key') {
           payload.keyPath = formData.key_path;

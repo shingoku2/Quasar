@@ -10,6 +10,46 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
+pub struct HostKeyApprovalState {
+    pending: Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>,
+}
+
+impl HostKeyApprovalState {
+    pub fn new() -> Self {
+        Self {
+            pending: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn register(&self) -> Result<(String, tokio::sync::oneshot::Receiver<bool>), String> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        self.pending
+            .lock()
+            .map_err(|_| "Host key approval state is unavailable".to_string())?
+            .insert(request_id.clone(), sender);
+        Ok((request_id, receiver))
+    }
+
+    pub fn resolve(&self, request_id: &str, accepted: bool) -> Result<(), String> {
+        let sender = self
+            .pending
+            .lock()
+            .map_err(|_| "Host key approval state is unavailable".to_string())?
+            .remove(request_id)
+            .ok_or_else(|| "Host key approval request is no longer pending".to_string())?;
+        sender
+            .send(accepted)
+            .map_err(|_| "SSH connection stopped waiting for host key approval".to_string())
+    }
+
+    fn cancel(&self, request_id: &str) {
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.remove(request_id);
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Client {
     pub app_handle: AppHandle,
@@ -38,22 +78,42 @@ impl client::Handler for Client {
                 if result.allowed {
                     Ok(true)
                 } else {
-                    // keyBytes is included because trust_ssh_host_key needs the raw public key
-                    // bytes to store in the ssh_known_hosts table. Omitting it would require
-                    // server-side caching of pending host keys by fingerprint.
-                    let _ = self.app_handle.emit(
-                        "ssh-host-key-verification",
-                        serde_json::json!({
-                            "host": self.host,
-                            "port": self.port,
-                            "fingerprint": fingerprint,
-                            "keyType": key_type,
-                            "keyBytes": key_bytes,
-                            "status": format!("{:?}", result.status),
-                            "message": result.message,
-                        }),
-                    );
-                    Err(russh::Error::Disconnect)
+                    let approval_state = self.app_handle.state::<HostKeyApprovalState>();
+                    let (request_id, receiver) = approval_state
+                        .register()
+                        .map_err(|_| russh::Error::Disconnect)?;
+
+                    // Keep this handshake pending while the frontend displays the
+                    // trust prompt. The response is correlated by requestId so an
+                    // approval cannot accidentally release another connection.
+                    if self
+                        .app_handle
+                        .emit(
+                            "ssh-host-key-verification",
+                            serde_json::json!({
+                                "requestId": request_id,
+                                "host": self.host,
+                                "port": self.port,
+                                "fingerprint": fingerprint,
+                                "keyType": key_type,
+                                "keyBytes": key_bytes,
+                                "status": format!("{:?}", result.status),
+                                "message": result.message,
+                            }),
+                        )
+                        .is_err()
+                    {
+                        approval_state.cancel(&request_id);
+                        return Err(russh::Error::Disconnect);
+                    }
+
+                    let approved =
+                        match tokio::time::timeout(Duration::from_secs(120), receiver).await {
+                            Ok(Ok(approved)) => approved,
+                            _ => false,
+                        };
+                    approval_state.cancel(&request_id);
+                    Ok(approved)
                 }
             }
             Err(e) => {
@@ -126,9 +186,14 @@ pub async fn connect_ssh(
         port,
     };
 
-    let mut session =
-        crate::ssh_connect::connect_with_diagnostics(config, &host, port, sh, Duration::from_secs(10))
-            .await?;
+    let mut session = crate::ssh_connect::connect_with_diagnostics(
+        config,
+        &host,
+        port,
+        sh,
+        Duration::from_secs(10),
+    )
+    .await?;
 
     crate::ssh_auth::authenticate(
         &mut session,
@@ -420,5 +485,21 @@ pub async fn disconnect_ssh(state: tauri::State<'_, SshState>, id: String) -> Re
         Ok(())
     } else {
         Err("Session not found".to_string())
+    }
+}
+
+#[cfg(test)]
+mod host_key_approval_tests {
+    use super::HostKeyApprovalState;
+
+    #[tokio::test]
+    async fn resolves_the_matching_pending_approval() {
+        let state = HostKeyApprovalState::new();
+        let (request_id, receiver) = state.register().unwrap();
+
+        state.resolve(&request_id, true).unwrap();
+
+        assert!(receiver.await.unwrap());
+        assert!(state.resolve(&request_id, true).is_err());
     }
 }

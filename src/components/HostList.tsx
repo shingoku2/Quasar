@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import Discovery, { DiscoveredHost } from './Discovery';
 import HealthCheckBadge from './HealthCheckBadge';
-import { AddHostInitialValues } from './AddHostDialog';
+import { AddHostInitialValues, HostProtocol } from './AddHostDialog';
 
 export interface Host {
   id: string;
@@ -190,6 +190,21 @@ const HostList: React.FC<{
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end space-x-3">
+                      {onAddHost && (
+                        <button
+                          onClick={() => onAddHost({
+                            id: host.id,
+                            name: host.name,
+                            address: host.address,
+                            protocol: host.protocol as HostProtocol,
+                            port: host.port,
+                            username: host.username,
+                          })}
+                          className="text-gray-400 hover:text-accent font-medium transition-colors"
+                        >
+                          Edit
+                        </button>
+                      )}
                       <button
                         onClick={() => handleRemoveHost(host)}
                         className="text-gray-400 hover:text-red-400 font-medium transition-colors"
