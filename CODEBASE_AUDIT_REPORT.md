@@ -1,5 +1,13 @@
 # Quasar Codebase Audit Report
 
+> **September 2, 2026 follow-up:** Five higher-complexity findings remain open despite the
+> historical “fixes applied” status below: vault rekey/write serialization, cancellation of
+> in-flight interactive SSH connections, concurrent host-key prompt queuing, Quasar-specific
+> import validation, and immediate cleanup after remote SSH closure. Their agreed design and
+> regression requirements are documented in
+> [`docs/DEFERRED_AUDIT_FIX_PLAN.md`](docs/DEFERRED_AUDIT_FIX_PLAN.md). No fixes were applied
+> during the planning session.
+
 **Date:** February 18, 2026  
 **Scope:** Full codebase (src/, src-tauri/, migrations/, config, tests)  
 **Fixes applied:** February 18, 2026 — all High, Medium, and applicable Low items addressed (see "Fixes applied" section at end).

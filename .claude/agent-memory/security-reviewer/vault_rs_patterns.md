@@ -42,16 +42,19 @@ same session:
    again, preserve that guard — don't reintroduce an unconditional `inner.master_key = Some(...)`
    at the end.
 
-2. **Torn-state window (MEDIUM, accepted trade-off, not fixed — narrow and self-healing).**
+2. **Torn-state/write race (OPEN; remediation planned 2026-09-02).**
    Between the SQLite `tx.commit()` inside `spawn_blocking` (DB now has credentials
    re-encrypted with the new key) and the outer function reacquiring the write lock to swap
    `inner.master_key`, `get_master_key()` still returns the OLD key. Any concurrent credential
-   decrypt in that narrow window gets an AEAD auth failure against the now-new ciphertext. This
-   didn't exist under the old hold-the-lock-the-whole-time design (concurrent callers just
-   blocked until everything was consistent). There's a comment at the reacquire site in
-   `vault.rs` documenting this. Flag if the window grows (e.g. more work added between
-   `tx.commit()` and the final lock reacquire) — that would make the transient-failure window
-   more likely to actually hit in practice.
+   decrypt in that narrow window gets an AEAD auth failure against the now-new ciphertext.
+   More seriously, a credential writer can obtain the old key before rekeying and commit
+   old-key ciphertext after the re-encryption transaction completes, leaving that credential
+   undecryptable with the new key. The agreed fix is a fair credential-access gate: all
+   key-bound credential operations hold a shared lease from key lookup through DB completion,
+   while `change_master_password` holds the exclusive lease through transaction commit and
+   the in-memory key swap. Operations wait rather than fail during rotation. This is planned,
+   not implemented; see `docs/DEFERRED_AUDIT_FIX_PLAN.md` and preserve the explicit-lock-wins
+   behavior described above.
 
 3. **Not a regression, pre-existing:** `old_key`/`new_master_key` as plain `[u8;32]` (not
    `Zeroizing<[u8;32]>`) at the point they're extracted/returned across the

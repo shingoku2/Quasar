@@ -2,6 +2,22 @@
 
 Quasar is a Tauri 2.x desktop application for remote infrastructure management: SSH sessions, SFTP, system monitoring, network discovery, cron-scheduled automation, and a security vault. React + TypeScript frontend, Rust backend, SQLite database.
 
+## Current Work: Deferred Audit Fixes
+
+As of September 2, 2026, five audit findings are planned but not implemented:
+
+- serialize credential operations with master-password rekeying;
+- cancel SSH attempts when their terminal closes while connecting;
+- queue concurrent SSH host-key prompts instead of replacing the active prompt;
+- reject unrelated SQLite files during database import while supporting recognized legacy
+  Quasar backups; and
+- remove remotely closed SSH sessions from the registry immediately.
+
+The decision-complete design and required deterministic tests are in
+`docs/DEFERRED_AUDIT_FIX_PLAN.md`. Credential operations should wait during rekeying,
+host-key prompts should be FIFO, and import should use a Quasar `application_id` plus a
+strict legacy-schema fallback. No code or tests were changed during the planning session.
+
 ---
 
 ## Repository Layout

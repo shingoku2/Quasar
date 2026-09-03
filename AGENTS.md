@@ -7,6 +7,29 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Deferred Bug-Audit Concurrency & Persistence Fixes - Planned (September 2, 2026)
+
+Five higher-complexity findings remain open from the bug audit: master-password rotation
+can race credential writes; closing a terminal while `connect_ssh` is pending can leave a
+later-established session orphaned; concurrent host-key events overwrite the single
+frontend prompt; database import accepts unrelated valid SQLite files; and remotely closed
+SSH transports remain registered until cleanup.
+
+The implementation contract is now decision-complete in
+`docs/DEFERRED_AUDIT_FIX_PLAN.md`. The agreed defaults are to queue credential operations
+behind password rotation, process host-key prompts FIFO, and accept unmarked legacy Quasar
+backups only through strict schema recognition. The plan uses a vault credential-access
+gate, a pending/active SSH registry with cancellation and generation-aware cleanup, a
+frontend prompt queue, and staged database migration/validation with a Quasar
+`application_id` marker.
+
+**Session close status:** planning and code-path inspection only. No implementation files
+were changed and no validation suite was run. Start the next session from the canonical
+plan above and do not mark these findings complete until its deterministic concurrency,
+persistence, and security-review requirements pass.
+
+---
+
 ### Dependabot Alert Triage: RUSTSEC-2023-0071 - Complete (August 26, 2026)
 
 #### Overview

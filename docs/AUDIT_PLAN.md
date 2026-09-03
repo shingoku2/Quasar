@@ -1,5 +1,11 @@
 # Quasar — Complete Code Audit Plan
 
+> **September 2, 2026 follow-up:** The original audit below is historical and several of
+> its items have since been resolved. Five remaining concurrency/persistence findings now
+> have a decision-complete remediation design in
+> [`DEFERRED_AUDIT_FIX_PLAN.md`](DEFERRED_AUDIT_FIX_PLAN.md). Implementation has not started;
+> use that document as the active plan.
+
 **Date:** 2026-02-28
 **Scope:** Full codebase — 10,818 frontend LOC (62 TS/TSX files) + 8,806 backend LOC (24 Rust files) + 12 migrations + CI/CD
 **Branch:** `claude/add-claude-documentation-Fy6A5`

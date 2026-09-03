@@ -1,5 +1,10 @@
 # Quasar
 
+> **Development note (September 2, 2026):** Five deferred concurrency and persistence
+> fixes are designed but not yet implemented. Maintainers should use
+> [`docs/DEFERRED_AUDIT_FIX_PLAN.md`](docs/DEFERRED_AUDIT_FIX_PLAN.md) for the active audit
+> follow-up and required regression coverage.
+
 A powerful Tauri-based remote infrastructure management application for monitoring, managing, and automating remote servers and infrastructure.
 
 ## Overview

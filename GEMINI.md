@@ -4,9 +4,15 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **Full codebase bug audit complete (Aug 22, 2026)**.
-- **Last Action:** User asked for a full pass over the codebase for errors/bugs. Ran the full mechanical check suite (`tsc --noEmit`, Vitest, `cargo clippy -D warnings`, `cargo test`) then dispatched parallel `code-auditor` reviews over the Rust backend and React frontend for logic/race/security bugs the mechanical checks can't catch. Fixed 10 categories of real bugs, most notably: `RemoteManager.tsx` was disconnecting every open SSH/SFTP session whenever a host was added (tab array replaced instead of merged), `NetworkScanner.tsx` was dropping live scan results mid-scan (unstable callback identity causing listener churn), `HostTracker`/`MetricsStore` bypassed the shared DB busy-timeout causing silent data loss under write contention, and `vault.rs`'s `change_master_password` held the vault lock across a multi-second operation (fixed to drop it — then a security review caught a regression the fix itself introduced, where an explicit `lock_vault()` mid-change could get silently undone; fixed and regression-tested before shipping). See `AGENTS.md` for full detail on all 10.
+- **Status:** **Deferred audit concurrency/persistence remediation planned (Sep 2, 2026); implementation not started.**
+- **Last Action:** Inspected the five deferred findings and finalized their implementation contract. Credential operations will wait behind master-password rotation; SSH connection attempts will gain pending/active cancellation-aware lifecycle ownership; host-key prompts will be FIFO; imports will be staged and checked using a Quasar `application_id` with strict legacy-schema fallback; and remotely closed sessions will remove themselves immediately. See `docs/DEFERRED_AUDIT_FIX_PLAN.md`. No implementation files changed and no validation suite was run in this planning session.
 - **Previous status:** SSH connection diagnostics, credential save fix, and host protocol parity complete (Aug 21, 2026) — see below.
+
+## Next Session Start
+
+Implement `docs/DEFERRED_AUDIT_FIX_PLAN.md`, beginning with the vault credential-access
+gate and deterministic rekey/write race tests. Keep all five findings open until focused
+tests, full Rust/frontend validation, and a security review pass.
 
 ## Full Codebase Bug Audit (2026-08-22)
 

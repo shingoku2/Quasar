@@ -2,7 +2,8 @@
 # See patterns.md for detailed findings per module (2026-03-02 audit — several items below
 # are now fixed; each is annotated where confirmed). See vault_rs_patterns.md for the
 # vault.rs locking/concurrency model (2026-08-22 review of the change_master_password
-# lock-holding fix).
+# lock-holding fix; updated 2026-09-02 with the open credential-write/rekey race and agreed
+# credential-access-gate remediation).
 
 ## Confirmed Safe Patterns (as of 2026-03-02 audit; re-confirmed 2026-08-22 where noted)
 - Argon2id params: 47104 KiB memory, 2 iterations, 1 parallelism, 32-byte output — CORRECT in crypto.rs, vault.rs (initialize, unlock, change_password).
