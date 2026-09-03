@@ -29,7 +29,7 @@ interface CredentialFormData {
   password: string;
   credential_type: string;
   host: string;
-  port: number;
+  port: string;
   key_path: string;
   private_key: string;
   key_passphrase: string;
@@ -289,7 +289,7 @@ const CredentialDialog: React.FC<{
     password: credential?.password || '',
     credential_type: credential?.credential_type || 'ssh',
     host: credential?.host || '',
-    port: credential?.port || 22,
+    port: credential?.port?.toString() ?? '',
     key_path: credential?.key_path || '',
     private_key: '',
     key_passphrase: '',
@@ -319,12 +319,19 @@ const CredentialDialog: React.FC<{
       return;
     }
 
+    const port = formData.port === '' ? null : Number(formData.port);
+    if (port !== null && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+      setError('Port must be between 1 and 65535.');
+      setIsSaving(false);
+      return;
+    }
+
     try {
       if (credential) {
         const metadata = JSON.stringify({
           credential_type: formData.credential_type,
           host: formData.host || null,
-          port: formData.port || null,
+          port,
         });
         // Keys must be camelCase: Tauri matches invoke args against the
         // camelCased Rust parameter names and silently ignores unknown keys,
@@ -336,7 +343,7 @@ const CredentialDialog: React.FC<{
           metadata,
           credentialType: formData.credential_type,
           host: formData.host,
-          port: Number(formData.port),
+          port,
         };
         if (formData.credential_type === 'ssh_key') {
           payload.keyPath = formData.key_path;
@@ -362,7 +369,7 @@ const CredentialDialog: React.FC<{
           password: isKey ? '' : formData.password,
           credentialType: formData.credential_type,
           host: formData.host || null,
-          port: formData.port ? Number(formData.port) : null,
+          port,
           metadata: null,
           keyPath: isKey && formData.key_path ? formData.key_path : null,
           privateKey: isKey && formData.private_key ? formData.private_key : null,
@@ -488,8 +495,10 @@ const CredentialDialog: React.FC<{
               <label className="block text-sm font-medium text-gray-400 mb-2">Port (optional)</label>
               <input
                 type="number"
+                min="1"
+                max="65535"
                 value={formData.port}
-                onChange={(e) => { const v = parseInt(e.target.value, 10); setFormData({ ...formData, port: Number.isFinite(v) && v >= 1 && v <= 65535 ? v : 22 }); }}
+                onChange={(e) => setFormData({ ...formData, port: e.target.value })}
                 className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
                 placeholder="22"
               />

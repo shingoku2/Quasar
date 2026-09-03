@@ -13,11 +13,9 @@ interface ChatResponse {
 }
 
 interface ScanProgress {
-  scanned: number;
   total: number;
-  found: number;
-  current_ip?: string;
-  status?: string;
+  completed: number;
+  current_ip?: string | null;
 }
 
 interface ServiceInfo {
@@ -102,7 +100,7 @@ const AIAssistant: React.FC = () => {
         content: [
           'Quasar network context (auto-generated):',
           `- Scan status: ${isScanning ? 'running' : 'idle'}`,
-          `- Scan progress: ${progress?.scanned ?? 0}/${progress?.total ?? 0} scanned, ${progress?.found ?? 0} alive`,
+          `- Scan progress: ${progress?.completed ?? 0}/${progress?.total ?? 0} scanned, ${safeHosts.length} alive`,
           `- Discovered hosts in database: ${safeHosts.length}`,
           `- Saved remote hosts: ${safeSavedHosts.length}`,
           `- Saved/discovered address overlap: ${overlapCount}`,

@@ -263,4 +263,39 @@ describe('CredentialManager', () => {
     });
     expect(screen.queryByText(/Provide either key path or paste private key PEM/i)).not.toBeInTheDocument();
   });
+
+  it('preserves an unset optional port when editing a credential', async () => {
+    const credentialWithoutPort = {
+      ...mockCredentials[1],
+      port: null,
+      password: 'api-secret',
+      has_private_key: false,
+      has_key_passphrase: false,
+    };
+    mockInvoke
+      .mockResolvedValueOnce([credentialWithoutPort] as any)
+      .mockResolvedValueOnce(credentialWithoutPort as any)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([credentialWithoutPort] as any);
+
+    render(<CredentialManager />);
+    await waitFor(() => expect(screen.getByText('Dev API')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTitle('Edit'));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Edit Credential/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('spinbutton')).toHaveValue(null);
+    fireEvent.change(screen.getByDisplayValue('Dev API'), { target: { value: 'Renamed API' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('update_credential', expect.objectContaining({
+        credentialId: '2',
+        name: 'Renamed API',
+        port: null,
+      }));
+    });
+  });
 });
