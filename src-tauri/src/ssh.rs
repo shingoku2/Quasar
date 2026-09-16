@@ -142,12 +142,68 @@ pub struct SshConnection {
 
 pub struct SshState {
     pub sessions: Arc<Mutex<HashMap<String, SshConnection>>>,
+    pending_connections: Arc<Mutex<HashMap<String, PendingConnectionState>>>,
+}
+
+#[derive(Default)]
+struct PendingConnectionState {
+    cancelled: bool,
 }
 
 impl SshState {
     pub fn new() -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
+            pending_connections: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    fn begin_pending_connection(&self, id: &str) -> Result<(), String> {
+        if self
+            .sessions
+            .lock()
+            .map_err(|e| format!("Failed to acquire session lock: {}", e))?
+            .contains_key(id)
+        {
+            return Err("Session already exists".to_string());
+        }
+
+        let mut pending = self
+            .pending_connections
+            .lock()
+            .map_err(|e| format!("Failed to acquire pending-session lock: {}", e))?;
+        if pending.contains_key(id) {
+            return Err("Session is already connecting".to_string());
+        }
+        pending.insert(id.to_string(), PendingConnectionState::default());
+        Ok(())
+    }
+
+    fn mark_pending_cancelled(&self, id: &str) -> Result<bool, String> {
+        let mut pending = self
+            .pending_connections
+            .lock()
+            .map_err(|e| format!("Failed to acquire pending-session lock: {}", e))?;
+        if let Some(state) = pending.get_mut(id) {
+            state.cancelled = true;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn is_pending_cancelled(&self, id: &str) -> Result<bool, String> {
+        Ok(self
+            .pending_connections
+            .lock()
+            .map_err(|e| format!("Failed to acquire pending-session lock: {}", e))?
+            .get(id)
+            .map(|state| state.cancelled)
+            .unwrap_or(false))
+    }
+
+    fn finish_pending_connection(&self, id: &str) {
+        if let Ok(mut pending) = self.pending_connections.lock() {
+            pending.remove(id);
         }
     }
 }
@@ -167,6 +223,9 @@ pub async fn connect_ssh(
     key_passphrase: Option<String>,
     enable_agent_forwarding: bool,
 ) -> Result<(), String> {
+    state.begin_pending_connection(&id)?;
+
+    let result = async {
     validation::validate_port(port)?;
     validation::validate_username(&user)?;
 
@@ -204,6 +263,12 @@ pub async fn connect_ssh(
         key_passphrase.as_deref(),
     )
     .await?;
+    if state.is_pending_cancelled(&id)? {
+        let _ = session
+            .disconnect(russh::Disconnect::ByApplication, "", "en")
+            .await;
+        return Err("Session connection was cancelled".to_string());
+    }
 
     let mut channel = session
         .channel_open_session()
@@ -233,10 +298,21 @@ pub async fn connect_ssh(
     // Session driver: keeps the connection alive and emits close event.
     let id_for_driver = id.clone();
     let app_handle_for_driver = app_handle.clone();
+    let sessions_for_driver = state.sessions.clone();
 
     tokio::spawn(async move {
         tokio::select! {
             _ = session => {
+                let closed_session = {
+                    let mut sessions = match sessions_for_driver.lock() {
+                        Ok(s) => s,
+                        Err(_) => return,
+                    };
+                    sessions.remove(&id_for_driver)
+                };
+                if let Some(conn) = closed_session {
+                    let _ = conn.stats_cancel_tx.send(()).await;
+                }
                 let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
             }
             _ = disconnect_rx.recv() => {
@@ -362,6 +438,19 @@ pub async fn connect_ssh(
         .map_err(|e| format!("Failed to acquire session lock: {}", e))?
         .insert(id.clone(), conn);
 
+    if state.is_pending_cancelled(&id)? {
+        let cancelled_conn = state
+            .sessions
+            .lock()
+            .map_err(|e| format!("Failed to acquire session lock: {}", e))?
+            .remove(&id);
+        if let Some(conn) = cancelled_conn {
+            let _ = conn.stats_cancel_tx.send(()).await;
+            let _ = conn.disconnect_tx.send(()).await;
+        }
+        return Err("Session connection was cancelled".to_string());
+    }
+
     // Stats reporter: emits bandwidth info every second.
     let app_handle_for_stats = app_handle.clone();
     let id_for_stats = id.clone();
@@ -416,6 +505,10 @@ pub async fn connect_ssh(
     });
 
     Ok(())
+    }
+    .await;
+    state.finish_pending_connection(&id);
+    result
 }
 
 #[tauri::command]
@@ -471,7 +564,7 @@ pub async fn resize_ssh(
 
 #[tauri::command]
 pub async fn disconnect_ssh(state: tauri::State<'_, SshState>, id: String) -> Result<(), String> {
-    let conn = {
+    let mut conn = {
         let mut sessions = state
             .sessions
             .lock()
@@ -482,15 +575,33 @@ pub async fn disconnect_ssh(state: tauri::State<'_, SshState>, id: String) -> Re
     if let Some(conn) = conn {
         let _ = conn.disconnect_tx.send(()).await;
         let _ = conn.stats_cancel_tx.send(()).await;
-        Ok(())
-    } else {
-        Err("Session not found".to_string())
+        return Ok(());
     }
+
+    let pending_cancelled = state.mark_pending_cancelled(&id)?;
+    if conn.is_none() {
+        conn = state
+            .sessions
+            .lock()
+            .map_err(|e| format!("Failed to acquire session lock: {}", e))?
+            .remove(&id);
+        if let Some(conn) = conn {
+            let _ = conn.disconnect_tx.send(()).await;
+            let _ = conn.stats_cancel_tx.send(()).await;
+            return Ok(());
+        }
+    }
+
+    if pending_cancelled {
+        return Ok(());
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod host_key_approval_tests {
-    use super::HostKeyApprovalState;
+    use super::{HostKeyApprovalState, SshState};
 
     #[tokio::test]
     async fn resolves_the_matching_pending_approval() {
@@ -501,5 +612,15 @@ mod host_key_approval_tests {
 
         assert!(receiver.await.unwrap());
         assert!(state.resolve(&request_id, true).is_err());
+    }
+
+    #[test]
+    fn pending_connection_cancellation_is_tracked() {
+        let state = SshState::new();
+        state.begin_pending_connection("session-1").unwrap();
+        assert!(state.mark_pending_cancelled("session-1").unwrap());
+        assert!(state.is_pending_cancelled("session-1").unwrap());
+        state.finish_pending_connection("session-1");
+        assert!(!state.mark_pending_cancelled("session-1").unwrap());
     }
 }

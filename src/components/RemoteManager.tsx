@@ -79,7 +79,7 @@ const RemoteManager: React.FC = () => {
       return;
     }
 
-    const sessionId = Math.random().toString(36).substring(7);
+    const sessionId = crypto.randomUUID();
     addTab(
       sessionId, 
       `SSH: ${host.name}`, 
@@ -103,7 +103,7 @@ const RemoteManager: React.FC = () => {
       return;
     }
 
-    const sessionId = `sftp-${Math.random().toString(36).substring(7)}`;
+    const sessionId = `sftp-${crypto.randomUUID()}`;
     addTab(
       sessionId, 
       `SFTP: ${host.name}`, 
@@ -137,7 +137,7 @@ const RemoteManager: React.FC = () => {
         }
       } else if (host.protocol === 'rdp') {
         await invoke('connect_rdp', { address: host.address });
-        const sessionId = Math.random().toString(36).substring(7);
+        const sessionId = crypto.randomUUID();
         addTab(sessionId, `RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
       } else {
         // database / api / other hosts are inventory + monitoring entries; there is

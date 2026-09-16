@@ -10,9 +10,10 @@
 - AES-256-GCM nonces: generated via `rand::rng().fill_bytes()` (CSPRNG) in crypto.rs — CORRECT, unique per call.
 - MasterKey struct implements Drop+Zeroize in vault.rs — CORRECT.
 - `secrecy::Secret<String>` used for master_password in initialize_vault/unlock_vault — CORRECT.
-- All user-facing Tauri commands pass errors through `sanitize_error()` for vault, credential, ssh, sftp, scanner, database, monitoring contexts.
+- Error sanitization pattern: user-facing Tauri commands should pass errors through `sanitize_error()`. Accepted exception: interactive terminal connect path (`lib.rs::connect_ssh` -> `ssh.rs::connect_ssh`) intentionally returns raw SSH diagnostics for troubleshooting; verify no credential material is included.
 - Host key verification: `check_server_key` in both ssh.rs and sftp.rs returns `Err(Disconnect)` for untrusted/unknown keys — NOT bypassed.
 - SFTP host key verification is active (not skipped).
+- `ssh.rs` staged race fix (2026-09-16): `pending_connections` cancellation tracking now guards the connect/disconnect gap, with cancellation checks both after auth and after session insertion before steady-state use.
 - SQL queries use parameterized rusqlite::params! — no string interpolation in credential/vault queries.
 - Argon2 verify_password uses constant-time comparison internally (argon2 crate).
 

@@ -29,10 +29,15 @@ interface SshHostKeyEvent {
   message: string;
 }
 
+interface PendingPromptEntry {
+  prompt: HostKeyPromptData;
+  onTrust: (permanent: boolean) => Promise<void>;
+  onReject: () => Promise<void>;
+}
+
 export const useSshHostKeyVerification = () => {
-  const [promptData, setPromptData] = useState<HostKeyPromptData | null>(null);
-  const [onTrustCallback, setOnTrustCallback] = useState<((permanent: boolean) => void) | null>(null);
-  const [onRejectCallback, setOnRejectCallback] = useState<(() => void) | null>(null);
+  const [pendingPrompts, setPendingPrompts] = useState<PendingPromptEntry[]>([]);
+  const promptData = pendingPrompts[0]?.prompt ?? null;
 
   // Listen for host key verification events from backend
   useEffect(() => {
@@ -42,54 +47,53 @@ export const useSshHostKeyVerification = () => {
       unlisten = await listen<SshHostKeyEvent>('ssh-host-key-verification', (event) => {
         const { requestId, host, port, fingerprint, keyType, keyBytes, status, message } = event.payload;
         const isChanged = status.toLowerCase().includes('changed');
-
-        setPromptData({
+        const prompt: HostKeyPromptData = {
           host,
           port,
           fingerprint,
           keyType,
           isChanged,
           oldFingerprint: isChanged ? message : undefined,
-        });
+        };
 
-        // Resolve the exact handshake that emitted this request. Permanent trust
-        // stores the key first; one-time trust only releases this connection.
-        setOnTrustCallback(() => async (permanent: boolean) => {
-          try {
-            if (permanent) {
-              await invoke('trust_ssh_host_key', {
-                host,
-                port,
-                fingerprint,
-                keyType,
-                keyBytes,
-                trustStatus: 'trusted',
-                requestId,
-              });
-            } else {
-              await invoke('respond_ssh_host_key_verification', {
-                requestId,
-                accepted: true,
-              });
-            }
-            setPromptData(null);
-          } catch (err) {
-            console.error('Failed to approve host key:', err);
-          }
-        });
-
-        setOnRejectCallback(() => async () => {
-          try {
-            await invoke('respond_ssh_host_key_verification', {
-              requestId,
-              accepted: false,
-            });
-          } catch (err) {
-            console.error('Failed to reject host key:', err);
-          } finally {
-            setPromptData(null);
-          }
-        });
+        setPendingPrompts(prev => [
+          ...prev,
+          {
+            prompt,
+            onTrust: async (permanent: boolean) => {
+              try {
+                if (permanent) {
+                  await invoke('trust_ssh_host_key', {
+                    host,
+                    port,
+                    fingerprint,
+                    keyType,
+                    keyBytes,
+                    trustStatus: 'trusted',
+                    requestId,
+                  });
+                } else {
+                  await invoke('respond_ssh_host_key_verification', {
+                    requestId,
+                    accepted: true,
+                  });
+                }
+              } catch (err) {
+                console.error('Failed to approve host key:', err);
+              }
+            },
+            onReject: async () => {
+              try {
+                await invoke('respond_ssh_host_key_verification', {
+                  requestId,
+                  accepted: false,
+                });
+              } catch (err) {
+                console.error('Failed to reject host key:', err);
+              }
+            },
+          },
+        ]);
       });
     };
 
@@ -121,39 +125,40 @@ export const useSshHostKeyVerification = () => {
             resolve(true);
           } else {
             const isChanged = result.status.toLowerCase() === 'changed';
-            
-            setPromptData({
+            const prompt: HostKeyPromptData = {
               host,
               port,
               fingerprint,
               keyType,
               isChanged,
               oldFingerprint: isChanged ? result.message : undefined,
-            });
-
-            setOnTrustCallback(() => async (permanent: boolean) => {
-              if (permanent) {
-                try {
-                  await invoke('trust_ssh_host_key', {
-                    host,
-                    port,
-                    fingerprint,
-                    keyType,
-                    keyBytes,
-                    trustStatus: 'trusted',
-                  });
-                } catch (err) {
-                  console.error('Failed to trust host key:', err);
-                }
-              }
-              setPromptData(null);
-              resolve(true);
-            });
-
-            setOnRejectCallback(() => () => {
-              setPromptData(null);
-              resolve(false);
-            });
+            };
+            setPendingPrompts(prev => [
+              ...prev,
+              {
+                prompt,
+                onTrust: async (permanent: boolean) => {
+                  if (permanent) {
+                    try {
+                      await invoke('trust_ssh_host_key', {
+                        host,
+                        port,
+                        fingerprint,
+                        keyType,
+                        keyBytes,
+                        trustStatus: 'trusted',
+                      });
+                    } catch (err) {
+                      console.error('Failed to trust host key:', err);
+                    }
+                  }
+                  resolve(true);
+                },
+                onReject: async () => {
+                  resolve(false);
+                },
+              },
+            ]);
           }
         })
         .catch((err) => {
@@ -164,15 +169,19 @@ export const useSshHostKeyVerification = () => {
   };
 
   const handleTrust = (permanent: boolean) => {
-    if (onTrustCallback) {
-      onTrustCallback(permanent);
-    }
+    const current = pendingPrompts[0];
+    if (!current) return;
+    void current.onTrust(permanent).finally(() => {
+      setPendingPrompts(prev => prev.slice(1));
+    });
   };
 
   const handleReject = () => {
-    if (onRejectCallback) {
-      onRejectCallback();
-    }
+    const current = pendingPrompts[0];
+    if (!current) return;
+    void current.onReject().finally(() => {
+      setPendingPrompts(prev => prev.slice(1));
+    });
   };
 
   return {

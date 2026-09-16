@@ -129,6 +129,68 @@ use once_cell::sync::Lazy;
 
 /// Database filename (renamed from titan.db for Quasar).
 const DB_FILENAME: &str = "quasar.db";
+/// SQLite application_id marker for Quasar databases ("QSR1").
+const QUASAR_APPLICATION_ID: i64 = 0x5153_5231;
+
+fn has_required_columns(
+    conn: &rusqlite::Connection,
+    table: &str,
+    required_columns: &[&str],
+) -> Result<bool, String> {
+    let sql = format!("PRAGMA table_info({})", table);
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| format!("Failed to inspect table '{}': {}", table, e))?;
+    let columns = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| format!("Failed to read table info for '{}': {}", table, e))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to collect columns for '{}': {}", table, e))?;
+    Ok(required_columns.iter().all(|c| columns.iter().any(|name| name == c)))
+}
+
+fn has_quasar_legacy_signature(conn: &rusqlite::Connection) -> Result<bool, String> {
+    let has_hosts = has_required_columns(conn, "hosts", &["id", "name", "address", "port"])?;
+    let has_credentials = has_required_columns(conn, "credentials", &["id", "name", "username"])?
+        || has_required_columns(conn, "credentials_new", &["id", "name", "username"])?;
+    let has_vault_settings = has_required_columns(conn, "vault_settings", &["key", "value"])?;
+    if !(has_hosts && has_credentials && has_vault_settings) {
+        return Ok(false);
+    }
+
+    let optional_markers = [
+        ("security_audit_log", &["id", "event_type", "action"] as &[&str]),
+        ("ssh_known_hosts", &["id", "host", "fingerprint"]),
+        ("metrics_history", &["id", "timestamp", "host"]),
+        ("alert_history", &["id", "rule_id", "triggered_at"]),
+        ("discovered_hosts", &["id", "ip", "last_seen"]),
+        ("host_services", &["id", "host_id", "port"]),
+        ("scheduled_tasks", &["id", "name", "cron_expression"]),
+    ];
+    let mut marker_count = 0usize;
+    for (table, columns) in optional_markers {
+        if has_required_columns(conn, table, columns)? {
+            marker_count += 1;
+        }
+    }
+
+    Ok(marker_count >= 2)
+}
+
+fn is_recognized_quasar_database(conn: &rusqlite::Connection) -> Result<bool, String> {
+    let app_id = conn
+        .pragma_query_value(None, "application_id", |row| row.get::<_, i64>(0))
+        .unwrap_or(0);
+    if app_id == QUASAR_APPLICATION_ID {
+        return Ok(true);
+    }
+    has_quasar_legacy_signature(conn)
+}
+
+fn set_quasar_application_id(conn: &rusqlite::Connection) -> Result<(), String> {
+    conn.pragma_update(None, "application_id", QUASAR_APPLICATION_ID)
+        .map_err(|e| format!("Failed to set application_id: {}", e))
+}
 
 /// One-time migration: rename titan.db to quasar.db for existing installs.
 fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> {
@@ -1630,12 +1692,17 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
     if !std::path::Path::new(&source_path).exists() {
         return Err("Source file not found".to_string());
     }
-    rusqlite::Connection::open_with_flags(&source_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .and_then(|c| {
-            c.execute_batch("SELECT count(*) FROM sqlite_master;")?;
-            Ok(())
-        })
+    let source_conn =
+        rusqlite::Connection::open_with_flags(&source_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|_| "Source is not a valid SQLite database".to_string())?;
+    source_conn
+        .execute_batch("SELECT count(*) FROM sqlite_master;")
         .map_err(|_| "Source is not a valid SQLite database".to_string())?;
+    if !is_recognized_quasar_database(&source_conn)? {
+        return Err(
+            "Source is a valid SQLite file but is not a recognized Quasar backup".to_string(),
+        );
+    }
 
     // Both the backup and the restore go through SQLite's backup API rather than
     // touching files directly.
@@ -1665,11 +1732,7 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
     }
 
     // Restore into the live database file in place.
-    let src = rusqlite::Connection::open_with_flags(
-        &source_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    let src = source_conn;
     let mut dst = db::open_connection(
         db_path
             .to_str()
@@ -1679,6 +1742,7 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
         .map_err(|e| sanitize_error(e.to_string(), "database"))?
         .run_to_completion(100, std::time::Duration::from_millis(0), None)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    set_quasar_application_id(&dst).map_err(|e| sanitize_error(e, "database"))?;
 
     // Long-lived connections may still serve cached reads, so a restart is
     // recommended — but the file itself is now consistent either way.
@@ -1742,6 +1806,10 @@ pub fn run() {
             // Run migrations using rusqlite_migration
             MIGRATIONS.to_latest(&mut conn).map_err(|e| {
                 error!("Failed to run migrations: {}", e);
+                e
+            })?;
+            set_quasar_application_id(&conn).map_err(|e| {
+                error!("Failed to set Quasar database marker: {}", e);
                 e
             })?;
 
@@ -2105,5 +2173,36 @@ mod saved_host_tests {
             .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
             .unwrap();
         assert_eq!(version_after_rerun, version);
+    }
+
+    #[test]
+    fn database_recognition_accepts_quasar_application_id() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        set_quasar_application_id(&conn).unwrap();
+        assert!(is_recognized_quasar_database(&conn).unwrap());
+    }
+
+    #[test]
+    fn database_recognition_accepts_strict_legacy_schema() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE hosts (id TEXT, name TEXT, address TEXT, port INTEGER);
+            CREATE TABLE credentials (id TEXT, name TEXT, username TEXT);
+            CREATE TABLE vault_settings (key TEXT, value TEXT);
+            CREATE TABLE security_audit_log (id TEXT, event_type TEXT, action TEXT);
+            CREATE TABLE ssh_known_hosts (id TEXT, host TEXT, fingerprint TEXT);
+            ",
+        )
+        .unwrap();
+        assert!(is_recognized_quasar_database(&conn).unwrap());
+    }
+
+    #[test]
+    fn database_recognition_rejects_unrelated_sqlite() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE random_table (id INTEGER);")
+            .unwrap();
+        assert!(!is_recognized_quasar_database(&conn).unwrap());
     }
 }
