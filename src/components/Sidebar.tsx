@@ -31,7 +31,11 @@ const navItems = [
   { id: 'settings', icon: Settings, label: 'Settings' },
 ] as const;
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+// ⚡ Bolt: Wrapped Sidebar in React.memo() to prevent unnecessary re-renders when Layout updates other views.
+// Impact: Skips re-renders when a parent update leaves activeView, onViewChange, and the
+// (memoized) vault context value unchanged. Navigating between tabs still re-renders Sidebar,
+// since activeView itself changes to update the highlighted item.
+const Sidebar: React.FC<SidebarProps> = React.memo(({ activeView, onViewChange }) => {
   const { isVaultLocked } = useVault();
 
   return (
@@ -88,6 +92,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
       </div>
     </aside>
   );
-};
+});
 
 export default Sidebar;
