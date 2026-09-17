@@ -442,7 +442,6 @@ pub async fn connect_ssh(
             }
         }
     });
-
     if state.is_pending_cancelled(&id)? {
         let cancelled_conn = state
             .sessions
