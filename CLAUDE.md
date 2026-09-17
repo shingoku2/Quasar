@@ -51,7 +51,7 @@ Quasar/
 │   ├── db.ts                   # Tauri SQL plugin interface
 │   ├── test-setup.ts           # Vitest global mocks
 │   ├── App.tsx                 # Root component + routing
-│   └── *.test.tsx              # 47 test files / 329 tests (co-located with sources)
+│   └── *.test.ts*              # 47 test files / 329 tests (co-located with sources)
 ├── src-tauri/                  # Rust/Tauri backend
 │   ├── src/
 │   │   ├── lib.rs              # App setup, migrations, ALL Tauri commands

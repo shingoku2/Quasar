@@ -94,7 +94,7 @@ A `security-reviewer` subagent pass on the fix (before the CI-failure detour bel
 one real gap: the new `claim_scan()` error path bypassed `sanitize_error()` while every
 other error path in the same command used it. Fixed for consistency.
 
-**CI caught a second real bug in the new regression test itself**: `cargo test` failed on
+**CI exposed a second backend bug while running the new regression test**: `cargo test` failed on
 GitHub's runner (not locally, where the sandbox apparently has raw-socket capability) with
 `Permission denied creating ICMP socket`. The test claims the scan, stops it, then awaits
 `scan_network()` — but at that point the function still unconditionally opened a real ICMP
