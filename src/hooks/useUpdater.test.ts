@@ -93,16 +93,22 @@ describe('useUpdater', () => {
 
     expect(result.current.status).toBe('available');
 
+    let installPromise: Promise<void> = Promise.resolve();
     act(() => {
-      result.current.installUpdate();
+      installPromise = result.current.installUpdate();
     });
 
     expect(result.current.status).toBe('downloading');
 
-    await waitFor(() => {
-      expect(mockUpdate.downloadAndInstall).toHaveBeenCalledTimes(1);
+    // Await the installUpdate() promise itself rather than polling for the
+    // downloadAndInstall call: that call happens synchronously before the
+    // first await, so waitFor could resolve before the continuation that
+    // calls relaunch() has actually run.
+    await act(async () => {
+      await installPromise;
     });
 
+    expect(mockUpdate.downloadAndInstall).toHaveBeenCalledTimes(1);
     expect(relaunch).toHaveBeenCalledTimes(1);
   });
 
