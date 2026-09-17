@@ -321,7 +321,7 @@ impl CredentialManager {
 
         // Log audit event
         Self::log_audit_event(
-            &conn,
+            conn,
             "credential_access",
             Some(credential_id),
             Some("credential"),
