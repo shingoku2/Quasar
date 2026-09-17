@@ -3,7 +3,8 @@
 > **Development note (September 2, 2026):** Five deferred concurrency and persistence
 > fixes are designed but not yet implemented. Maintainers should use
 > [`docs/DEFERRED_AUDIT_FIX_PLAN.md`](docs/DEFERRED_AUDIT_FIX_PLAN.md) for the active audit
-> follow-up and required regression coverage.
+> follow-up and required regression coverage. (Unrelated to the September 17, 2026 PR
+> backlog cleanup below — still open.)
 
 A powerful Tauri-based remote infrastructure management application for monitoring, managing, and automating remote servers and infrastructure.
 
@@ -58,7 +59,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library (38 test files / 257 tests)
+- **Testing**: Vitest + React Testing Library (47 test files / 329 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
@@ -206,6 +207,12 @@ See `conductor/code_styleguides/` for detailed coding standards:
 5. Submit a pull request
 
 ## Recent Updates
+
+### September 17, 2026 - PR Backlog Cleanup & Network Scanner Race Fix
+- ✅ **26 open PRs triaged and merged** — bot-authored perf tweaks, dead-code cleanup, and test-coverage additions. 17 were clean as-authored; 9 had real bugs the review bots flagged (mostly test-quality issues that couldn't actually catch a regression) and were fixed before merging.
+- ✅ **Network scan stop requests are now reliably honored** — the bot's own "TOCTOU fix" PR was a no-op (it only reordered two locks already in the same critical section). Found and fixed the actual race: a stop request landing right after a scan starts could be silently discarded. The scan now claims its run state synchronously before the background task is even spawned.
+- ✅ **Survived a bot reverting the fix mid-review** — an automated commit reset the fix back to the no-op and deleted its tests; re-applied on top of a master merge rather than overwriting the bot's commit history. See `AGENTS.md` for the full incident writeup.
+- ✅ **Verification** — `tsc --noEmit`, `npm test` (329/329), `cargo clippy -- -D warnings`, and `cargo test` (126/126) all clean; see `AGENTS.md` for the full technical writeup.
 
 ### August 22, 2026 - Full Codebase Bug Audit
 - ✅ **Session-killing tab bug fixed** — adding a host from the Inventory tab was resetting the entire session tab list, silently disconnecting every open SSH terminal and SFTP session. Fixed to merge instead of replace.
