@@ -270,38 +270,55 @@ async fn drain_scan_futures<P, R>(
     }
 }
 
+/// Atomically checks that no scan is running and claims `is_scanning`, resetting
+/// `stop_signal` for the new run.
+///
+/// Callers that spawn `scan_network` onto a background task (rather than running
+/// it inline) must call this *before* spawning, not from within the spawned task.
+/// Otherwise a `stop_scan()` call that lands in the window between spawning and
+/// the task actually starting would set `stop_signal = true`, only for the
+/// still-starting scan to unconditionally reset it back to `false` once it does
+/// start — silently discarding the user's stop request.
+pub fn claim_scan(state: &ScannerState) -> Result<(), String> {
+    // Check-and-set atomically to prevent TOCTOU race condition.
+    // Keep lock held during entire check-and-set operation.
+    let mut stop = state
+        .stop_signal
+        .lock()
+        .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
+
+    let mut is_scanning = state
+        .is_scanning
+        .lock()
+        .map_err(|e| format!("Failed to acquire scanning lock: {}", e))?;
+
+    if *is_scanning {
+        return Err("Scan already in progress".to_string());
+    }
+    *is_scanning = true;
+    *stop = false;
+    Ok(())
+}
+
+/// Runs a network scan. The caller must have already claimed the scan via
+/// [`claim_scan`] (synchronously, before spawning this onto a background task)
+/// so that no stop request can be lost in the gap between spawning and this
+/// function actually starting. See [`claim_scan`] for why.
 pub async fn scan_network(
     state: Arc<ScannerState>,
     cidr: String,
     on_progress: impl Fn(ScanProgress) + Send + 'static,
     on_result: impl Fn(ScanResult) + Send + 'static,
 ) -> Result<(), String> {
-    // Input validation
-    validation::validate_cidr(&cidr)?;
-
-    // FIX: Check-and-set atomically to prevent TOCTOU race condition
-    // Keep lock held during entire check-and-set operation
-    {
-        let mut stop = state
-            .stop_signal
-            .lock()
-            .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
-
-        let mut is_scanning = state
-            .is_scanning
-            .lock()
-            .map_err(|e| format!("Failed to acquire scanning lock: {}", e))?;
-
-        if *is_scanning {
-            return Err("Scan already in progress".to_string());
-        }
-        *is_scanning = true;
-        *stop = false;
-    }
-
+    // Install the guard before any fallible work so the `is_scanning` claim
+    // made by `claim_scan` is always released on early return, not just on
+    // the happy path.
     let _guard = ScanRunningGuard {
         is_scanning: Arc::clone(&state.is_scanning),
     };
+
+    // Input validation
+    validation::validate_cidr(&cidr)?;
 
     // Clear previous results
     {
@@ -615,6 +632,63 @@ mod tests {
         assert!(
             is_scanning(&state),
             "Scan 2 must remain active after scan 1's guard dropped"
+        );
+    }
+
+    #[test]
+    fn test_claim_scan_rejects_concurrent_claim() {
+        let state = ScannerState::new();
+
+        claim_scan(&state).expect("first claim should succeed");
+        assert!(is_scanning(&state));
+
+        let err = claim_scan(&state).expect_err("second claim must be rejected");
+        assert_eq!(err, "Scan already in progress");
+    }
+
+    #[tokio::test]
+    async fn test_stop_request_after_claim_is_not_lost() {
+        // Regression test for a TOCTOU race: a command handler that spawns
+        // scan_network() onto a background task must call claim_scan()
+        // synchronously *before* spawning. Otherwise a stop_scan() call
+        // landing in the window between "task spawned" and "task actually
+        // starts" would have its stop signal silently reset back to `false`
+        // once the still-starting scan reached its own (now-removed) claim
+        // logic, and the scan would proceed as if never asked to stop.
+        let state = Arc::new(ScannerState::new());
+
+        // The command handler claims the scan synchronously before spawning,
+        // exactly as lib.rs's `scan_network` command now does.
+        claim_scan(&state).expect("claim should succeed");
+
+        // A rapid stop_scan() call lands in the window before the spawned
+        // task actually starts running scan_network's body.
+        stop_scan(&state);
+        assert!(*state.stop_signal.lock().unwrap(), "stop signal must be set");
+
+        let on_progress = |_p: ScanProgress| {};
+        let on_result = |_r: ScanResult| {};
+
+        // scan_network must NOT reset stop_signal back to false now that the
+        // caller has already claimed the scan, so it should see the stop
+        // request and exit before scanning any host in the range.
+        scan_network(
+            Arc::clone(&state),
+            "10.0.0.0/24".to_string(),
+            on_progress,
+            on_result,
+        )
+        .await
+        .expect("scan_network should return Ok even when stopped immediately");
+
+        let progress = get_scan_progress(&state);
+        assert_eq!(
+            progress.completed, 0,
+            "no host should have been scanned once the pre-existing stop request was honored"
+        );
+        assert!(
+            !is_scanning(&state),
+            "the guard must still release is_scanning on an immediate stop"
         );
     }
 

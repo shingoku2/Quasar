@@ -423,6 +423,12 @@ async fn scan_network(
     // Clone the managed HostTracker to use in the spawned task
     let tracker = tracker_state.inner().clone();
 
+    // Claim the scan synchronously, before spawning, so there is no window
+    // in which a stop_scan() call could land between "task spawned" and
+    // "task actually starts" and have its stop signal silently discarded by
+    // the spawned task's own claim. See scanner::claim_scan for details.
+    scanner::claim_scan(&scanner_state)?;
+
     tokio::spawn(async move {
         let on_progress = move |progress: scanner::ScanProgress| {
             let _ = app_for_progress.emit("scan_progress", progress);
