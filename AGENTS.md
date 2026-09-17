@@ -7,6 +7,144 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### PR Backlog Cleanup & Real Network-Scanner TOCTOU Fix - Complete (September 17, 2026)
+
+#### Overview
+User asked to go through all 26 open PRs (bot-authored: Sourcery/Copilot/Jules-generated
+perf micro-optimizations, dead-code/comment cleanup, and test-coverage additions), merge
+what needed nothing, and fix what the review bots flagged before merging. All 26 are now
+merged; their branches were deleted afterward (branch deletion itself had to be done by the
+user — the git credentials available in this session got an unexplained 403 on every
+`git push --delete` attempt, single or batched, with no proxy-level relay failure logged,
+so the request reached GitHub and GitHub refused it. No GitHub MCP tool wraps ref deletion
+either. Root cause not confirmed — plausibly the GitHub App installation's permission scope
+allows content pushes/merges but not ref deletion, or a repo ruleset blocks it for this
+identity).
+
+**17 PRs were clean as authored** — green CI, and Sourcery/Copilot review comments were
+either genuine approvals or, in a couple of cases, findings that didn't hold up under
+direct verification (e.g. PR #27's `clsx` default-import "will fail TS1259 without
+esModuleInterop" claim was checked with a real `tsc --noEmit` run and was a false
+positive — this repo's `moduleResolution: "bundler"` handles it fine).
+
+**9 PRs had real, verified findings** and were fixed before merging — see the "Frontend
+test-quality fixes" and "Real backend fix" sections below. The common pattern across most
+of them: a test's assertion technically passed but couldn't actually catch the regression
+it claimed to guard against (weak mock, wrong await point, or state leaking across tests).
+
+#### Frontend test-quality fixes (bot-flagged, verified, then fixed)
+- **`CredentialPrompt.test.tsx`**: native `required` attributes on the username/password
+  inputs make jsdom block form submission before `handleSubmit` runs, so the "empty field"
+  cases never exercised the component's own `username.trim() && password` guard. Added a
+  whitespace-only-username case, which satisfies `required` but must still fail `.trim()`.
+- **`dashboard/MetricChartCard.test.tsx`**: the Recharts `Area` mock discarded every prop
+  it received, so the "custom color" test only checked the pulse indicator, not that the
+  color actually reached the chart. Forwarded props through the mock and asserted the
+  color on `stroke`/`fill`/gradient stop.
+- **`HostList.test.tsx`**: `window.confirm` was spied at module scope with no restore
+  (leaks into other test files); the removal tests asserted only that `remove_saved_hosts`
+  was *called*, with the mock still returning the pre-removal list afterward, so they'd
+  pass even if the UI never refreshed; a test named for covering "missing hosts and no
+  matches" only exercised the empty-list branch. Fixed all three, matching the
+  `vi.spyOn(...).../afterEach(...mockRestore())` pattern already used in
+  `HostManagement.test.tsx`; also added protocol-gating coverage (a database host renders
+  neither Connect nor SFTP).
+- **`HostDetailDialog.test.tsx`**: the clipboard-failure test replaced
+  `navigator.clipboard` with a permanently-rejecting mock and never restored it — any test
+  running afterward in the same jsdom environment would see the contaminated mock. Now
+  saved/restored in a `try`/`finally`.
+- **`NetworkTopologyView.test.tsx`**: the zoom test's `getScale` mock always returned
+  `1.0`, so it couldn't distinguish correct scale-multiplication logic from a broken one;
+  made the mock stateful (tracks scale across zoom in/out clicks, asserts the compounded
+  value). Also strengthened the node/edge population assertion to check specific ids and
+  call count instead of just "was called."
+- **`hooks/useUpdater.test.ts`**: the install/relaunch test called `installUpdate()`
+  without awaiting it, then polled `waitFor` on the `downloadAndInstall` mock having been
+  *called* (which happens synchronously, before the first `await`) before immediately
+  asserting `relaunch` — a race, since nothing guaranteed the post-`await` continuation
+  that calls `relaunch()` had actually run yet. Fixed to await the `installUpdate()`
+  promise itself before asserting either call. (A second bot-claimed finding on this same
+  file — a TS1259-style "`resolveCheck` used before assignment" compile error — was
+  checked with `tsc --noEmit` and was a false positive; TS's control-flow analysis
+  correctly proves definite assignment through the synchronous `new Promise(executor)`
+  callback.)
+
+#### Real backend fix: `scan_network` TOCTOU race (PR #39)
+The bot's own PR, titled "Fix TOCTOU race condition in network scanner," did not fix
+anything — its diff only reordered two mutex lock acquisitions that were already inside
+the same critical section, a no-op. Both Sourcery and Copilot correctly called this out
+and described the actual race: `lib.rs`'s `scan_network` command does
+`tokio::spawn(async move { ...scanner::scan_network(...).await... })` and returns
+immediately; a `stop_scan()` call landing in the window between that spawn and the spawned
+task actually starting sets `stop_signal = true`, only for the still-starting
+`scan_network` to unconditionally reset it back to `false` in its own init block —
+silently discarding the user's stop request.
+
+**Fix**: extracted the atomic check-and-set into `scanner::claim_scan()`, called
+synchronously in the `lib.rs` command *before* `tokio::spawn` (returning `Err` — now
+routed through `sanitize_error()`, per security review below — directly to the frontend
+if a scan is already running, instead of only via a delayed `scan_error` event as before).
+`scan_network()` no longer re-claims; it installs `ScanRunningGuard` as its very first
+action (before any fallible work, so the claim is always released on early return) and
+added a stop-signal check *before* opening the raw ICMP `Client` (a scan that was already
+asked to stop shouldn't pay for, or need raw-socket privileges for, a socket it won't
+use — this also fixed a real CI failure, see below). See CLAUDE.md Security Notes item 11.
+
+A `security-reviewer` subagent pass on the fix (before the CI-failure detour below) found
+one real gap: the new `claim_scan()` error path bypassed `sanitize_error()` while every
+other error path in the same command used it. Fixed for consistency.
+
+**CI exposed a second backend bug while running the new regression test**: `cargo test` failed on
+GitHub's runner (not locally, where the sandbox apparently has raw-socket capability) with
+`Permission denied creating ICMP socket`. The test claims the scan, stops it, then awaits
+`scan_network()` — but at that point the function still unconditionally opened a real ICMP
+`Client` before ever checking the loop's per-host stop-signal check, so a scan that should
+exit immediately was instead attempting privileged socket creation. This is exactly the
+"check stop before opening the socket" fix described above — added specifically because
+this failure surfaced it, not the other way around.
+
+**Incident: an automated bot reverted the fix mid-review.** After the CI-failure fix was
+pushed and green, `google-labs-jules[bot]` pushed an unsolicited commit
+("fix: prevent TOCTOU race condition when starting network scan") that reverted
+`scanner.rs`/`lib.rs` back to the original no-op reorder, deleted both regression tests,
+and re-added a stray `scanner.rs.orig` backup file plus a new duplicate `tmp_scanner.rs`
+and `patch.diff` — apparently replaying a stale, pre-fix snapshot of the whole PR (the
+commit's diff also touched ~15 files from unrelated, already-separately-merged PRs, all
+reverted to their pre-fix state). Per this project's rule against rewriting another
+identity's git history, this was **not** force-pushed over — instead: merged current
+`master` into the branch (which cleanly restored everything *except* the scanner.rs/lib.rs
+fix itself, since master never had `claim_scan()` either — PR #39 was the only PR that
+implemented it), manually reapplied the exact verified fix and both tests on top, deleted
+the stray files again, and re-verified clean (`cargo build`/`clippy --all-targets -D
+warnings`/`test`, `tsc --noEmit`, full frontend suite) before pushing. **If a bot-authored
+branch you're driving to green gets an unexplained new commit mid-review, diff it against
+your last known-good commit before trusting it — don't assume a bot's own commit on its
+own PR is authoritative.**
+
+#### Verification
+- `cargo build`, `cargo clippy --all-targets -- -D warnings` — clean throughout.
+- `cargo test` — 126 passing (122 lib + 4 integration, 1 ignored), including the two new
+  `scanner::tests::` regression tests, after every fix round.
+- `npx tsc --noEmit` — clean throughout.
+- `npx vitest run` — 329 passing / 47 files (final count, all fixes included).
+
+#### Files modified
+- 9 PR branches, each with a targeted fix (see above): `add-credential-prompt-test-*`,
+  `add-metric-chart-card-tests-*`, `add-hostlist-test-*`,
+  `test/clipboard-error-handling-*`, `add-network-topology-view-tests-*`,
+  `add-useupdater-tests-*`, `fix/remove-fix-comment-for-db-conn-*` (merged master in rather
+  than editing — see below), `fix-toctou-*` (the real fix, several rounds), plus 17 merged
+  as-authored.
+- `fix/remove-fix-comment-for-db-conn-*` (PR #38) only removed stale `FIX:` comment
+  prefixes; its branch predated PR #40 (which actually implemented single-connection reuse
+  during vault re-encryption), so merging master in — rather than hand-editing the
+  comment — made the PR's own claim true instead of just rewording it.
+- `src-tauri/src/scanner.rs`, `src-tauri/src/lib.rs` (the real fix)
+- `CLAUDE.md` (test counts/inventory, Security Notes item 11, this session noted at the top)
+- `AGENTS.md` (this entry)
+
+---
+
 ### Deferred Bug-Audit Concurrency & Persistence Fixes - Planned (September 2, 2026)
 
 Five higher-complexity findings remain open from the bug audit: master-password rotation

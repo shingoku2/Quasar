@@ -4,15 +4,33 @@ This file provides persistent context for the Gemini CLI agent to ensure a smoot
 
 ## Current Project Status
 - **Framework:** Tauri v2 + React + TypeScript + Tailwind CSS v4.
-- **Status:** **Deferred audit concurrency/persistence remediation planned (Sep 2, 2026); implementation not started.**
-- **Last Action:** Inspected the five deferred findings and finalized their implementation contract. Credential operations will wait behind master-password rotation; SSH connection attempts will gain pending/active cancellation-aware lifecycle ownership; host-key prompts will be FIFO; imports will be staged and checked using a Quasar `application_id` with strict legacy-schema fallback; and remotely closed sessions will remove themselves immediately. See `docs/DEFERRED_AUDIT_FIX_PLAN.md`. No implementation files changed and no validation suite was run in this planning session.
+- **Status:** **26-PR backlog cleanup complete (Sep 17, 2026); deferred audit concurrency/persistence remediation (Sep 2, 2026) still not started — unrelated work, see below.**
+- **Last Action:** Triaged all 26 open bot-authored PRs. 17 merged clean; 9 had real bugs
+  the review bots flagged (mostly test-quality issues — weak mocks, wrong await points,
+  state leaking across tests) and were fixed before merging. One, PR #39, claimed to fix a
+  TOCTOU race in `scan_network` but its own diff was a no-op; found and fixed the actual
+  race (`scanner::claim_scan()`, called synchronously before `tokio::spawn` in the command
+  handler rather than inside the spawned task) plus a CI-caught follow-on bug (opening a
+  privileged ICMP socket before checking a pre-existing stop signal). Mid-review, an
+  automated bot (`google-labs-jules[bot]`) pushed an unsolicited commit reverting that fix
+  back to the no-op and deleting the regression tests; re-applied the verified fix on top
+  of a master merge rather than force-pushing over it. See `AGENTS.md`'s "PR Backlog
+  Cleanup & Real Network-Scanner TOCTOU Fix" entry for the full writeup.
+- **Deferred (unrelated, still open):** Inspected five audit findings and finalized their
+  implementation contract on Sep 2, 2026 — not touched by the PR cleanup above. Credential
+  operations will wait behind master-password rotation; SSH connection attempts will gain
+  pending/active cancellation-aware lifecycle ownership; host-key prompts will be FIFO;
+  imports will be staged and checked using a Quasar `application_id` with strict
+  legacy-schema fallback; and remotely closed sessions will remove themselves immediately.
+  See `docs/DEFERRED_AUDIT_FIX_PLAN.md`.
 - **Previous status:** SSH connection diagnostics, credential save fix, and host protocol parity complete (Aug 21, 2026) — see below.
 
 ## Next Session Start
 
 Implement `docs/DEFERRED_AUDIT_FIX_PLAN.md`, beginning with the vault credential-access
 gate and deterministic rekey/write race tests. Keep all five findings open until focused
-tests, full Rust/frontend validation, and a security review pass.
+tests, full Rust/frontend validation, and a security review pass. (This is unaffected by
+the Sep 17 PR cleanup — no code toward this plan has been written yet.)
 
 ## Full Codebase Bug Audit (2026-08-22)
 
