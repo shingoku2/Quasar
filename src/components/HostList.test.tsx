@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import HostList from './HostList';
 import '@testing-library/jest-dom';
 
@@ -29,9 +29,6 @@ vi.mock('./HealthCheckBadge', () => ({
   default: ({ host }: { host: string }) => <span data-testid={`health-badge-${host}`}>OK</span>,
 }));
 
-// Mock window.confirm
-vi.spyOn(window, 'confirm').mockImplementation(() => true);
-
 describe('HostList Component', () => {
   const mockProps = {
     onConnect: vi.fn(),
@@ -39,10 +36,17 @@ describe('HostList Component', () => {
     onAddHost: vi.fn(),
   };
 
+  let confirmSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     mockInvoke.mockReset();
     mockInvoke.mockImplementation(defaultInvoke);
     vi.clearAllMocks();
+    confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    confirmSpy.mockRestore();
   });
 
   it('renders loading state initially', async () => {
@@ -83,8 +87,7 @@ describe('HostList Component', () => {
     expect(screen.getByText('Dev DB')).toBeInTheDocument();
   });
 
-  it('handles missing hosts and no matches', async () => {
-    // Override invoke for this test to return empty array
+  it('handles empty host list', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'get_saved_hosts') return Promise.resolve([]);
       return Promise.resolve(null);
@@ -95,18 +98,9 @@ describe('HostList Component', () => {
     await waitFor(() => {
       expect(screen.getByText('No hosts added yet.')).toBeInTheDocument();
     });
-
-    // Reset and try filter no match
-    mockInvoke.mockImplementation(defaultInvoke);
-
-    // We already rendered above. So we need to clean up and re-render OR just unmount the previous render.
-    // However, Testing Library renders in isolation per test, but multiple calls to render within one test
-    // appends to the body. Better to destructure unmount from the first render.
   });
 
   it('handles filtering with no match', async () => {
-    mockInvoke.mockImplementation(defaultInvoke);
-
     render(<HostList {...mockProps} />);
     await waitFor(() => {
       expect(screen.getByText('Prod Web')).toBeInTheDocument();
@@ -123,9 +117,12 @@ describe('HostList Component', () => {
       { id: '1', name: 'Prod Web', address: '10.0.0.10', protocol: 'ssh', port: 22 },
       { id: '2', name: 'Prod Web Duplicate', address: '10.0.0.10', protocol: 'ssh', port: 22 }, // Duplicate based on logic
     ];
+    const afterRemoval = [duplicatesList[0]];
 
     mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'get_saved_hosts') return Promise.resolve(duplicatesList);
+      if (cmd === 'get_saved_hosts') {
+        return Promise.resolve(mockInvoke.mock.calls.some(([c]) => c === 'remove_saved_hosts') ? afterRemoval : duplicatesList);
+      }
       if (cmd === 'remove_saved_hosts') return Promise.resolve();
       return Promise.resolve(null);
     });
@@ -146,9 +143,31 @@ describe('HostList Component', () => {
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('remove_saved_hosts', { ids: ['2'] });
     });
+
+    // Refresh after removal should drop the duplicate from the rendered list.
+    await waitFor(() => {
+      expect(screen.queryByText('Prod Web Duplicate')).not.toBeInTheDocument();
+      expect(screen.queryByText('1 duplicate detected')).not.toBeInTheDocument();
+    });
   });
 
   it('handles removing a single host', async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_saved_hosts') {
+        const removed = mockInvoke.mock.calls.some(([c]) => c === 'remove_saved_hosts');
+        return Promise.resolve(
+          removed
+            ? [{ id: '2', name: 'Dev DB', address: '10.0.0.20', protocol: 'database', port: 5432 }]
+            : [
+                { id: '1', name: 'Prod Web', address: '10.0.0.10', protocol: 'ssh', port: 22 },
+                { id: '2', name: 'Dev DB', address: '10.0.0.20', protocol: 'database', port: 5432 },
+              ],
+        );
+      }
+      if (cmd === 'remove_saved_hosts') return Promise.resolve();
+      return Promise.resolve(null);
+    });
+
     render(<HostList {...mockProps} />);
 
     await waitFor(() => {
@@ -163,26 +182,41 @@ describe('HostList Component', () => {
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('remove_saved_hosts', { ids: ['1'] });
     });
+
+    // Refresh after removal should drop the removed host from the rendered list.
+    await waitFor(() => {
+      expect(screen.queryByText('Prod Web')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Dev DB')).toBeInTheDocument();
   });
 
-  it('calls respective action handlers', async () => {
+  it('calls respective action handlers and gates them by protocol', async () => {
     render(<HostList {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Prod Web')).toBeInTheDocument();
     });
 
-    // SSH Host (has Connect, SFTP, Edit)
-    const connectButtons = screen.getAllByText('Connect');
-    fireEvent.click(connectButtons[0]); // Prod Web is SSH and connectable
+    const rows = screen.getAllByRole('row');
+    // Header row + 2 host rows.
+    const sshRow = rows.find((row) => within(row).queryByText('Prod Web'))!;
+    const dbRow = rows.find((row) => within(row).queryByText('Dev DB'))!;
+
+    // SSH Host has Connect, SFTP, Edit.
+    expect(within(sshRow).getByText('Connect')).toBeInTheDocument();
+    expect(within(sshRow).getByText('SFTP')).toBeInTheDocument();
+
+    // Database host is not connectable and has no SFTP support.
+    expect(within(dbRow).queryByText('Connect')).not.toBeInTheDocument();
+    expect(within(dbRow).queryByText('SFTP')).not.toBeInTheDocument();
+
+    fireEvent.click(within(sshRow).getByText('Connect'));
     expect(mockProps.onConnect).toHaveBeenCalledWith(expect.objectContaining({ id: '1', name: 'Prod Web' }));
 
-    const sftpButtons = screen.getAllByText('SFTP');
-    fireEvent.click(sftpButtons[0]);
+    fireEvent.click(within(sshRow).getByText('SFTP'));
     expect(mockProps.onSftp).toHaveBeenCalledWith(expect.objectContaining({ id: '1' }));
 
-    const editButtons = screen.getAllByText('Edit');
-    fireEvent.click(editButtons[0]);
+    fireEvent.click(within(sshRow).getByText('Edit'));
     expect(mockProps.onAddHost).toHaveBeenCalledWith(expect.objectContaining({ id: '1' }));
   });
 });
