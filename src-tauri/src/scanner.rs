@@ -342,6 +342,20 @@ pub async fn scan_network(
         progress.completed = 0;
     }
 
+    // Check the stop signal before opening a raw ICMP socket: a scan that was
+    // already asked to stop (e.g. claimed, then immediately stopped before this
+    // task got to run) shouldn't pay for a socket it's not going to use, and
+    // on hosts without raw-socket capability that open can fail outright.
+    {
+        let stop = state
+            .stop_signal
+            .lock()
+            .map_err(|e| format!("Failed to acquire stop signal lock: {}", e))?;
+        if *stop {
+            return Ok(());
+        }
+    }
+
     let client = Client::new(&Config::default()).map_err(|e| e.to_string())?;
     let client = Arc::new(client);
     let state_arc = Arc::clone(&state);
