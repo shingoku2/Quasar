@@ -172,7 +172,11 @@ impl SshState {
             .pending_connections
             .lock()
             .map_err(|e| format!("Failed to acquire pending-session lock: {}", e))?;
-        if pending.contains_key(id) {
+        if let Some(state) = pending.get(id) {
+            if state.cancelled {
+                pending.remove(id);
+                return Err("Session connection was cancelled".to_string());
+            }
             return Err("Session is already connecting".to_string());
         }
         pending.insert(id.to_string(), PendingConnectionState::default());
@@ -186,9 +190,10 @@ impl SshState {
             .map_err(|e| format!("Failed to acquire pending-session lock: {}", e))?;
         if let Some(state) = pending.get_mut(id) {
             state.cancelled = true;
-            return Ok(true);
+        } else {
+            pending.insert(id.to_string(), PendingConnectionState { cancelled: true });
         }
-        Ok(false)
+        Ok(true)
     }
 
     fn is_pending_cancelled(&self, id: &str) -> Result<bool, String> {
@@ -294,32 +299,6 @@ pub async fn connect_ssh(
 
     let (disconnect_tx, mut disconnect_rx) = tokio::sync::mpsc::channel(1);
     let (stats_cancel_tx, mut stats_cancel_rx) = tokio::sync::mpsc::channel::<()>(1);
-
-    // Session driver: keeps the connection alive and emits close event.
-    let id_for_driver = id.clone();
-    let app_handle_for_driver = app_handle.clone();
-    let sessions_for_driver = state.sessions.clone();
-
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = session => {
-                let closed_session = {
-                    let mut sessions = match sessions_for_driver.lock() {
-                        Ok(s) => s,
-                        Err(_) => return,
-                    };
-                    sessions.remove(&id_for_driver)
-                };
-                if let Some(conn) = closed_session {
-                    let _ = conn.stats_cancel_tx.send(()).await;
-                }
-                let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
-            }
-            _ = disconnect_rx.recv() => {
-                let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
-            }
-        }
-    });
 
     // Unified I/O task: owns the channel, reads via Channel::wait(), writes via
     // channel.data(), and handles resizes. Using Channel::wait() is critical —
@@ -437,6 +416,32 @@ pub async fn connect_ssh(
         .lock()
         .map_err(|e| format!("Failed to acquire session lock: {}", e))?
         .insert(id.clone(), conn);
+
+    // Session driver: keeps the connection alive and emits close event.
+    let id_for_driver = id.clone();
+    let app_handle_for_driver = app_handle.clone();
+    let sessions_for_driver = state.sessions.clone();
+
+    tokio::spawn(async move {
+        tokio::select! {
+            _ = session => {
+                let closed_session = {
+                    let mut sessions = match sessions_for_driver.lock() {
+                        Ok(s) => s,
+                        Err(_) => return,
+                    };
+                    sessions.remove(&id_for_driver)
+                };
+                if let Some(conn) = closed_session {
+                    let _ = conn.stats_cancel_tx.send(()).await;
+                }
+                let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
+            }
+            _ = disconnect_rx.recv() => {
+                let _ = app_handle_for_driver.emit(&format!("ssh_closed_{}", id_for_driver), ());
+            }
+        }
+    });
 
     if state.is_pending_cancelled(&id)? {
         let cancelled_conn = state
@@ -621,6 +626,18 @@ mod host_key_approval_tests {
         assert!(state.mark_pending_cancelled("session-1").unwrap());
         assert!(state.is_pending_cancelled("session-1").unwrap());
         state.finish_pending_connection("session-1");
-        assert!(!state.mark_pending_cancelled("session-1").unwrap());
+        assert!(state.mark_pending_cancelled("session-1").unwrap());
+    }
+
+    #[test]
+    fn cancelled_tombstone_blocks_a_late_connection_start() {
+        let state = SshState::new();
+
+        assert!(state.mark_pending_cancelled("session-2").unwrap());
+        assert_eq!(
+            state.begin_pending_connection("session-2").unwrap_err(),
+            "Session connection was cancelled"
+        );
+        state.begin_pending_connection("session-2").unwrap();
     }
 }

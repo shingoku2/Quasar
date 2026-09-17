@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -30,13 +30,15 @@ interface SshHostKeyEvent {
 }
 
 interface PendingPromptEntry {
+  requestId: string;
   prompt: HostKeyPromptData;
-  onTrust: (permanent: boolean) => Promise<void>;
-  onReject: () => Promise<void>;
+  onTrust: (permanent: boolean) => Promise<boolean>;
+  onReject: () => Promise<boolean>;
 }
 
 export const useSshHostKeyVerification = () => {
   const [pendingPrompts, setPendingPrompts] = useState<PendingPromptEntry[]>([]);
+  const actionInFlightRequestIdRef = useRef<string | null>(null);
   const promptData = pendingPrompts[0]?.prompt ?? null;
 
   // Listen for host key verification events from backend
@@ -59,6 +61,7 @@ export const useSshHostKeyVerification = () => {
         setPendingPrompts(prev => [
           ...prev,
           {
+            requestId,
             prompt,
             onTrust: async (permanent: boolean) => {
               try {
@@ -78,8 +81,10 @@ export const useSshHostKeyVerification = () => {
                     accepted: true,
                   });
                 }
+                return true;
               } catch (err) {
                 console.error('Failed to approve host key:', err);
+                return false;
               }
             },
             onReject: async () => {
@@ -88,8 +93,10 @@ export const useSshHostKeyVerification = () => {
                   requestId,
                   accepted: false,
                 });
+                return true;
               } catch (err) {
                 console.error('Failed to reject host key:', err);
+                return false;
               }
             },
           },
@@ -136,6 +143,7 @@ export const useSshHostKeyVerification = () => {
             setPendingPrompts(prev => [
               ...prev,
               {
+                requestId: `local-${host}-${port}-${fingerprint}`,
                 prompt,
                 onTrust: async (permanent: boolean) => {
                   if (permanent) {
@@ -150,12 +158,15 @@ export const useSshHostKeyVerification = () => {
                       });
                     } catch (err) {
                       console.error('Failed to trust host key:', err);
+                      return false;
                     }
                   }
                   resolve(true);
+                  return true;
                 },
                 onReject: async () => {
                   resolve(false);
+                  return true;
                 },
               },
             ]);
@@ -168,20 +179,32 @@ export const useSshHostKeyVerification = () => {
     });
   };
 
-  const handleTrust = (permanent: boolean) => {
+  const completeCurrentPrompt = async (
+    action: (entry: PendingPromptEntry) => Promise<boolean>
+  ) => {
     const current = pendingPrompts[0];
-    if (!current) return;
-    void current.onTrust(permanent).finally(() => {
-      setPendingPrompts(prev => prev.slice(1));
-    });
+    if (!current || actionInFlightRequestIdRef.current === current.requestId) {
+      return;
+    }
+
+    actionInFlightRequestIdRef.current = current.requestId;
+    const handled = await action(current);
+    if (handled) {
+      setPendingPrompts(prev =>
+        prev[0]?.requestId === current.requestId ? prev.slice(1) : prev
+      );
+    }
+    if (actionInFlightRequestIdRef.current === current.requestId) {
+      actionInFlightRequestIdRef.current = null;
+    }
+  };
+
+  const handleTrust = (permanent: boolean) => {
+    void completeCurrentPrompt((current) => current.onTrust(permanent));
   };
 
   const handleReject = () => {
-    const current = pendingPrompts[0];
-    if (!current) return;
-    void current.onReject().finally(() => {
-      setPendingPrompts(prev => prev.slice(1));
-    });
+    void completeCurrentPrompt((current) => current.onReject());
   };
 
   return {
