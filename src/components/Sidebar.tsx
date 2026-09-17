@@ -49,12 +49,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
               key={item.id}
               onClick={() => onViewChange(item.id as ViewId)}
               className={cn(
-                "w-full flex items-center rounded-lg px-3 py-2.5 transition-all group relative",
+                "w-full flex items-center rounded-lg px-3 py-2.5 transition-all group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-sidebar",
                 isActive 
                   ? "bg-accent text-white font-medium shadow-lg shadow-accent/20" 
                   : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
               )}
               title={item.label}
+              aria-label={item.label}
             >
               <item.icon className={cn(
                 "h-5 w-5 shrink-0",
