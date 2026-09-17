@@ -95,6 +95,7 @@ describe('HostDetailDialog', () => {
   });
 
   it('logs an error when clipboard copy fails', async () => {
+    const originalClipboard = navigator.clipboard;
     const mockClipboardWrite = vi.fn().mockRejectedValue(new Error('Clipboard error'));
     Object.assign(navigator, {
       clipboard: {
@@ -104,15 +105,18 @@ describe('HostDetailDialog', () => {
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<HostDetailDialog host={mockHost} onClose={vi.fn()} />);
+    try {
+      render(<HostDetailDialog host={mockHost} onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Actions'));
-    fireEvent.click(screen.getByText('Copy IP Address'));
+      fireEvent.click(screen.getByText('Actions'));
+      fireEvent.click(screen.getByText('Copy IP Address'));
 
-    await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to copy:', expect.any(Error));
-    });
-
-    consoleErrorSpy.mockRestore();
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to copy:', expect.any(Error));
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+      Object.assign(navigator, { clipboard: originalClipboard });
+    }
   });
 });
