@@ -135,5 +135,11 @@ describe('CredentialPrompt', () => {
     fireEvent.change(passwordInput, { target: { value: 'pass' } });
     fireEvent.click(submitButton);
     expect(onSubmit).not.toHaveBeenCalled();
+
+    // Whitespace-only username satisfies the native `required` attribute but
+    // must still fail the component's own username.trim() guard.
+    fireEvent.change(usernameInput, { target: { value: '   ' } });
+    fireEvent.click(submitButton);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
