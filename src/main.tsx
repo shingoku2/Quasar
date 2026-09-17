@@ -23,9 +23,17 @@ if (!rootElement) {
     console.log("React app mounted successfully");
   } catch (error) {
     console.error("Failed to mount React app:", error);
-    rootElement.innerHTML = `<div style="color: red; padding: 20px;">
-      <h1>Failed to load app</h1>
-      <pre>${getErrorMessage(error)}</pre>
-    </div>`;
+    rootElement.replaceChildren();
+    const wrapper = document.createElement('div');
+    wrapper.style.color = 'red';
+    wrapper.style.padding = '20px';
+
+    const heading = document.createElement('h1');
+    heading.textContent = 'Failed to load app';
+    const message = document.createElement('pre');
+    message.textContent = getErrorMessage(error);
+
+    wrapper.append(heading, message);
+    rootElement.appendChild(wrapper);
   }
 }
