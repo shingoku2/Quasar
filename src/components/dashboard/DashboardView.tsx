@@ -77,7 +77,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     onNavigate('remote');
     sessionStorage.setItem('quickConnectHost', JSON.stringify(host));
     window.dispatchEvent(new Event('quickConnectTriggered'));
-    console.log(`Quick connect: Navigating to Remote view for ${host.name}`);
   };
 
   const handleHostClick = (host: ScanResult) => {
