@@ -7,7 +7,7 @@ import '@testing-library/jest-dom';
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => <div data-testid="responsive-container">{children}</div>,
   AreaChart: ({ children, data }: any) => <svg data-testid="area-chart" data-chartdata={JSON.stringify(data)}>{children}</svg>,
-  Area: () => <path data-testid="area" />,
+  Area: (props: any) => <path data-testid="area" {...props} />,
   CartesianGrid: () => <g data-testid="cartesian-grid" />,
   Tooltip: () => <div data-testid="tooltip" />,
 }));
@@ -47,6 +47,18 @@ describe('MetricChartCard', () => {
     const pulseDiv = container.querySelector('.animate-pulse');
     expect(pulseDiv).toBeInTheDocument();
     expect(pulseDiv).toHaveStyle({ backgroundColor: '#ff0000' });
+  });
+
+  it('forwards the custom color to the chart stroke and gradient fill', () => {
+    render(<MetricChartCard {...defaultProps} color="#ff0000" />);
+    const area = screen.getByTestId('area');
+    expect(area).toHaveAttribute('stroke', '#ff0000');
+    expect(area).toHaveAttribute('fill', 'url(#color-CPU-Usage)');
+
+    const gradient = document.querySelector('linearGradient');
+    expect(gradient?.id).toBe('color-CPU-Usage');
+    const stops = gradient?.querySelectorAll('stop');
+    expect(stops?.[0]).toHaveAttribute('stop-color', '#ff0000');
   });
 
   it('passes data to the chart component', () => {
