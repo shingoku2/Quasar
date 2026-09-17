@@ -574,16 +574,17 @@ impl VaultState {
             // Re-encrypt all credentials with new key using transaction for safety
             {
                 let credential_manager = credentials::CredentialManager::new(db_path.clone());
-                let summaries = credential_manager.list_credentials()?;
 
                 // FIX: Reuse existing connection for transaction (no second connection)
                 let tx = conn.transaction()
                     .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
+                let summaries = credential_manager.list_credentials_conn(&tx)?;
+
                 // Collect all re-encrypted credentials first
                 let mut re_encrypted_credentials = Vec::new();
                 for summary in &summaries {
-                    let credential = credential_manager.get_credential(&old_key, &summary.id)?;
+                    let credential = credential_manager.get_credential_conn(&tx, &old_key, &summary.id)?;
                     re_encrypted_credentials.push((
                         summary.id.clone(),
                         credential.created_at,
