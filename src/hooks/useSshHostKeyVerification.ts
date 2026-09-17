@@ -36,6 +36,12 @@ interface PendingPromptEntry {
   onReject: () => Promise<boolean>;
 }
 
+const isDismissiblePromptError = (err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('no longer pending')
+    || message.includes('stopped waiting for host key approval');
+};
+
 export const useSshHostKeyVerification = () => {
   const [pendingPrompts, setPendingPrompts] = useState<PendingPromptEntry[]>([]);
   const actionInFlightRequestIdRef = useRef<string | null>(null);
@@ -84,7 +90,7 @@ export const useSshHostKeyVerification = () => {
                 return true;
               } catch (err) {
                 console.error('Failed to approve host key:', err);
-                return false;
+                return isDismissiblePromptError(err);
               }
             },
             onReject: async () => {
@@ -96,7 +102,7 @@ export const useSshHostKeyVerification = () => {
                 return true;
               } catch (err) {
                 console.error('Failed to reject host key:', err);
-                return false;
+                return isDismissiblePromptError(err);
               }
             },
           },
