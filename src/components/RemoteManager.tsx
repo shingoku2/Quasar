@@ -217,8 +217,6 @@ const RemoteManager: React.FC = () => {
         // Mark as processed
         processedQuickConnects.current.add(host.id);
 
-        console.log('Quick Connect: Triggering connection to', host.name);
-
         const hostToConnect = {
           id: host.id,
           name: host.name,

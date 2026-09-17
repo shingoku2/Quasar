@@ -423,12 +423,6 @@ async fn scan_network(
     // Clone the managed HostTracker to use in the spawned task
     let tracker = tracker_state.inner().clone();
 
-    // Claim the scan synchronously, before spawning, so there is no window
-    // in which a stop_scan() call could land between "task spawned" and
-    // "task actually starts" and have its stop signal silently discarded by
-    // the spawned task's own claim. See scanner::claim_scan for details.
-    scanner::claim_scan(&scanner_state).map_err(|e| sanitize_error(e, "scanner"))?;
-
     tokio::spawn(async move {
         let on_progress = move |progress: scanner::ScanProgress| {
             let _ = app_for_progress.emit("scan_progress", progress);
@@ -699,11 +693,16 @@ fn remove_saved_hosts_in_conn(
 ) -> Result<usize, String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let mut removed = 0;
-    for id in ids {
-        removed += tx
-            .execute("DELETE FROM hosts WHERE id = ?1", [id])
+
+    for chunk in ids.chunks(999) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!("DELETE FROM hosts WHERE id IN ({})", placeholders);
+        let mut stmt = tx.prepare_cached(&sql).map_err(|e| e.to_string())?;
+        removed += stmt
+            .execute(rusqlite::params_from_iter(chunk.iter()))
             .map_err(|e| e.to_string())?;
     }
+
     tx.commit().map_err(|e| e.to_string())?;
     Ok(removed)
 }

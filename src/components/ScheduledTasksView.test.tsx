@@ -81,6 +81,56 @@ describe('ScheduledTasksView', () => {
     });
   });
 
+  it('shows validation error when saving without host', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_saved_hosts') return Promise.resolve([]);
+      if (cmd === 'list_credentials') return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    render(<ScheduledTasksView />);
+
+    await waitFor(() => screen.getByText('Add task'));
+    fireEvent.click(screen.getByText('Add task'));
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. Daily backup'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Daily backup'), { target: { value: 'Test Task' } });
+    fireEvent.change(screen.getByPlaceholderText('0 0 9 * * *'), { target: { value: '0 0 9 * * *' } });
+
+    fireEvent.click(screen.getByText('Add'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Name, schedule, and host are required/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows validation error for invalid cron expression', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_saved_hosts') return Promise.resolve([mockHost]);
+      if (cmd === 'list_credentials') return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    render(<ScheduledTasksView />);
+
+    await waitFor(() => screen.getByText('Add task'));
+    fireEvent.click(screen.getByText('Add task'));
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. Daily backup'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Daily backup'), { target: { value: 'Test Task' } });
+    fireEvent.change(screen.getByPlaceholderText('0 0 9 * * *'), { target: { value: 'invalid cron' } });
+
+    // Select host so the first validation check passes
+    const hostSelects = screen.getAllByRole('combobox');
+    fireEvent.change(hostSelects[0], { target: { value: 'host-1' } });
+
+    fireEvent.click(screen.getByText('Add'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid cron expression/i)).toBeInTheDocument();
+    });
+  });
+
   it('shows error state when backend call fails', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     vi.mocked(invoke).mockRejectedValue(new Error('Network error'));

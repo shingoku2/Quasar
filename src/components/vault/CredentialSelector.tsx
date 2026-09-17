@@ -75,10 +75,11 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
     }
   };
 
+  const lowerSearch = searchQuery.toLowerCase();
   const filteredCredentials = credentials.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.host && c.host.toLowerCase().includes(searchQuery.toLowerCase()))
+    c.name.toLowerCase().includes(lowerSearch) ||
+    c.username.toLowerCase().includes(lowerSearch) ||
+    (c.host && c.host.toLowerCase().includes(lowerSearch))
   );
 
   return (
