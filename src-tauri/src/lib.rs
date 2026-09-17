@@ -693,11 +693,16 @@ fn remove_saved_hosts_in_conn(
 ) -> Result<usize, String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let mut removed = 0;
-    for id in ids {
-        removed += tx
-            .execute("DELETE FROM hosts WHERE id = ?1", [id])
+
+    for chunk in ids.chunks(999) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!("DELETE FROM hosts WHERE id IN ({})", placeholders);
+        let mut stmt = tx.prepare_cached(&sql).map_err(|e| e.to_string())?;
+        removed += stmt
+            .execute(rusqlite::params_from_iter(chunk.iter()))
             .map_err(|e| e.to_string())?;
     }
+
     tx.commit().map_err(|e| e.to_string())?;
     Ok(removed)
 }
