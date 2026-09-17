@@ -1,10 +1,14 @@
 # Quasar — Complete Code Audit Plan
 
-> **September 2, 2026 follow-up:** The original audit below is historical and several of
-> its items have since been resolved. Five remaining concurrency/persistence findings now
-> have a decision-complete remediation design in
-> [`DEFERRED_AUDIT_FIX_PLAN.md`](DEFERRED_AUDIT_FIX_PLAN.md). Implementation has not started;
-> use that document as the active plan.
+> **September 2, 2026 follow-up (status updated September 17, 2026):** The original audit
+> below is historical and several of its items have since been resolved. Of the five
+> remaining concurrency/persistence findings, four are now implemented — SSH
+> pending-connection cancellation, FIFO host-key prompts, database-import validation via a
+> Quasar `application_id` marker plus legacy-signature fallback, and immediate removal of
+> remotely closed SSH sessions (September 16–17 commits `d9064f1e`/`5b6bc93a`). One
+> remains open: credential writes racing master-password rekeying — the planned
+> credential-access gate was not implemented. See `AGENTS.md`'s September 17, 2026
+> status-reconciliation entry for the finding-by-finding write-up.
 
 **Date:** 2026-02-28
 **Scope:** Full codebase — 10,818 frontend LOC (62 TS/TSX files) + 8,806 backend LOC (24 Rust files) + 12 migrations + CI/CD

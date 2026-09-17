@@ -7,6 +7,85 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Deferred Bug-Audit Fixes: Status Reconciliation - Complete (September 17, 2026)
+
+#### Overview
+After pulling latest (`31f6fa99`), the deferred-audit status was reconciled against the
+code. The September 2 plan entry below, `CLAUDE.md`'s "Current Work" section, and the
+follow-up note in `docs/AUDIT_PLAN.md` all stated the five deferred findings were planned
+but not implemented. That stopped being true on September 16: commit `d9064f1e` ("Fix
+comprehensive audit findings across SSH, import validation, and security hardening"),
+twin commit `7cbfc73d` (identical message/timestamp, also in master's history), and
+follow-up `5b6bc93a` ("Fix SSH review follow-ups", September 17) implemented four of the
+five. The docs were never updated when the code landed, and the September 17 PR-backlog
+session then re-asserted the stale claim into `CLAUDE.md`.
+
+Also discovered: `docs/DEFERRED_AUDIT_FIX_PLAN.md` — cited as "the canonical plan" by all
+three docs — never landed on master. It exists only on the unmerged
+`copilot/vscode-mu4rlxtb-cd2d` branch (commit `1470927b`), so `docs/AUDIT_PLAN.md`'s
+relative link to it dangled. The plan's agreed decisions remain summarized in the
+September 2 entry below.
+
+#### Finding-by-finding status (verified by code reading + `git log -S` attribution, clean tree @ `31f6fa99`)
+Numbered as in the September 2 entry below:
+1. **Master-password rotation racing credential writes — STILL OPEN (narrowed, not closed).**
+   Rotation is hardened: the `changing_password` flag (rejects concurrent rotations,
+   suspends auto-lock, and is always reset on every code path — a stuck flag would
+   permanently disable auto-lock), single-connection transactional re-encryption that
+   preserves credential ids so scheduled_tasks/monitoring references stay valid (PR #40,
+   `19eae7f9`), an in-transaction AEAD round-trip probe before commit, and a documented
+   narrow torn-state window (DB committed under the new key before `inner.master_key`
+   swaps; a `get_master_key()` in the gap gets the old key and the caller sees a transient,
+   retriable decrypt error). But the agreed credential-access gate — queueing credential
+   operations behind rotation — was never implemented: `add_credential`/`update_credential`
+   never check `changing_password`, so a credential write that commits during the
+   re-encryption transaction or in the torn-state window is encrypted with the old key and
+   orphaned under the new one. This is the one deferred finding that remains open. See
+   `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` (2026-09-02 note on the
+   open race) when implementing the gate.
+2. **Closing a terminal while `connect_ssh` is pending — FIXED** (`d9064f1e`, with
+   follow-up hardening in `5b6bc93a`): `SshState` tracks `pending_connections`
+   (`begin_pending_connection` / `mark_pending_cancelled` / `is_pending_cancelled` /
+   `finish_pending_connection`) beside the active `sessions` map. `connect_ssh` registers
+   the attempt before any network work and re-checks cancellation after auth and again
+   after session insertion — a connect completing after its terminal closed is dropped,
+   not registered.
+3. **Concurrent host-key events overwriting the single frontend prompt — FIXED.** Backend
+   requestId correlation (`HostKeyApprovalState` oneshot register/resolve/cancel +
+   `respond_ssh_host_key_verification`) landed earlier, August 30 (`5ed86db4`); the
+   September fix is the frontend FIFO queue in `src/hooks/useSshHostKeyVerification.ts`
+   (note: the hook moved from `src/components/vault/` to `src/hooks/`) — prompts queue and
+   are processed head-of-queue via `completeCurrentPrompt` with an in-flight requestId
+   guard (queue in `d9064f1e`; guard + tests in `5b6bc93a`).
+4. **Database import accepting unrelated valid SQLite files — FIXED** (`d9064f1e`): Quasar
+   stamps `PRAGMA application_id` with `QUASAR_APPLICATION_ID` ("QSR1", 0x51535231) at DB
+   creation and after import; `import_database` accepts only sources passing
+   `is_recognized_quasar_database()` — application_id match OR the strict
+   `has_quasar_legacy_signature()` fallback — so unmarked legacy Quasar backups still
+   import while unrelated SQLite files are rejected. Covered by
+   `database_recognition_accepts_quasar_application_id` and the legacy-signature tests.
+5. **Remotely closed SSH transports remaining registered — FIXED** (`d9064f1e`): the
+   session driver task (from the February `ed0a21be` refactor) now removes the session
+   from the registry the moment the session future completes (remote close), cancels the
+   stats reporter, and emits `ssh_closed_{id}` — previously the entry stayed registered
+   until the idle-timeout sweep cleaned it up.
+
+#### Verification (this pass; no code changed)
+- `cargo test` — 122 lib + 4 integration passed, 1 ignored (includes
+  `test_change_master_password_preserves_credential_ids`,
+  `test_lock_vault_during_password_change_stays_locked`, `host_key_approval_tests`, and
+  the database-recognition tests).
+- `npx vitest run` — 329 passed / 47 files; `npx tsc --noEmit` — clean.
+
+#### Files modified (this pass — documentation reconciliation only)
+- `AGENTS.md` (this entry; the September 2 entry's stale "Session close status" paragraph
+  corrected; footer date bumped)
+- `CLAUDE.md` ("Current Work: Deferred Audit Fixes" rewritten to this status)
+- `docs/AUDIT_PLAN.md` (September 2 follow-up note corrected; dangling
+  `DEFERRED_AUDIT_FIX_PLAN.md` link removed)
+
+---
+
 ### PR Backlog Cleanup & Real Network-Scanner TOCTOU Fix - Complete (September 17, 2026)
 
 #### Overview
@@ -161,10 +240,13 @@ gate, a pending/active SSH registry with cancellation and generation-aware clean
 frontend prompt queue, and staged database migration/validation with a Quasar
 `application_id` marker.
 
-**Session close status:** planning and code-path inspection only. No implementation files
-were changed and no validation suite was run. Start the next session from the canonical
-plan above and do not mark these findings complete until its deterministic concurrency,
-persistence, and security-review requirements pass.
+**Status (superseded September 17, 2026 — see the status-reconciliation entry above):**
+four of the five findings were implemented September 16–17 (`d9064f1e`, `5b6bc93a`) and
+are verified in code; only finding 1 (rotation racing credential writes) remains open —
+the agreed credential-access gate was never implemented, though rotation itself was
+hardened. Also: `docs/DEFERRED_AUDIT_FIX_PLAN.md` never landed on master (it exists only
+on the unmerged `copilot/vscode-mu4rlxtb-cd2d` branch), so the canonical-plan reference
+above now means the design decisions summarized in this entry.
 
 ---
 
@@ -1722,7 +1804,7 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 20, 2026 (Light theme app UI text overrides, terminal app-theme sync reverted, Solarized Light theme foreground/cursor).*
+*Last Updated: September 17, 2026 (deferred-audit status reconciliation — four of five findings verified implemented, rotation/credential-write race still open; PR backlog cleanup & real network-scanner TOCTOU fix).*
 
 ---
 

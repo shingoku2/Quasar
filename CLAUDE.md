@@ -4,20 +4,29 @@ Quasar is a Tauri 2.x desktop application for remote infrastructure management: 
 
 ## Current Work: Deferred Audit Fixes
 
-As of September 2, 2026, five audit findings are planned but not implemented:
+Status as of September 17, 2026, verified in code on master (`31f6fa99`): four of the five
+September 2 findings are implemented —
 
-- serialize credential operations with master-password rekeying;
-- cancel SSH attempts when their terminal closes while connecting;
-- queue concurrent SSH host-key prompts instead of replacing the active prompt;
-- reject unrelated SQLite files during database import while supporting recognized legacy
-  Quasar backups; and
-- remove remotely closed SSH sessions from the registry immediately.
+- cancel SSH attempts when their terminal closes while connecting — done
+  (`SshState::pending_connections` cancellation registry, `ssh.rs`);
+- queue concurrent SSH host-key prompts instead of replacing the active prompt — done
+  (requestId-correlated `HostKeyApprovalState` + FIFO queue in
+  `src/hooks/useSshHostKeyVerification.ts`);
+- reject unrelated SQLite files during database import — done (Quasar `application_id`
+  "QSR1" marker + strict legacy-signature fallback in `lib.rs`);
+- remove remotely closed SSH sessions from the registry immediately — done (session
+  driver removes the entry when the transport future completes).
 
-The decision-complete design and required deterministic tests are in
-`docs/DEFERRED_AUDIT_FIX_PLAN.md`. Credential operations should wait during rekeying,
-host-key prompts should be FIFO, and import should use a Quasar `application_id` plus a
-strict legacy-schema fallback. This work is still open — the PR backlog cleanup below is
-unrelated and did not touch any of these five findings.
+Still open: **serialize credential operations with master-password rekeying.** The planned
+credential-access gate (queueing credential operations behind rotation) was never
+implemented — `add_credential`/`update_credential` don't check `changing_password`, so a
+write landing during the re-encryption transaction or the post-commit key-swap window is
+encrypted with the old key and orphaned under the new one. Rotation itself is hardened
+(single-connection transactional re-encryption with AEAD probe, auto-lock suspension).
+Finding-by-finding write-up with commit attribution: `AGENTS.md`, September 17, 2026
+"Deferred Bug-Audit Fixes: Status Reconciliation". (`docs/DEFERRED_AUDIT_FIX_PLAN.md`
+never landed on master — it exists only on the unmerged `copilot/vscode-mu4rlxtb-cd2d`
+branch.)
 
 ---
 
