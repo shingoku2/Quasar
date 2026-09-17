@@ -427,7 +427,7 @@ async fn scan_network(
     // in which a stop_scan() call could land between "task spawned" and
     // "task actually starts" and have its stop signal silently discarded by
     // the spawned task's own claim. See scanner::claim_scan for details.
-    scanner::claim_scan(&scanner_state)?;
+    scanner::claim_scan(&scanner_state).map_err(|e| sanitize_error(e, "scanner"))?;
 
     tokio::spawn(async move {
         let on_progress = move |progress: scanner::ScanProgress| {
