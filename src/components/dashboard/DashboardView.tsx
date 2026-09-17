@@ -111,9 +111,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   };
 
   const handleHostSave = async (host: ScanResult) => {
-    const protocol: 'ssh' | 'rdp' = host.open_ports.includes(3389) ? 'rdp' : 'ssh';
-    const defaultPort = protocol === 'rdp'
-      ? (host.open_ports.includes(3389) ? 3389 : null)
+    const hasRdp = host.open_ports.includes(3389);
+    const protocol: 'ssh' | 'rdp' = hasRdp ? 'rdp' : 'ssh';
+    const defaultPort = hasRdp
+      ? 3389
       : (host.open_ports.includes(22) ? 22 : host.open_ports[0] ?? 22);
 
     setHostToSave({
