@@ -365,8 +365,6 @@ impl VaultState {
             .map_err(|e| format!("Failed to decode salt: {}", e))?;
 
         let mut master_key = [0u8; 32];
-        // FIX: Decode base64 salt to raw bytes - binary data must not be converted through UTF-8
-        // Per NIST SP 800-132: salt is arbitrary binary data, not text
         let mut salt_bytes = [0u8; 64]; // Max salt length
         let salt_decoded = salt
             .decode_b64(&mut salt_bytes)
