@@ -31,7 +31,9 @@ const navItems = [
   { id: 'settings', icon: Settings, label: 'Settings' },
 ] as const;
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+// ⚡ Bolt: Wrapped Sidebar in React.memo() to prevent unnecessary re-renders when Layout updates other views.
+// Impact: Reduces Sidebar re-renders to 0 when navigating between dashboard tabs or unrelated global state changes.
+const Sidebar: React.FC<SidebarProps> = React.memo(({ activeView, onViewChange }) => {
   const { isVaultLocked } = useVault();
 
   return (
@@ -87,6 +89,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
       </div>
     </aside>
   );
-};
+});
 
 export default Sidebar;
