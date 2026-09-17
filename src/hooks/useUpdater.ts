@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { check, type Update } from '@tauri-apps/plugin-updater';
+import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { getErrorMessage } from '../lib/utils';
 
 export type UpdateStatus = 'idle' | 'checking' | 'upToDate' | 'available' | 'downloading' | 'error';
+
+type UpdateCheckResult = Awaited<ReturnType<typeof check>>;
 
 export interface UpdaterState {
   status: UpdateStatus;
@@ -22,7 +24,7 @@ export function useUpdater(autoCheck: boolean): UpdaterState {
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [version, setVersion] = useState('');
   const [error, setError] = useState('');
-  const pendingUpdateRef = useRef<Update | null>(null);
+  const pendingUpdateRef = useRef<UpdateCheckResult>(null);
   const cancelledRef = useRef(false);
 
   const checkForUpdates = useCallback(async () => {

@@ -219,7 +219,15 @@ impl CredentialManager {
         credential_id: &str,
     ) -> Result<Credential, String> {
         let conn = db::open_connection(&self.db_path)?;
+        self.get_credential_conn(&conn, master_key, credential_id)
+    }
 
+    pub fn get_credential_conn(
+        &self,
+        conn: &rusqlite::Connection,
+        master_key: &[u8; 32],
+        credential_id: &str,
+    ) -> Result<Credential, String> {
         let mut stmt = conn.prepare(
             "SELECT id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at, last_used_at,
                     key_path, encrypted_private_key, private_key_nonce, private_key_tag, encrypted_key_passphrase, key_passphrase_nonce, key_passphrase_tag
@@ -313,7 +321,7 @@ impl CredentialManager {
 
         // Log audit event
         Self::log_audit_event(
-            &conn,
+            conn,
             "credential_access",
             Some(credential_id),
             Some("credential"),
@@ -327,7 +335,10 @@ impl CredentialManager {
 
     pub fn list_credentials(&self) -> Result<Vec<CredentialSummary>, String> {
         let conn = db::open_connection(&self.db_path)?;
+        self.list_credentials_conn(&conn)
+    }
 
+    pub fn list_credentials_conn(&self, conn: &rusqlite::Connection) -> Result<Vec<CredentialSummary>, String> {
         let mut stmt = conn.prepare(
             "SELECT id, name, username, credential_type, host, port, created_at, updated_at, last_used_at
              FROM credentials ORDER BY name ASC"
