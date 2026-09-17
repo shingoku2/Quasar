@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect, ReactNode } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import VaultInitDialog from './VaultInitDialog';
 import VaultUnlockDialog from './VaultUnlockDialog';
@@ -125,7 +125,7 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
     setIsVaultLocked(false);
   };
 
-  const lockVault = async () => {
+  const lockVault = useCallback(async () => {
     try {
       await invoke('lock_vault');
       setIsVaultLocked(true);
@@ -133,11 +133,21 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Failed to lock vault:', error);
     }
-  };
+  }, []);
 
-  const unlockVault = () => {
+  const unlockVault = useCallback(() => {
     setShowUnlockDialog(true);
-  };
+  }, []);
+
+  // Memoized so consumers that only read `isVaultLocked` (e.g. a
+  // React.memo'd Sidebar) don't re-render on every VaultProvider render -
+  // only when the value they actually depend on changes. Without this, a
+  // fresh object literal on every render would defeat memoization
+  // downstream regardless of which state actually changed.
+  const contextValue = useMemo(
+    () => ({ isVaultLocked, lockVault, unlockVault }),
+    [isVaultLocked, lockVault, unlockVault],
+  );
 
   if (isInitialized === null) {
     if (initError) {
@@ -174,7 +184,7 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
   }
 
   return (
-    <VaultContext.Provider value={{ isVaultLocked, lockVault, unlockVault }}>
+    <VaultContext.Provider value={contextValue}>
       {children}
       
       {showInitDialog && (
