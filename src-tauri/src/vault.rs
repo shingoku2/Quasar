@@ -529,7 +529,7 @@ impl VaultState {
         // Perform heavy crypto and DB operations in a blocking thread, without holding
         // the vault lock.
         let result = tauri::async_runtime::spawn_blocking(move || {
-            // FIX: Use single connection for entire operation to prevent connection leak
+            // Use single connection for entire operation to prevent connection leak
             let mut conn = db::open_connection(&db_path)?;
 
             let stored_hash: String = conn.query_row(
@@ -576,7 +576,7 @@ impl VaultState {
                 let credential_manager = credentials::CredentialManager::new(db_path.clone());
                 let summaries = credential_manager.list_credentials()?;
 
-                // FIX: Reuse existing connection for transaction (no second connection)
+                // Reuse existing connection for transaction (no second connection)
                 let tx = conn.transaction()
                     .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
