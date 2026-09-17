@@ -18,9 +18,17 @@ spawned function must then assume the claim already happened, and must install i
 fallible work (e.g. `validate_cidr`), so an early `?` return still releases the claim.
 
 **Verified, not just assumed**:
-- Single call site (`lib.rs:scan_network` command) via full-crate grep — the module is
-  private (`mod scanner;`, not `pub mod`), so nothing else can reach `scan_network`
-  without going through the command that now calls `claim_scan` first.
+- Single call site (`lib.rs:scan_network` command) via full-crate grep — as of this
+  review, nothing else in the crate calls `scan_network` directly. This is a search-time
+  observation to recheck on future changes, not a compiler-enforced guarantee: `mod
+  scanner;` (non-`pub`) only blocks *external* crates from reaching
+  `quasar_lib::scanner::...`; every module inside this crate is a descendant of the
+  crate root and can still reach `crate::scanner::scan_network` directly (it's a `pub
+  fn`) without going through `claim_scan()`, since Rust module privacy doesn't restrict
+  sibling-module access within the same crate the way it restricts cross-crate access.
+  If a future internal caller is added, it must call `claim_scan()` itself first, or
+  `scan_network` should be encapsulated (e.g. made crate-private, or merged with
+  `claim_scan` into one function) so the API can't be called without it.
 - No deadlock risk from the lock-acquisition order inside `claim_scan` (`stop_signal`
   then `is_scanning`) — grepped for other sites locking both mutexes together; this is
   the only one, so ordering is irrelevant across call sites.
