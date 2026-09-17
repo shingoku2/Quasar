@@ -88,8 +88,13 @@ describe('NetworkTopologyView', () => {
     // Check info text
     expect(screen.getByText('2')).toBeInTheDocument(); // 2 hosts discovered
 
-    // Check if DataSet.add was called for nodes (gateway + 2 hosts)
-    expect(mockDataSetAdd).toHaveBeenCalled();
+    // DataSet.add is shared by the nodes and edges instances: the gateway node,
+    // one node per host, and one edge per host connecting it to the gateway.
+    expect(mockDataSetAdd).toHaveBeenCalledTimes(5);
+    const addedIds = mockDataSetAdd.mock.calls.map(([arg]) => arg.id);
+    expect(addedIds).toEqual(
+      expect.arrayContaining(['gateway', '192.168.1.5', '192.168.1.10', '192.168.1.5-gateway', '192.168.1.10-gateway']),
+    );
   });
 
   it('handles physics toggle', () => {
@@ -106,16 +111,34 @@ describe('NetworkTopologyView', () => {
   });
 
   it('handles zoom in, zoom out, and fit buttons', () => {
+    // Model the network's actual scale so moveTo's computed value can be
+    // checked against the *current* scale rather than a fixed 1.0 mock,
+    // which would pass even if the zoom handlers stopped multiplying by it.
+    let currentScale = 1.0;
+    mockNetworkGetScale.mockImplementation(() => currentScale);
+    mockNetworkMoveTo.mockImplementation(({ scale }: { scale: number }) => {
+      currentScale = scale;
+    });
+
     render(<NetworkTopologyView hosts={mockHosts} />);
 
     fireEvent.click(screen.getByTitle('Zoom In'));
-    expect(mockNetworkMoveTo).toHaveBeenCalledWith({ scale: 1.2 });
+    expect(mockNetworkMoveTo).toHaveBeenLastCalledWith({ scale: 1.2 });
+
+    fireEvent.click(screen.getByTitle('Zoom In'));
+    expect(mockNetworkMoveTo).toHaveBeenLastCalledWith({ scale: 1.2 * 1.2 });
 
     fireEvent.click(screen.getByTitle('Zoom Out'));
-    expect(mockNetworkMoveTo).toHaveBeenCalledWith({ scale: 0.8 });
+    expect(mockNetworkMoveTo).toHaveBeenLastCalledWith({ scale: 1.2 * 1.2 * 0.8 });
 
     fireEvent.click(screen.getByTitle('Fit to Screen'));
     expect(mockNetworkFit).toHaveBeenCalled();
+
+    // Restore the default stub so later tests aren't affected by this test's
+    // stateful mock implementation (vi.clearAllMocks() clears call history
+    // but not custom implementations).
+    mockNetworkGetScale.mockReturnValue(1.0);
+    mockNetworkMoveTo.mockReset();
   });
 
   it('handles search functionality', () => {
