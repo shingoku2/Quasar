@@ -1,4 +1,6 @@
-//! SSH authentication: password or public key (key path or PEM string).
+//! SSH authentication: password, public key (key path or PEM string), or —
+//! when neither is supplied — identity-based `none` auth for servers such as
+//! Tailscale SSH that authenticate the connection by network identity.
 
 use russh::client::Handler;
 use russh::client::{AuthResult, Handle};
@@ -49,6 +51,14 @@ fn expand_tilde(path: &str) -> String {
 
 /// Authenticate the session with either password or SSH key.
 /// If both are provided, tries key first then password.
+///
+/// If *neither* is provided, a single `none` authentication request is sent.
+/// Tailscale SSH (and similar identity-aware servers) accept this outright
+/// because the tailnet has already authenticated the peer, so such hosts can be
+/// opened with just a username. Servers that require credentials reject it and
+/// a clear error is returned. Tailscale SSH "check mode" — which re-verifies the
+/// user via a browser URL over keyboard-interactive — is not supported here; the
+/// resulting error surfaces in the terminal.
 pub async fn authenticate<H: Handler + Send + 'static>(
     session: &mut Handle<H>,
     username: &str,
@@ -110,5 +120,25 @@ pub async fn authenticate<H: Handler + Send + 'static>(
         return Err("Authentication failed".to_string());
     }
 
-    Err(key_error.unwrap_or_else(|| "No password or SSH key provided".to_string()))
+    if let Some(err) = key_error {
+        return Err(err);
+    }
+
+    // No credentials at all: offer identity-based auth. This is only reached
+    // when the caller supplied nothing, so normal password/key hosts pay no
+    // extra round trip.
+    match session.authenticate_none(username).await {
+        Ok(AuthResult::Success) => Ok(()),
+        Ok(_) => Err(
+            "No password or SSH key provided, and the server did not accept identity-based (Tailscale SSH) authentication"
+                .to_string(),
+        ),
+        Err(e) => {
+            log::warn!("SSH none auth error: {}", e);
+            Err(format!(
+                "No password or SSH key provided, and identity-based (Tailscale SSH) authentication failed: {}",
+                e
+            ))
+        }
+    }
 }

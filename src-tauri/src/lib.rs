@@ -16,6 +16,7 @@ mod ssh_connect;
 mod ssh_exec;
 mod ssh_pool;
 mod ssh_tunnel;
+mod tailscale;
 mod validation;
 mod vault;
 
@@ -357,6 +358,15 @@ async fn connect_rdp(address: String) -> Result<(), String> {
         return Err("Invalid host address format".to_string());
     }
     launcher::launch_rdp(&address).map_err(|e| sanitize_error(e, "network"))
+}
+
+/// Snapshot of the local Tailscale node and its peers (via `tailscale status --json`).
+/// A missing CLI is reported as `installed: false`, not as an error.
+#[tauri::command]
+async fn get_tailscale_status() -> Result<tailscale::TailscaleStatus, String> {
+    tailscale::fetch_status()
+        .await
+        .map_err(|e| sanitize_error(e, "tailscale"))
 }
 
 #[tauri::command]
@@ -1926,6 +1936,7 @@ pub fn run() {
             get_alert_history,
             launch_ssh_external,
             connect_rdp,
+            get_tailscale_status,
             start_discovery,
             check_ai_status,
             list_ai_models,

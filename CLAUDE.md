@@ -76,6 +76,7 @@ Quasar/
 │   │   ├── ssh_pool.rs         # Pooled/reused SSH sessions for scheduled tasks
 │   │   ├── ssh_tunnel.rs       # SSH port forwarding
 │   │   ├── sftp.rs             # SFTP file transfer (password-auth only)
+│   │   ├── tailscale.rs        # `tailscale status --json` CLI integration (no API key)
 │   │   ├── launcher.rs         # External SSH/RDP client launch (OS terminal, mstsc)
 │   │   ├── scheduler.rs        # Cron task runner
 │   │   ├── monitoring.rs       # System metrics + alert rules
@@ -131,6 +132,7 @@ Quasar/
 | Cron | cron 0.12 |
 | AI (optional) | ollama-rs 0.3 |
 | Auto-update | tauri-plugin-updater / `@tauri-apps/plugin-updater` 2.x (signed artifacts, verified against an embedded pubkey) |
+| Tailscale | local `tailscale` CLI only — no API key, no control-plane calls (`src-tauri/src/tailscale.rs`) |
 | Testing | Vitest 4, React Testing Library 16, jsdom |
 
 ---
@@ -218,6 +220,9 @@ All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key g
 **SSH Tunnels**
 - `create_tunnel(host_id, local_port, remote_addr, remote_port, ...)` / `close_tunnel(tunnel_id)` / `list_tunnels()`
 
+**Tailscale**
+- `get_tailscale_status()` — runs `tailscale status --json` locally and returns tailnet peers; `installed: false` (not an error) when the CLI isn't found
+
 **AI**
 - `send_ai_message(message, context?)`
 
@@ -294,7 +299,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (47 files / 329 tests as of September 17, 2026)
+#### Test file inventory (49 files / 344 tests as of September 19, 2026)
 
 Not exhaustive — a curated subset covering the components with the most notable test
 patterns or regression history. Run `find src -name "*.test.ts*"` for the full list.
@@ -333,6 +338,8 @@ patterns or regression history. Run `find src -name "*.test.ts*"` for the full l
 | `dashboard/SystemHealthWidget.test.tsx` | SystemHealthWidget | Metrics display, CPU/memory/disk/alerts/hosts-online/vault-timeout, event-driven updates |
 | `hooks/useUpdater.test.ts` | useUpdater | State transitions (idle/checking/available/upToDate/error/downloading), auto-check, install+relaunch (awaits the `installUpdate()` promise itself rather than polling for the intermediate `downloadAndInstall` call, which is invoked synchronously and can't be used to infer that the later `relaunch()` call has actually run), unmount cleanup |
 | `lib/utils.test.ts` | `cn()`, `getErrorMessage()` | Class merging/conditionals/arrays/falsy values/Tailwind conflicts; error extraction from `Error`/string/object/non-string `.message`/null/undefined with fallback |
+| `TailscalePeers.test.tsx` | TailscalePeers | Not-installed hint, needs-login hint, peer list with SSH chip/online dot, Add payload uses `preferred_address`, "Saved" state for a peer matching an existing host, empty state |
+| `hooks/useTailscaleStatus.test.ts` | useTailscaleStatus, `findTailscalePeer` | Fetch on mount, error surfaced with status left `null`, `refresh()` re-fetches, concurrently mounted consumers coalesce onto one backend call, matcher matches by MagicDNS name/IPv4/hostname case-insensitively and returns `undefined` for no match/no status/no address. The poll is module-scoped and shared, so tests touching it must call `resetTailscaleStatusCache()` in `beforeEach`. |
 
 #### Key testing patterns
 
@@ -392,6 +399,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 - Validate all external inputs through `validation.rs` before processing
 - Database work should use transactions for multi-step operations
 - `discovery.rs` uses a singleton pattern (`Arc<AtomicBool>`) — do not bypass it
+- `tailscale.rs` only shells out to the local `tailscale` CLI with fixed arguments (`status --json`) — never pass user input into that command, and never call the Tailscale control-plane API directly
 
 ### Component Patterns
 
@@ -415,6 +423,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 9. **`VaultState.changing_password` only gates `check_auto_lock()`, not `lock_vault()`.** `change_master_password` drops its write lock during the multi-second Argon2id + credential re-encryption pass (so other vault reads, e.g. an in-flight SSH credential lookup, aren't stalled for the whole operation) and only reacquires it briefly at the start and end. Because of that window, an explicit `lock_vault()` call can land mid-change — the reacquire-and-install step at the end checks `inner.master_key.is_some()` before installing the new key, so an explicit lock is respected instead of silently reverted. If you touch `change_master_password` again, preserve that check; see `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full locking model and a regression test at `vault::tests::test_lock_vault_during_password_change_stays_locked`.
 10. **`unlock_vault`'s failed-attempt lockout (5 → 5 min, 10 → 15 min, 15 → 60 min) is persisted to `vault_settings`** (`lockout_failed_attempts` / `lockout_until_unix`), not just tracked in-memory. `VaultStateInner` is rebuilt fresh on every app launch, so an in-memory-only counter would let an attacker with local file access bypass the lockout by relaunching the app every 4 guesses. `load_persisted_lockout()` folds the persisted state into `inner` at the top of every `unlock_vault` call (only ever raising it, never lowering) and `persist_lockout()` writes it back on every failure and on success (clearing it). Regression tests: `vault::tests::test_lockout_persists_across_vault_state_restart`, `test_successful_unlock_clears_persisted_lockout`.
 11. **`scan_network`'s claim (`is_scanning` check-and-set + `stop_signal` reset) must happen synchronously in the `scan_network` Tauri command, before `tokio::spawn`, via `scanner::claim_scan()` — never inside the spawned task.** The command spawns the actual scan and returns immediately; if the claim happened inside the spawned task instead, a `stop_scan()` call landing in the window between `tokio::spawn(...)` and the task actually starting would set `stop_signal = true`, only for the still-starting scan to unconditionally reset it back to `false` when its own claim ran — silently discarding the user's stop request. `scan_network()` itself now assumes the caller already claimed it: it installs `ScanRunningGuard` as its first action (before any fallible work, so the claim is always released even on early return) and checks `stop_signal` before opening the raw ICMP socket (so an already-stopped scan doesn't pay for, or need privileges for, a socket it won't use). Fixed Sep 17, 2026; regression tests: `scanner::tests::test_claim_scan_rejects_concurrent_claim`, `test_stop_request_after_claim_is_not_lost`. See `AGENTS.md` for the incident where a bot-pushed commit reverted this fix mid-review and it had to be reapplied on top of a master merge.
+12. **`ssh_auth::authenticate` falls back to `none` authentication only when no password and no key material were supplied at all** — a present-but-wrong password or key still fails normally; this path exists specifically for identity-aware servers like Tailscale SSH, which authenticate the tailnet connection out-of-band and accept a bare `authenticate_none` request. Tailscale SSH "check mode" (browser re-verification over keyboard-interactive) is not implemented — it surfaces as a connection error in the terminal, same as any other rejected `none` auth attempt.
 
 See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
 
@@ -446,6 +455,7 @@ actually run on GitHub before that fix; see `AGENTS.md`):
 | Change SSH session handling | `src-tauri/src/ssh.rs` (interactive) or `ssh_exec.rs` (one-shot) |
 | Change SSH connect/timeout/error-reporting | `src-tauri/src/ssh_connect.rs` — shared by `ssh.rs`, `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs`; reports which phase (DNS/TCP/handshake) failed instead of one opaque timeout |
 | Change cron/scheduler logic | `src-tauri/src/scheduler.rs` |
+| Change Tailscale peer listing/matching | `src-tauri/src/tailscale.rs` (backend), `src/hooks/useTailscaleStatus.ts` + `src/components/TailscalePeers.tsx` (frontend) |
 | Change encryption | `src-tauri/src/crypto.rs` |
 | Change input validation | `src-tauri/src/validation.rs` |
 | Understand DB schema | `docs/SCHEMA.md` + `src-tauri/migrations/` |
