@@ -7,6 +7,110 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Tailscale Integration - Complete (September 19, 2026)
+
+#### Overview
+User asked for Tailscale integration: see tailnet peers, add them as saved hosts with one
+click, connect over the tailnet, and — for peers running Tailscale SSH — connect using
+tailnet identity without a password or key. Per the user's decision, this integrates only
+via the local `tailscale` CLI (`tailscale status --json`); there is no API key, no control-
+plane calls, and no new crates.
+
+#### Backend: `src-tauri/src/tailscale.rs` (new)
+- `find_tailscale_binary()` checks PATH first, then per-platform fallback install paths
+  (`/Applications/Tailscale.app/...` on macOS, `C:\Program Files\Tailscale\tailscale.exe`
+  on Windows, `/usr/bin/tailscale` on Linux).
+- `fetch_status()` runs `tailscale status --json` via `tokio::process::Command` with a 5s
+  timeout and `CREATE_NO_WINDOW` on Windows. A missing binary returns `Ok(installed: false)`
+  rather than an error, so the UI can show an install hint instead of an error state.
+- `parse_status()` is a pure, unit-tested parser: strips the trailing dot from `DNSName`,
+  computes `preferred_address` (MagicDNS name when the tailnet has MagicDNS enabled,
+  otherwise the 100.x IPv4), maps non-empty `sshHostKeys` to `tailscale_ssh`, and —
+  importantly — runs every emitted hostname/IP through the existing
+  `validate_hostname`/`validate_ip` checks, dropping a peer entirely if it has no address
+  that passes validation (e.g. IPv6-only peers). This means nothing the `tailscale` CLI
+  returns can bypass the app's normal input validation downstream. Peers are sorted
+  online-first, then by hostname.
+- New Tauri command `get_tailscale_status`, registered in `lib.rs` and routed through
+  `sanitize_error(e, "tailscale")`.
+- 8 new unit tests in `tailscale::tests` (fixture modelled on real CLI output): self/peer
+  parsing with MagicDNS on/off, empty `sshHostKeys` ⇒ no Tailscale SSH, sort order,
+  `BackendState` passthrough (`NeedsLogin`/`Stopped`), invalid-address peer dropped,
+  hostname-missing fallback, invalid JSON ⇒ error.
+
+#### Backend: identity-based (`none`) SSH auth — `src-tauri/src/ssh_auth.rs`
+- `authenticate()` now falls back to `session.authenticate_none(username)` only when
+  *neither* a password nor key material was supplied at all (a present-but-wrong
+  password/key still fails normally, unchanged). Tailscale SSH peers accept this outright
+  because the tailnet already authenticated the connection, so such hosts can be opened
+  with just a username. A rejected `none` attempt returns a clear error explaining that
+  identity-based auth was tried and failed. Tailscale SSH "check mode" (browser
+  re-verification over keyboard-interactive) is out of scope and surfaces as a normal
+  connection error in the terminal. This is a shared helper, so SFTP/pooled/tunnel/
+  scheduled-task SSH paths gain the capability too, though their UIs still require a
+  credential and were not changed.
+
+#### Frontend
+- `src/hooks/useTailscaleStatus.ts` (new): polls `get_tailscale_status` on mount and every
+  30s (same cadence as `SystemHealthWidget`'s host-health poll), exposes
+  `{ status, loading, error, refresh }`, and the exported `findTailscalePeer(status,
+  address)` helper matches case-insensitively against `dns_name`, `ipv4`, and `hostname`.
+- `src/components/TailscalePeers.tsx` (new): panel rendered next to `Discovery` in
+  `HostList`, below the Add button. Handles not-installed, needs-login (any
+  `backend_state !== 'Running'`), error, empty, and list states; each peer row shows an
+  online dot, hostname, OS + address, an "SSH" chip when `tailscale_ssh`, and an Add
+button (replaced by a "Saved" label when the peer already matches a saved host by
+  address). Excludes the local node (the backend never includes it in `peers`).
+- `src/components/HostList.tsx`: renders `TailscalePeers` and adds a small Tailscale
+  badge + online/offline dot to the Address column for any saved host whose address
+  matches a peer.
+- `src/components/CredentialPrompt.tsx`: new `allowNoPassword` prop — password input is
+  no longer `required`, helper text explains identity-based auth, and the submit guard
+  becomes `username.trim() && (password || allowNoPassword)`. Saving to the vault is
+  still forced off when the password is empty, even if the save-credential checkbox was
+  checked, since there is nothing to persist.
+- `src/components/RemoteManager.tsx`: computes whether `pendingHost` is a Tailscale SSH
+  peer via `findTailscalePeer(...).tailscale_ssh` and passes that as `allowNoPassword` to
+  the manual `CredentialPrompt`. `CredentialSelector` (vault-backed) still appears first
+  when the vault is unlocked; "Manual entry" leads to the relaxed prompt.
+- Test mocks: added a default `get_tailscale_status` response (`{ installed: false, peers:
+  [] }`) to the existing `invoke` mocks in `HostList.test.tsx`, `HostManagement.test.tsx`,
+  `Layout.test.tsx`, and `App.test.tsx` so the new `TailscalePeers` panel they now render
+  doesn't change any existing assertions.
+- New tests: `TailscalePeers.test.tsx` (not-installed/needs-login/list/Add payload/Saved
+  state/SSH chip/empty state), `hooks/useTailscaleStatus.test.ts` (fetch, error, refresh,
+  matcher), a `HostList.test.tsx` case for the badge/online-dot (scoped to the matching
+  row — the panel's own "Tailscale" heading text would otherwise collide with a naive
+  `getByText('Tailscale')`), and two `CredentialPrompt.test.tsx` cases for
+  `allowNoPassword` (submits with empty password; does not offer to save an
+  empty-password credential even with `allowSaveCredential` set).
+
+#### Verification
+- `cargo clippy --all-targets -- -D warnings` and `cargo test` — clean; 130 lib tests
+  passing (up from 122, +8 for `tailscale::tests`).
+- `npx tsc --noEmit` — clean.
+- `npx vitest run` — 49 files / 343 tests passing (up from 47/329).
+- Did not have a live tailnet in this environment to verify against a real `tailscale`
+  binary; verified via the unit-tested `parse_status()` against a fixture modelled on real
+  `tailscale status --json` output instead.
+
+#### Files modified
+- `src-tauri/src/tailscale.rs` (new)
+- `src-tauri/src/lib.rs` (`mod tailscale;`, `get_tailscale_status` command + registration)
+- `src-tauri/src/errors.rs` (`"tailscale"` sanitize context)
+- `src-tauri/src/ssh_auth.rs` (`none` auth fallback)
+- `src/hooks/useTailscaleStatus.ts` (new)
+- `src/components/TailscalePeers.tsx`, `TailscalePeers.test.tsx` (new)
+- `src/hooks/useTailscaleStatus.test.ts` (new)
+- `src/components/HostList.tsx`, `HostList.test.tsx` (panel + badge, badge test)
+- `src/components/CredentialPrompt.tsx`, `CredentialPrompt.test.tsx` (`allowNoPassword`)
+- `src/components/RemoteManager.tsx` (wiring)
+- `src/components/HostManagement.test.tsx`, `Layout.test.tsx`, `App.test.tsx` (mock default)
+- `CLAUDE.md`, `AGENTS.md` (this entry), `docs/CORE_WORKFLOWS.md` (new "Connect via
+  Tailscale" section)
+
+---
+
 ### Deferred Bug-Audit Fixes: Status Reconciliation - Complete (September 17, 2026)
 
 #### Overview

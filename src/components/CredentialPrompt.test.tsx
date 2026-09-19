@@ -142,4 +142,55 @@ describe('CredentialPrompt', () => {
     fireEvent.click(submitButton);
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('submits with an empty password only when allowNoPassword is set', () => {
+    const onCancel = vi.fn();
+    const onSubmit = vi.fn();
+
+    render(
+      <CredentialPrompt
+        hostName="vps-a8fa83ff"
+        allowNoPassword
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+      />
+    );
+
+    const passwordInput = screen.getByPlaceholderText('Password');
+    expect(passwordInput).not.toBeRequired();
+    expect(screen.getByText(/authenticate by tailnet identity/i)).toBeInTheDocument();
+
+    const usernameInput = screen.getByPlaceholderText('Username');
+    fireEvent.change(usernameInput, { target: { value: 'root' } });
+    fireEvent.click(screen.getByText('Connect Session'));
+
+    expect(onSubmit).toHaveBeenCalledWith('root', '', {
+      saveCredential: false,
+      credentialName: undefined,
+    });
+  });
+
+  it('does not offer to save an empty-password credential even when allowSaveCredential is set', () => {
+    const onCancel = vi.fn();
+    const onSubmit = vi.fn();
+
+    render(
+      <CredentialPrompt
+        hostName="vps-a8fa83ff"
+        allowNoPassword
+        allowSaveCredential
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText(/Save these credentials to Security vault/i));
+    fireEvent.change(screen.getByPlaceholderText('Username'), { target: { value: 'root' } });
+    fireEvent.click(screen.getByText('Connect Session'));
+
+    expect(onSubmit).toHaveBeenCalledWith('root', '', {
+      saveCredential: false,
+      credentialName: undefined,
+    });
+  });
 });

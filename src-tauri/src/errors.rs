@@ -22,6 +22,7 @@ pub fn sanitize_error(internal_error: String, context: &str) -> String {
             "Scheduled task operation failed. Check logs for details.".to_string()
         }
         "run task" => "Run task failed. Check logs for details.".to_string(),
+        "tailscale" => "Tailscale status check failed. Check logs for details.".to_string(),
         _ => "Operation failed. Check logs for details.".to_string(),
     }
 }
@@ -52,6 +53,7 @@ mod tests {
             ("monitoring", "Monitoring operation failed"),
             ("scanner", "Network scan operation failed"),
             ("credential", "Credential operation failed"),
+            ("tailscale", "Tailscale status check failed"),
         ];
 
         for (context, expected_prefix) in cases {
