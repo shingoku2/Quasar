@@ -227,6 +227,7 @@ const AlertRules: React.FC = () => {
             <button
               onClick={() => deleteRule(rule.id)}
               className="p-1.5 hover:bg-red-500/10 rounded text-gray-500 hover:text-red-400 transition-colors"
+              aria-label="Delete rule"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
