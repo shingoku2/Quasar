@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -104,7 +104,7 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
     };
   }, []);
 
-  const discoveredHosts = (() => {
+  const discoveredHosts = useMemo(() => {
     const merged = new Map<string, DiscoveredHost>();
     scanHosts.forEach((host) => merged.set(hostKey(host), host));
     mdnsHosts.forEach((host) => {
@@ -114,7 +114,7 @@ const Discovery: React.FC<DiscoveryProps> = ({ onAddHost }) => {
       }
     });
     return Array.from(merged.values());
-  })();
+  }, [scanHosts, mdnsHosts]);
 
   return (
     <div className="p-4 bg-gray-800 rounded mt-4">
