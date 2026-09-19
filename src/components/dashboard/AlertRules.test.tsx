@@ -78,9 +78,7 @@ describe('AlertRules', () => {
     render(<AlertRules />);
     await waitFor(() => screen.getByText('CPU Usage'));
 
-    // The delete button (Trash2 icon, no aria-label) is the last button in the rendered rule row.
-    const allButtons = screen.getAllByRole('button');
-    const deleteButton = allButtons[allButtons.length - 1];
+    const deleteButton = screen.getByRole('button', { name: 'Delete rule' });
     fireEvent.click(deleteButton);
 
     await waitFor(() => {

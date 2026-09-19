@@ -70,9 +70,8 @@ describe('HostDetailDialog', () => {
     const onClose = vi.fn();
     const { container } = render(<HostDetailDialog host={mockHost} onClose={onClose} />);
 
-    // The close button is the one with the X icon in the header
-    const closeBtn = container.querySelector('.lucide-x')?.closest('button');
-    if (closeBtn) fireEvent.click(closeBtn);
+    const closeBtn = screen.getByRole('button', { name: 'Close dialog' });
+    fireEvent.click(closeBtn);
 
     expect(onClose).toHaveBeenCalled();
   });
