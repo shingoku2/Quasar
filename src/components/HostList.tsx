@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import Discovery, { DiscoveredHost } from './Discovery';
 import HealthCheckBadge from './HealthCheckBadge';
@@ -60,7 +60,7 @@ const HostList: React.FC<{
     return duplicateIds;
   };
 
-  const duplicateHostIds = getDuplicateHostIds(hosts);
+  const duplicateHostIds = useMemo(() => getDuplicateHostIds(hosts), [hosts]);
 
   const handleRemoveDuplicates = async () => {
     if (duplicateHostIds.length === 0) {
@@ -123,10 +123,13 @@ const HostList: React.FC<{
     }
   };
 
-  const filteredHosts = hosts.filter(h => 
-    h.name.toLowerCase().includes(filter.toLowerCase()) || 
-    h.address.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredHosts = useMemo(() => {
+    const lowerFilter = filter.toLowerCase();
+    return hosts.filter(h =>
+      h.name.toLowerCase().includes(lowerFilter) ||
+      h.address.toLowerCase().includes(lowerFilter)
+    );
+  }, [hosts, filter]);
 
   if (loading) return <div className="p-4 text-gray-400">Loading hosts...</div>;
 
