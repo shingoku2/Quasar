@@ -78,8 +78,8 @@ describe('AlertRules', () => {
     render(<AlertRules />);
     await waitFor(() => screen.getByText('CPU Usage'));
 
-    const deleteButton = screen.getByRole('button', { name: 'Delete rule' });
-    fireEvent.click(deleteButton);
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete rule' });
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       expect(vi.mocked(invoke)).toHaveBeenCalledWith('remove_alert_rule', { ruleId: 'rule-1' });

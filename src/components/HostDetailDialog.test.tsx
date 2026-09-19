@@ -68,7 +68,7 @@ describe('HostDetailDialog', () => {
 
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
-    const { container } = render(<HostDetailDialog host={mockHost} onClose={onClose} />);
+    render(<HostDetailDialog host={mockHost} onClose={onClose} />);
 
     const closeBtn = screen.getByRole('button', { name: 'Close dialog' });
     fireEvent.click(closeBtn);
