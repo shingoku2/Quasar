@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import HostList from './HostList';
+import { resetTailscaleStatusCache } from '../hooks/useTailscaleStatus';
 import '@testing-library/jest-dom';
 
 // Mock Tauri invoke
@@ -45,6 +46,9 @@ describe('HostList Component', () => {
     mockInvoke.mockReset();
     mockInvoke.mockImplementation(defaultInvoke);
     vi.clearAllMocks();
+    // The Tailscale status poll is shared process-wide; drop it so one test's
+    // peers can't leak into the next.
+    resetTailscaleStatusCache();
     confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
@@ -256,8 +260,10 @@ describe('HostList Component', () => {
 
     render(<HostList {...mockProps} />);
 
+    // Match on the address cell: the peer shares its name with the saved host,
+    // so 'Prod Web' also appears in the Tailscale peers panel.
     await waitFor(() => {
-      expect(screen.getByText('Prod Web')).toBeInTheDocument();
+      expect(screen.getByText('10.0.0.10:22')).toBeInTheDocument();
     });
 
     const rows = screen.getAllByRole('row');

@@ -299,7 +299,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (49 files / 343 tests as of September 19, 2026)
+#### Test file inventory (49 files / 344 tests as of September 19, 2026)
 
 Not exhaustive — a curated subset covering the components with the most notable test
 patterns or regression history. Run `find src -name "*.test.ts*"` for the full list.
@@ -339,7 +339,7 @@ patterns or regression history. Run `find src -name "*.test.ts*"` for the full l
 | `hooks/useUpdater.test.ts` | useUpdater | State transitions (idle/checking/available/upToDate/error/downloading), auto-check, install+relaunch (awaits the `installUpdate()` promise itself rather than polling for the intermediate `downloadAndInstall` call, which is invoked synchronously and can't be used to infer that the later `relaunch()` call has actually run), unmount cleanup |
 | `lib/utils.test.ts` | `cn()`, `getErrorMessage()` | Class merging/conditionals/arrays/falsy values/Tailwind conflicts; error extraction from `Error`/string/object/non-string `.message`/null/undefined with fallback |
 | `TailscalePeers.test.tsx` | TailscalePeers | Not-installed hint, needs-login hint, peer list with SSH chip/online dot, Add payload uses `preferred_address`, "Saved" state for a peer matching an existing host, empty state |
-| `hooks/useTailscaleStatus.test.ts` | useTailscaleStatus, `findTailscalePeer` | Fetch on mount, error surfaced with status left `null`, `refresh()` re-fetches, matcher matches by MagicDNS name/IPv4/hostname case-insensitively and returns `undefined` for no match/no status/no address |
+| `hooks/useTailscaleStatus.test.ts` | useTailscaleStatus, `findTailscalePeer` | Fetch on mount, error surfaced with status left `null`, `refresh()` re-fetches, concurrently mounted consumers coalesce onto one backend call, matcher matches by MagicDNS name/IPv4/hostname case-insensitively and returns `undefined` for no match/no status/no address. The poll is module-scoped and shared, so tests touching it must call `resetTailscaleStatusCache()` in `beforeEach`. |
 
 #### Key testing patterns
 

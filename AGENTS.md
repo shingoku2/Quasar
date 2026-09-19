@@ -55,6 +55,14 @@ plane calls, and no new crates.
   30s (same cadence as `SystemHealthWidget`'s host-health poll), exposes
   `{ status, loading, error, refresh }`, and the exported `findTailscalePeer(status,
   address)` helper matches case-insensitively against `dns_name`, `ipv4`, and `hostname`.
+  The timer, the in-flight request, and the last result live in module scope and are
+  shared by every consumer: the hook is mounted three times over in the same tree
+  (`RemoteManager` → `HostList` → `TailscalePeers`) and each fetch spawns a `tailscale
+  status --json` subprocess, so per-instance polling would have meant three subprocesses
+  every 30s. A late-mounting consumer renders the cached status immediately instead of
+  starting at `loading`. `resetTailscaleStatusCache()` is exported for tests, which must
+  call it in `beforeEach` (see `useTailscaleStatus.test.ts`, `TailscalePeers.test.tsx`,
+  `HostList.test.tsx`) so one test's peers can't leak into the next.
 - `src/components/TailscalePeers.tsx` (new): panel rendered next to `Discovery` in
   `HostList`, below the Add button. Handles not-installed, needs-login (any
   `backend_state !== 'Running'`), error, empty, and list states; each peer row shows an
@@ -79,17 +87,20 @@ button (replaced by a "Saved" label when the peer already matches a saved host b
   doesn't change any existing assertions.
 - New tests: `TailscalePeers.test.tsx` (not-installed/needs-login/list/Add payload/Saved
   state/SSH chip/empty state), `hooks/useTailscaleStatus.test.ts` (fetch, error, refresh,
-  matcher), a `HostList.test.tsx` case for the badge/online-dot (scoped to the matching
-  row — the panel's own "Tailscale" heading text would otherwise collide with a naive
-  `getByText('Tailscale')`), and two `CredentialPrompt.test.tsx` cases for
-  `allowNoPassword` (submits with empty password; does not offer to save an
-  empty-password credential even with `allowSaveCredential` set).
+  matcher, request coalescing across concurrent consumers), a `HostList.test.tsx` case for
+  the badge/online-dot (scoped to the matching row — the panel's own "Tailscale" heading
+  text would otherwise collide with a naive `getByText('Tailscale')`; the test also waits
+  on the address cell rather than the host name, since a peer sharing its name with a
+  saved host renders that name in both the table and the panel), and two
+  `CredentialPrompt.test.tsx` cases for `allowNoPassword` (submits with empty password;
+  does not offer to save an empty-password credential even with `allowSaveCredential`
+  set).
 
 #### Verification
 - `cargo clippy --all-targets -- -D warnings` and `cargo test` — clean; 130 lib tests
   passing (up from 122, +8 for `tailscale::tests`).
 - `npx tsc --noEmit` — clean.
-- `npx vitest run` — 49 files / 343 tests passing (up from 47/329).
+- `npx vitest run` — 49 files / 344 tests passing (up from 47/329).
 - Did not have a live tailnet in this environment to verify against a real `tailscale`
   binary; verified via the unit-tested `parse_status()` against a fixture modelled on real
   `tailscale status --json` output instead.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getErrorMessage } from '../lib/utils';
 
@@ -53,36 +53,89 @@ export interface UseTailscaleStatusResult {
   refresh: () => Promise<void>;
 }
 
-/** Polls `get_tailscale_status` on mount and every 30s thereafter. */
-export function useTailscaleStatus(): UseTailscaleStatusResult {
-  const [status, setStatus] = useState<TailscaleStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const cancelledRef = useRef(false);
+interface TailscaleStatusState {
+  status: TailscaleStatus | null;
+  loading: boolean;
+  error: string | null;
+}
 
-  const refresh = useCallback(async () => {
+const initialState: TailscaleStatusState = { status: null, loading: true, error: null };
+
+// Module-level shared state. The hook is mounted in several places at once
+// (RemoteManager, HostList, TailscalePeers), and every fetch spawns a
+// `tailscale status --json` subprocess on the backend — so all subscribers
+// share a single poll timer, a single in-flight request, and one cached
+// result instead of each running their own 30s poll.
+let sharedState: TailscaleStatusState = initialState;
+const subscribers = new Set<(state: TailscaleStatusState) => void>();
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+let inFlight: Promise<void> | null = null;
+
+function publish(next: TailscaleStatusState) {
+  sharedState = next;
+  subscribers.forEach((notify) => notify(next));
+}
+
+/** Fetches status, coalescing concurrent callers onto one backend request. */
+function fetchSharedStatus(): Promise<void> {
+  if (inFlight) return inFlight;
+  const request = (async () => {
     try {
       const result = await invoke<TailscaleStatus>('get_tailscale_status');
-      if (cancelledRef.current) return;
-      setStatus(result);
-      setError(null);
+      publish({ status: result, loading: false, error: null });
     } catch (err) {
-      if (cancelledRef.current) return;
-      setError(getErrorMessage(err, 'Failed to check Tailscale status'));
+      // Keep the last known status so a transient failure doesn't blank the UI.
+      publish({
+        status: sharedState.status,
+        loading: false,
+        error: getErrorMessage(err, 'Failed to check Tailscale status'),
+      });
     } finally {
-      if (!cancelledRef.current) setLoading(false);
+      inFlight = null;
     }
-  }, []);
+  })();
+  inFlight = request;
+  return request;
+}
+
+/** Test-only: clears the shared cache, timer, and subscribers. */
+export function resetTailscaleStatusCache(): void {
+  sharedState = initialState;
+  subscribers.clear();
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  inFlight = null;
+}
+
+/**
+ * Polls `get_tailscale_status` on mount and every 30s thereafter. The poll and
+ * its result are shared by every consumer of this hook.
+ */
+export function useTailscaleStatus(): UseTailscaleStatusResult {
+  const [state, setState] = useState<TailscaleStatusState>(sharedState);
 
   useEffect(() => {
-    cancelledRef.current = false;
-    refresh();
-    const interval = setInterval(refresh, POLL_INTERVAL_MS);
-    return () => {
-      cancelledRef.current = true;
-      clearInterval(interval);
-    };
-  }, [refresh]);
+    const notify = (next: TailscaleStatusState) => setState(next);
+    subscribers.add(notify);
+    // Adopt whatever another subscriber has already fetched.
+    setState(sharedState);
+    if (!pollTimer) {
+      pollTimer = setInterval(() => {
+        void fetchSharedStatus();
+      }, POLL_INTERVAL_MS);
+    }
+    void fetchSharedStatus();
 
-  return { status, loading, error, refresh };
+    return () => {
+      subscribers.delete(notify);
+      if (subscribers.size === 0 && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+  }, []);
+
+  return { ...state, refresh: fetchSharedStatus };
 }

@@ -1,6 +1,11 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useTailscaleStatus, findTailscalePeer, TailscaleStatus } from './useTailscaleStatus';
+import {
+  useTailscaleStatus,
+  findTailscalePeer,
+  resetTailscaleStatusCache,
+  TailscaleStatus,
+} from './useTailscaleStatus';
 
 const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
@@ -29,6 +34,7 @@ const baseStatus: TailscaleStatus = {
 describe('useTailscaleStatus', () => {
   beforeEach(() => {
     mockInvoke.mockReset();
+    resetTailscaleStatusCache();
   });
 
   it('fetches status on mount', async () => {
@@ -68,6 +74,23 @@ describe('useTailscaleStatus', () => {
 
     expect(result.current.status).toEqual(updated);
     expect(mockInvoke).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares one backend request across concurrently mounted consumers', async () => {
+    mockInvoke.mockResolvedValue(baseStatus);
+
+    const first = renderHook(() => useTailscaleStatus());
+    const second = renderHook(() => useTailscaleStatus());
+
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    await waitFor(() => expect(second.result.current.status).toEqual(baseStatus));
+
+    // Both hooks mounted before the first request resolved, so they coalesce
+    // onto a single `get_tailscale_status` call rather than one each.
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+
+    first.unmount();
+    second.unmount();
   });
 });
 

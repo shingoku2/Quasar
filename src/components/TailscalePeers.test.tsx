@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TailscalePeers from './TailscalePeers';
 import { Host } from './HostList';
+import { resetTailscaleStatusCache } from '../hooks/useTailscaleStatus';
 import '@testing-library/jest-dom';
 
 const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
@@ -25,6 +26,8 @@ const peer = (overrides: Partial<Record<string, unknown>> = {}) => ({
 describe('TailscalePeers', () => {
   beforeEach(() => {
     mockInvoke.mockReset();
+    // The status poll is shared process-wide; drop it between tests.
+    resetTailscaleStatusCache();
   });
 
   it('shows an install hint when the CLI is not found', async () => {
