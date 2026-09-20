@@ -1,0 +1,4 @@
+## 2024-05-18 - [SSH Command Argument Injection Prevention]
+**Vulnerability:** The SSH launch functionality in `src-tauri/src/launcher.rs` appended user input (`username` and `address`) to SSH invocation without an end-of-options separator (`--`), and `validate_username` previously allowed leading hyphens. This could allow an attacker to inject SSH flags (like `-oProxyCommand=...`) leading to arbitrary local command execution if a malicious username or address was configured.
+**Learning:** Command line argument injection can occur even if standard command sanitization is present if flags can still be passed (especially to powerful commands like `ssh`). Defense in depth is required.
+**Prevention:** Always use `--` to indicate the end of options before passing user-controlled arguments to external commands (like `ssh`), and explicitly prevent dangerous prefixes (e.g., `-`) during input validation (like in `validate_username`).

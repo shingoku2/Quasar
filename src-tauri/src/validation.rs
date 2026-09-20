@@ -75,6 +75,10 @@ pub fn validate_username(username: &str) -> Result<(), String> {
         return Err("Username cannot be empty".to_string());
     }
 
+    if username.starts_with('-') {
+        return Err("Username cannot start with a hyphen".to_string());
+    }
+
     if username.len() > 64 {
         return Err("Username too long (max 64 characters)".to_string());
     }
@@ -205,6 +209,7 @@ mod tests {
         assert!(validate_username("www-data").is_ok());
         assert!(validate_username("systemd-network").is_ok());
         assert!(validate_username("").is_err());
+        assert!(validate_username("-user").is_err());
         assert!(validate_username("user@name").is_err());
         assert!(validate_username(&"a".repeat(65)).is_err());
     }
