@@ -79,7 +79,9 @@ pub fn validate_username(username: &str) -> Result<(), String> {
         return Err("Username too long (max 64 characters)".to_string());
     }
 
-    static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-\.]+$").unwrap());
+    // Require username to start with an alphanumeric character or underscore,
+    // to prevent command option injection (e.g., `-o...`).
+    static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]*$").unwrap());
 
     if USERNAME_REGEX.is_match(username) {
         Ok(())
@@ -206,6 +208,8 @@ mod tests {
         assert!(validate_username("systemd-network").is_ok());
         assert!(validate_username("").is_err());
         assert!(validate_username("user@name").is_err());
+        assert!(validate_username("-invalid").is_err()); // Must not start with a hyphen
+        assert!(validate_username(".invalid").is_err()); // Must not start with a dot
         assert!(validate_username(&"a".repeat(65)).is_err());
     }
 
