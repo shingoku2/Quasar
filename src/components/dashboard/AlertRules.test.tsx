@@ -78,10 +78,8 @@ describe('AlertRules', () => {
     render(<AlertRules />);
     await waitFor(() => screen.getByText('CPU Usage'));
 
-    // The delete button (Trash2 icon, no aria-label) is the last button in the rendered rule row.
-    const allButtons = screen.getAllByRole('button');
-    const deleteButton = allButtons[allButtons.length - 1];
-    fireEvent.click(deleteButton);
+    const deleteButtons = screen.getAllByRole('button', { name: /^Delete alert rule:/ });
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       expect(vi.mocked(invoke)).toHaveBeenCalledWith('remove_alert_rule', { ruleId: 'rule-1' });
