@@ -5,6 +5,13 @@ interface CredentialPromptProps {
   hostName: string;
   initialUsername?: string;
   allowSaveCredential?: boolean;
+  /**
+   * When true, the password field is optional and submitting without one is
+   * allowed — for hosts (e.g. Tailscale SSH peers) that can authenticate the
+   * connection by identity alone. Saving to the vault still requires a
+   * password.
+   */
+  allowNoPassword?: boolean;
   onSubmit: (username: string, password: string, options?: { saveCredential: boolean; credentialName?: string }) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -13,6 +20,7 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
   hostName,
   initialUsername,
   allowSaveCredential = false,
+  allowNoPassword = false,
   onSubmit,
   onCancel,
 }) => {
@@ -23,10 +31,10 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() && password) {
+    if (username.trim() && (password || allowNoPassword)) {
       const trimmedCredentialName = credentialName.trim();
       await onSubmit(username.trim(), password, {
-        saveCredential: allowSaveCredential && saveCredential,
+        saveCredential: allowSaveCredential && saveCredential && !!password,
         credentialName: trimmedCredentialName || undefined,
       });
     }
@@ -77,8 +85,13 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              required={!allowNoPassword}
             />
+            {allowNoPassword && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                Leave blank to authenticate by tailnet identity (Tailscale SSH).
+              </p>
+            )}
           </div>
 
           {allowSaveCredential && (

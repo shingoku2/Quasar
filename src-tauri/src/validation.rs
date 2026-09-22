@@ -206,6 +206,10 @@ mod tests {
         assert!(validate_username("systemd-network").is_ok());
         assert!(validate_username("").is_err());
         assert!(validate_username("user@name").is_err());
+        // The external launcher terminates SSH option parsing with `--`, so
+        // these valid remote account names remain supported by shared paths.
+        assert!(validate_username("-service").is_ok());
+        assert!(validate_username(".deploy").is_ok());
         assert!(validate_username(&"a".repeat(65)).is_err());
     }
 
