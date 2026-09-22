@@ -46,7 +46,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 
 ### 🔗 Tailscale
 - **Tailnet Peers** - Remote → Inventory lists the devices on your tailnet (online status, OS, address) using the local `tailscale` CLI — no API key or account setup in the app
-- **One-click Add** - Save a peer as an SSH host; the stored address is its MagicDNS name when MagicDNS is enabled, otherwise its `100.x.y.z` address
+- **Add** - Open a prefilled SSH host dialog for a peer, then review and save the host; the stored address is its MagicDNS name when MagicDNS is enabled, otherwise its `100.x.y.z` address
 - **Tailscale Badge** - Saved hosts that match a tailnet peer show a Tailscale badge with a live online/offline indicator
 - **Identity-based SSH** - Peers running Tailscale SSH can be opened with just a username; the password can be left blank and the session authenticates by tailnet identity
 
@@ -164,7 +164,7 @@ This creates platform-specific installers in `src-tauri/target/release/bundle/`.
 ### Connecting via Tailscale
 1. Install and log in to Tailscale on this machine (the `tailscale` CLI must be on your PATH or in its default install location)
 2. Navigate to **Remote → Inventory**; the **Tailscale** panel beside LAN Discovery lists your tailnet peers
-3. Click **Add** on a peer to save it as an SSH host (peers already saved show **Saved**)
+3. Click **Add** on a peer to open a prefilled SSH host dialog, then review and save it (peers already saved show **Saved**)
 4. Click **Connect** on the saved host. For peers with the **SSH** chip (Tailscale SSH enabled), leave the password blank to authenticate by tailnet identity; other peers need a password or SSH key as usual
 
 See `docs/CORE_WORKFLOWS.md` for details, including the Tailscale SSH "check mode" limitation.
@@ -226,7 +226,7 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 ### September 19, 2026 - Tailscale Integration
 - ✅ **Tailnet peers in Remote → Inventory** — a new Tailscale panel beside LAN Discovery lists your tailnet devices with online status, OS, and address, sourced from the local `tailscale status --json` CLI (no API key, no control-plane calls, no new dependencies).
-- ✅ **One-click Add** — save a peer as an SSH host using its MagicDNS name (or `100.x` IP when MagicDNS is off); saved hosts matching a peer get a Tailscale badge with a live online dot.
+- ✅ **Add from peer list** — opens a prefilled SSH host dialog (review, then save) using the peer's MagicDNS name (or `100.x` IP when MagicDNS is off); saved hosts matching a peer get a Tailscale badge with a live online dot.
 - ✅ **Identity-based SSH** — peers running Tailscale SSH can be opened with only a username: the credential prompt makes the password optional and the SSH layer falls back to `none` authentication when no password or key is supplied. Normal password/key hosts are unaffected.
 - ✅ **Verification** — `cargo clippy -- -D warnings`, `cargo test` (130 lib tests, +8 new), `tsc --noEmit`, and `npm test` (344/344 across 49 files) all clean; see `AGENTS.md` for the full writeup.
 
