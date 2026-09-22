@@ -15,7 +15,7 @@ describe('VaultInitDialog', () => {
 
   const fillPassword = (password: string, confirm?: string) => {
     fireEvent.change(screen.getByLabelText(/Master Password/i), { target: { value: password } });
-    fireEvent.change(screen.getByLabelText(/Confirm Password/i), { target: { value: confirm ?? password } });
+    fireEvent.change(screen.getByLabelText(/^Confirm Password$/i), { target: { value: confirm ?? password } });
   };
 
   it('renders the initialization form', () => {
@@ -24,7 +24,7 @@ describe('VaultInitDialog', () => {
     // "Initialize Vault" appears in both the h2 and the submit button
     expect(screen.getAllByText('Initialize Vault').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByLabelText(/Master Password/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Confirm Password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Confirm Password$/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Initialize Vault/i })).toBeInTheDocument();
   });
 

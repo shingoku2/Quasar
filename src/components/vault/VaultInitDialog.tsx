@@ -126,6 +126,7 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label="Toggle password visibility"
                 className="absolute right-3 top-[42px] text-gray-500 hover:text-gray-300 transition-colors"
                 tabIndex={-1}
               >
@@ -168,6 +169,7 @@ const VaultInitDialog: React.FC<VaultInitDialogProps> = ({ onInitialized }) => {
               <button
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
+                aria-label="Toggle confirm password visibility"
                 className="absolute right-3 top-[42px] text-gray-500 hover:text-gray-300 transition-colors"
                 tabIndex={-1}
               >
