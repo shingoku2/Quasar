@@ -78,7 +78,7 @@ describe('AlertRules', () => {
     render(<AlertRules />);
     await waitFor(() => screen.getByText('CPU Usage'));
 
-    const deleteButtons = screen.getAllByRole('button', { name: 'Delete rule' });
+    const deleteButtons = screen.getAllByRole('button', { name: /^Delete alert rule:/ });
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
