@@ -65,7 +65,7 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library (49 test files / 343 tests)
+- **Testing**: Vitest + React Testing Library (49 test files / 344 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
@@ -228,7 +228,7 @@ See `conductor/code_styleguides/` for detailed coding standards:
 - ✅ **Tailnet peers in Remote → Inventory** — a new Tailscale panel beside LAN Discovery lists your tailnet devices with online status, OS, and address, sourced from the local `tailscale status --json` CLI (no API key, no control-plane calls, no new dependencies).
 - ✅ **One-click Add** — save a peer as an SSH host using its MagicDNS name (or `100.x` IP when MagicDNS is off); saved hosts matching a peer get a Tailscale badge with a live online dot.
 - ✅ **Identity-based SSH** — peers running Tailscale SSH can be opened with only a username: the credential prompt makes the password optional and the SSH layer falls back to `none` authentication when no password or key is supplied. Normal password/key hosts are unaffected.
-- ✅ **Verification** — `cargo clippy -- -D warnings`, `cargo test` (130 lib tests, +8 new), `tsc --noEmit`, and `npm test` (343/343 across 49 files) all clean; see `AGENTS.md` for the full writeup.
+- ✅ **Verification** — `cargo clippy -- -D warnings`, `cargo test` (130 lib tests, +8 new), `tsc --noEmit`, and `npm test` (344/344 across 49 files) all clean; see `AGENTS.md` for the full writeup.
 
 ### September 17, 2026 - PR Backlog Cleanup & Network Scanner Race Fix
 - ✅ **26 open PRs triaged and merged** — bot-authored perf tweaks, dead-code cleanup, and test-coverage additions. 17 were clean as-authored; 9 had real bugs the review bots flagged (mostly test-quality issues that couldn't actually catch a regression) and were fixed before merging.
