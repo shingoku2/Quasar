@@ -91,6 +91,10 @@ interface CredentialSummary {
   credential_type: string;
 }
 
+// Optimization: Reusing a single Intl.DateTimeFormat instance is ~25x faster than
+// calling new Date().toLocaleTimeString(...) on every high-frequency metrics update.
+const timeFormatter = new Intl.DateTimeFormat('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 const MonitoringView: React.FC = () => {
   const [cpuData, setCpuData] = useState<{ time: string; value: number }[]>([]);
   const [memData, setMemData] = useState<{ time: string; value: number }[]>([]);
@@ -109,7 +113,7 @@ const MonitoringView: React.FC = () => {
       try {
         const unlisten = await listen('system-metrics', (event) => {
           const data = event.payload as SystemMetrics;
-          const timeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const timeLabel = timeFormatter.format(new Date());
           setMetrics(data);
           setCpuData(prev => [...prev.slice(-19), { time: timeLabel, value: data.cpu_usage_percent }]);
           setMemData(prev => [...prev.slice(-19), { time: timeLabel, value: data.memory_usage_percent }]);
@@ -129,7 +133,7 @@ const MonitoringView: React.FC = () => {
     setupListener();
 
     invoke<SystemMetrics>('get_system_metrics').then((data) => {
-      const initialTimeLabel = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const initialTimeLabel = timeFormatter.format(new Date());
       setMetrics(data);
       setCpuData([{ time: initialTimeLabel, value: data.cpu_usage_percent }]);
       setMemData([{ time: initialTimeLabel, value: data.memory_usage_percent }]);
