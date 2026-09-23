@@ -230,16 +230,18 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
                       {!alert.acknowledged && (
                         <button
                           onClick={() => acknowledgeAlert(alert.id)}
-                          className="p-1 hover:bg-green-500/10 rounded text-green-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="p-1 hover:bg-green-500/10 rounded text-green-500 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-opacity"
                           title="Acknowledge"
+                          aria-label="Acknowledge"
                         >
                           <Check className="h-3 w-3" />
                         </button>
                       )}
                       <button
                         onClick={() => dismissAlert(alert.id)}
-                        className="p-1 hover:bg-red-500/10 rounded text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 hover:bg-red-500/10 rounded text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-opacity"
                         title="Dismiss"
+                        aria-label="Dismiss"
                       >
                         <X className="h-3 w-3" />
                       </button>

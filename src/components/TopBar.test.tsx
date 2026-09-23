@@ -24,6 +24,9 @@ describe('TopBar', () => {
 
   it('renders a search input', () => {
     render(<TopBar activeView="dashboard" />);
-    expect(screen.getByPlaceholderText(/Search hosts, credentials/i)).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Global search' })).toHaveAttribute(
+      'placeholder',
+      'Search hosts, credentials...',
+    );
   });
 });

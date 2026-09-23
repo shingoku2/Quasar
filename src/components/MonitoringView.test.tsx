@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import MonitoringView from './MonitoringView';
+import MonitoringView, { formatMetricTime } from './MonitoringView';
 import '@testing-library/jest-dom';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -86,5 +86,25 @@ describe('MonitoringView', () => {
     await waitFor(() => {
       expect(screen.getByText(/No saved hosts/i)).toBeInTheDocument();
     });
+  });
+
+  it('refreshes metric time formatting after the local UTC offset changes', () => {
+    const date = new Date('2026-09-23T12:34:56Z');
+    const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    const originalTimeZone = env.TZ;
+
+    try {
+      env.TZ = 'UTC';
+      const utcLabel = formatMetricTime(date);
+
+      env.TZ = 'America/New_York';
+      const newYorkLabel = formatMetricTime(date);
+
+      expect(utcLabel).toBe('12:34:56');
+      expect(newYorkLabel).toBe('08:34:56');
+    } finally {
+      env.TZ = originalTimeZone;
+      formatMetricTime(date);
+    }
   });
 });

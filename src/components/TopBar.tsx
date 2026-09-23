@@ -25,11 +25,12 @@ const TopBar: React.FC<TopBarProps> = ({ activeView }) => {
       {/* Global Search */}
       <div className="flex-1 max-w-md pl-8 ml-auto">
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" aria-hidden="true" />
           <input 
-            type="text" 
+            type="search"
+            aria-label="Global search"
             placeholder="Search hosts, credentials..."
-            className="w-full bg-bg-card border border-border rounded-full py-1.5 pl-10 pr-4 text-sm text-gray-300 focus:outline-none focus:border-accent/50 focus:bg-bg-sidebar transition-all placeholder:text-gray-500"
+            className="w-full bg-bg-card border border-border rounded-full py-1.5 pl-10 pr-4 text-sm text-gray-300 focus:outline-none focus:border-accent/50 focus:bg-bg-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-root transition-all placeholder:text-gray-500"
           />
         </div>
       </div>
