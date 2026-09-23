@@ -579,8 +579,11 @@ const CredentialViewDialog: React.FC<{
   credential: Credential;
   onClose: () => void;
 }> = ({ credential, onClose }) => {
-  const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
 
   const clipboardClearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -589,14 +592,44 @@ const CredentialViewDialog: React.FC<{
     setCopied(true);
     // Clear the copied state indicator after 2 s.
     setTimeout(() => setCopied(false), 2000);
-    // Auto-clear clipboard after 30 s to prevent credential exposure.
-    if (clipboardClearTimerRef.current !== null) {
-      clearTimeout(clipboardClearTimerRef.current);
+  };
+
+  const copyPasswordToClipboard = async () => {
+    try {
+      const password = revealedPassword || await invoke<string>('reveal_credential_password', { credentialId: credential.id });
+      await navigator.clipboard.writeText(password);
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+
+      // Auto-clear clipboard after 30 s to prevent credential exposure.
+      if (clipboardClearTimerRef.current !== null) {
+        clearTimeout(clipboardClearTimerRef.current);
+      }
+      clipboardClearTimerRef.current = setTimeout(() => {
+        navigator.clipboard.writeText('').catch(() => {});
+        clipboardClearTimerRef.current = null;
+      }, 30000);
+    } catch (err) {
+      console.error('Failed to reveal password for copying', err);
     }
-    clipboardClearTimerRef.current = setTimeout(() => {
-      navigator.clipboard.writeText('').catch(() => {});
-      clipboardClearTimerRef.current = null;
-    }, 30000);
+  };
+
+  const togglePasswordVisibility = async () => {
+    if (showPassword) {
+      setShowPassword(false);
+      setRevealedPassword(null);
+    } else {
+      setIsRevealing(true);
+      try {
+        const pwd = await invoke<string>('reveal_credential_password', { credentialId: credential.id });
+        setRevealedPassword(pwd);
+        setShowPassword(true);
+      } catch (err) {
+        console.error('Failed to reveal password', err);
+      } finally {
+        setIsRevealing(false);
+      }
+    }
   };
 
   return (
@@ -645,29 +678,32 @@ const CredentialViewDialog: React.FC<{
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
-            <div className="flex items-center justify-between bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
-              <p className="text-white font-mono text-sm flex-1 truncate">
-                {showPassword ? credential.password : '••••••••••••'}
-              </p>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label="Toggle password visibility"
-                  className="text-gray-400 hover:text-accent transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-                <button
-                  onClick={() => copyToClipboard(credential.password)}
-                  className="text-gray-400 hover:text-accent transition-colors text-xs"
-                >
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
+          {(credential.credential_type === 'password' || credential.credential_type === 'ssh' || credential.credential_type === 'ssh_key') && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
+              <div className="flex items-center justify-between bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
+                <p className="text-white font-mono text-sm flex-1 truncate">
+                  {showPassword ? revealedPassword : '••••••••••••'}
+                </p>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={togglePasswordVisibility}
+                    disabled={isRevealing}
+                    aria-label="Toggle password visibility"
+                    className="text-gray-400 hover:text-accent transition-colors disabled:opacity-50"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={copyPasswordToClipboard}
+                    className="text-gray-400 hover:text-accent transition-colors text-xs"
+                  >
+                    {copiedPassword ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <button
             onClick={onClose}

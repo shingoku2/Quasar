@@ -1296,6 +1296,22 @@ async fn get_credential(
 }
 
 #[tauri::command]
+async fn reveal_credential_password(
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    credential_id: String,
+) -> Result<String, String> {
+    let master_key = vault_state
+        .get_master_key()
+        .await
+        .map_err(|e| sanitize_error(e, "vault"))?;
+    credential_manager
+        .get_credential(&master_key, &credential_id)
+        .map(|c| c.password)
+        .map_err(|e| sanitize_error(e, "credential"))
+}
+
+#[tauri::command]
 async fn list_credentials(
     credential_manager: State<'_, vault::CredentialManager>,
 ) -> Result<Vec<vault::CredentialSummary>, String> {
@@ -1975,6 +1991,7 @@ pub fn run() {
             change_master_password,
             add_credential,
             get_credential,
+            reveal_credential_password,
             list_credentials,
             update_credential,
             delete_credential,
