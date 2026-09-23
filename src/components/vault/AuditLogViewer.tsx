@@ -17,7 +17,6 @@ interface AuditLogEntry {
 
 const AuditLogViewer: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<AuditLogEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterResult, setFilterResult] = useState<string>('all');
@@ -27,10 +26,6 @@ const AuditLogViewer: React.FC = () => {
   useEffect(() => {
     loadAuditLogs();
   }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [logs, searchQuery, filterType, filterResult]);
 
   const loadAuditLogs = async () => {
     setIsLoading(true);
@@ -50,15 +45,20 @@ const AuditLogViewer: React.FC = () => {
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...logs];
+  // ⚡ Bolt: Removed effect-synchronized state (`filteredLogs` + `applyFilters` + `useEffect`)
+  // and replaced it with `useMemo`. This prevents redundant re-renders caused by setting state
+  // after inputs change. We also hoisted `.toLowerCase()` out of the `.filter()` loop to save
+  // N redundant string allocations per render when searching.
+  const filteredLogs = React.useMemo(() => {
+    let filtered = logs;
 
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (log) =>
-          log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          log.event_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (log.details && log.details.toLowerCase().includes(searchQuery.toLowerCase()))
+          log.action.toLowerCase().includes(query) ||
+          log.event_type.toLowerCase().includes(query) ||
+          (log.details && log.details.toLowerCase().includes(query))
       );
     }
 
@@ -70,8 +70,8 @@ const AuditLogViewer: React.FC = () => {
       filtered = filtered.filter((log) => log.result === filterResult);
     }
 
-    setFilteredLogs(filtered);
-  };
+    return filtered;
+  }, [logs, searchQuery, filterType, filterResult]);
 
   const getEventIcon = (eventType: string) => {
     switch (eventType.toLowerCase()) {
