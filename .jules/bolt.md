@@ -9,3 +9,7 @@
 ## 2026-09-23 - MonitoringView Event-Driven Re-renders
 **Learning:** Components that listen to the high-frequency `system-metrics` event (emitted every 5s) will re-render their entire tree, causing expensive child components (like `RemoteHostsList`) to needlessly re-render 12 times a minute even if their specific data only updates every 30s.
 **Action:** Extract unrelated, complex UI blocks from such high-frequency event listeners into separate `React.memo` components, ensuring their props (including callbacks via `useCallback`) remain referentially stable to prevent crossfire re-renders.
+
+## 2026-09-23 - React Derived State Performance Pattern
+**Learning:** Components filtering arrays (like `AuditLogViewer.tsx`) often synchronize a `filteredLogs` state via `useEffect` depending on a base `logs` array and a `searchQuery`. This is an anti-pattern that causes double renders: the component renders when the query changes, the effect runs and sets the filtered state, and the component renders again.
+**Action:** Always prefer `useMemo` over `useEffect` and `useState` for deriving filtered arrays from props or other state. Additionally, hoist any static computations (like `searchQuery.toLowerCase()`) outside the `.filter()` loop to save redundant string allocations on each keypress.
