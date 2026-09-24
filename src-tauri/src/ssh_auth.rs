@@ -142,3 +142,98 @@ pub async fn authenticate<H: Handler + Send + 'static>(
         }
     }
 }
+
+/// Audit TEST-004: authentication behaviour against a real (in-process) SSH server.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ssh_test_server::{spawn, Policy};
+    use std::time::Duration;
+
+    struct AcceptAnyKey;
+
+    impl russh::client::Handler for AcceptAnyKey {
+        type Error = russh::Error;
+
+        async fn check_server_key(
+            &mut self,
+            _server_public_key: &russh::keys::PublicKey,
+        ) -> Result<bool, Self::Error> {
+            Ok(true)
+        }
+    }
+
+    async fn session(policy: Policy) -> (Handle<AcceptAnyKey>, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+        let (port, attempts) = spawn(policy).await;
+        let handle = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(russh::client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        (handle, attempts)
+    }
+
+    fn key_pem() -> String {
+        russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519)
+            .unwrap()
+            .to_openssh(russh::keys::ssh_key::LineEnding::LF)
+            .unwrap()
+            .to_string()
+    }
+
+    fn log(attempts: &std::sync::Mutex<Vec<String>>) -> Vec<String> {
+        attempts.lock().unwrap().clone()
+    }
+
+    #[tokio::test]
+    async fn no_credentials_sends_exactly_one_none_request() {
+        let (mut s, attempts) = session(Policy { accept_none: true, ..Default::default() }).await;
+        authenticate(&mut s, "u", None, None, None, None).await.unwrap();
+        assert_eq!(log(&attempts), vec!["none:u"]);
+    }
+
+    #[tokio::test]
+    async fn rejected_none_auth_explains_itself() {
+        let (mut s, _) = session(Policy::default()).await;
+        let err = authenticate(&mut s, "u", None, None, None, None).await.unwrap_err();
+        assert!(err.contains("No password or SSH key provided"), "{}", err);
+    }
+
+    /// A wrong password must fail, never fall back to identity-based `none` auth.
+    #[tokio::test]
+    async fn wrong_password_fails_without_trying_none() {
+        let policy = Policy { accept_none: true, password: Some("right".into()), ..Default::default() };
+        let (mut s, attempts) = session(policy).await;
+        let err = authenticate(&mut s, "u", Some("wrong"), None, None, None).await.unwrap_err();
+        assert_eq!(err, "Authentication failed");
+        assert!(!log(&attempts).iter().any(|a| a.starts_with("none:")), "{:?}", log(&attempts));
+    }
+
+    #[tokio::test]
+    async fn unreadable_key_falls_back_to_password() {
+        let (mut s, attempts) = session(Policy { password: Some("pw".into()), ..Default::default() }).await;
+        authenticate(&mut s, "u", Some("pw"), Some("/nonexistent/quasar-test-key"), None, None)
+            .await
+            .unwrap();
+        assert_eq!(log(&attempts), vec!["password:u"]);
+    }
+
+    #[tokio::test]
+    async fn rejected_key_without_password_returns_the_key_error() {
+        let (mut s, attempts) = session(Policy { accept_none: true, ..Default::default() }).await;
+        let err = authenticate(&mut s, "u", None, None, Some(&key_pem()), None).await.unwrap_err();
+        assert!(err.contains("not accepted"), "{}", err);
+        assert!(!log(&attempts).iter().any(|a| a.starts_with("none:")), "{:?}", log(&attempts));
+    }
+
+    #[tokio::test]
+    async fn accepted_key_authenticates_without_password() {
+        let (mut s, attempts) = session(Policy { accept_publickey: true, ..Default::default() }).await;
+        authenticate(&mut s, "u", Some("unused"), None, Some(&key_pem()), None).await.unwrap();
+        assert_eq!(log(&attempts), vec!["publickey:u"]);
+    }
+}
