@@ -2,6 +2,21 @@
 
 Quasar is a Tauri 2.x desktop application for remote infrastructure management: SSH sessions, SFTP, system monitoring, network discovery, cron-scheduled automation, and a security vault. React + TypeScript frontend, Rust backend, SQLite database.
 
+## Session Start (agents: do this first)
+
+1. **Load Memco memory before your first substantive reply.** Call `start_session` on
+   **Memco Personal Memory** and on **Memco Shared Memory** (call `list_domains` before your
+   first shared-memory search or write). If a Memco server isn't connected in this session, say so.
+   Don't skip it silently.
+2. **Keep Linear and Notion in sync with any Quasar work.** This is personal memory
+   `quasar_linear_notion_continuous_updates`. Do it during the same task, not at session end:
+   - **Linear** (team "Edward's Playground", key EDW): set the issue's status, tick its "Done when"
+     boxes, and comment with the outcome and commit/PR links. Update overlapping issues too.
+     Projects: "Quasar: Full Audit + Cleanup" (EDW-17..EDW-26), "Quasar: Maintenance & PR triage".
+   - **Notion**: update the "Quasar" entry in App Projects → Projects: Next action, Last verified
+     date, the links, and the phase table under Current priorities.
+   - If either update fails, report it.
+
 ## Current Work: Deferred Audit Fixes
 
 Status as of September 17, 2026, verified in code on master (`31f6fa99`): four of the five
