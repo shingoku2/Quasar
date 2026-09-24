@@ -108,18 +108,29 @@ pub struct CredentialManager {
     db_path: String,
 }
 
+fn corrupt_blob(msg: &str) -> rusqlite::Error {
+    rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        msg.to_string(),
+    )))
+}
+
 fn decrypt_optional_blob(
     master_key: &[u8; 32],
     ciphertext: Option<Vec<u8>>,
     nonce_vec: Option<Vec<u8>>,
     tag_vec: Option<Vec<u8>>,
 ) -> Result<Option<String>, rusqlite::Error> {
-    let (Some(ciphertext), Some(nonce_vec), Some(tag_vec)) = (ciphertext, nonce_vec, tag_vec)
-    else {
-        return Ok(None);
+    // All three absent: no value stored. Anything else incomplete or mis-sized is corrupt,
+    // and must be an error rather than "absent": callers that re-encrypt (password change,
+    // the v1→v2 vault migration) would otherwise overwrite the stored blob with NULL.
+    let (ciphertext, nonce_vec, tag_vec) = match (ciphertext, nonce_vec, tag_vec) {
+        (None, None, None) => return Ok(None),
+        (Some(c), Some(n), Some(t)) => (c, n, t),
+        _ => return Err(corrupt_blob("incomplete encrypted field (ciphertext/nonce/tag)")),
     };
     if nonce_vec.len() != 12 || tag_vec.len() != 16 {
-        return Ok(None);
+        return Err(corrupt_blob("invalid nonce or auth tag length"));
     }
     let mut nonce = [0u8; 12];
     let mut tag = [0u8; 16];
@@ -1079,6 +1090,27 @@ mod tests {
             result.is_err(),
             "Malformed nonce must return an error instead of panicking"
         );
+
+        cleanup_test_db(&db_path);
+    }
+
+    /// A present-but-malformed private key must be an error, not "no key": password change and
+    /// the vault migration re-encrypt what get_credential returns, and would write NULL over it.
+    #[test]
+    fn test_malformed_private_key_blob_is_an_error_not_absent() {
+        let (db_path, master_key) = setup_test_db();
+        let manager = CredentialManager::new(db_path.clone());
+        let id = manager
+            .add_credential(&master_key, "k".into(), "u".into(), String::new(), "ssh_key".into(),
+                None, None, None, None, Some("PEM".into()), None)
+            .unwrap();
+        let conn = Connection::open(&db_path).unwrap();
+
+        conn.execute("UPDATE credentials SET private_key_nonce = X'0102' WHERE id = ?1", [&id]).unwrap();
+        assert!(manager.get_credential(&master_key, &id).is_err(), "bad nonce length");
+
+        conn.execute("UPDATE credentials SET private_key_nonce = zeroblob(12), private_key_tag = NULL WHERE id = ?1", [&id]).unwrap();
+        assert!(manager.get_credential(&master_key, &id).is_err(), "partially NULL triple");
 
         cleanup_test_db(&db_path);
     }

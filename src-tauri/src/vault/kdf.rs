@@ -98,7 +98,7 @@ pub fn encode_hex(bytes: &[u8]) -> String {
 }
 
 fn decode_hex(s: &str) -> Option<Vec<u8>> {
-    if !s.len().is_multiple_of(2) {
+    if !s.len().is_multiple_of(2) || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
     (0..s.len())
@@ -156,6 +156,11 @@ mod tests {
         assert!(!verifier_matches(&keys.verifier, ""));
         assert!(!verifier_matches(&keys.verifier, "zz"));
         assert!(!verifier_matches(&keys.verifier, &good[..62]));
+        // u8::from_str_radix alone accepts a leading '+': "+a" parses as 0x0a.
+        let mut v = keys.verifier;
+        v[0] = 0x0a;
+        let plus_encoded = format!("+a{}", &encode_hex(&v)[2..]);
+        assert!(!verifier_matches(&v, &plus_encoded));
     }
 
     // Computed independently (Python hmac/hashlib, RFC 5869 HKDF-SHA256, no salt) from the

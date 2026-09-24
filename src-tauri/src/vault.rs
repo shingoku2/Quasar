@@ -325,13 +325,24 @@ impl VaultState {
 
         let key = verified_key.ok_or("Invalid master password")?;
         let key = match stored {
-            StoredKdf::V2 { .. } => key,
-            StoredKdf::Legacy { .. } => {
+            StoredKdf::V2 { .. } => {
+                if conn
+                    .query_row("SELECT 1 FROM vault_settings WHERE key = 'kdf_scrub_pending'", [], |_| Ok(()))
+                    .optional()
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    Self::scrub_or_mark_pending(&conn);
+                }
+                key
+            }
+            StoredKdf::Legacy { ref salt_b64, .. } => {
                 // RSEC-001: this vault's stored hash *is* its encryption key. Migrate it to v2
                 // now, while we hold the password. On failure, stay on the legacy key (which
                 // still decrypts everything) and retry at the next unlock rather than locking
                 // the user out of their credentials.
-                match Self::migrate_legacy_vault(&inner.db_path, password_bytes, &key) {
+                match Self::migrate_legacy_vault(&inner.db_path, password_bytes, &key, salt_b64) {
                     Ok(new_key) => new_key,
                     Err(e) => {
                         log::error!("Vault KDF migration failed; still on the legacy format: {}", e);
@@ -561,7 +572,16 @@ impl VaultState {
                     .map_err(|e| format!("Failed to commit transaction: {}", e))?;
             }
 
-            Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
+            // Committed: from here on nothing may fail the rotation, or `inner` would keep the
+            // old key while the database uses the new one.
+            if let Err(e) = Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None) {
+                log::warn!("Failed to audit password change: {}", e);
+            }
+            if matches!(stored, StoredKdf::Legacy { .. }) {
+                // Still-legacy vault (its migration failed at unlock): the deleted hash was
+                // the old key, so scrub it like the migration does.
+                Self::scrub_or_mark_pending(&conn);
+            }
 
             Ok::<[u8; 32], String>(*new_keys.enc_key) // copy out before Zeroizing drops
         }).await
@@ -695,15 +715,16 @@ impl VaultState {
         let credential_manager = credentials::CredentialManager::new(db_path.to_string());
         let mut skipped = Vec::new();
         for summary in credential_manager.list_credentials_conn(tx)? {
-            let credential = match credential_manager.get_credential_conn(tx, old_key, &summary.id) {
-                Ok(c) => c,
-                Err(e) if skip_undecryptable => {
-                    log::warn!("Credential {} does not decrypt under the vault key; left as is: {}", summary.id, e);
-                    skipped.push(summary.id);
-                    continue;
-                }
-                Err(e) => return Err(e),
-            };
+            // Only an authentication failure under `old_key` marks a row as an orphan
+            // (encrypted under some other key). Any other problem (malformed columns, a failed
+            // write) aborts, so a row that *is* readable is never left behind under a key
+            // that's about to become underivable.
+            if skip_undecryptable && !Self::password_blob_decrypts(tx, &summary.id, old_key)? {
+                log::warn!("Credential {} does not decrypt under the vault key; left as is", summary.id);
+                skipped.push(summary.id);
+                continue;
+            }
+            let credential = credential_manager.get_credential_conn(tx, old_key, &summary.id)?;
             credential_manager.reencrypt_credential_tx(
                 tx,
                 new_key,
@@ -724,6 +745,91 @@ impl VaultState {
         Ok(skipped)
     }
 
+    /// `Ok(false)` only when the stored password ciphertext fails AES-GCM authentication
+    /// under `key`; malformed rows are an `Err`.
+    fn password_blob_decrypts(
+        conn: &rusqlite::Connection,
+        credential_id: &str,
+        key: &[u8; 32],
+    ) -> Result<bool, String> {
+        let (ciphertext, nonce, tag): (Vec<u8>, Vec<u8>, Vec<u8>) = conn
+            .query_row(
+                "SELECT encrypted_password, nonce, tag FROM credentials WHERE id = ?1",
+                [credential_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|e| format!("Failed to read credential {}: {}", credential_id, e))?;
+        let nonce: [u8; 12] = nonce
+            .try_into()
+            .map_err(|_| format!("Credential {} has a malformed nonce", credential_id))?;
+        let tag: [u8; 16] = tag
+            .try_into()
+            .map_err(|_| format!("Credential {} has a malformed auth tag", credential_id))?;
+        Ok(crypto::decrypt(&ciphertext, key, &nonce, &tag).is_ok())
+    }
+
+    /// VACUUM (drops free pages, where superseded hashes linger) and a truncating WAL
+    /// checkpoint. True only if both fully completed; `wal_checkpoint` reports "busy" in
+    /// its result row rather than as an error.
+    fn scrub_database(conn: &rusqlite::Connection) -> bool {
+        let vacuumed = match conn.execute_batch("VACUUM;") {
+            Ok(()) => true,
+            Err(e) => {
+                log::warn!("VACUUM failed: {}", e);
+                false
+            }
+        };
+        let checkpointed = match conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |r| r.get::<_, i64>(0)) {
+            Ok(0) => true,
+            Ok(_) => {
+                log::warn!("WAL checkpoint was blocked by another connection");
+                false
+            }
+            Err(e) => {
+                log::warn!("WAL checkpoint failed: {}", e);
+                false
+            }
+        };
+        vacuumed && checkpointed
+    }
+
+    /// Scrubs, or records `kdf_scrub_pending` so `unlock_vault` retries until it succeeds.
+    fn scrub_or_mark_pending(conn: &rusqlite::Connection) {
+        let result = if Self::scrub_database(conn) {
+            conn.execute("DELETE FROM vault_settings WHERE key = 'kdf_scrub_pending'", [])
+        } else {
+            conn.execute(
+                "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES ('kdf_scrub_pending', '1', ?1)",
+                [chrono::Utc::now().timestamp()],
+            )
+        };
+        if let Err(e) = result {
+            log::warn!("Failed to record database scrub state: {}", e);
+        }
+    }
+
+    /// `import_database` leaves a full copy of the previous database at `<db>.bak`. If that
+    /// copy is a v1 vault, its `master_password_hash` *is* its key; remove it (best effort).
+    /// The copy's credentials stay encrypted under that key, now only recoverable with the
+    /// password.
+    fn strip_legacy_hash_from_backup(db_path: &str) {
+        let backup_path = format!("{}.bak", db_path);
+        if !std::path::Path::new(&backup_path).exists() {
+            return;
+        }
+        let result = db::open_connection(&backup_path).and_then(|conn| {
+            conn.execute("DELETE FROM vault_settings WHERE key = 'master_password_hash'", [])
+                .map_err(|e| e.to_string())?;
+            if !Self::scrub_database(&conn) {
+                return Err("scrub incomplete".to_string());
+            }
+            Ok(())
+        });
+        if let Err(e) = result {
+            log::warn!("Could not remove the legacy key hash from {}: {}", backup_path, e);
+        }
+    }
+
     /// Migrates a v1 (legacy) vault to v2 under a **fresh salt**: a new salt means the new
     /// key can't be derived from the old stored hash, so old copies of the database (backups,
     /// exports, `quasar.db.bak`) don't leak it. Those copies still expose their own
@@ -733,6 +839,7 @@ impl VaultState {
         db_path: &str,
         password: &[u8],
         legacy_key: &[u8; 32],
+        legacy_salt_b64: &str,
     ) -> Result<Zeroizing<[u8; 32]>, String> {
         let new_salt = crate::crypto::generate_salt()?;
         let new_keys = kdf::derive_v2(password, new_salt.as_str())?;
@@ -745,27 +852,32 @@ impl VaultState {
             let skipped =
                 Self::reencrypt_all_credentials(&tx, db_path, legacy_key, &new_keys.enc_key, true)?;
             Self::write_v2_kdf_state(&tx, new_salt.as_str(), &new_keys.verifier)?;
+            if !skipped.is_empty() {
+                // Rows left under their old encryption keep the salt they were written with, so
+                // they stay recoverable with the password (a salt isn't secret).
+                tx.execute(
+                    "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES ('legacy_salt', ?1, ?2)",
+                    rusqlite::params![legacy_salt_b64, chrono::Utc::now().timestamp()],
+                )
+                .map_err(|e| format!("Failed to keep legacy salt: {}", e))?;
+            }
             tx.commit()
                 .map_err(|e| format!("Failed to commit migration: {}", e))?;
             skipped
         };
 
+        // Committed: the database is now v2 under the new key. Nothing below may fail the
+        // migration, or the caller would fall back to a key the database no longer uses.
         let details = (!skipped.is_empty())
             .then(|| format!("{} credential(s) left undecryptable: {}", skipped.len(), skipped.join(",")));
-        Self::log_audit_event(
+        if let Err(e) = Self::log_audit_event(
             &conn, "vault_kdf_migration", None, None, "vault", "migrate", "success", details.as_deref(),
-        )?;
-
+        ) {
+            log::warn!("Failed to audit vault migration: {}", e);
+        }
         // The deleted legacy hash (== the old key) can survive in free pages and the WAL.
-        // `secure_delete` (set on every connection) zeroes it in the live page; VACUUM and a
-        // truncating checkpoint remove the remaining copies. Best effort: another connection
-        // holding a read transaction can make either one report busy.
-        if let Err(e) = conn.execute_batch("VACUUM;") {
-            log::warn!("VACUUM after vault migration failed: {}", e);
-        }
-        if let Err(e) = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(())) {
-            log::warn!("WAL checkpoint after vault migration failed: {}", e);
-        }
+        Self::scrub_or_mark_pending(&conn);
+        Self::strip_legacy_hash_from_backup(db_path);
 
         Ok(new_keys.enc_key)
     }
@@ -1053,6 +1165,140 @@ mod tests {
         vault.unlock_vault(SecretString::from(password)).await.unwrap();
         assert_eq!(vault.get_master_key().await.unwrap(), new_key);
 
+        cleanup_test_db(&db_path);
+    }
+
+    fn raw_password_decrypts(db_path: &str, id: &str, key: &[u8; 32]) -> bool {
+        let conn = rusqlite::Connection::open(db_path).unwrap();
+        VaultState::password_blob_decrypts(&conn, id, key).unwrap()
+    }
+
+    /// Review blocker: once the migration has committed, a later failure (here the audit
+    /// insert) must not make unlock fall back to the legacy key, which the database no
+    /// longer uses and whose salt is gone.
+    #[tokio::test]
+    async fn test_migration_post_commit_failure_still_installs_new_key() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        let (legacy_key, _) = write_legacy_vault(&db_path, password);
+        // No credentials: reading one inside the migration also writes an audit row, which
+        // would fail the migration *before* commit. This isolates the post-commit failure.
+        rusqlite::Connection::open(&db_path).unwrap()
+            .execute_batch("DROP TABLE security_audit_log;")
+            .unwrap();
+
+        let vault = VaultState::new(db_path.clone());
+        // The final "vault_unlock" audit insert fails too; what matters is the installed key.
+        let _ = vault.unlock_vault(SecretString::from(password)).await;
+        let key = vault.get_master_key().await.unwrap();
+
+        assert_eq!(vault_setting(&db_path, "kdf_version").as_deref(), Some(kdf::KDF_VERSION_V2));
+        let expected = kdf::derive_v2(password.as_bytes(), &vault_setting(&db_path, "salt").unwrap()).unwrap();
+        assert_ne!(key, legacy_key, "must not fall back to the legacy key after the migration committed");
+        assert_eq!(key, *expected.enc_key);
+        cleanup_test_db(&db_path);
+    }
+
+    /// Same rule for a password change: after commit, an audit failure mustn't leave the old key installed.
+    #[tokio::test]
+    async fn test_password_change_post_commit_failure_still_installs_new_key() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let old_key = vault.get_master_key().await.unwrap();
+        rusqlite::Connection::open(&db_path).unwrap()
+            .execute_batch("DROP TABLE security_audit_log;")
+            .unwrap();
+
+        vault
+            .change_master_password(SecretString::from("TestPassword123!"), SecretString::from("AnotherPassword456!"))
+            .await
+            .unwrap();
+
+        let key = vault.get_master_key().await.unwrap();
+        let expected = kdf::derive_v2(b"AnotherPassword456!", &vault_setting(&db_path, "salt").unwrap()).unwrap();
+        assert_ne!(key, old_key);
+        assert_eq!(key, *expected.enc_key);
+        cleanup_test_db(&db_path);
+    }
+
+    /// Review finding 2: only AEAD failures are skipped. A row that decrypts but can't be
+    /// read for another reason (here a port outside u16) aborts the migration instead of
+    /// being stranded under a key whose salt is about to be replaced.
+    #[tokio::test]
+    async fn test_migration_aborts_on_non_decryption_errors() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        let (legacy_key, phc) = write_legacy_vault(&db_path, password);
+        let id = credentials::CredentialManager::new(db_path.clone())
+            .add_credential(&legacy_key, "srv".into(), "root".into(), "s".into(),
+                "password".into(), None, None, None, None, None, None)
+            .unwrap();
+        rusqlite::Connection::open(&db_path).unwrap()
+            .execute("UPDATE credentials SET port = 70000 WHERE id = ?1", [&id])
+            .unwrap();
+
+        let vault = VaultState::new(db_path.clone());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+
+        assert_eq!(vault.get_master_key().await.unwrap(), legacy_key);
+        assert_eq!(vault_setting(&db_path, "master_password_hash"), Some(phc));
+        assert!(raw_password_decrypts(&db_path, &id, &legacy_key));
+        cleanup_test_db(&db_path);
+    }
+
+    /// Orphans left behind by the migration keep the salt they need; `.bak` loses its
+    /// key-equivalent hash.
+    #[tokio::test]
+    async fn test_migration_keeps_legacy_salt_for_orphans_and_strips_backup_hash() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        let (_, phc) = write_legacy_vault(&db_path, password);
+        let legacy_salt = vault_setting(&db_path, "salt").unwrap();
+        credentials::CredentialManager::new(db_path.clone())
+            .add_credential(&[9u8; 32], "orphan".into(), "x".into(), "y".into(),
+                "password".into(), None, None, None, None, None, None)
+            .unwrap();
+        let backup = format!("{}.bak", db_path);
+        std::fs::copy(&db_path, &backup).unwrap();
+        let hash_field = PasswordHash::new(&phc).unwrap().hash.unwrap().to_string();
+        assert!(file_contains(&backup, hash_field.as_bytes()), "fixture sanity");
+
+        let vault = VaultState::new(db_path.clone());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+
+        assert_eq!(vault_setting(&db_path, "legacy_salt"), Some(legacy_salt));
+        assert_eq!(vault_setting(&backup, "master_password_hash"), None);
+        assert!(!file_contains(&backup, hash_field.as_bytes()));
+        let _ = std::fs::remove_file(&backup);
+        let _ = std::fs::remove_file(format!("{}-wal", backup));
+        let _ = std::fs::remove_file(format!("{}-shm", backup));
+        cleanup_test_db(&db_path);
+    }
+
+    /// A legacy unlock rewrites every credential, so it must wait for in-flight credential
+    /// operations (which hold the gate shared) instead of interleaving with them.
+    #[tokio::test]
+    async fn test_legacy_unlock_waits_for_credential_gate() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        write_legacy_vault(&db_path, password);
+        let vault = VaultState::new(db_path.clone());
+
+        let in_flight = vault.credential_gate().await;
+        let unlocking = {
+            let vault = vault.clone();
+            tokio::spawn(async move { vault.unlock_vault(SecretString::from(password)).await })
+        };
+        for _ in 0..50 {
+            tokio::task::yield_now().await;
+        }
+        assert!(!unlocking.is_finished(), "unlock must queue behind a held credential gate");
+        assert!(vault.is_locked().await);
+
+        drop(in_flight);
+        unlocking.await.unwrap().unwrap();
+        assert_eq!(vault_setting(&db_path, "kdf_version").as_deref(), Some(kdf::KDF_VERSION_V2));
         cleanup_test_db(&db_path);
     }
 
