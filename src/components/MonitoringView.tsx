@@ -98,20 +98,17 @@ const timeFormatOptions: Intl.DateTimeFormatOptions = {
   second: '2-digit',
 };
 
-// Reuse the formatter in the hot metrics path, but rebuild it when the local UTC
-// offset changes so an open app follows OS time-zone changes and DST transitions.
-let timeFormatter = new Intl.DateTimeFormat('en-US', timeFormatOptions);
-let timeZoneOffset = new Date().getTimezoneOffset();
-
-export const formatMetricTime = (date: Date): string => {
-  const currentOffset = date.getTimezoneOffset();
-  if (currentOffset !== timeZoneOffset) {
-    timeFormatter = new Intl.DateTimeFormat('en-US', timeFormatOptions);
-    timeZoneOffset = currentOffset;
-  }
-
-  return timeFormatter.format(date);
-};
+/**
+ * Formats a metric sample's timestamp in the current system time zone.
+ *
+ * Deliberately not cached: a module-level `Intl.DateTimeFormat` pins the time zone
+ * it was built in, and there is no cheap way to detect a zone change (an offset
+ * check misses switches between zones that currently share an offset, e.g. New
+ * York -> Lima in winter). Metrics arrive at most about once a second, so the
+ * per-call formatter cost is negligible.
+ */
+export const formatMetricTime = (date: Date): string =>
+  date.toLocaleTimeString('en-US', timeFormatOptions);
 
 const MonitoringView: React.FC = () => {
   const [cpuData, setCpuData] = useState<{ time: string; value: number }[]>([]);

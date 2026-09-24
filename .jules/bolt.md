@@ -4,4 +4,4 @@
 
 ## 2026-09-23 - [Expensive Date Formatting]
 **Learning:** `new Date().toLocaleTimeString(...)` is surprisingly expensive in a high-frequency polling environment because it internally instantiates a new `Intl.DateTimeFormat` on every call. In a frontend that plots incoming system metrics over time, this creates noticeable overhead. Reusing a single `Intl.DateTimeFormat` instance is ~25x faster.
-**Action:** When formatting dates/times inside loops, intervals, or high-frequency event listeners, always pre-instantiate an `Intl.DateTimeFormat` outside the hot path.
+**Action:** Pre-instantiate an `Intl.DateTimeFormat` only for genuinely hot loops (thousands of calls per render). A cached formatter pins the time zone it was created in, so for anything that renders local wall-clock time and runs ~1/sec or slower (like `MonitoringView`'s metric samples), don't cache — correctness across OS time-zone/DST changes beats a few microseconds.

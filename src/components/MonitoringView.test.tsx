@@ -88,23 +88,27 @@ describe('MonitoringView', () => {
     });
   });
 
-  it('refreshes metric time formatting after the local UTC offset changes', () => {
-    const date = new Date('2026-09-23T12:34:56Z');
+  it('follows OS time-zone changes, including between zones sharing an offset', () => {
     const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
     const originalTimeZone = env.TZ;
+    // New York and Lima are both UTC-5 in January; only New York observes DST.
+    const january = new Date('2026-01-15T12:34:56Z');
+    const july = new Date('2026-07-15T12:34:56Z');
 
     try {
       env.TZ = 'UTC';
-      const utcLabel = formatMetricTime(date);
+      expect(formatMetricTime(january)).toBe('12:34:56');
 
       env.TZ = 'America/New_York';
-      const newYorkLabel = formatMetricTime(date);
+      expect(formatMetricTime(january)).toBe('07:34:56');
 
-      expect(utcLabel).toBe('12:34:56');
-      expect(newYorkLabel).toBe('08:34:56');
+      // Same offset as New York in January, so an offset-keyed formatter cache
+      // would never notice this switch and would show New York's DST time in July.
+      env.TZ = 'America/Lima';
+      expect(formatMetricTime(january)).toBe('07:34:56');
+      expect(formatMetricTime(july)).toBe('07:34:56');
     } finally {
       env.TZ = originalTimeZone;
-      formatMetricTime(date);
     }
   });
 });
