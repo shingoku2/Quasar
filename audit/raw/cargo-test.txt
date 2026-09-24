@@ -1,0 +1,166 @@
+$ cargo test
+   Compiling quasar v0.1.0 (/home/user/Quasar/src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.71s
+     Running unittests src/lib.rs (target/debug/deps/quasar_lib-37b48c4f0af0c3cd)
+
+running 132 tests
+test crypto::tests::test_ssh_fingerprint_deterministic ... ok
+test crypto::tests::test_decrypts_legacy_aes_gcm_vector ... ok
+test crypto::tests::test_encryption_decryption ... ok
+test crypto::tests::test_ssh_fingerprint_different_keys ... ok
+test crypto::tests::test_ssh_fingerprint_empty_input ... ok
+test crypto::tests::test_ssh_fingerprint_format ... ok
+test db::tests::test_foreign_keys_enabled ... ok
+test errors::tests::test_sanitize_error_all_contexts ... ok
+test errors::tests::test_sanitize_error_does_not_leak_internal_details ... ok
+test errors::tests::test_sanitize_error_unknown_context_returns_generic ... ok
+test db::tests::test_in_memory_database_still_opens ... ok
+test health::tests::test_health_check_result_reachable ... ok
+test health::tests::test_health_check_result_unreachable ... ok
+test health::tests::test_health_metrics_serialization ... ok
+test db::tests::test_wal_enabled_for_file_databases ... ok
+test host_tracker::tests::test_get_nonexistent_host ... ok
+test host_tracker::tests::test_delete_host ... ok
+test host_tracker::tests::test_list_hosts ... ok
+test host_tracker::tests::test_save_and_get_host ... ok
+test launcher::tests::test_ssh_target_formatting ... ok
+test monitoring::tests::test_alert_acknowledge_and_dismiss ... ok
+test monitoring::tests::test_alert_engine_add_rule ... ok
+test monitoring::tests::test_alert_engine_evaluation ... ok
+test monitoring::tests::test_alert_engine_no_trigger ... ok
+test host_tracker::tests::test_save_host_updates_on_rescan ... ok
+test host_tracker::tests::test_search_hosts ... ok
+test monitoring::tests::test_stored_metadata_excludes_process_lists ... ok
+test monitoring::tests::test_metrics_collector_creation ... ok
+test saved_host_tests::database_recognition_accepts_quasar_application_id ... ok
+test saved_host_tests::database_recognition_accepts_strict_legacy_schema ... ok
+test saved_host_tests::database_recognition_rejects_unrelated_sqlite ... ok
+test saved_host_tests::migrations_apply_to_fresh_and_current_databases ... ok
+test saved_host_tests::remove_saved_hosts_is_transactional_and_ignores_missing_ids ... ok
+test saved_host_tests::remove_saved_hosts_removes_one_host ... ok
+test saved_host_tests::remove_saved_hosts_rolls_back_on_error ... ok
+test saved_host_tests::saved_host_operations_return_database_errors ... ok
+test saved_host_tests::update_saved_host_changes_connection_port_in_place ... ok
+test saved_host_tests::upsert_saved_host_inserts_with_default_ssh_port ... ok
+test saved_host_tests::upsert_saved_host_updates_matching_connection ... ok
+test saved_host_tests::upsert_saved_host_uses_default_rdp_port ... ok
+test scanner::tests::test_claim_scan_rejects_concurrent_claim ... ok
+test scanner::tests::test_detect_device_type_empty_is_unknown ... ok
+test scanner::tests::test_detect_device_type_many_ports_is_server ... ok
+test scanner::tests::test_detect_device_type_printer ... ok
+test scanner::tests::test_detect_device_type_rdp_only_is_workstation ... ok
+test scanner::tests::test_detect_device_type_router ... ok
+test scanner::tests::test_detect_device_type_smb_is_server ... ok
+test scanner::tests::test_detect_device_type_ssh_only_is_workstation ... ok
+test monitoring::tests::test_stored_metrics_round_trip_without_process_lists ... ok
+test scanner::tests::test_drain_one_scan_future_retires_exactly_one_task ... ok
+test scanner::tests::test_guard_no_race_on_stop_start ... ok
+test scanner::tests::test_parse_cidr ... ok
+test scanner::tests::test_parse_cidr_invalid ... ok
+test scanner::tests::test_parse_cidr_larger_subnet ... ok
+test scanner::tests::test_scan_progress_serialization ... ok
+test scanner::tests::test_scan_result_dead_host ... ok
+test scanner::tests::test_scan_result_fields ... ok
+test scanner::tests::test_scan_result_serialization ... ok
+test scanner::tests::test_scan_running_guard_resets_on_drop ... ok
+test scanner::tests::test_scanner_state_new ... ok
+test scanner::tests::test_stop_request_after_claim_is_not_lost ... ok
+test scanner::tests::test_stop_scan_only_sets_signal ... ok
+test scheduler::tests::test_is_due ... ok
+test scheduler::tests::test_load_enabled_tasks_only_returns_enabled ... ok
+test scheduler::tests::test_load_task_by_id ... ok
+test scheduler::tests::test_scheduler_crud_and_run_result ... ok
+test scheduler::tests::test_set_run_result_truncates_long_output ... ok
+test scheduler::tests::test_set_run_result_truncates_multibyte_output_without_panicking ... ok
+test sftp::tests::test_sftp_connection_structure ... ok
+test ssh::host_key_approval_tests::cancelled_tombstone_blocks_a_late_connection_start ... ok
+test ssh::host_key_approval_tests::pending_connection_cancellation_is_tracked ... ok
+test ssh::host_key_approval_tests::resolves_the_matching_pending_approval ... ok
+test scanner::tests::test_drain_scan_futures_drains_pending_tasks ... ok
+test ssh_connect::tests::tcp_refusal_is_reported_as_tcp_phase_failure ... ok
+test ssh_exec::tests::test_execute_command_structure ... ok
+test ssh_exec::tests::test_only_undelivered_commands_on_a_reused_session_are_retried ... ok
+test ssh_exec::tests::test_parse_metric_fields_on_no_output_yields_all_none ... ok
+test ssh_exec::tests::test_parse_metric_fields_tolerates_unsupported_probes ... ok
+test ssh_exec::tests::test_parses_real_host_output ... ok
+test ssh_exec::tests::test_split_metric_fields_keeps_positions_when_a_probe_produces_nothing ... ok
+test ssh_exec::tests::test_split_metric_fields_on_empty_output ... ok
+test ssh_exec::tests::test_split_metric_fields_returns_one_entry_per_probe ... ok
+test ssh_exec::tests::test_split_metric_fields_trims_surrounding_whitespace ... ok
+test ssh_pool::tests::bench_session_reuse_against_live_host ... ignored, requires a live SSH host; set QUASAR_TEST_SSH_HOST and QUASAR_TEST_SSH_USER
+test ssh_pool::tests::test_absent_and_empty_credentials_are_distinct ... ok
+test ssh_pool::tests::test_changed_password_produces_a_different_key ... ok
+test ssh_pool::tests::test_different_host_user_or_port_do_not_share ... ok
+test ssh_pool::tests::test_key_material_fields_are_not_interchangeable ... ok
+test ssh_pool::tests::test_pool_key_does_not_retain_the_secret ... ok
+test ssh_pool::tests::test_same_endpoint_and_auth_share_a_key ... ok
+test ssh_pool::tests::test_sweep_discards_slots_with_no_session ... ok
+test tailscale::tests::backend_state_passthrough_for_needs_login_and_stopped ... ok
+test tailscale::tests::empty_ssh_host_keys_means_no_tailscale_ssh ... ok
+test tailscale::tests::falls_back_to_address_when_hostname_missing ... ok
+test tailscale::tests::invalid_json_is_an_error ... ok
+test tailscale::tests::parses_self_and_peers_with_magic_dns ... ok
+test tailscale::tests::peer_with_invalid_address_is_dropped ... ok
+test tailscale::tests::peers_sorted_online_first_then_hostname ... ok
+test tailscale::tests::prefers_ipv4_when_magic_dns_disabled ... ok
+test validation::tests::test_validate_cidr ... ok
+test validation::tests::test_validate_credential_name ... ok
+test validation::tests::test_validate_hostname ... ok
+test validation::tests::test_validate_ip ... ok
+test validation::tests::test_validate_master_password ... ok
+test validation::tests::test_validate_password ... ok
+test validation::tests::test_validate_path ... ok
+test validation::tests::test_validate_port ... ok
+test validation::tests::test_validate_username ... ok
+test vault::audit::tests::test_cleanup_removes_only_entries_past_retention ... ok
+test vault::credentials::tests::test_add_and_get_credential ... ok
+test vault::credentials::tests::test_delete_credential ... ok
+test monitoring::tests::test_metrics_collection ... ok
+test vault::credentials::tests::test_frontend_view_carries_no_secret_material ... ok
+test vault::credentials::tests::test_get_credential_invalid_nonce_length_returns_error ... ok
+test vault::credentials::tests::test_get_credential_invalid_tag_length_returns_error ... ok
+test vault::credentials::tests::test_list_credentials ... ok
+test vault::credentials::tests::test_search_credentials ... ok
+test vault::ssh_keys::tests::test_key_changed_detection ... ok
+test vault::ssh_keys::tests::test_manager_creation ... ok
+test vault::credentials::tests::test_update_credential ... ok
+test vault::ssh_keys::tests::test_trust_and_verify ... ok
+test vault::ssh_keys::tests::test_unknown_host ... ok
+test ssh_connect::tests::silent_server_is_reported_as_handshake_failure ... ok
+test crypto::tests::test_password_hashing ... ok
+test vault::tests::test_invalid_password ... ok
+test vault::tests::test_change_master_password_rejected_while_locked ... ok
+test vault::tests::test_change_master_password_preserves_credential_ids ... ok
+test vault::tests::test_vault_initialization ... ok
+test vault::tests::test_vault_unlock_lock ... ok
+test vault::tests::test_lock_vault_during_password_change_stays_locked ... ok
+test vault::tests::test_lockout_persists_across_vault_state_restart ... ok
+test vault::tests::test_successful_unlock_clears_persisted_lockout ... ok
+
+test result: ok. 131 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 13.22s
+
+     Running unittests src/main.rs (target/debug/deps/quasar-0855ce57914ecfc2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vault_salt_fix_test.rs (target/debug/deps/vault_salt_fix_test-eec780e0297b9c18)
+
+running 4 tests
+test test_salt_with_null_bytes ... ok
+test test_salt_with_binary_bytes ... ok
+test test_salt_with_high_bytes ... ok
+test test_key_derivation_consistency ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.07s
+
+   Doc-tests quasar_lib
+
+running 2 tests
+test src/db.rs - db::open_connection (line 28) ... ignored
+test src/validation.rs - validation::validate_ip (line 19) ... ignored
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[exit=0 duration=36s]

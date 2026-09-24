@@ -1,0 +1,17 @@
+$ cargo outdated --root-deps-only
+Name                  Project  Compat  Latest  Kind    Platform
+----                  -------  ------  ------  ----    --------
+argon2                0.5.3    ---     0.6.0   Normal  ---
+dns-lookup            3.0.1    ---     4.0.1   Normal  ---
+log                   0.4.33   0.4.34  0.4.34  Normal  ---
+mdns-sd               0.20.3   ---     0.21.4  Normal  ---
+rand                  0.10.2   0.10.3  0.10.3  Normal  ---
+russh                 0.62.7   ---     0.63.3  Normal  ---
+russh-sftp            2.4.0    ---     3.0.0   Normal  ---
+surge-ping            0.9.0    0.9.1   0.9.1   Normal  ---
+tauri                 2.11.5   2.11.6  2.11.6  Normal  ---
+tauri-plugin-dialog   2.7.2    2.7.3   2.7.3   Normal  ---
+tauri-plugin-opener   2.5.4    2.5.5   2.5.5   Normal  ---
+tauri-plugin-updater  2.10.1   2.12.0  2.12.0  Normal  cfg(any(target_os = "macos", windows, target_os = "linux"))
+uuid                  1.24.1   1.26.1  1.26.1  Normal  ---
+[exit=0 duration=10s]

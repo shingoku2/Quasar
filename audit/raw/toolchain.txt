@@ -1,0 +1,8 @@
+v24.15.0
+12.0.2
+rustc 1.98.1 (48a229cea 2026-09-01)
+cargo 1.98.1 (797e8a9bc 2026-08-05)
+clippy 0.1.98 (48a229ceae 2026-09-01)
+npm notice run quasar@0.1.0 npx
+npm notice run 'tauri' -V
+tauri-cli 2.11.4
