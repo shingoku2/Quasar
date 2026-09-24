@@ -21,10 +21,12 @@ got transient AEAD failures.
   `CredentialAccess { key: Zeroizing<[u8; 32]>, _gate }`. The key is valid for as long as
   the guard lives. `credential_gate()` returns a bare shared guard for `delete_credential`,
   which needs no key but shouldn't interleave with the rekey transaction.
-- `change_master_password` sets `changing_password` under `inner` (so a second concurrent
-  rotation still fails fast with "already in progress"), releases `inner`, then takes the
-  gate with `write_owned()` and holds it until the function returns, after the new key is
-  installed. tokio's `RwLock` is fair, so a pending rotation blocks new credential ops. They
+- `change_master_password` takes the gate with `write_owned()` as its first action, then
+  sets `changing_password` under `inner`, and holds the gate until the function returns,
+  after the new key is installed. (It originally set the flag first and then waited for the
+  gate; Sourcery pointed out that dropping the future while queued would leave the flag
+  stuck at true, disabling auto-lock and blocking every later rotation. A second concurrent
+  rotation now queues on the gate and then fails verification against the new hash.) tokio's `RwLock` is fair, so a pending rotation blocks new credential ops. They
   **wait** instead of failing, as the Sep 2 design specified.
 - Lock order is always gate → `inner`. Nothing acquires the gate while holding `inner`.
 - The explicit-lock-wins check at the end of `change_master_password` is untouched.

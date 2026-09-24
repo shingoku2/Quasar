@@ -45,8 +45,9 @@ same session:
 2. **Torn-state/write race (FIXED 2026-09-24, EDW-15; history below).** Implemented as
    `VaultState::credential_gate` (`Arc<tokio::sync::RwLock<()>>`). Credential operations use
    `credential_access()` (shared guard + key, `CredentialAccess`) or `credential_gate()`
-   (deletes); `change_master_password` takes `write_owned()` right after its `inner` block and
-   holds it to function end. Lock order is gate → `inner`, never the reverse. Don't add
+   (deletes); `change_master_password` takes `write_owned()` as its first action (before setting
+   `changing_password`, so a dropped future can't leave the flag stuck) and holds it to
+   function end. Lock order is gate → `inner`, never the reverse. Don't add
    a `get_master_key()` call in credential code: it bypasses the gate. Regression test:
    `vault::tests::test_credential_write_waits_for_master_password_change` (mutation-checked).
    Original analysis:

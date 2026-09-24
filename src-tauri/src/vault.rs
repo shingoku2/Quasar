@@ -44,8 +44,9 @@ pub struct VaultState {
     /// Serializes credential operations with master-password rekeying. Every
     /// operation that encrypts, decrypts or deletes a stored credential holds a
     /// shared guard for as long as it uses the master key (see `credential_access`);
-    /// `change_master_password` holds it exclusively from before it reads the old
-    /// key until after the new key is installed. Without this, a credential write
+    /// `change_master_password` takes it exclusively first thing, before it marks
+    /// itself in progress or reads the old key, and holds it until the new key is
+    /// installed. Without this, a credential write
     /// landing mid-rotation is encrypted with the old key after (or while) the
     /// re-encryption pass runs, and is undecryptable under the new key.
     ///
@@ -53,9 +54,10 @@ pub struct VaultState {
     credential_gate: Arc<RwLock<()>>,
 }
 
-/// The master key plus a shared hold on the credential gate. While this is alive,
-/// no master-password change can start or finish, so the key stays valid for every
-/// credential read or write made with it. Drop it as soon as the credential work is
+/// The master key plus a shared hold on the credential gate. While this is alive, a
+/// master-password change stays queued on the gate (it hasn't read the old key or
+/// set `changing_password` yet), so the key stays valid for every credential read or
+/// write made with it. Drop it as soon as the credential work is
 /// done (not after a slow network operation that merely uses the decrypted result).
 pub struct CredentialAccess {
     key: Zeroizing<[u8; 32]>,
@@ -538,6 +540,16 @@ impl VaultState {
         current_password: SecretString,
         new_password: SecretString,
     ) -> Result<(), String> {
+        // Wait for in-flight credential operations to drain, then block new ones until
+        // the new key is installed below (the guard lives to the end of this function).
+        // Taken before `inner`, matching the lock order credential operations use, and
+        // before `changing_password` is set, so if this future is dropped while queued
+        // here (the one wait whose length depends on other operations) the flag is never
+        // left stuck at true.
+        // A second concurrent rotation queues here too; by the time it gets the gate
+        // the first has finished, so it fails verification against the new hash.
+        let _credential_gate = self.credential_gate.clone().write_owned().await;
+
         let (old_key, db_path) = {
             let mut inner = self.inner.write().await;
 
@@ -564,14 +576,6 @@ impl VaultState {
 
             (old_key, inner.db_path.clone())
         };
-
-        // Wait for in-flight credential operations to drain, then block new ones until
-        // the new key is installed below (the guard lives to the end of this function).
-        // Taken after the `inner` block, never while holding `inner`: credential
-        // operations take the gate first and `inner` second. `old_key` read above is
-        // still correct: only this function changes the key, and the flag set above
-        // keeps a second rotation out.
-        let _credential_gate = self.credential_gate.clone().write_owned().await;
 
         // Perform heavy crypto and DB operations in a blocking thread, without holding
         // the vault lock.
@@ -1086,7 +1090,7 @@ mod tests {
         let old_key = vault.get_master_key().await.unwrap();
 
         // An in-flight credential operation holds the gate, so the rotation below
-        // starts (sets changing_password) and then parks waiting for exclusive access.
+        // parks waiting for exclusive access before it touches any vault state.
         let in_flight = vault.credential_access().await.unwrap();
 
         let rekey = tokio::spawn({
@@ -1100,9 +1104,22 @@ mod tests {
                     .await
             }
         });
-        while !vault.inner.read().await.changing_password {
+        // The rotation is queued once the gate can't be read-acquired any more: tokio's
+        // RwLock is fair, so a waiting writer blocks new readers.
+        for _ in 0..1000 {
+            if vault.credential_gate.try_read().is_err() {
+                break;
+            }
             tokio::task::yield_now().await;
         }
+        assert!(
+            vault.credential_gate.try_read().is_err(),
+            "the rotation must queue on the credential gate"
+        );
+        assert!(
+            !vault.inner.read().await.changing_password,
+            "a rotation queued on the gate must not have marked itself in progress yet"
+        );
 
         // A credential write issued mid-rotation.
         let writer = tokio::spawn({
