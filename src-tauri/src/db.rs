@@ -55,7 +55,42 @@ pub fn open_connection(db_path: &str) -> Result<Connection, String> {
     conn.busy_timeout(BUSY_TIMEOUT)
         .map_err(|e| format!("Failed to set busy timeout: {}", e))?;
 
+    // Zero deleted content instead of leaving it in free space, so superseded secrets
+    // (old vault verifiers, deleted credentials' ciphertext) don't linger in the file.
+    // Per-connection, so it has to be set on every connection.
+    conn.execute_batch("PRAGMA secure_delete = ON;")
+        .map_err(|e| format!("Failed to enable secure_delete: {}", e))?;
+
+    // The database holds the encrypted vault; don't leave it world-readable under a
+    // permissive umask (audit RSEC-009). SQLite gives the -wal/-shm files the main file's
+    // mode, but tighten them too in case they predate this.
+    if db_path != ":memory:" && !db_path.starts_with("file:") {
+        for path in [db_path.to_string(), format!("{}-wal", db_path), format!("{}-shm", db_path)] {
+            let path = std::path::Path::new(&path);
+            if path.exists() {
+                if let Err(e) = restrict_to_owner(path) {
+                    log::warn!("Could not restrict permissions on {}: {}", path.display(), e);
+                }
+            }
+        }
+    }
+
     Ok(conn)
+}
+
+/// Makes `path` accessible to the current user only: 0600 for files, 0700 for directories.
+/// A no-op on non-Unix platforms, where the per-user app-data directory's ACLs apply.
+pub fn restrict_to_owner(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = if path.is_dir() { 0o700 } else { 0o600 };
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+            .map_err(|e| format!("Failed to set permissions: {}", e))?;
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -87,6 +122,40 @@ mod tests {
         assert_eq!(mode.to_lowercase(), "wal", "file databases should use WAL");
 
         drop(conn);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_secure_delete_enabled() {
+        let conn = open_connection(":memory:").unwrap();
+        let secure_delete: i32 = conn
+            .query_row("PRAGMA secure_delete", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(secure_delete, 1, "secure_delete must be on for every connection");
+    }
+
+    /// RSEC-009 regression: the DB (encrypted vault) must not be readable by other users,
+    /// even when it already exists with a permissive mode.
+    #[cfg(unix)]
+    #[test]
+    fn test_database_file_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("quasar_perm_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("perm_test.db");
+        std::fs::write(&db_path, b"").unwrap();
+        std::fs::set_permissions(&db_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        let conn = open_connection(db_path.to_str().unwrap()).unwrap();
+        conn.execute_batch("CREATE TABLE t (a INTEGER);").unwrap();
+        drop(conn);
+
+        let mode = std::fs::metadata(&db_path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+
+        restrict_to_owner(&dir).unwrap();
+        let dir_mode = std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
+        assert_eq!(dir_mode, 0o700);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

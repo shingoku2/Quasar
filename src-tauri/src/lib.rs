@@ -1720,6 +1720,8 @@ fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
     backup
         .run_to_completion(100, std::time::Duration::from_millis(0), None)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    // The export carries the encrypted vault; owner-only like the live DB (RSEC-009).
+    db::restrict_to_owner(std::path::Path::new(&dest_path))?;
     Ok(())
 }
 
@@ -1811,6 +1813,10 @@ pub fn run() {
                 error!("Failed to create app data dir: {}", e);
                 e
             })?;
+            // Holds the vault DB and its .bak/WAL files: owner-only (RSEC-009).
+            if let Err(e) = db::restrict_to_owner(&app_dir) {
+                log::warn!("Could not restrict app data dir permissions: {}", e);
+            }
             migrate_titan_db_to_quasar(&app_dir).map_err(|e| {
                 error!("Failed to migrate database file: {}", e);
                 e
