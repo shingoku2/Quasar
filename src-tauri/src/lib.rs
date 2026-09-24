@@ -1869,7 +1869,6 @@ async fn sftp_upload_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
-    grants.take(&local_path, local_paths::Intent::Read)?;
     let (username, password) = resolve_sftp_auth(
         &vault_state,
         &credential_manager,
@@ -1879,9 +1878,10 @@ async fn sftp_upload_file(
         credential_id,
     )
     .await?;
+    grants.take(&local_path, local_paths::Intent::Read)?;
     validate_path(&local_path)?;
     validate_path(&remote_path)?;
-    sftp::upload_file(
+    let outcome = sftp::upload_file(
         app_handle,
         &host,
         port,
@@ -1892,7 +1892,13 @@ async fn sftp_upload_file(
         None,
     )
     .await
-    .map_err(|e| sanitize_error(e, "sftp"))
+    .map_err(|e| sanitize_error(e, "sftp"));
+    if outcome.is_err() {
+        // A failed transfer (wrong password, unreachable host) gives the pick back, so a
+        // retry doesn't need the dialog again. A success used it up.
+        grants.grant(std::path::PathBuf::from(&local_path), local_paths::Intent::Read);
+    }
+    outcome
 }
 
 #[tauri::command]
@@ -1914,7 +1920,6 @@ async fn sftp_download_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
-    grants.take(&local_path, local_paths::Intent::Write)?;
     let (username, password) = resolve_sftp_auth(
         &vault_state,
         &credential_manager,
@@ -1924,9 +1929,10 @@ async fn sftp_download_file(
         credential_id,
     )
     .await?;
+    grants.take(&local_path, local_paths::Intent::Write)?;
     validate_path(&remote_path)?;
     validate_path(&local_path)?;
-    sftp::download_file(
+    let outcome = sftp::download_file(
         app_handle,
         &host,
         port,
@@ -1937,7 +1943,13 @@ async fn sftp_download_file(
         None,
     )
     .await
-    .map_err(|e| sanitize_error(e, "sftp"))
+    .map_err(|e| sanitize_error(e, "sftp"));
+    if outcome.is_err() {
+        // A failed transfer (wrong password, unreachable host) gives the pick back, so a
+        // retry doesn't need the dialog again. A success used it up.
+        grants.grant(std::path::PathBuf::from(&local_path), local_paths::Intent::Write);
+    }
+    outcome
 }
 
 #[tauri::command]

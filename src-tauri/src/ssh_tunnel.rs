@@ -47,6 +47,22 @@ impl TunnelState {
         guard.values().map(|(_, info)| info.clone()).collect()
     }
 
+    fn in_use(&self, id: &str) -> bool {
+        self.tunnels.lock().unwrap_or_else(|e| e.into_inner()).contains_key(id)
+    }
+
+    /// Registers a tunnel under `id` unless the id is taken. Replacing an entry dropped the
+    /// old tunnel's cancel sender, which ended its loop, whose cleanup then removed the new
+    /// tunnel's entry by the same id (P7-4 review).
+    fn register(&self, id: &str, cancel_tx: mpsc::Sender<()>, info: TunnelInfo) -> Result<(), String> {
+        let mut guard = self.tunnels.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.contains_key(id) {
+            return Err(format!("Tunnel id {} is already in use", id));
+        }
+        guard.insert(id.to_string(), (cancel_tx, info));
+        Ok(())
+    }
+
     pub fn remove(&self, id: &str) -> bool {
         let mut guard = self.tunnels.lock().unwrap_or_else(|e| e.into_inner());
         if let Some((tx, _)) = guard.remove(id) {
@@ -163,6 +179,9 @@ pub async fn start_tunnel(
     remote_host: String,
     remote_port: u16,
 ) -> Result<TunnelInfo, String> {
+    if tunnel_state.in_use(&tunnel_id) {
+        return Err(format!("Tunnel id {} is already in use", tunnel_id));
+    }
     validation::validate_port(ssh_port)?;
     validation::validate_port(local_port)?;
     validation::validate_port(remote_port)?;
@@ -226,12 +245,9 @@ pub async fn start_tunnel(
         remote_port,
     };
 
-    {
-        let mut guard = tunnel_state
-            .tunnels
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        guard.insert(tunnel_id.clone(), (cancel_tx, info.clone()));
+    if let Err(e) = tunnel_state.register(&tunnel_id, cancel_tx, info.clone()) {
+        let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
+        return Err(e);
     }
 
     let state_for_cleanup = (*tunnel_state).clone();
@@ -270,6 +286,28 @@ mod tests {
         ) -> Result<bool, Self::Error> {
             Ok(true)
         }
+    }
+
+    #[test]
+    fn a_tunnel_id_can_not_be_reused_while_active() {
+        let state = TunnelState::new();
+        let info = |id: &str| TunnelInfo {
+            id: id.to_string(),
+            ssh_host: "h".into(),
+            ssh_port: 22,
+            local_port: 1080,
+            remote_host: "r".into(),
+            remote_port: 80,
+        };
+        let (tx1, _rx1) = mpsc::channel(1);
+        state.register("t1", tx1, info("t1")).unwrap();
+        let (tx2, mut rx2) = mpsc::channel(1);
+        assert!(state.register("t1", tx2, info("t1")).is_err());
+        // The rejected tunnel's sender was dropped, not stored under the old id.
+        assert!(rx2.try_recv().is_err());
+        assert!(state.in_use("t1"));
+        assert!(state.remove("t1"));
+        assert!(!state.in_use("t1"));
     }
 
     /// RUST-008: when the SSH session dies, the loop ends and frees the local port.

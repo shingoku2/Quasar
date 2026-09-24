@@ -37,7 +37,7 @@ fn in_flight() -> &'static Mutex<HashSet<String>> {
 }
 
 /// "Run now" error for a task with a run in progress. Shown to the user verbatim.
-pub const ALREADY_RUNNING: &str = "This task is already running";
+pub const ALREADY_RUNNING: &str = "This task is already running or waiting to run";
 
 /// Marks a task as running until dropped.
 struct InFlightGuard(String);
