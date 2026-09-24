@@ -254,6 +254,7 @@ const CredentialCard: React.FC<{
       <div className="flex justify-end space-x-2 pt-3 border-t border-gray-800">
         <button
           onClick={onView}
+          aria-label="View credential"
           className="text-gray-400 hover:text-accent transition-colors p-1"
           title="View"
         >
@@ -261,6 +262,7 @@ const CredentialCard: React.FC<{
         </button>
         <button
           onClick={onEdit}
+          aria-label="Edit credential"
           className="text-gray-400 hover:text-accent transition-colors p-1"
           title="Edit"
         >
@@ -268,6 +270,7 @@ const CredentialCard: React.FC<{
         </button>
         <button
           onClick={onDelete}
+          aria-label="Delete credential"
           className="text-gray-400 hover:text-alert transition-colors p-1"
           title="Delete"
         >
@@ -394,7 +397,7 @@ const CredentialDialog: React.FC<{
               {credential ? 'Edit Credential' : 'Add Credential'}
             </h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -470,6 +473,7 @@ const CredentialDialog: React.FC<{
                   <button
                     type="button"
                     onClick={() => setShowPassphrase(!showPassphrase)}
+                    aria-label="Toggle passphrase visibility"
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                     tabIndex={-1}
                   >
@@ -537,6 +541,7 @@ const CredentialDialog: React.FC<{
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label="Toggle password visibility"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 tabIndex={-1}
               >
@@ -602,7 +607,7 @@ const CredentialViewDialog: React.FC<{
             <Key className="h-4 w-4 text-accent" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">View Credential</h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -649,6 +654,7 @@ const CredentialViewDialog: React.FC<{
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Toggle password visibility"
                   className="text-gray-400 hover:text-accent transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
