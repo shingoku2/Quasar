@@ -163,12 +163,13 @@ pub async fn start_tunnel(
         port: ssh_port,
     };
 
-    let mut handle = crate::ssh_connect::connect_with_diagnostics(
+    let mut handle = crate::ssh_connect::connect_with_timeouts(
         config,
         &ssh_host,
         ssh_port,
         client,
         Duration::from_secs(10),
+        crate::ssh::INTERACTIVE_HANDSHAKE_TIMEOUT,
     )
     .await?;
 

@@ -25,6 +25,13 @@ struct PendingApproval {
     key: PresentedHostKey,
 }
 
+/// How long an interactive connection waits for the user to answer the host-key prompt.
+pub const HOST_KEY_APPROVAL_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Handshake budget for interactive connections: the prompt plus time for the key exchange
+/// itself (RUST-001).
+pub const INTERACTIVE_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(135);
+
 pub struct HostKeyApprovalState {
     pending: Mutex<HashMap<String, PendingApproval>>,
 }
@@ -156,7 +163,7 @@ impl client::Handler for Client {
                     }
 
                     let approved =
-                        match tokio::time::timeout(Duration::from_secs(120), receiver).await {
+                        match tokio::time::timeout(HOST_KEY_APPROVAL_TIMEOUT, receiver).await {
                             Ok(Ok(approved)) => approved,
                             _ => false,
                         };
@@ -298,12 +305,13 @@ pub async fn connect_ssh(
         port,
     };
 
-    let mut session = crate::ssh_connect::connect_with_diagnostics(
+    let mut session = crate::ssh_connect::connect_with_timeouts(
         config,
         &host,
         port,
         sh,
         Duration::from_secs(10),
+        INTERACTIVE_HANDSHAKE_TIMEOUT,
     )
     .await?;
 

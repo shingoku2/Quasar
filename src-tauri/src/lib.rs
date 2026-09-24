@@ -2,6 +2,8 @@ mod ai;
 mod crypto;
 mod db;
 mod local_paths;
+#[cfg(test)]
+mod ssh_test_server;
 mod discovery;
 mod errors;
 mod health;
