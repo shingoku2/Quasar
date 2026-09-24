@@ -69,6 +69,11 @@ impl RunFailure {
 const MAX_EXEC_OUTPUT: usize = 1024 * 1024;
 const TRUNCATION_NOTICE: &str = "\n[output truncated]";
 
+/// Once EOF and the exit status have both arrived, how long to wait for the server to close
+/// the channel. Some servers (network gear, some Dropbear builds) wait for the client to
+/// close first; without this every command against them hit the full timeout.
+const CLOSE_GRACE: Duration = Duration::from_secs(2);
+
 /// Run one command over an already-authenticated session.
 async fn run_command<H: client::Handler>(
     session: &russh::client::Handle<H>,
@@ -92,8 +97,17 @@ async fn run_command<H: client::Handler>(
         // Read until the channel closes, not just until EOF: servers (OpenSSH included)
         // send exit-status *after* EOF, and stopping at EOF recorded failed commands as
         // successes (audit RUST-009).
+        let mut eof = false;
         loop {
-            match channel.wait().await {
+            let msg = if eof && (exit_code.is_some() || exit_signal.is_some()) {
+                match tokio::time::timeout(CLOSE_GRACE, channel.wait()).await {
+                    Ok(msg) => msg,
+                    Err(_) => break, // complete result; the server is waiting for us to close
+                }
+            } else {
+                channel.wait().await
+            };
+            match msg {
                 Some(russh::ChannelMsg::Data { ref data })
                 | Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
                     let room = MAX_EXEC_OUTPUT.saturating_sub(output.len());
@@ -108,6 +122,7 @@ async fn run_command<H: client::Handler>(
                 Some(russh::ChannelMsg::ExitSignal { signal_name, .. }) => {
                     exit_signal = Some(format!("{:?}", signal_name));
                 }
+                Some(russh::ChannelMsg::Eof) => eof = true,
                 Some(russh::ChannelMsg::Close) | None => break,
                 _ => {}
             }
@@ -473,7 +488,7 @@ mod tests {
         use crate::ssh_test_server::{spawn, ExecReply, Policy};
         let policy = Policy {
             accept_none: true,
-            exec: Some(ExecReply { output, exit_status }),
+            exec: Some(ExecReply { output, exit_status, hold_open: false }),
             ..Default::default()
         };
         let (port, _) = spawn(policy).await;
@@ -498,6 +513,33 @@ mod tests {
         assert_eq!(run_against(b"ok\n".to_vec(), 0).await.unwrap(), "ok\n");
         let err = run_against(b"boom\n".to_vec(), 3).await.unwrap_err();
         assert_eq!(err, "Command exited with status 3");
+    }
+
+    /// P7-4 review: a server that sends EOF and the exit status but waits for the client to
+    /// close must not run the command into the timeout.
+    #[tokio::test]
+    async fn server_that_never_closes_does_not_hit_the_timeout() {
+        use crate::ssh_test_server::{spawn, ExecReply, Policy};
+        let policy = Policy {
+            accept_none: true,
+            exec: Some(ExecReply { output: b"ok".to_vec(), exit_status: 0, hold_open: true }),
+            ..Default::default()
+        };
+        let (port, _) = spawn(policy).await;
+        let mut session = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        crate::ssh_auth::authenticate(&mut session, "u", None, None, None, None).await.unwrap();
+        let started = std::time::Instant::now();
+        let out = run_command(&session, "true", 30).await.map_err(RunFailure::into_message);
+        assert_eq!(out.unwrap(), "ok");
+        assert!(started.elapsed() < Duration::from_secs(10), "took {:?}", started.elapsed());
     }
 
     /// RSEC-015: a host that streams without end can't grow the buffer past the cap.

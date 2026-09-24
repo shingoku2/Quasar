@@ -21,6 +21,9 @@ pub struct Policy {
 pub struct ExecReply {
     pub output: Vec<u8>,
     pub exit_status: u32,
+    /// Send EOF and the exit status but never close the channel (some embedded servers
+    /// wait for the client to close).
+    pub hold_open: bool,
 }
 
 #[derive(Clone)]
@@ -85,7 +88,9 @@ impl Handler for TestServer {
         }
         session.eof(channel)?;
         session.exit_status_request(channel, reply.exit_status)?;
-        session.close(channel)?;
+        if !reply.hold_open {
+            session.close(channel)?;
+        }
         Ok(())
     }
 }
