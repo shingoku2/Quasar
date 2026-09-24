@@ -1407,15 +1407,26 @@ async fn reveal_credential_password(
         .find(|c| c.id == credential_id)
         .map(|c| c.name)
         .ok_or_else(|| "Credential not found".to_string())?;
+    // Don't ask the user to confirm something that will fail anyway.
+    if vault_state.is_locked().await {
+        return Err("Vault is locked".to_string());
+    }
     // The plaintext leaves the vault only on a native confirmation, so a compromised
     // webview can't silently read every stored password (P7-3 review).
-    native_confirm::confirm(
+    if let Err(e) = native_confirm::confirm(
         &app,
         "Reveal password",
-        format!("Show the password for credential '{}'?", name),
+        format!(
+            "Show the password for this credential?\n\n\"{}\"",
+            native_confirm::display_text(&name)
+        ),
         "Reveal",
     )
-    .await?;
+    .await
+    {
+        credential_manager.record_reveal_declined(&credential_id);
+        return Err(e);
+    }
     let access = vault_state
         .credential_access()
         .await
@@ -1474,13 +1485,13 @@ async fn update_credential(
             &app,
             "Change credential host",
             format!(
-                "Credential '{}' is restricted to host '{}'. {}?",
-                stored.name,
-                stored.host.as_deref().unwrap_or_default(),
+                "This credential is restricted to one host. {}?\n\nCredential: \"{}\"\nCurrent host: \"{}\"",
                 match to {
-                    Some(h) => format!("Allow it to be used with '{}' instead", h),
+                    Some(h) => format!("Allow it to be used with \"{}\" instead", native_confirm::display_text(h)),
                     None => "Allow it to be used with any host".to_string(),
-                }
+                },
+                native_confirm::display_text(&stored.name),
+                native_confirm::display_text(stored.host.as_deref().unwrap_or_default()),
             ),
             "Change host",
         )

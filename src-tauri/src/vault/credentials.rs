@@ -369,12 +369,22 @@ impl CredentialManager {
     /// Audits an explicit plaintext reveal to the UI as its own event type, so it can be told
     /// apart from background decrypts (audit RSEC-011 / IPC-005). Best effort.
     pub fn record_reveal(&self, credential_id: &str) {
-        let result = db::open_connection(&self.db_path).and_then(|conn| {
+        self.audit_reveal(credential_id, "success");
+    }
+
+    /// A reveal the user declined (or that was refused) in the native dialog. Repeated
+    /// declines can indicate a compromised webview probing for passwords.
+    pub fn record_reveal_declined(&self, credential_id: &str) {
+        self.audit_reveal(credential_id, "declined");
+    }
+
+    fn audit_reveal(&self, credential_id: &str, result: &str) {
+        let outcome = db::open_connection(&self.db_path).and_then(|conn| {
             Self::log_audit_event(
-                &conn, "credential_reveal", Some(credential_id), Some("credential"), "reveal", "success", None,
+                &conn, "credential_reveal", Some(credential_id), Some("credential"), "reveal", result, None,
             )
         });
-        if let Err(e) = result {
+        if let Err(e) = outcome {
             log::warn!("Failed to audit credential reveal: {}", e);
         }
     }
