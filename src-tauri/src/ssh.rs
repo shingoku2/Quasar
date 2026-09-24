@@ -119,6 +119,27 @@ impl HostKeyApprovalState {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum InteractiveDecision {
+    Accept,
+    Refuse,
+    Prompt,
+}
+
+/// What an interactive connection does with a verification result. A key the user
+/// rejected is refused without a prompt: a webview prompt could be answered by a
+/// compromised webview, and un-rejecting goes through `update_ssh_host_trust`'s native
+/// confirmation (P7-4 review).
+fn interactive_decision(result: &crate::vault::ssh_keys::HostKeyVerificationResult) -> InteractiveDecision {
+    if result.allowed {
+        InteractiveDecision::Accept
+    } else if matches!(result.status, crate::vault::TrustStatus::Rejected) {
+        InteractiveDecision::Refuse
+    } else {
+        InteractiveDecision::Prompt
+    }
+}
+
 #[derive(Clone)]
 pub struct Client {
     pub app_handle: AppHandle,
@@ -144,8 +165,12 @@ impl client::Handler for Client {
             .await
         {
             Ok(result) => {
-                if result.allowed {
+                let decision = interactive_decision(&result);
+                if decision == InteractiveDecision::Accept {
                     Ok(true)
+                } else if decision == InteractiveDecision::Refuse {
+                    error!("Refusing rejected host key for {}:{}", self.host, self.port);
+                    Ok(false)
                 } else {
                     let approval_state = self.app_handle.state::<HostKeyApprovalState>();
                     let (request_id, receiver) = approval_state
@@ -694,6 +719,23 @@ mod host_key_approval_tests {
             key_bytes: vec![1, 2, 3],
             old_fingerprint: None,
         }
+    }
+
+    #[test]
+    fn rejected_keys_are_refused_without_a_prompt() {
+        use super::{interactive_decision, InteractiveDecision};
+        use crate::vault::{ssh_keys::HostKeyVerificationResult, TrustStatus};
+        let result = |allowed, status| HostKeyVerificationResult {
+            allowed,
+            status,
+            fingerprint: "fp".into(),
+            message: String::new(),
+            old_fingerprint: None,
+        };
+        assert_eq!(interactive_decision(&result(true, TrustStatus::Trusted)), InteractiveDecision::Accept);
+        assert_eq!(interactive_decision(&result(false, TrustStatus::Rejected)), InteractiveDecision::Refuse);
+        assert_eq!(interactive_decision(&result(false, TrustStatus::Unknown)), InteractiveDecision::Prompt);
+        assert_eq!(interactive_decision(&result(false, TrustStatus::Changed)), InteractiveDecision::Prompt);
     }
 
     /// Accepting a changed key needs a native confirmation; a first-seen key doesn't.

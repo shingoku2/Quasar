@@ -114,7 +114,7 @@ impl SshKeyManager {
                 "SELECT id, host, port, key_type, fingerprint, public_key,
                         first_seen_at, last_seen_at, trust_status
                  FROM ssh_known_hosts
-                 WHERE host = ?1 AND port = ?2",
+                 WHERE host = ?1 COLLATE NOCASE AND port = ?2",
                 params![host, port],
                 |row| {
                     Ok(SshHostKey {
@@ -136,7 +136,46 @@ impl SshKeyManager {
             .map_err(|e| format!("Failed to look up known host key: {}", e))?
         }; // MutexGuard dropped here
 
+        // The same host (any letter case) with a different trusted key on another port. A
+        // port switch must not turn a pinned host into a first-seen one: that let a
+        // compromised webview skip the changed-key confirmation (P7-4 review).
+        let other_port_key: Option<(String, u16)> = if existing.is_none() {
+            let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let mut stmt = conn
+                .prepare(
+                    "SELECT fingerprint, port FROM ssh_known_hosts
+                     WHERE host = ?1 COLLATE NOCASE AND port != ?2 AND trust_status = 'trusted'",
+                )
+                .map_err(|e| format!("Failed to look up known host key: {}", e))?;
+            let keys = stmt
+                .query_map(params![host, port], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u16>(1)?)))
+                .map_err(|e| format!("Failed to look up known host key: {}", e))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("Failed to look up known host key: {}", e))?;
+            // The same key on another port (one server, several ports) is fine.
+            if keys.iter().any(|(fp, _)| bool::from(fp.as_bytes().ct_eq(fingerprint.as_bytes()))) {
+                None
+            } else {
+                keys.into_iter().next()
+            }
+        } else {
+            None
+        };
+
         let result = match existing {
+            None if other_port_key.is_some() => {
+                let (old, old_port) = other_port_key.unwrap_or_default();
+                HostKeyVerificationResult {
+                    allowed: false,
+                    status: TrustStatus::Changed,
+                    fingerprint: fingerprint.to_string(),
+                    message: format!(
+                        "WARNING: {} is trusted with a different key on port {}.\nTrusted: {}\nPresented on port {}: {}\nThis could indicate a man-in-the-middle attack!",
+                        host, old_port, old, port, fingerprint
+                    ),
+                    old_fingerprint: Some(old),
+                }
+            }
             None => {
                 // New host - return Unknown status
                 HostKeyVerificationResult {
@@ -226,7 +265,7 @@ impl SshKeyManager {
             // Check if entry exists
             let exists: bool = conn
                 .query_row(
-                    "SELECT 1 FROM ssh_known_hosts WHERE host = ?1 AND port = ?2",
+                    "SELECT 1 FROM ssh_known_hosts WHERE host = ?1 COLLATE NOCASE AND port = ?2",
                     params![host, port],
                     |_| Ok(true),
                 )
@@ -238,7 +277,7 @@ impl SshKeyManager {
                     "UPDATE ssh_known_hosts
                  SET key_type = ?1, fingerprint = ?2, public_key = ?3,
                      last_seen_at = ?4, trust_status = ?5
-                 WHERE host = ?6 AND port = ?7",
+                 WHERE host = ?6 COLLATE NOCASE AND port = ?7",
                     params![
                         key_type,
                         fingerprint,
@@ -284,7 +323,7 @@ impl SshKeyManager {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
 
             conn.execute(
-                "UPDATE ssh_known_hosts SET last_seen_at = ?1 WHERE host = ?2 AND port = ?3",
+                "UPDATE ssh_known_hosts SET last_seen_at = ?1 WHERE host = ?2 COLLATE NOCASE AND port = ?3",
                 params![now, host, port],
             )
             .map_err(|e| format!("Failed to update last_seen_at: {}", e))?;
@@ -333,7 +372,7 @@ impl SshKeyManager {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
 
             conn.execute(
-                "DELETE FROM ssh_known_hosts WHERE host = ?1 AND port = ?2",
+                "DELETE FROM ssh_known_hosts WHERE host = ?1 COLLATE NOCASE AND port = ?2",
                 params![host, port],
             )
             .map_err(|e| format!("Failed to remove host key: {}", e))?;
@@ -352,7 +391,7 @@ impl SshKeyManager {
             let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
 
             conn.execute(
-                "UPDATE ssh_known_hosts SET trust_status = ?1 WHERE host = ?2 AND port = ?3",
+                "UPDATE ssh_known_hosts SET trust_status = ?1 WHERE host = ?2 COLLATE NOCASE AND port = ?3",
                 params![trust_status.to_string(), host, port],
             )
             .map_err(|e| format!("Failed to update trust status: {}", e))?;
@@ -440,6 +479,27 @@ mod tests {
             .verify_host_key_by_fingerprint("h", 22, "SHA256:x", "ssh-key")
             .await
             .is_err());
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// P7-4 review: letter case and a different port can't turn a pinned host into a
+    /// first-seen one (which skipped the native changed-key confirmation).
+    #[tokio::test]
+    async fn test_case_and_port_changes_keep_the_pin() {
+        let (manager, db_path) = create_test_manager().await;
+        manager.trust_host_key("db1", 22, "SHA256:a", "ssh-key", vec![1], TrustStatus::Trusted).await.unwrap();
+        let upper = manager.verify_host_key_by_fingerprint("DB1", 22, "SHA256:a", "ssh-key").await.unwrap();
+        assert!(upper.allowed, "host names match case-insensitively");
+        let upper_changed = manager.verify_host_key_by_fingerprint("DB1", 22, "SHA256:b", "ssh-key").await.unwrap();
+        assert_eq!(upper_changed.old_fingerprint.as_deref(), Some("SHA256:a"));
+        let other_port = manager.verify_host_key_by_fingerprint("db1", 2222, "SHA256:b", "ssh-key").await.unwrap();
+        assert!(!other_port.allowed);
+        assert!(matches!(other_port.status, TrustStatus::Changed));
+        assert_eq!(other_port.old_fingerprint.as_deref(), Some("SHA256:a"));
+        // One server on two ports with the same key is still a plain first use.
+        let same_key = manager.verify_host_key_by_fingerprint("db1", 2222, "SHA256:a", "ssh-key").await.unwrap();
+        assert!(matches!(same_key.status, TrustStatus::Unknown));
+        assert_eq!(same_key.old_fingerprint, None);
         let _ = std::fs::remove_file(&db_path);
     }
 
