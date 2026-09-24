@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window. Least privilege (audit IPC-008): core:default minus core:event emit/emit_to (the frontend never emits, and a compromised webview could spoof backend events); dialog open/save only; opener limited to the Ollama link in the AI assistant; no reveal-in-folder.",
+  "description": "Capability for the main window. Least privilege (audit IPC-008): core:default minus core:event emit/emit_to (the frontend never emits, and a compromised webview could spoof backend events); no dialog permissions (the backend opens file dialogs itself and records the choice, IPC-001); opener limited to the Ollama link in the AI assistant; no reveal-in-folder.",
   "windows": [
     "main"
   ],
@@ -16,11 +16,16 @@
     "core:window:default",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "dialog:allow-open",
-    "dialog:allow-save",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://ollama.com/*" }, { "url": "https://ollama.com" }]
+      "allow": [
+        {
+          "url": "https://ollama.com/*"
+        },
+        {
+          "url": "https://ollama.com"
+        }
+      ]
     },
     "updater:default",
     "process:allow-restart"

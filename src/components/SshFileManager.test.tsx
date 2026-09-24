@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SshFileManager from './SshFileManager';
 import '@testing-library/jest-dom';
@@ -7,11 +7,6 @@ import '@testing-library/jest-dom';
 const mockInvoke = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
-}));
-
-vi.mock('@tauri-apps/plugin-dialog', () => ({
-  open: vi.fn(),
-  save: vi.fn(),
 }));
 
 const defaultProps = {
@@ -73,5 +68,41 @@ describe('SshFileManager', () => {
       expect(screen.getByText('documents')).toBeInTheDocument();
       expect(screen.getByText('readme.txt')).toBeInTheDocument();
     });
+  });
+
+  // FE-001: a vault credential is passed by id, never as a password.
+  it('lists files with the credential id when given one', async () => {
+    mockInvoke.mockResolvedValueOnce([]);
+    render(<SshFileManager host="10.0.0.5" port={22} username="root" credentialId="c1" />);
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('sftp_list_directory', {
+        host: '10.0.0.5',
+        port: 22,
+        username: 'root',
+        password: null,
+        credentialId: 'c1',
+        remotePath: '/',
+      });
+    });
+  });
+
+  // IPC-001: uploads use a path the backend's own dialog returned.
+  it('asks the backend to pick the upload source', async () => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'sftp_list_directory') return [];
+      if (cmd === 'pick_local_file') return '/home/u/report.txt';
+      return undefined;
+    });
+    render(<SshFileManager {...defaultProps} />);
+    const upload = await screen.findByRole('button', { name: /upload/i });
+    await waitFor(() => expect(upload).not.toBeDisabled());
+    fireEvent.click(upload);
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('sftp_upload_file', expect.objectContaining({
+        localPath: '/home/u/report.txt',
+        remotePath: '/report.txt',
+      }));
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('pick_local_file', expect.anything());
   });
 });

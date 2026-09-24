@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { save, open } from '@tauri-apps/plugin-dialog';
 import { Settings, Shield, Bell, Palette, Database, Info } from 'lucide-react';
 import VaultSettings from './vault/VaultSettings';
 import { getErrorMessage } from '../lib/utils';
@@ -343,9 +342,9 @@ const DataSettings: React.FC = () => {
   }, [loadInfo]);
 
   const handleExport = async () => {
-    const path = await save({
-      defaultPath: `quasar-backup-${new Date().toISOString().slice(0, 10)}.db`,
-      filters: [{ name: 'Database', extensions: ['db'] }],
+    // The backend opens the dialog and only accepts paths chosen there (IPC-001).
+    const path = await invoke<string | null>('pick_save_location', {
+      defaultName: `quasar-backup-${new Date().toISOString().slice(0, 10)}.db`,
     });
     if (!path) return;
     setExporting(true);
@@ -364,18 +363,14 @@ const DataSettings: React.FC = () => {
   };
 
   const handleImport = async () => {
-    const path = await open({
-      multiple: false,
-      directory: false,
-      filters: [{ name: 'Database', extensions: ['db'] }],
-    });
-    if (!path || typeof path !== 'string') return;
+    const path = await invoke<string | null>('pick_local_file', { title: 'Choose a Quasar backup to import' });
+    if (!path) return;
     setImporting(true);
     setError('');
     setSuccess('');
     try {
       await invoke('import_database', { sourcePath: path });
-      setSuccess('Database imported. Restart the app for changes to take effect.');
+      setSuccess('Database imported. The vault is locked: unlock it with the imported vault\'s master password, then restart the app.');
       setTimeout(() => setSuccess(''), 5000);
       await loadInfo();
     } catch (err) {

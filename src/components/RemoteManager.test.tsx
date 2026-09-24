@@ -22,7 +22,15 @@ vi.mock('./TerminalComponent', () => ({
 }));
 
 vi.mock('./SshFileManager', () => ({
-  default: () => <div data-testid="sftp-manager">SFTP</div>,
+  default: ({ credentialId, password }: { credentialId?: string; password?: string }) => (
+    <div
+      data-testid="sftp-manager"
+      data-credential-id={credentialId}
+      {...(password ? { 'data-has-password': 'true' } : {})}
+    >
+      SFTP
+    </div>
+  ),
 }));
 
 // vis-network requires canvas APIs not present in jsdom
@@ -76,7 +84,9 @@ describe('RemoteManager', () => {
     });
   });
 
-  it('fetches the SFTP password on demand when a vault credential is selected', async () => {
+  // FE-001 / RSEC-013: SFTP gets the vault credential by id, like SSH; the decrypted
+  // password is never fetched into the webview.
+  it('starts SFTP with the credential id and never reveals the password', async () => {
     const host = { id: 'h1', name: 'Web', address: '10.0.0.5', protocol: 'ssh', port: 22, username: 'root' };
     const cred = { id: 'c1', name: 'Web creds', username: 'root', credential_type: 'ssh', created_at: '2024-01-01T00:00:00Z' };
     vi.mocked(invoke).mockImplementation(async (cmd: string) => {
@@ -85,7 +95,6 @@ describe('RemoteManager', () => {
         case 'is_vault_locked': return false;
         case 'list_credentials': return [cred];
         case 'get_credential': return { ...cred, has_password: true, has_private_key: false, has_key_passphrase: false };
-        case 'reveal_credential_password': return 's3cret';
         case 'get_tailscale_status': return { installed: false, peers: [] };
         default: return [];
       }
@@ -96,9 +105,9 @@ describe('RemoteManager', () => {
     const selector = await screen.findByRole('dialog');
     fireEvent.click(await within(selector).findByRole('button', { name: /Web creds/ }));
 
-    await waitFor(() => {
-      expect(vi.mocked(invoke)).toHaveBeenCalledWith('reveal_credential_password', { credentialId: 'c1' });
-    });
-    expect(await screen.findByTestId('sftp-manager')).toBeInTheDocument();
+    const manager = await screen.findByTestId('sftp-manager');
+    expect(manager).toHaveAttribute('data-credential-id', 'c1');
+    expect(manager).not.toHaveAttribute('data-has-password');
+    expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('reveal_credential_password', expect.anything());
   });
 });

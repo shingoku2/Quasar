@@ -402,12 +402,32 @@ const ScheduledTasksView: React.FC = () => {
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Local path</label>
-                  <input
-                    value={form.local_path}
-                    onChange={(e) => setForm((f) => ({ ...f, local_path: e.target.value }))}
-                    className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
-                    placeholder={form.task_type === 'sftp_upload' ? 'C:\\backup\\file.zip' : 'C:\\downloads\\file.zip'}
-                  />
+                  {/* Local paths come from a backend-opened dialog; the backend rejects typed ones (IPC-001). */}
+                  <div className="flex gap-2">
+                    <input
+                      value={form.local_path}
+                      readOnly
+                      aria-label="Local path"
+                      className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
+                      placeholder="Choose a file…"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const picked = form.task_type === 'sftp_upload'
+                            ? await invoke<string | null>('pick_local_file', { title: 'File to upload' })
+                            : await invoke<string | null>('pick_save_location', { defaultName: null });
+                          if (picked) setForm((f) => ({ ...f, local_path: picked }));
+                        } catch (err) {
+                          setError(getErrorMessage(err, 'Could not open the file dialog'));
+                        }
+                      }}
+                      className="shrink-0 bg-bg-sidebar border border-border hover:border-accent rounded-lg px-3 py-2 text-sm text-white"
+                    >
+                      Browse…
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Remote path</label>

@@ -1,6 +1,7 @@
 mod ai;
 mod crypto;
 mod db;
+mod local_paths;
 mod discovery;
 mod errors;
 mod health;
@@ -871,6 +872,7 @@ fn validate_scheduled_task<'a>(
 async fn add_scheduled_task(
     app: AppHandle,
     audit: State<'_, vault::AuditLogManager>,
+    grants: State<'_, local_paths::LocalPathGrants>,
     name: String,
     cron_expression: String,
     host_id: String,
@@ -893,6 +895,11 @@ async fn add_scheduled_task(
         local_path.as_deref(),
         remote_path.as_deref(),
     )?;
+    if task_type != "ssh" {
+        if let Some(lp) = local_path.as_deref() {
+            grants.check(lp)?;
+        }
+    }
     let id = scheduler::add_scheduled_task(
         &conn,
         &name,
@@ -914,6 +921,7 @@ async fn add_scheduled_task(
 async fn update_scheduled_task(
     app: AppHandle,
     audit: State<'_, vault::AuditLogManager>,
+    grants: State<'_, local_paths::LocalPathGrants>,
     id: String,
     name: String,
     cron_expression: String,
@@ -937,6 +945,19 @@ async fn update_scheduled_task(
         local_path.as_deref(),
         remote_path.as_deref(),
     )?;
+    if task_type != "ssh" {
+        if let Some(lp) = local_path.as_deref() {
+            // An unchanged path was granted when the task was created.
+            use rusqlite::OptionalExtension;
+            let stored: Option<Option<String>> = conn
+                .query_row("SELECT local_path FROM scheduled_tasks WHERE id = ?1", [&id], |r| r.get(0))
+                .optional()
+                .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+            if stored.flatten().as_deref() != Some(lp) {
+                grants.check(lp)?;
+            }
+        }
+    }
     scheduler::update_scheduled_task(
         &conn,
         &id,
@@ -1583,13 +1604,108 @@ async fn get_audit_logs(
 
 
 // SFTP commands
+/// Opens a native "open file" dialog from the backend and records the choice, so the path
+/// can later be used for file I/O (IPC-001). `None` when the user cancels.
+#[tauri::command]
+async fn pick_local_file(
+    app: AppHandle,
+    grants: State<'_, local_paths::LocalPathGrants>,
+    title: Option<String>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog_app = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        let mut builder = dialog_app.dialog().file();
+        if let Some(title) = title {
+            builder = builder.set_title(title);
+        }
+        builder.blocking_pick_file()
+    })
+    .await
+    .map_err(|e| sanitize_error(e.to_string(), "dialog"))?;
+    record_pick(&grants, picked)
+}
+
+/// Opens a native "save file" dialog from the backend and records the choice (IPC-001).
+#[tauri::command]
+async fn pick_save_location(
+    app: AppHandle,
+    grants: State<'_, local_paths::LocalPathGrants>,
+    default_name: Option<String>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog_app = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        let mut builder = dialog_app.dialog().file();
+        if let Some(name) = default_name {
+            builder = builder.set_file_name(name);
+        }
+        builder.blocking_save_file()
+    })
+    .await
+    .map_err(|e| sanitize_error(e.to_string(), "dialog"))?;
+    record_pick(&grants, picked)
+}
+
+fn record_pick(
+    grants: &local_paths::LocalPathGrants,
+    picked: Option<tauri_plugin_dialog::FilePath>,
+) -> Result<Option<String>, String> {
+    let Some(picked) = picked else { return Ok(None) };
+    let path = picked
+        .into_path()
+        .map_err(|e| sanitize_error(e.to_string(), "dialog"))?;
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| "Selected path is not valid UTF-8".to_string())?
+        .to_string();
+    grants.grant(path);
+    Ok(Some(path_str))
+}
+
+/// Resolves SFTP auth: a vault credential by id (decrypted here, never sent to the webview),
+/// or a password the user typed. SFTP is password-only (see CLAUDE.md constraints).
+async fn resolve_sftp_auth(
+    vault_state: &vault::VaultState,
+    credential_manager: &vault::CredentialManager,
+    host: &str,
+    username: String,
+    password: Option<String>,
+    credential_id: Option<String>,
+) -> Result<(String, String), String> {
+    match credential_id {
+        Some(cid) => {
+            let access = vault_state
+                .credential_access()
+                .await
+                .map_err(errors::user_facing_vault_error)?;
+            let cred = credential_manager
+                .get_credential(access.key(), &cid)
+                .map_err(|e| sanitize_error(e, "credential"))?;
+            drop(access);
+            if !vault::credentials::host_allowed(cred.host.as_deref(), host) {
+                return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
+            }
+            if cred.password.is_empty() {
+                return Err("SFTP needs a password credential".to_string());
+            }
+            Ok((cred.username, cred.password))
+        }
+        None => Ok((username, password.ok_or_else(|| "A password or a credential is required".to_string())?)),
+    }
+}
+
 #[tauri::command]
 async fn sftp_upload_file(
     app_handle: AppHandle,
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    grants: State<'_, local_paths::LocalPathGrants>,
     host: String,
     port: u16,
     username: String,
-    password: String,
+    password: Option<String>,
+    credential_id: Option<String>,
     local_path: String,
     remote_path: String,
 ) -> Result<(), String> {
@@ -1598,6 +1714,16 @@ async fn sftp_upload_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
+    grants.check(&local_path)?;
+    let (username, password) = resolve_sftp_auth(
+        &vault_state,
+        &credential_manager,
+        &host,
+        username,
+        password,
+        credential_id,
+    )
+    .await?;
     validate_path(&local_path)?;
     validate_path(&remote_path)?;
     sftp::upload_file(
@@ -1617,10 +1743,14 @@ async fn sftp_upload_file(
 #[tauri::command]
 async fn sftp_download_file(
     app_handle: AppHandle,
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
+    grants: State<'_, local_paths::LocalPathGrants>,
     host: String,
     port: u16,
     username: String,
-    password: String,
+    password: Option<String>,
+    credential_id: Option<String>,
     remote_path: String,
     local_path: String,
 ) -> Result<(), String> {
@@ -1629,6 +1759,16 @@ async fn sftp_download_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
+    grants.check(&local_path)?;
+    let (username, password) = resolve_sftp_auth(
+        &vault_state,
+        &credential_manager,
+        &host,
+        username,
+        password,
+        credential_id,
+    )
+    .await?;
     validate_path(&remote_path)?;
     validate_path(&local_path)?;
     sftp::download_file(
@@ -1648,10 +1788,13 @@ async fn sftp_download_file(
 #[tauri::command]
 async fn sftp_list_directory(
     app_handle: AppHandle,
+    vault_state: State<'_, vault::VaultState>,
+    credential_manager: State<'_, vault::CredentialManager>,
     host: String,
     port: u16,
     username: String,
-    password: String,
+    password: Option<String>,
+    credential_id: Option<String>,
     remote_path: String,
 ) -> Result<Vec<sftp::RemoteFile>, String> {
     if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
@@ -1659,6 +1802,15 @@ async fn sftp_list_directory(
     }
     validate_port(port)?;
     validate_username(&username)?;
+    let (username, password) = resolve_sftp_auth(
+        &vault_state,
+        &credential_manager,
+        &host,
+        username,
+        password,
+        credential_id,
+    )
+    .await?;
     sftp::list_directory(app_handle, &host, port, &username, &password, &remote_path)
         .await
         .map_err(|e| sanitize_error(e, "sftp"))
@@ -1727,8 +1879,13 @@ fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
+fn export_database(
+    app: AppHandle,
+    grants: State<'_, local_paths::LocalPathGrants>,
+    dest_path: String,
+) -> Result<(), String> {
     validate_path(&dest_path)?;
+    grants.check(&dest_path)?;
     let app_dir = app
         .path()
         .app_data_dir()
@@ -1757,9 +1914,11 @@ fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
 async fn import_database(
     app: AppHandle,
     vault_state: State<'_, vault::VaultState>,
+    grants: State<'_, local_paths::LocalPathGrants>,
     source_path: String,
 ) -> Result<(), String> {
     validate_path(&source_path)?;
+    grants.check(&source_path)?;
     let app_dir = app
         .path()
         .app_data_dir()
@@ -1884,6 +2043,7 @@ pub fn run() {
 
             app.manage(ssh::SshState::new());
             app.manage(ssh::HostKeyApprovalState::new());
+            app.manage(local_paths::LocalPathGrants::new());
             // Reuses authenticated sessions for one-shot commands (monitoring
             // probes, scheduled tasks) instead of re-handshaking every time.
             app.manage(ssh_pool::SshConnectionPool::new());
@@ -2067,6 +2227,8 @@ pub fn run() {
             remove_ssh_host_key,
             update_ssh_host_trust,
             get_audit_logs,
+            pick_local_file,
+            pick_save_location,
             sftp_upload_file,
             sftp_download_file,
             sftp_list_directory,

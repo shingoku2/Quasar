@@ -11,7 +11,6 @@ import CredentialSelector from './vault/CredentialSelector';
 import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
-import { getErrorMessage } from '../lib/utils';
 import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
@@ -104,7 +103,7 @@ const RemoteManager: React.FC = () => {
     );
   };
 
-  const startSftpSession = (host: Host, password?: string, usernameOverride?: string) => {
+  const startSftpSession = (host: Host, password?: string, usernameOverride?: string, credentialId?: string) => {
     const sessionUsername = usernameOverride ?? host.username;
     if (!sessionUsername) {
       alert('Username is required to start an SFTP session.');
@@ -119,7 +118,8 @@ const RemoteManager: React.FC = () => {
         host={host.address}
         port={host.port || 22}
         username={sessionUsername}
-        password={password} 
+        password={password}
+        credentialId={credentialId}
       />
     );
   };
@@ -192,18 +192,9 @@ const RemoteManager: React.FC = () => {
       }
 
       if (pendingMode === 'sftp') {
-        // SFTP commands take the password directly (no credential-ID lookup in the
-        // backend), so fetch it on demand here instead of carrying it in the
-        // general get_credential view.
-        let password: string;
-        try {
-          password = await invoke<string>('reveal_credential_password', { credentialId: credential.id });
-        } catch (err) {
-          console.error('Failed to retrieve credential password for SFTP:', err);
-          alert(getErrorMessage(err, 'Failed to retrieve credential password'));
-          return;
-        }
-        startSftpSession(pendingHost, password, selectedUsername);
+        // Like SSH, SFTP gets the credential by id: the backend decrypts it, so the vault
+        // password never enters the webview (FE-001 / RSEC-013).
+        startSftpSession(pendingHost, undefined, selectedUsername, credential.id);
       } else {
         // Pass credentialId only — the backend fetches the credential from the vault
         // by ID, so the password never needs to cross the IPC boundary for SSH sessions.
