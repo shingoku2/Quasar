@@ -450,6 +450,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 - Functional components with hooks only (no class components)
 - Global vault state via `VaultProvider` context (`src/components/vault/VaultProvider.tsx`)
 - Wrap the app (or risky subtrees) in `ErrorBoundary`
+- SSH host-key prompts are rendered once, app-wide, by `vault/HostKeyPromptHost` in `Layout` (FE-011: inside RemoteManager they were invisible from other views). Don't mount `useSshHostKeyVerification` a second time: each instance would queue its own copy of every prompt.
 - SSH credential selectors must filter out `ssh_key` type when the target is SFTP (backend only supports password auth for SFTP)
 
 ---

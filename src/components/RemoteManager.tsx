@@ -8,9 +8,7 @@ import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
 import CredentialSelector from './vault/CredentialSelector';
-import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
-import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
 import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
@@ -43,7 +41,6 @@ const RemoteManager: React.FC = () => {
   const processedQuickConnects = useRef(new Set<string>());
   
   // SSH host key verification
-  const { promptData, handleTrust, handleReject } = useSshHostKeyVerification();
 
   // Tailscale SSH peers can authenticate by tailnet identity alone, so the
   // manual credential prompt should not require a password for them.
@@ -408,18 +405,6 @@ const RemoteManager: React.FC = () => {
         />
       )}
 
-      {promptData && (
-        <SshHostKeyPrompt
-          host={promptData.host}
-          port={promptData.port}
-          fingerprint={promptData.fingerprint}
-          keyType={promptData.keyType}
-          isChanged={promptData.isChanged}
-          oldFingerprint={promptData.oldFingerprint}
-          onTrust={handleTrust}
-          onReject={handleReject}
-        />
-      )}
     </div>
   );
 };

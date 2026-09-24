@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 
 vi.mock('./vault/VaultProvider', () => ({
   useVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
+  useOptionalVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
   VaultProvider: ({ children }: any) => children,
 }));
 
@@ -46,5 +47,25 @@ describe('Layout Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Remote Hosts')).toBeInTheDocument();
     });
+  });
+
+  // FE-011: a host-key prompt must be visible whatever view is active.
+  it('shows a host-key prompt while another view is active', async () => {
+    const { listen } = await import('@tauri-apps/api/event');
+    let emitPrompt: ((e: { payload: unknown }) => void) | undefined;
+    vi.mocked(listen).mockImplementation(async (name: string, cb: unknown) => {
+      if (name === 'ssh-host-key-verification') emitPrompt = cb as typeof emitPrompt;
+      return () => {};
+    });
+    render(<Layout />);
+    await waitFor(() => expect(emitPrompt).toBeDefined());
+    // The dashboard is active, not the Remote view.
+    emitPrompt?.({
+      payload: {
+        requestId: 'r1', host: 'tunnel-host', port: 22, fingerprint: 'SHA256:abc',
+        keyType: 'ssh-ed25519', keyBytes: [1], status: 'Unknown', message: 'new',
+      },
+    });
+    expect((await screen.findAllByText(/tunnel-host/)).length).toBeGreaterThan(0);
   });
 });

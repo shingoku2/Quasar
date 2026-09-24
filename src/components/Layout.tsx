@@ -9,6 +9,7 @@ import SecurityView from './vault/SecurityView';
 import ScheduledTasksView from './ScheduledTasksView';
 import SettingsView from './SettingsView';
 import UpdateBanner from './UpdateBanner';
+import { HostKeyPromptHost } from './vault/HostKeyPromptHost';
 import { ViewVisibilityProvider } from '../hooks/useViewVisibility';
 
 const Layout: React.FC = () => {
@@ -66,6 +67,9 @@ const Layout: React.FC = () => {
             </ViewVisibilityProvider>
           </div>
         </main>
+
+        {/* Above every view, so a prompt raised from any view is visible (FE-011). */}
+        <HostKeyPromptHost />
 
         {/* Status Bar */}
         <footer className="h-7 bg-bg-sidebar border-t border-border flex items-center justify-between px-4 text-[11px] text-gray-500 shrink-0">
