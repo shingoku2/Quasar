@@ -101,7 +101,7 @@ fn add_scheduled_tasks_sftp_columns_if_missing(tx: &Transaction) -> Result<(), H
     Ok(())
 }
 
-// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014)
+// Define migrations (001 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015)
 // The rusqlite_migration crate tracks applied migrations in user_version.
 static MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
     Migrations::new(vec![
@@ -127,6 +127,7 @@ static MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
         M::up(include_str!(
             "../migrations/014_scheduled_tasks_cascade.sql"
         )),
+        M::up(include_str!("../migrations/015_alert_rules.sql")),
     ])
 });
 
@@ -135,7 +136,7 @@ use once_cell::sync::Lazy;
 /// `user_version` after every migration in `MIGRATIONS` has run (one per entry). Kept in
 /// step by `migrations_apply_to_fresh_and_current_databases`. `import_database` rejects
 /// anything newer, which would otherwise fail `to_latest` and brick startup (RUST-004).
-const LATEST_SCHEMA_VERSION: i64 = 13;
+const LATEST_SCHEMA_VERSION: i64 = 14;
 
 /// Database filename (renamed from titan.db for Quasar).
 const DB_FILENAME: &str = "quasar.db";
@@ -1241,13 +1242,19 @@ fn get_system_metrics(
 
 
 #[tauri::command]
-fn add_alert_rule(state: State<'_, Arc<monitoring::AlertEngine>>, rule: monitoring::AlertRule) {
-    state.add_rule(rule);
+fn add_alert_rule(
+    state: State<'_, Arc<monitoring::AlertEngine>>,
+    rule: monitoring::AlertRule,
+) -> Result<(), String> {
+    state.add_rule(rule)
 }
 
 #[tauri::command]
-fn remove_alert_rule(state: State<'_, Arc<monitoring::AlertEngine>>, rule_id: String) {
-    state.remove_rule(&rule_id);
+fn remove_alert_rule(
+    state: State<'_, Arc<monitoring::AlertEngine>>,
+    rule_id: String,
+) -> Result<(), String> {
+    state.remove_rule(&rule_id)
 }
 
 #[tauri::command]
@@ -2238,6 +2245,11 @@ pub fn run() {
                 error!("Failed to set Quasar database marker: {}", e);
                 e
             })?;
+            // Alert rules are persisted (RUST-002); load them now that the table exists.
+            match app.state::<Arc<monitoring::AlertEngine>>().attach_store(db_path_str.clone()) {
+                Ok(n) => log::info!("Loaded {} alert rule(s)", n),
+                Err(e) => error!("Failed to load alert rules: {}", e),
+            }
 
             // Start the background monitoring task using Tauri's async runtime
             let app_handle = app.handle().clone();
@@ -2748,7 +2760,7 @@ mod saved_host_tests {
         let version = conn
             .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
             .unwrap();
-        assert_eq!(version, 13);
+        assert_eq!(version, 14);
         assert_eq!(version, LATEST_SCHEMA_VERSION, "update LATEST_SCHEMA_VERSION with MIGRATIONS");
 
         MIGRATIONS.to_latest(&mut conn).unwrap();

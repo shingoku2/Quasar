@@ -88,7 +88,8 @@ fn default_cooldown() -> u64 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-// Variant names are serialized into alert_rules.metric — renaming would break stored rules.
+// Variant names are serialized into the stored rule JSON (alert_rules.rule) — renaming would
+// break stored rules.
 #[allow(clippy::enum_variant_names)]
 pub enum MetricType {
     CpuUsage,
@@ -430,7 +431,26 @@ impl MetricsCollector {
 
 use std::collections::HashMap;
 
+/// Longest cooldown a rule may have (one day).
+const MAX_COOLDOWN_SECONDS: u64 = 86_400;
+
+/// Rejects rules the engine can't evaluate meaningfully. The metrics are percentages.
+pub fn validate_rule(rule: &AlertRule) -> Result<(), String> {
+    if rule.id.trim().is_empty() || rule.id.len() > 64 {
+        return Err("Alert rule id must be 1-64 characters".to_string());
+    }
+    if !rule.threshold.is_finite() || !(0.0..=100.0).contains(&rule.threshold) {
+        return Err("Alert threshold must be a percentage between 0 and 100".to_string());
+    }
+    if rule.cooldown_seconds > MAX_COOLDOWN_SECONDS {
+        return Err("Alert cooldown can be at most one day".to_string());
+    }
+    Ok(())
+}
+
 pub struct AlertEngine {
+    /// Database the rules are persisted to, once attached (RUST-002). Unset in unit tests.
+    store: Mutex<Option<String>>,
     rules: Arc<Mutex<Vec<AlertRule>>>,
     active_alerts: Arc<Mutex<Vec<Alert>>>,
     cooldown_tracker: Arc<Mutex<HashMap<String, Instant>>>,
@@ -440,6 +460,7 @@ pub struct AlertEngine {
 impl AlertEngine {
     pub fn new() -> Self {
         Self {
+            store: Mutex::new(None),
             rules: Arc::new(Mutex::new(Vec::new())),
             active_alerts: Arc::new(Mutex::new(Vec::new())),
             cooldown_tracker: Arc::new(Mutex::new(HashMap::new())),
@@ -447,7 +468,49 @@ impl AlertEngine {
         }
     }
 
-    pub fn add_rule(&self, rule: AlertRule) {
+    /// Loads the persisted rules from `db_path` and persists every later change there.
+    /// Rules used to be in memory only, so every restart silently dropped them (RUST-002).
+    /// A stored rule that no longer parses is skipped (and logged), not fatal.
+    pub fn attach_store(&self, db_path: String) -> Result<usize, String> {
+        let conn = crate::db::open_connection(&db_path)?;
+        let mut stmt = conn
+            .prepare("SELECT id, rule FROM alert_rules ORDER BY rowid")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?;
+        let mut loaded = Vec::new();
+        for row in rows {
+            let (id, json) = row.map_err(|e| e.to_string())?;
+            match serde_json::from_str::<AlertRule>(&json) {
+                Ok(rule) => loaded.push(rule),
+                Err(e) => log::error!("Skipping unreadable alert rule {}: {}", id, e),
+            }
+        }
+        let count = loaded.len();
+        *self.rules.lock().unwrap_or_else(|p| p.into_inner()) = loaded;
+        *self.store.lock().unwrap_or_else(|p| p.into_inner()) = Some(db_path);
+        Ok(count)
+    }
+
+    fn store_path(&self) -> Option<String> {
+        self.store.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    }
+
+    /// Adds or replaces a rule. It is persisted before the in-memory set changes, so a
+    /// failed write never leaves a rule that would vanish on restart.
+    pub fn add_rule(&self, rule: AlertRule) -> Result<(), String> {
+        validate_rule(&rule)?;
+        if let Some(path) = self.store_path() {
+            let json = serde_json::to_string(&rule).map_err(|e| e.to_string())?;
+            let conn = crate::db::open_connection(&path)?;
+            conn.execute(
+                "INSERT INTO alert_rules (id, rule, updated_at) VALUES (?1, ?2, strftime('%s','now'))
+                 ON CONFLICT(id) DO UPDATE SET rule = excluded.rule, updated_at = excluded.updated_at",
+                rusqlite::params![rule.id, json],
+            )
+            .map_err(|e| format!("Failed to save alert rule: {}", e))?;
+        }
         // Recover from poison so a single panicked holder doesn't cascade.
         let mut rules = self
             .rules
@@ -455,14 +518,21 @@ impl AlertEngine {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         rules.retain(|r| r.id != rule.id);
         rules.push(rule);
+        Ok(())
     }
 
-    pub fn remove_rule(&self, rule_id: &str) {
+    pub fn remove_rule(&self, rule_id: &str) -> Result<(), String> {
+        if let Some(path) = self.store_path() {
+            let conn = crate::db::open_connection(&path)?;
+            conn.execute("DELETE FROM alert_rules WHERE id = ?1", [rule_id])
+                .map_err(|e| format!("Failed to delete alert rule: {}", e))?;
+        }
         let mut rules = self
             .rules
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         rules.retain(|r| r.id != rule_id);
+        Ok(())
     }
 
     pub fn get_rules(&self) -> Vec<AlertRule> {
@@ -975,6 +1045,56 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
 mod tests {
     use super::*;
 
+    fn percent_rule(id: &str, threshold: f64) -> AlertRule {
+        AlertRule {
+            id: id.to_string(),
+            metric: MetricType::CpuUsage,
+            operator: ComparisonOperator::GreaterThan,
+            threshold,
+            severity: AlertSeverity::Warning,
+            enabled: true,
+            cooldown_seconds: 60,
+        }
+    }
+
+    /// RUST-002: rules survive a restart (a fresh engine attached to the same database),
+    /// and removals are persisted too.
+    #[test]
+    fn alert_rules_persist_across_restart() {
+        let path = std::env::temp_dir().join(format!("quasar-alerts-{}.db", uuid::Uuid::new_v4()));
+        let path_str = path.to_str().unwrap().to_string();
+        let mut conn = crate::db::open_connection(&path_str).unwrap();
+        crate::MIGRATIONS.to_latest(&mut conn).unwrap();
+        drop(conn);
+
+        let engine = AlertEngine::new();
+        assert_eq!(engine.attach_store(path_str.clone()).unwrap(), 0);
+        engine.add_rule(percent_rule("cpu-hot", 90.0)).unwrap();
+        engine.add_rule(percent_rule("cpu-warm", 70.0)).unwrap();
+        engine.add_rule(percent_rule("cpu-hot", 95.0)).unwrap(); // update in place
+        engine.remove_rule("cpu-warm").unwrap();
+
+        let restarted = AlertEngine::new();
+        assert_eq!(restarted.attach_store(path_str).unwrap(), 1);
+        let rules = restarted.get_rules();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].id, "cpu-hot");
+        assert_eq!(rules[0].threshold, 95.0);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn invalid_alert_rules_are_rejected() {
+        let engine = AlertEngine::new();
+        assert!(engine.add_rule(percent_rule("", 50.0)).is_err());
+        assert!(engine.add_rule(percent_rule("x", f64::NAN)).is_err());
+        assert!(engine.add_rule(percent_rule("x", 150.0)).is_err());
+        let mut slow = percent_rule("x", 50.0);
+        slow.cooldown_seconds = MAX_COOLDOWN_SECONDS + 1;
+        assert!(engine.add_rule(slow).is_err());
+        assert!(engine.get_rules().is_empty());
+    }
+
     #[test]
     fn test_metrics_collector_creation() {
         let collector = MetricsCollector::new();
@@ -1120,7 +1240,7 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule.clone());
+        engine.add_rule(rule.clone()).unwrap();
 
         let rules = engine.get_rules();
         assert_eq!(rules.len(), 1);
@@ -1139,7 +1259,7 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule);
+        engine.add_rule(rule).unwrap();
 
         let metrics = SystemMetrics {
             cpu_usage_percent: 75.0,
@@ -1190,7 +1310,7 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule);
+        engine.add_rule(rule).unwrap();
 
         let metrics = SystemMetrics {
             cpu_usage_percent: 50.0,
@@ -1240,7 +1360,7 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule);
+        engine.add_rule(rule).unwrap();
 
         let metrics = SystemMetrics {
             cpu_usage_percent: 0.0,

@@ -15,6 +15,7 @@ The application uses a single SQLite database (`quasar.db`) owned and migrated b
 | `host_services` | Services/ports per discovered host. |
 | `scheduled_tasks` | Cron-scheduled tasks (SSH command or SFTP upload/download). |
 | Monitoring/alert tables | As defined in migrations 004 and 007. |
+| `alert_rules` | Migration 015. `id` (TEXT PK), `rule` (JSON of `monitoring::AlertRule`), `updated_at`. Loaded into `AlertEngine` at startup; written on every add/update/remove. |
 
 ## Consolidation notes
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
+import AlertRules from './dashboard/AlertRules';
 import { useVisiblePolling } from '../hooks/useViewVisibility';
 
 interface ProcessInfo {
@@ -378,6 +379,10 @@ const MonitoringView: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Alert rules (FE-003: the editor existed but was never mounted, so no rule could
+          be created). Rules evaluate this machine's CPU/memory/disk metrics. */}
+      <AlertRules />
 
       {/* Top Processes */}
       {metrics && (metrics.top_cpu_processes.length > 0 || metrics.top_memory_processes.length > 0) && (

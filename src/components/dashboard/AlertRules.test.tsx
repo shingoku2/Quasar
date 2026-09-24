@@ -85,4 +85,20 @@ describe('AlertRules', () => {
       expect(vi.mocked(invoke)).toHaveBeenCalledWith('remove_alert_rule', { ruleId: 'rule-1' });
     });
   });
+
+  // RUST-002: the backend validates rules; a rejected rule is removed and the reason shown.
+  it('shows the backend validation error when a rule is rejected', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'add_alert_rule') throw 'Alert threshold must be a percentage between 0 and 100';
+      return [];
+    });
+    render(<AlertRules />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add Rule/i }));
+    await waitFor(() => screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('percentage between 0 and 100');
+  });
 });

@@ -69,6 +69,12 @@ describe('MonitoringView', () => {
     });
   });
 
+  // FE-003: the alert rules editor is reachable (it used to be mounted nowhere).
+  it('shows the alert rules editor', async () => {
+    render(<MonitoringView />);
+    expect(await screen.findByText('Alert Rules')).toBeInTheDocument();
+  });
+
   it('renders disk space section', async () => {
     render(<MonitoringView />);
     await waitFor(() => {
