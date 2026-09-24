@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Settings, Lock, Clock, Shield, Save, AlertTriangle } from 'lucide-react';
 import { getErrorMessage } from '../../lib/utils';
+import { useOptionalVault } from './VaultProvider';
 
 interface VaultSettings {
   auto_lock_timeout_minutes: number;
@@ -9,6 +10,7 @@ interface VaultSettings {
 }
 
 const VaultSettings: React.FC = () => {
+  const vault = useOptionalVault();
   const [settings, setSettings] = useState<VaultSettings>({
     auto_lock_timeout_minutes: 15,
     vault_initialized: false,
@@ -58,7 +60,13 @@ const VaultSettings: React.FC = () => {
 
   const handleLockVault = async () => {
     try {
-      await invoke('lock_vault');
+      // Through the context when there is one, so the sidebar and unlock dialog follow.
+      // Calling the command directly left the rest of the UI showing "Unlocked" (FE-008).
+      if (vault) {
+        await vault.lockVault();
+      } else {
+        await invoke('lock_vault');
+      }
       setSuccessMessage('Vault locked successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {

@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VaultProvider, useVault } from './VaultProvider';
+import VaultSettings from './VaultSettings';
 import { invoke } from '@tauri-apps/api/core';
 import '@testing-library/jest-dom';
 
@@ -83,6 +84,30 @@ describe('VaultProvider', () => {
     await waitFor(() => {
       expect(screen.getByText('App Content')).toBeInTheDocument();
     });
+  });
+
+  // FE-008: "Lock Vault Now" in settings must update the shared vault state (the sidebar
+  // kept showing "Unlocked") and bring up the unlock dialog.
+  it('locking from Vault Settings updates the shared vault state', async () => {
+    const LockState = () => <span>{useVault().isVaultLocked ? 'state:locked' : 'state:unlocked'}</span>;
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'is_vault_initialized') return true;
+      if (cmd === 'is_vault_locked') return false;
+      if (cmd === 'get_vault_settings') return { auto_lock_timeout_minutes: 15, vault_initialized: true };
+      return undefined;
+    });
+
+    render(
+      <VaultProvider>
+        <LockState />
+        <VaultSettings />
+      </VaultProvider>
+    );
+    await waitFor(() => expect(screen.getByText('state:unlocked')).toBeInTheDocument());
+    fireEvent.click(await screen.findByRole('button', { name: /Lock Vault Now/i }));
+
+    await waitFor(() => expect(screen.getByTestId('vault-unlock-dialog')).toBeInTheDocument());
+    expect(mockInvoke).toHaveBeenCalledWith('lock_vault');
   });
 
   it('shows error or fallback state when vault check fails', async () => {

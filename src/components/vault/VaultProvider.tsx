@@ -22,6 +22,9 @@ interface VaultContextType {
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
+/** Like `useVault`, but `undefined` outside a `VaultProvider` (e.g. isolated tests). */
+export const useOptionalVault = () => useContext(VaultContext);
+
 export const useVault = () => {
   const context = useContext(VaultContext);
   if (!context) {
@@ -125,14 +128,11 @@ export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
     setIsVaultLocked(false);
   };
 
+  /** Locks the vault and updates every consumer. Rejects if the backend lock fails. */
   const lockVault = useCallback(async () => {
-    try {
-      await invoke('lock_vault');
-      setIsVaultLocked(true);
-      setShowUnlockDialog(true);
-    } catch (error) {
-      console.error('Failed to lock vault:', error);
-    }
+    await invoke('lock_vault');
+    setIsVaultLocked(true);
+    setShowUnlockDialog(true);
   }, []);
 
   const unlockVault = useCallback(() => {
