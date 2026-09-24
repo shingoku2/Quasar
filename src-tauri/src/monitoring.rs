@@ -15,10 +15,12 @@ pub struct SystemMetrics {
     pub memory_used_mb: u64,
     pub memory_total_mb: u64,
     pub memory_usage_percent: f32,
-    pub disk_read_mb: u64,
-    pub disk_write_mb: u64,
-    pub network_rx_mb: u64,
-    pub network_tx_mb: u64,
+    /// Rates in MB/s, fractional: integer MB/s read as 0 for anything under 1 MB/s, so the
+    /// disk and network charts were flat on a typical desktop (FE-017).
+    pub disk_read_mb: f64,
+    pub disk_write_mb: f64,
+    pub network_rx_mb: f64,
+    pub network_tx_mb: f64,
     pub timestamp: u64,
 
     // System info
@@ -69,6 +71,11 @@ pub struct DiskInfo {
     pub used_gb: u64,
     pub free_gb: u64,
     pub usage_percent: f32,
+}
+
+/// Bytes per second to MB/s, keeping the fraction.
+fn bytes_to_mb(bytes_per_sec: u64) -> f64 {
+    bytes_per_sec as f64 / (1024.0 * 1024.0)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -263,10 +270,10 @@ impl MetricsCollector {
             memory_used_mb: memory_used / 1024 / 1024,
             memory_total_mb: memory_total / 1024 / 1024,
             memory_usage_percent,
-            disk_read_mb: disk_read_rate / 1024 / 1024,
-            disk_write_mb: disk_write_rate / 1024 / 1024,
-            network_rx_mb: net_rx_rate / 1024 / 1024,
-            network_tx_mb: net_tx_rate / 1024 / 1024,
+            disk_read_mb: bytes_to_mb(disk_read_rate),
+            disk_write_mb: bytes_to_mb(disk_write_rate),
+            network_rx_mb: bytes_to_mb(net_rx_rate),
+            network_tx_mb: bytes_to_mb(net_tx_rate),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -748,8 +755,8 @@ impl MetricsStore {
                 metrics.cpu_usage_percent,
                 metrics.memory_usage_percent,
                 metrics.disk_usage_percent,
-                metrics.network_rx_mb as i64,
-                metrics.network_tx_mb as i64,
+                metrics.network_rx_mb,
+                metrics.network_tx_mb,
                 metrics.network_packets_rx as i64,
                 metrics.network_packets_tx as i64,
                 metrics.load_average_1m,
@@ -804,8 +811,8 @@ impl MetricsStore {
                     cpu_usage_percent: row.get(1)?,
                     memory_usage_percent: row.get(2)?,
                     disk_usage_percent: row.get(3)?,
-                    network_rx_mb: row.get::<_, i64>(4)? as u64,
-                    network_tx_mb: row.get::<_, i64>(5)? as u64,
+                    network_rx_mb: row.get::<_, f64>(4)?,
+                    network_tx_mb: row.get::<_, f64>(5)?,
                     network_packets_rx: row.get::<_, i64>(6)? as u64,
                     network_packets_tx: row.get::<_, i64>(7)? as u64,
                     load_average_1m: row.get(8)?,
@@ -816,8 +823,8 @@ impl MetricsStore {
                     // Defaults for fields not stored in main table
                     memory_used_mb: 0,
                     memory_total_mb: 0,
-                    disk_read_mb: 0,
-                    disk_write_mb: 0,
+                    disk_read_mb: 0.0,
+                    disk_write_mb: 0.0,
                     boot_time: metadata["boot_time"].as_u64().unwrap_or(0),
                     cpu_count: metadata["cpu_count"].as_u64().unwrap_or(0) as usize,
                     cpu_per_core: metadata["cpu_per_core"]
@@ -1045,6 +1052,14 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
 mod tests {
     use super::*;
 
+    /// FE-017: sub-MB/s rates keep their fraction instead of truncating to 0.
+    #[test]
+    fn io_rates_keep_fractions() {
+        assert_eq!(bytes_to_mb(512 * 1024), 0.5);
+        assert!(bytes_to_mb(10_000) > 0.0);
+        assert_eq!(bytes_to_mb(3 * 1024 * 1024), 3.0);
+    }
+
     fn percent_rule(id: &str, threshold: f64) -> AlertRule {
         AlertRule {
             id: id.to_string(),
@@ -1143,10 +1158,10 @@ mod tests {
             memory_used_mb: 3192,
             memory_total_mb: 15909,
             memory_usage_percent: 20.0,
-            disk_read_mb: 1,
-            disk_write_mb: 2,
-            network_rx_mb: 3,
-            network_tx_mb: 4,
+            disk_read_mb: 1.0,
+            disk_write_mb: 2.0,
+            network_rx_mb: 3.0,
+            network_tx_mb: 4.0,
             timestamp: 1_700_000_000,
             uptime_seconds: 944_918,
             load_average_1m: 0.87,
@@ -1266,10 +1281,10 @@ mod tests {
             memory_used_mb: 0,
             memory_total_mb: 0,
             memory_usage_percent: 0.0,
-            disk_read_mb: 0,
-            disk_write_mb: 0,
-            network_rx_mb: 0,
-            network_tx_mb: 0,
+            disk_read_mb: 0.0,
+            disk_write_mb: 0.0,
+            network_rx_mb: 0.0,
+            network_tx_mb: 0.0,
             timestamp: 1234567890,
             uptime_seconds: 0,
             load_average_1m: 0.0,
@@ -1317,10 +1332,10 @@ mod tests {
             memory_used_mb: 0,
             memory_total_mb: 0,
             memory_usage_percent: 0.0,
-            disk_read_mb: 0,
-            disk_write_mb: 0,
-            network_rx_mb: 0,
-            network_tx_mb: 0,
+            disk_read_mb: 0.0,
+            disk_write_mb: 0.0,
+            network_rx_mb: 0.0,
+            network_tx_mb: 0.0,
             timestamp: 1234567890,
             uptime_seconds: 0,
             load_average_1m: 0.0,
@@ -1367,10 +1382,10 @@ mod tests {
             memory_used_mb: 100,
             memory_total_mb: 100,
             memory_usage_percent: 100.0,
-            disk_read_mb: 0,
-            disk_write_mb: 0,
-            network_rx_mb: 0,
-            network_tx_mb: 0,
+            disk_read_mb: 0.0,
+            disk_write_mb: 0.0,
+            network_rx_mb: 0.0,
+            network_tx_mb: 0.0,
             timestamp: 1234567890,
             uptime_seconds: 0,
             load_average_1m: 0.0,

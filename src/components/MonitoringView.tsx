@@ -108,6 +108,11 @@ const timeFormatOptions: Intl.DateTimeFormatOptions = {
  * York -> Lima in winter). Metrics arrive at most about once a second, so the
  * per-call formatter cost is negligible.
  */
+/** MB/s with enough precision that sub-MB/s rates don't read as 0 (FE-017). */
+export function formatRateMb(mb: number): string {
+  return mb >= 10 ? mb.toFixed(0) : mb.toFixed(2);
+}
+
 export const formatMetricTime = (date: Date): string =>
   date.toLocaleTimeString('en-US', timeFormatOptions);
 
@@ -332,13 +337,13 @@ const MonitoringView: React.FC = () => {
         />
         <MetricChartCard 
           title="Disk I/O Traffic" 
-          value={metrics?.disk_read_mb !== undefined && metrics?.disk_write_mb !== undefined ? `${(metrics.disk_read_mb + metrics.disk_write_mb).toFixed(0)} MB/s` : '-- MB/s'} 
+          value={metrics?.disk_read_mb !== undefined && metrics?.disk_write_mb !== undefined ? `${formatRateMb(metrics.disk_read_mb + metrics.disk_write_mb)} MB/s` : '-- MB/s'} 
           data={diskData} 
           color="#f59e0b" 
         />
         <MetricChartCard 
           title="Network Traffic" 
-          value={metrics?.network_rx_mb !== undefined && metrics?.network_tx_mb !== undefined ? `${(metrics.network_rx_mb + metrics.network_tx_mb).toFixed(2)} MB/s` : '-- MB/s'} 
+          value={metrics?.network_rx_mb !== undefined && metrics?.network_tx_mb !== undefined ? `${formatRateMb(metrics.network_rx_mb + metrics.network_tx_mb)} MB/s` : '-- MB/s'} 
           data={netData} 
           color="#8b5cf6" 
         />
