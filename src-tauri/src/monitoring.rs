@@ -700,6 +700,7 @@ impl MetricsStore {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn get_metrics_range(
         &self,
         start: u64,
@@ -837,45 +838,6 @@ impl MetricsStore {
         Ok(())
     }
 
-    pub fn get_alert_history(&self, start: u64, end: u64) -> Result<Vec<Alert>, String> {
-        let mut conn_guard = self.get_connection()?;
-        let conn = conn_guard
-            .as_mut()
-            .ok_or_else(|| "Database connection not available".to_string())?;
-
-        let mut stmt = conn
-            .prepare(
-                "SELECT alert_id, rule_id, message, severity, triggered_at, acknowledged_at
-             FROM alert_history
-             WHERE triggered_at >= ?1 AND triggered_at <= ?2
-             ORDER BY triggered_at DESC",
-            )
-            .map_err(|e| format!("Failed to prepare alert history query: {}", e))?;
-
-        let alerts_iter = stmt
-            .query_map(rusqlite::params![start as i64, end as i64], |row| {
-                let severity_str: String = row.get(3)?;
-                let severity = match severity_str.as_str() {
-                    "Critical" => AlertSeverity::Critical,
-                    "Warning" => AlertSeverity::Warning,
-                    _ => AlertSeverity::Info,
-                };
-
-                Ok(Alert {
-                    id: row.get(0)?,
-                    rule_id: row.get(1)?,
-                    message: row.get(2)?,
-                    severity,
-                    timestamp: row.get::<_, i64>(4)? as u64,
-                    acknowledged: row.get::<_, Option<i64>>(5)?.is_some(),
-                })
-            })
-            .map_err(|e| format!("Failed to query alerts: {}", e))?;
-
-        alerts_iter
-            .map(|alert| alert.map_err(|e| format!("Failed to parse alert: {}", e)))
-            .collect()
-    }
 }
 
 /// How long security audit entries are kept before the daily cleanup prunes them.

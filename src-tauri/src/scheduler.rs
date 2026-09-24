@@ -187,6 +187,7 @@ pub fn list_scheduled_tasks(conn: &rusqlite::Connection) -> Result<Vec<Scheduled
 }
 
 /// Fetch a single task by id.
+#[cfg(test)]
 pub fn get_scheduled_task(
     conn: &rusqlite::Connection,
     id: &str,

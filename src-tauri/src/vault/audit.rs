@@ -110,6 +110,7 @@ impl AuditLogManager {
         Ok(logs)
     }
 
+    #[cfg(test)]
     pub fn get_audit_log_count(&self, filter: Option<AuditLogFilter>) -> Result<i64, String> {
         let conn = db::open_connection(&self.db_path)?;
 

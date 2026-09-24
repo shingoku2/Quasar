@@ -143,6 +143,7 @@ impl HostTracker {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn get_host(&self, ip: &str) -> Result<Option<DiscoveredHost>, String> {
         let conn = self.open_connection()?;
 
@@ -245,46 +246,6 @@ impl HostTracker {
         Ok(hosts_with_services)
     }
 
-    pub fn search_hosts(&self, query: &str) -> Result<Vec<DiscoveredHost>, String> {
-        let conn = self.open_connection()?;
-
-        let search_pattern = format!("%{}%", query);
-
-        let mut stmt = conn.prepare(
-            "SELECT id, ip, hostname, mac_address, device_type, vendor, first_seen, last_seen, scan_count
-             FROM discovered_hosts
-             WHERE ip LIKE ?1 OR hostname LIKE ?1 OR device_type LIKE ?1
-             ORDER BY last_seen DESC"
-        ).map_err(|e| format!("Failed to prepare statement: {}", e))?;
-
-        let hosts = stmt
-            .query_map([&search_pattern], |row| {
-                Ok(DiscoveredHost {
-                    id: row.get(0)?,
-                    ip: row.get(1)?,
-                    hostname: row.get(2)?,
-                    mac_address: row.get(3)?,
-                    device_type: row.get(4)?,
-                    vendor: row.get(5)?,
-                    first_seen: row.get(6)?,
-                    last_seen: row.get(7)?,
-                    scan_count: row.get(8)?,
-                    services: Vec::new(),
-                })
-            })
-            .map_err(|e| format!("Failed to query hosts: {}", e))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("Failed to collect hosts: {}", e))?;
-
-        // Load services for each host
-        let mut hosts_with_services = Vec::new();
-        for mut host in hosts {
-            host.services = self.get_host_services(&conn, &host.id)?;
-            hosts_with_services.push(host);
-        }
-
-        Ok(hosts_with_services)
-    }
 
     pub fn delete_host(&self, ip: &str) -> Result<(), String> {
         let conn = self.open_connection()?;
@@ -410,21 +371,6 @@ mod tests {
         cleanup(&db_path);
     }
 
-    #[test]
-    fn test_search_hosts() {
-        let (tracker, db_path) = setup_test_tracker();
-
-        tracker
-            .save_host(&make_scan_result("192.168.1.10"))
-            .unwrap();
-        tracker.save_host(&make_scan_result("10.0.0.1")).unwrap();
-
-        let results = tracker.search_hosts("192.168").unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].ip, "192.168.1.10");
-
-        cleanup(&db_path);
-    }
 
     #[test]
     fn test_delete_host() {

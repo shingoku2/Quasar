@@ -348,16 +348,6 @@ fn close_ssh_tunnel(
     }
 }
 
-#[tauri::command]
-async fn launch_ssh_external(address: String, username: Option<String>) -> Result<(), String> {
-    if validate_ip(&address).is_err() && validate_hostname(&address).is_err() {
-        return Err("Invalid host address format".to_string());
-    }
-    if let Some(ref u) = username {
-        validate_username(u)?;
-    }
-    launcher::launch_ssh(&address, username.as_deref()).map_err(|e| sanitize_error(e, "ssh"))
-}
 
 #[tauri::command]
 async fn connect_rdp(address: String) -> Result<(), String> {
@@ -502,26 +492,7 @@ fn get_discovered_hosts(
         .map_err(|e| sanitize_error(e, "database"))
 }
 
-#[tauri::command]
-fn get_host_details(
-    host_tracker: State<'_, host_tracker::HostTracker>,
-    ip: String,
-) -> Result<Option<host_tracker::DiscoveredHost>, String> {
-    validate_ip(&ip)?;
-    host_tracker
-        .get_host(&ip)
-        .map_err(|e| sanitize_error(e, "database"))
-}
 
-#[tauri::command]
-fn search_discovered_hosts(
-    host_tracker: State<'_, host_tracker::HostTracker>,
-    query: String,
-) -> Result<Vec<host_tracker::DiscoveredHost>, String> {
-    host_tracker
-        .search_hosts(&query)
-        .map_err(|e| sanitize_error(e, "database"))
-}
 
 #[tauri::command]
 fn delete_discovered_host(
@@ -816,14 +787,6 @@ async fn list_scheduled_tasks(app: AppHandle) -> Result<Vec<scheduler::Scheduled
     scheduler::list_scheduled_tasks(&conn).map_err(|e| sanitize_error(e, "scheduled tasks"))
 }
 
-#[tauri::command]
-async fn get_scheduled_task(
-    app: AppHandle,
-    id: String,
-) -> Result<Option<scheduler::ScheduledTask>, String> {
-    let conn = scheduled_tasks_conn(&app)?;
-    scheduler::get_scheduled_task(&conn, &id).map_err(|e| sanitize_error(e, "scheduled task"))
-}
 
 #[tauri::command]
 async fn add_scheduled_task(
@@ -1118,52 +1081,7 @@ fn get_system_metrics(
     Ok(collector.collect())
 }
 
-#[tauri::command]
-async fn get_metrics_history(
-    start: u64,
-    end: u64,
-    host: Option<String>,
-    app: AppHandle,
-) -> Result<Vec<monitoring::SystemMetrics>, String> {
-    let app_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
-    let db_path = app_dir.join(DB_FILENAME);
-    let db_path_str = db_path
-        .to_str()
-        .ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?
-        .to_string();
 
-    let store = monitoring::MetricsStore::new(db_path_str, 30)
-        .map_err(|e| sanitize_error(e, "monitoring"))?;
-    store
-        .get_metrics_range(start, end, &host.unwrap_or_else(|| "localhost".to_string()))
-        .map_err(|e| sanitize_error(e, "monitoring"))
-}
-
-#[tauri::command]
-async fn get_alert_history(
-    start: u64,
-    end: u64,
-    app: AppHandle,
-) -> Result<Vec<monitoring::Alert>, String> {
-    let app_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
-    let db_path = app_dir.join(DB_FILENAME);
-    let db_path_str = db_path
-        .to_str()
-        .ok_or_else(|| sanitize_error("Invalid database path".to_string(), "monitoring"))?
-        .to_string();
-
-    let store = monitoring::MetricsStore::new(db_path_str, 30)
-        .map_err(|e| sanitize_error(e, "monitoring"))?;
-    store
-        .get_alert_history(start, end)
-        .map_err(|e| sanitize_error(e, "monitoring"))
-}
 
 #[tauri::command]
 fn add_alert_rule(state: State<'_, Arc<monitoring::AlertEngine>>, rule: monitoring::AlertRule) {
@@ -1540,15 +1458,6 @@ async fn get_audit_logs(
         .map_err(|e| sanitize_error(e, "database"))
 }
 
-#[tauri::command]
-async fn get_audit_log_count(
-    audit_manager: State<'_, vault::AuditLogManager>,
-    filter: Option<vault::AuditLogFilter>,
-) -> Result<i64, String> {
-    audit_manager
-        .get_audit_log_count(filter)
-        .map_err(|e| sanitize_error(e, "database"))
-}
 
 // SFTP commands
 #[tauri::command]
@@ -1632,24 +1541,6 @@ async fn sftp_list_directory(
         .map_err(|e| sanitize_error(e, "sftp"))
 }
 
-#[tauri::command]
-async fn sftp_remote_exists(
-    app_handle: AppHandle,
-    host: String,
-    port: u16,
-    username: String,
-    password: String,
-    remote_path: String,
-) -> Result<bool, String> {
-    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
-        return Err("Invalid host format".to_string());
-    }
-    validate_port(port)?;
-    validate_username(&username)?;
-    sftp::remote_exists(app_handle, &host, port, &username, &password, &remote_path)
-        .await
-        .map_err(|e| sanitize_error(e, "sftp"))
-}
 
 /// App info for Settings (About, Data tabs).
 #[derive(serde::Serialize)]
@@ -2003,9 +1894,6 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
-            get_metrics_history,
-            get_alert_history,
-            launch_ssh_external,
             connect_rdp,
             get_tailscale_status,
             start_discovery,
@@ -2021,8 +1909,6 @@ pub fn run() {
             get_scan_progress,
             is_scanning,
             get_discovered_hosts,
-            get_host_details,
-            search_discovered_hosts,
             delete_discovered_host,
             get_saved_hosts,
             upsert_saved_host,
@@ -2058,13 +1944,10 @@ pub fn run() {
             remove_ssh_host_key,
             update_ssh_host_trust,
             get_audit_logs,
-            get_audit_log_count,
             sftp_upload_file,
             sftp_download_file,
             sftp_list_directory,
-            sftp_remote_exists,
             list_scheduled_tasks,
-            get_scheduled_task,
             add_scheduled_task,
             update_scheduled_task,
             remove_scheduled_task,
@@ -2314,6 +2197,28 @@ mod saved_host_tests {
         assert!(err.contains("newer version"), "{}", err);
         assert!(!vault.is_locked().await);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// IPC-007 / IPC-008: the shipped capability and CSP stay least-privilege.
+    #[test]
+    fn capability_and_csp_stay_least_privilege() {
+        let cap: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/default.json")).unwrap();
+        let perms: Vec<String> = cap["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p.as_str().map(str::to_string).unwrap_or_else(|| p["identifier"].as_str().unwrap().to_string()))
+            .collect();
+        for banned in ["core:default", "core:event:default", "core:event:allow-emit", "core:event:allow-emit-to", "opener:default", "opener:allow-reveal-item-in-dir", "dialog:default"] {
+            assert!(!perms.iter().any(|p| p == banned), "capability must not grant {}", banned);
+        }
+
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let csp = conf["app"]["security"]["csp"].as_str().unwrap();
+        assert!(!csp.contains("localhost:*"), "production CSP must not allow arbitrary localhost ports: {}", csp);
+        assert!(csp.contains("ipc:"), "production CSP must allow Tauri IPC: {}", csp);
     }
 
     #[test]
