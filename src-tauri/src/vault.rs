@@ -1,14 +1,11 @@
 pub mod audit;
 pub mod credentials;
+pub mod kdf;
 pub mod ssh_keys;
 
 use crate::crypto;
 use crate::db;
-use argon2::password_hash::Salt;
-use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2, Params, Version,
-};
+use rusqlite::{OptionalExtension, TransactionBehavior};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -90,6 +87,15 @@ impl Drop for MasterKey {
     }
 }
 
+/// How the master password is verified, as stored in `vault_settings` (see vault/kdf.rs).
+enum StoredKdf {
+    /// `kdf_version = 2`: HKDF-separated verifier; the encryption key is never stored.
+    V2 { salt_b64: String, verifier_hex: String },
+    /// No `kdf_version` row: legacy PHC hash, which equals the encryption key (RSEC-001).
+    /// Migrated to v2 on the next successful unlock.
+    Legacy { salt_b64: String, phc: String },
+}
+
 impl VaultState {
     pub fn new(db_path: String) -> Self {
         Self {
@@ -145,36 +151,12 @@ impl VaultState {
             return Err("Vault is already initialized".to_string());
         }
 
-        // Generate salt for key derivation
+        // v2 key derivation (see vault/kdf.rs): one Argon2id pass, then HKDF into an
+        // encryption key (memory only) and a verifier (stored). Never store anything the
+        // encryption key can be read out of (audit RSEC-001).
         let salt = crate::crypto::generate_salt()?;
-
-        // OWASP-recommended Argon2id params for key derivation (47 MiB memory, 2 iterations, 1 parallelism)
-        let params = Params::new(47104, 2, 1, Some(32))
-            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
-
-        // Hash master password for verification
-        let password_hash = argon2
-            .hash_password(master_password.expose_secret().as_bytes(), &salt)
-            .map_err(|e| format!("Failed to hash password: {}", e))?
-            .to_string();
-
-        // Store vault settings (use INSERT OR REPLACE to handle existing keys)
-        conn.execute(
-            "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
-            rusqlite::params![
-                "master_password_hash",
-                password_hash,
-                chrono::Utc::now().timestamp()
-            ],
-        )
-        .map_err(|e| format!("Failed to store password hash: {}", e))?;
-
-        conn.execute(
-            "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
-            rusqlite::params!["salt", salt.as_str(), chrono::Utc::now().timestamp()],
-        )
-        .map_err(|e| format!("Failed to store salt: {}", e))?;
+        let keys = kdf::derive_v2(master_password.expose_secret().as_bytes(), salt.as_str())?;
+        Self::write_v2_kdf_state(&conn, salt.as_str(), &keys.verifier)?;
 
         conn.execute(
             "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
@@ -190,29 +172,7 @@ impl VaultState {
 
         inner.settings.vault_initialized = true;
 
-        // Derive master key and unlock vault immediately after initialization
-        let salt_string = SaltString::from_b64(salt.as_str())
-            .map_err(|e| format!("Failed to parse salt: {}", e))?;
-
-        let salt_decoded = Salt::from_b64(salt_string.as_str())
-            .map_err(|e| format!("Failed to decode salt: {}", e))?;
-
-        let mut master_key = [0u8; 32];
-        let mut salt_bytes = [0u8; 64];
-        let salt_decoded_bytes = salt_decoded
-            .decode_b64(&mut salt_bytes)
-            .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
-
-        argon2
-            .hash_password_into(
-                master_password.expose_secret().as_bytes(),
-                salt_decoded_bytes,
-                &mut master_key,
-            )
-            .map_err(|e| format!("Failed to derive key: {}", e))?;
-
-        inner.master_key = Some(MasterKey { key: master_key });
-        master_key.zeroize(); // Clear stack copy — MasterKey holds the authoritative copy
+        inner.master_key = Some(MasterKey { key: *keys.enc_key });
         inner.last_activity = Some(Instant::now());
 
         // Log audit event
@@ -306,6 +266,10 @@ impl VaultState {
     }
 
     pub async fn unlock_vault(&self, master_password: SecretString) -> Result<(), String> {
+        // Exclusive credential gate (before `inner`, the usual lock order): unlocking a
+        // legacy v1 vault migrates it, rewriting every credential, so no other credential
+        // operation or password change may interleave with it.
+        let _credential_gate = self.credential_gate.clone().write_owned().await;
         let mut inner = self.inner.write().await;
         let conn = db::open_connection(&inner.db_path)?;
         Self::load_persisted_lockout(&conn, &mut inner);
@@ -328,36 +292,11 @@ impl VaultState {
             }
         }
 
-        // Get stored password hash
-        let stored_hash: String = conn
-            .query_row(
-                "SELECT value FROM vault_settings WHERE key = 'master_password_hash'",
-                [],
-                |row| row.get(0),
-            )
-            .map_err(|_| "Vault not initialized")?;
+        let stored = Self::load_stored_kdf(&conn)?;
+        let password_bytes = master_password.expose_secret().as_bytes();
+        let verified_key = Self::check_password(&stored, password_bytes)?;
 
-        // Get salt
-        let salt_str: String = conn
-            .query_row(
-                "SELECT value FROM vault_settings WHERE key = 'salt'",
-                [],
-                |row| row.get(0),
-            )
-            .map_err(|_| "Salt not found")?;
-
-        // Verify password using OWASP-recommended params
-        let params = Params::new(47104, 2, 1, Some(32))
-            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
-
-        let parsed_hash = PasswordHash::new(&stored_hash)
-            .map_err(|e| format!("Failed to parse password hash: {}", e))?;
-
-        if argon2
-            .verify_password(master_password.expose_secret().as_bytes(), &parsed_hash)
-            .is_err()
-        {
+        if verified_key.is_none() {
             inner.failed_attempts += 1;
 
             // Implement lockout policy
@@ -384,29 +323,28 @@ impl VaultState {
             }));
         }
 
-        // Derive master key from password using hash_password_into for direct key derivation
-        let salt_string =
-            SaltString::from_b64(&salt_str).map_err(|e| format!("Failed to parse salt: {}", e))?;
+        let key = verified_key.ok_or("Invalid master password")?;
+        let key = match stored {
+            StoredKdf::V2 { .. } => key,
+            StoredKdf::Legacy { .. } => {
+                // RSEC-001: this vault's stored hash *is* its encryption key. Migrate it to v2
+                // now, while we hold the password. On failure, stay on the legacy key (which
+                // still decrypts everything) and retry at the next unlock rather than locking
+                // the user out of their credentials.
+                match Self::migrate_legacy_vault(&inner.db_path, password_bytes, &key) {
+                    Ok(new_key) => new_key,
+                    Err(e) => {
+                        log::error!("Vault KDF migration failed; still on the legacy format: {}", e);
+                        let _ = Self::log_audit_event(
+                            &conn, "vault_kdf_migration", None, None, "vault", "migrate", "failure", None,
+                        );
+                        key
+                    }
+                }
+            }
+        };
 
-        // Decode the base64 salt to raw bytes
-        let salt = Salt::from_b64(salt_string.as_str())
-            .map_err(|e| format!("Failed to decode salt: {}", e))?;
-
-        let mut master_key = [0u8; 32];
-        let mut salt_bytes = [0u8; 64]; // Max salt length
-        let salt_decoded = salt
-            .decode_b64(&mut salt_bytes)
-            .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
-        argon2
-            .hash_password_into(
-                master_password.expose_secret().as_bytes(),
-                salt_decoded,
-                &mut master_key,
-            )
-            .map_err(|e| format!("Failed to derive key: {}", e))?;
-
-        inner.master_key = Some(MasterKey { key: master_key });
-        master_key.zeroize(); // Clear stack copy — MasterKey holds the authoritative copy
+        inner.master_key = Some(MasterKey { key: *key });
         inner.last_activity = Some(Instant::now());
         inner.failed_attempts = 0;
         inner.lockout_until = None;
@@ -583,121 +521,40 @@ impl VaultState {
             // Use single connection for entire operation to prevent connection leak
             let mut conn = db::open_connection(&db_path)?;
 
-            let stored_hash: String = conn.query_row(
-                "SELECT value FROM vault_settings WHERE key = 'master_password_hash'",
-                [],
-                |row| row.get(0)
-            ).map_err(|_| "Vault not initialized".to_string())?;
+            let stored = Self::load_stored_kdf(&conn)?;
+            let current_key = Self::check_password(&stored, current_password.expose_secret().as_bytes())?
+                .ok_or_else(|| "Invalid current password".to_string())?;
+            // The in-memory key must be the one this database's credentials are encrypted
+            // under. If it isn't (e.g. the database was replaced while unlocked), re-encrypting
+            // would fail or orphan credentials, so refuse and make the user re-unlock first.
+            if *current_key != old_key {
+                return Err("Vault key does not match the database; lock and unlock the vault, then retry".to_string());
+            }
 
-            // Use OWASP-recommended Argon2 params
-            let params = Params::new(47104, 2, 1, Some(32))
-                .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-            let argon2 = Argon2::new(
-                argon2::Algorithm::Argon2id,
-                Version::V0x13,
-                params,
-            );
-
-            let parsed_hash = PasswordHash::new(&stored_hash)
-                .map_err(|e| format!("Invalid password hash: {}", e))?;
-
-            argon2
-                .verify_password(current_password.expose_secret().as_bytes(), &parsed_hash)
-                .map_err(|_| "Invalid current password".to_string())?;
-
-            // Generate new hash and salt
             let new_salt = crate::crypto::generate_salt()?;
+            let new_keys = kdf::derive_v2(new_password.expose_secret().as_bytes(), new_salt.as_str())?;
 
-            let password_hash = argon2.hash_password(new_password.expose_secret().as_bytes(), &new_salt)
-                .map_err(|e| format!("Failed to hash password: {}", e))?
-                .to_string();
-
-            // Derive new master key; Zeroizing wrapper clears bytes when dropped
-            let mut new_master_key = Zeroizing::new([0u8; 32]);
-            let new_salt_decoded = Salt::from_b64(new_salt.as_str())
-                .map_err(|e| format!("Failed to parse salt: {}", e))?;
-            let mut new_salt_bytes = [0u8; 64];
-            let new_salt_raw = new_salt_decoded.decode_b64(&mut new_salt_bytes)
-                .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
-            argon2.hash_password_into(new_password.expose_secret().as_bytes(), new_salt_raw, &mut *new_master_key)
-                .map_err(|e| format!("Failed to derive key: {}", e))?;
-
-            // Re-encrypt all credentials with new key using transaction for safety
             {
-                let credential_manager = credentials::CredentialManager::new(db_path.clone());
-
-                // Reuse existing connection for transaction (no second connection)
-                let tx = conn.transaction()
+                // IMMEDIATE: take SQLite's write lock up front so a concurrent writer can't
+                // invalidate this transaction's read snapshot mid-rotation.
+                let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
                     .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
-                let summaries = credential_manager.list_credentials_conn(&tx)?;
-
-                // Collect all re-encrypted credentials first
-                let mut re_encrypted_credentials = Vec::new();
-                for summary in &summaries {
-                    let credential = credential_manager.get_credential_conn(&tx, &old_key, &summary.id)?;
-                    re_encrypted_credentials.push((
-                        summary.id.clone(),
-                        credential.created_at,
-                        credential.name,
-                        credential.username,
-                        credential.password,
-                        credential.credential_type,
-                        credential.host,
-                        credential.port,
-                        credential.metadata,
-                        credential.key_path,
-                        credential.private_key,
-                        credential.key_passphrase,
-                    ));
-                }
-
-                // Re-encrypt each credential in place, preserving its id so that
-                // references in scheduled_tasks/monitoring_host_credential stay valid.
-                for (id, created_at, name, username, password, cred_type, host, port, metadata, key_path, private_key, key_passphrase) in re_encrypted_credentials {
-                    credential_manager.reencrypt_credential_tx(
-                        &tx,
-                        &new_master_key,
-                        &id,
-                        created_at,
-                        name,
-                        username,
-                        password,
-                        cred_type,
-                        host,
-                        port,
-                        metadata,
-                        key_path,
-                        private_key,
-                        key_passphrase,
-                    )?;
-                }
+                Self::reencrypt_all_credentials(&tx, &db_path, &old_key, &new_keys.enc_key, false)?;
 
                 // Validate that the new key round-trips through the same AEAD encrypt/decrypt
                 // path used above, before committing. This is deliberately done in-memory rather
                 // than by reading a credential back through a fresh `db::open_connection()` call:
-                // that connection wouldn't see this transaction's uncommitted writes, so it would
-                // either find nothing or (worse, if a row happens to already exist at that id)
-                // read back the *old* ciphertext and spuriously fail to decrypt it with the new key.
+                // that connection wouldn't see this transaction's uncommitted writes.
                 let (probe_ct, probe_nonce, probe_tag) =
-                    crypto::encrypt(b"vault-reencryption-validation", &new_master_key)?;
-                let probe_plaintext = crypto::decrypt(&probe_ct, &new_master_key, &probe_nonce, &probe_tag)
+                    crypto::encrypt(b"vault-reencryption-validation", &new_keys.enc_key)?;
+                let probe_plaintext = crypto::decrypt(&probe_ct, &new_keys.enc_key, &probe_nonce, &probe_tag)
                     .map_err(|e| format!("Re-encryption validation failed: {}", e))?;
                 if probe_plaintext != b"vault-reencryption-validation" {
                     return Err("Re-encryption validation failed: round-trip mismatch".to_string());
                 }
 
-                // Update stored hash and salt within same transaction
-                let now = chrono::Utc::now().timestamp();
-                tx.execute(
-                    "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'master_password_hash'",
-                    rusqlite::params![password_hash, now],
-                ).map_err(|e| format!("Failed to update password hash: {}", e))?;
-
-                tx.execute(
-                    "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'salt'",
-                    rusqlite::params![new_salt.as_str(), now],
-                ).map_err(|e| format!("Failed to update salt: {}", e))?;
+                Self::write_v2_kdf_state(&tx, new_salt.as_str(), &new_keys.verifier)?;
 
                 // Commit transaction (automatically rolls back on drop if not committed)
                 tx.commit()
@@ -706,7 +563,7 @@ impl VaultState {
 
             Self::log_audit_event(&conn, "password_change", None, None, "vault", "update", "success", None)?;
 
-            Ok::<[u8; 32], String>(*new_master_key) // copy out before Zeroizing drops
+            Ok::<[u8; 32], String>(*new_keys.enc_key) // copy out before Zeroizing drops
         }).await
             .map_err(|e| format!("Task failed: {}", e))
             .and_then(|inner_result| inner_result);
@@ -758,6 +615,161 @@ impl VaultState {
         Ok(())
     }
 
+    /// Reads which key-derivation format this vault is stored in.
+    fn load_stored_kdf(conn: &rusqlite::Connection) -> Result<StoredKdf, String> {
+        let get = |key: &str| -> Result<Option<String>, String> {
+            conn.query_row(
+                "SELECT value FROM vault_settings WHERE key = ?1",
+                [key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|e| format!("Failed to read vault settings: {}", e))
+        };
+        let salt_b64 = get("salt")?;
+        if get("kdf_version")?.as_deref() == Some(kdf::KDF_VERSION_V2) {
+            let verifier_hex = get("master_password_verifier")?.ok_or("Vault not initialized")?;
+            Ok(StoredKdf::V2 { salt_b64: salt_b64.ok_or("Salt not found")?, verifier_hex })
+        } else {
+            let phc = get("master_password_hash")?.ok_or("Vault not initialized")?;
+            Ok(StoredKdf::Legacy { salt_b64: salt_b64.ok_or("Salt not found")?, phc })
+        }
+    }
+
+    /// Checks `password` against the stored state. Returns the key the vault's credentials
+    /// are currently encrypted under (v2 encryption key, or the v1 legacy key), or `None`
+    /// for a wrong password.
+    fn check_password(
+        stored: &StoredKdf,
+        password: &[u8],
+    ) -> Result<Option<Zeroizing<[u8; 32]>>, String> {
+        match stored {
+            StoredKdf::V2 { salt_b64, verifier_hex } => {
+                let keys = kdf::derive_v2(password, salt_b64)?;
+                Ok(kdf::verifier_matches(&keys.verifier, verifier_hex).then_some(keys.enc_key))
+            }
+            StoredKdf::Legacy { salt_b64, phc } => {
+                if kdf::verify_legacy(password, phc)? {
+                    Ok(Some(kdf::derive_ikm(password, salt_b64)?))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+
+    /// Stores v2 state (salt, verifier, version) and deletes any legacy key-equivalent hash.
+    fn write_v2_kdf_state(
+        conn: &rusqlite::Connection,
+        salt_b64: &str,
+        verifier: &[u8; 32],
+    ) -> Result<(), String> {
+        let now = chrono::Utc::now().timestamp();
+        for (key, value) in [
+            ("salt", salt_b64.to_string()),
+            ("master_password_verifier", kdf::encode_hex(verifier)),
+            ("kdf_version", kdf::KDF_VERSION_V2.to_string()),
+        ] {
+            conn.execute(
+                "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
+                rusqlite::params![key, value, now],
+            )
+            .map_err(|e| format!("Failed to store {}: {}", key, e))?;
+        }
+        conn.execute("DELETE FROM vault_settings WHERE key = 'master_password_hash'", [])
+            .map_err(|e| format!("Failed to remove legacy password hash: {}", e))?;
+        Ok(())
+    }
+
+    /// Re-encrypts every credential from `old_key` to `new_key` in place (ids preserved, so
+    /// scheduled_tasks/monitoring references stay valid). With `skip_undecryptable`, rows that
+    /// don't decrypt under `old_key` are left untouched and their ids returned; otherwise the
+    /// first such row aborts the whole operation.
+    fn reencrypt_all_credentials(
+        tx: &rusqlite::Transaction,
+        db_path: &str,
+        old_key: &[u8; 32],
+        new_key: &[u8; 32],
+        skip_undecryptable: bool,
+    ) -> Result<Vec<String>, String> {
+        let credential_manager = credentials::CredentialManager::new(db_path.to_string());
+        let mut skipped = Vec::new();
+        for summary in credential_manager.list_credentials_conn(tx)? {
+            let credential = match credential_manager.get_credential_conn(tx, old_key, &summary.id) {
+                Ok(c) => c,
+                Err(e) if skip_undecryptable => {
+                    log::warn!("Credential {} does not decrypt under the vault key; left as is: {}", summary.id, e);
+                    skipped.push(summary.id);
+                    continue;
+                }
+                Err(e) => return Err(e),
+            };
+            credential_manager.reencrypt_credential_tx(
+                tx,
+                new_key,
+                &summary.id,
+                credential.created_at,
+                credential.name,
+                credential.username,
+                credential.password,
+                credential.credential_type,
+                credential.host,
+                credential.port,
+                credential.metadata,
+                credential.key_path,
+                credential.private_key,
+                credential.key_passphrase,
+            )?;
+        }
+        Ok(skipped)
+    }
+
+    /// Migrates a v1 (legacy) vault to v2 under a **fresh salt**: a new salt means the new
+    /// key can't be derived from the old stored hash, so old copies of the database (backups,
+    /// exports, `quasar.db.bak`) don't leak it. Those copies still expose their own
+    /// (legacy) ciphertexts, which no migration can fix. Returns the new encryption key.
+    /// Caller holds the credential gate exclusively.
+    fn migrate_legacy_vault(
+        db_path: &str,
+        password: &[u8],
+        legacy_key: &[u8; 32],
+    ) -> Result<Zeroizing<[u8; 32]>, String> {
+        let new_salt = crate::crypto::generate_salt()?;
+        let new_keys = kdf::derive_v2(password, new_salt.as_str())?;
+
+        let mut conn = db::open_connection(db_path)?;
+        let skipped = {
+            let tx = conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(|e| format!("Failed to begin migration transaction: {}", e))?;
+            let skipped =
+                Self::reencrypt_all_credentials(&tx, db_path, legacy_key, &new_keys.enc_key, true)?;
+            Self::write_v2_kdf_state(&tx, new_salt.as_str(), &new_keys.verifier)?;
+            tx.commit()
+                .map_err(|e| format!("Failed to commit migration: {}", e))?;
+            skipped
+        };
+
+        let details = (!skipped.is_empty())
+            .then(|| format!("{} credential(s) left undecryptable: {}", skipped.len(), skipped.join(",")));
+        Self::log_audit_event(
+            &conn, "vault_kdf_migration", None, None, "vault", "migrate", "success", details.as_deref(),
+        )?;
+
+        // The deleted legacy hash (== the old key) can survive in free pages and the WAL.
+        // `secure_delete` (set on every connection) zeroes it in the live page; VACUUM and a
+        // truncating checkpoint remove the remaining copies. Best effort: another connection
+        // holding a read transaction can make either one report busy.
+        if let Err(e) = conn.execute_batch("VACUUM;") {
+            log::warn!("VACUUM after vault migration failed: {}", e);
+        }
+        if let Err(e) = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(())) {
+            log::warn!("WAL checkpoint after vault migration failed: {}", e);
+        }
+
+        Ok(new_keys.enc_key)
+    }
+
     fn log_audit_event(
         conn: &rusqlite::Connection,
         event_type: &str,
@@ -793,6 +805,7 @@ impl VaultState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use argon2::password_hash::PasswordHash;
 
     fn setup_test_db() -> String {
         use std::sync::atomic::{AtomicU64, Ordering};
@@ -879,6 +892,227 @@ mod tests {
         if let Err(e) = std::fs::remove_file(db_path) {
             eprintln!("Warning: Failed to cleanup test DB {}: {}", db_path, e);
         }
+    }
+
+    /// RSEC-001 regression: nothing stored in `vault_settings` may equal (or encode) the
+    /// AES master key. Before the fix, the stored Argon2 PHC string's hash field *was* the key.
+    #[tokio::test]
+    async fn test_stored_vault_settings_never_contain_master_key() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        assert_settings_do_not_contain_key(&db_path, &vault.get_master_key().await.unwrap());
+
+        vault
+            .change_master_password(
+                SecretString::from("TestPassword123!"),
+                SecretString::from("AnotherPassword456!"),
+            )
+            .await
+            .unwrap();
+        assert_settings_do_not_contain_key(&db_path, &vault.get_master_key().await.unwrap());
+        cleanup_test_db(&db_path);
+    }
+
+    fn assert_settings_do_not_contain_key(db_path: &str, key: &[u8; 32]) {
+        let conn = rusqlite::Connection::open(db_path).unwrap();
+        let mut stmt = conn.prepare("SELECT key, value FROM vault_settings").unwrap();
+        let rows: Vec<(String, String)> = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        let key_hex: String = key.iter().map(|b| format!("{:02x}", b)).collect();
+        for (k, v) in &rows {
+            assert!(!v.contains(&key_hex), "vault_settings.{} contains the master key (hex)", k);
+            if let Ok(ph) = PasswordHash::new(v) {
+                if let Some(h) = ph.hash {
+                    assert_ne!(h.as_bytes(), &key[..], "vault_settings.{} PHC hash field is the master key", k);
+                }
+            }
+        }
+    }
+
+    /// Builds a v1 (pre-RSEC-001-fix) vault exactly as the old `initialize_vault` did:
+    /// PHC hash + salt, no `kdf_version`. Returns (legacy key, stored PHC string).
+    fn write_legacy_vault(db_path: &str, password: &str) -> ([u8; 32], String) {
+        use argon2::password_hash::PasswordHasher;
+        let salt = crate::crypto::generate_salt().unwrap();
+        let phc = kdf::argon2()
+            .unwrap()
+            .hash_password(password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
+        let legacy_key = *kdf::derive_ikm(password.as_bytes(), salt.as_str()).unwrap();
+        let conn = rusqlite::Connection::open(db_path).unwrap();
+        for (k, v) in [
+            ("master_password_hash", phc.as_str()),
+            ("salt", salt.as_str()),
+            ("vault_initialized", "true"),
+        ] {
+            conn.execute(
+                "INSERT INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, 0)",
+                rusqlite::params![k, v],
+            )
+            .unwrap();
+        }
+        (legacy_key, phc)
+    }
+
+    fn file_contains(path: &str, needle: &[u8]) -> bool {
+        std::fs::read(path)
+            .map(|bytes| bytes.windows(needle.len()).any(|w| w == needle))
+            .unwrap_or(false)
+    }
+
+    fn vault_setting(db_path: &str, key: &str) -> Option<String> {
+        rusqlite::Connection::open(db_path)
+            .unwrap()
+            .query_row("SELECT value FROM vault_settings WHERE key = ?1", [key], |r| r.get(0))
+            .optional()
+            .unwrap()
+    }
+
+    /// RSEC-001 migration: unlocking a legacy vault re-encrypts everything under a v2 key
+    /// derived from a fresh salt, deletes the key-equivalent hash, scrubs it from the file,
+    /// and leaves rows that never decrypted (e.g. pre-EDW-15 orphans) untouched.
+    #[tokio::test]
+    async fn test_legacy_vault_is_migrated_to_v2_on_unlock() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        let (legacy_key, phc) = write_legacy_vault(&db_path, password);
+        let legacy_salt = vault_setting(&db_path, "salt").unwrap();
+        let hash_field = PasswordHash::new(&phc).unwrap().hash.unwrap().to_string();
+
+        let creds = credentials::CredentialManager::new(db_path.clone());
+        let good_id = creds
+            .add_credential(&legacy_key, "srv".into(), "root".into(), "remote-secret".into(),
+                "password".into(), None, None, None, None, Some("PEM-DATA".into()), None)
+            .unwrap();
+        let orphan_id = creds
+            .add_credential(&[7u8; 32], "orphan".into(), "x".into(), "unrecoverable".into(),
+                "password".into(), None, None, None, None, None, None)
+            .unwrap();
+        let orphan_ct_before: Vec<u8> = rusqlite::Connection::open(&db_path).unwrap()
+            .query_row("SELECT encrypted_password FROM credentials WHERE id = ?1", [&orphan_id], |r| r.get(0))
+            .unwrap();
+        assert!(
+            file_contains(&db_path, hash_field.as_bytes())
+                || file_contains(&format!("{}-wal", db_path), hash_field.as_bytes()),
+            "fixture sanity: the legacy key-equivalent hash should be on disk before migration"
+        );
+        // Free pages are where superseded hashes (e.g. from earlier password changes) linger;
+        // VACUUM is what removes them. Create some so the test can tell whether it ran.
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE junk (b BLOB); INSERT INTO junk VALUES (zeroblob(262144)); DROP TABLE junk;",
+            )
+            .unwrap();
+            let free: i64 = conn.query_row("PRAGMA freelist_count", [], |r| r.get(0)).unwrap();
+            assert!(free > 0, "fixture sanity: expected free pages before migration");
+        }
+
+        let vault = VaultState::new(db_path.clone());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+        let new_key = vault.get_master_key().await.unwrap();
+
+        assert_ne!(new_key, legacy_key);
+        assert_eq!(vault_setting(&db_path, "kdf_version").as_deref(), Some(kdf::KDF_VERSION_V2));
+        assert_eq!(vault_setting(&db_path, "master_password_hash"), None);
+        assert_ne!(vault_setting(&db_path, "salt").unwrap(), legacy_salt, "migration must use a fresh salt");
+        assert_settings_do_not_contain_key(&db_path, &new_key);
+
+        let migrated = creds.get_credential(&new_key, &good_id).unwrap();
+        assert_eq!(migrated.password, "remote-secret");
+        assert_eq!(migrated.private_key.as_deref(), Some("PEM-DATA"));
+        assert!(creds.get_credential(&legacy_key, &good_id).is_err());
+
+        let orphan_ct_after: Vec<u8> = rusqlite::Connection::open(&db_path).unwrap()
+            .query_row("SELECT encrypted_password FROM credentials WHERE id = ?1", [&orphan_id], |r| r.get(0))
+            .unwrap();
+        assert_eq!(orphan_ct_before, orphan_ct_after, "undecryptable rows are left as they were");
+
+        let audit_details: Option<String> = rusqlite::Connection::open(&db_path).unwrap()
+            .query_row(
+                "SELECT details FROM security_audit_log WHERE event_type = 'vault_kdf_migration' AND result = 'success'",
+                [], |r| r.get(0))
+            .unwrap();
+        assert!(audit_details.unwrap_or_default().contains(&orphan_id));
+
+        let free_after: i64 = rusqlite::Connection::open(&db_path).unwrap()
+            .query_row("PRAGMA freelist_count", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(free_after, 0, "migration must VACUUM so no free page keeps an old hash");
+        assert!(!file_contains(&db_path, hash_field.as_bytes()), "legacy hash must be scrubbed from the DB file");
+        assert!(!file_contains(&format!("{}-wal", db_path), hash_field.as_bytes()), "legacy hash must be scrubbed from the WAL");
+
+        // The migrated vault unlocks through the v2 path with the same password, and only that password.
+        vault.lock_vault().await.unwrap();
+        assert!(vault.unlock_vault(SecretString::from("WrongPassword123!")).await.is_err());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+        assert_eq!(vault.get_master_key().await.unwrap(), new_key);
+
+        cleanup_test_db(&db_path);
+    }
+
+    /// If the migration can't complete, the unlock still succeeds on the legacy key (the
+    /// user keeps access to their credentials) and nothing is half-migrated.
+    #[tokio::test]
+    async fn test_failed_legacy_migration_keeps_vault_usable_and_unchanged() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        let (legacy_key, phc) = write_legacy_vault(&db_path, password);
+        rusqlite::Connection::open(&db_path).unwrap()
+            .execute_batch("DROP TABLE credentials;")
+            .unwrap();
+
+        let vault = VaultState::new(db_path.clone());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+
+        assert_eq!(vault.get_master_key().await.unwrap(), legacy_key);
+        assert_eq!(vault_setting(&db_path, "master_password_hash"), Some(phc));
+        assert_eq!(vault_setting(&db_path, "kdf_version"), None);
+        let failures: i64 = rusqlite::Connection::open(&db_path).unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM security_audit_log WHERE event_type = 'vault_kdf_migration' AND result = 'failure'",
+                [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(failures, 1);
+
+        cleanup_test_db(&db_path);
+    }
+
+    /// A password change must not re-encrypt when the in-memory key isn't the one the
+    /// database was written with (e.g. the DB file was replaced while unlocked): doing so
+    /// would orphan every credential.
+    #[tokio::test]
+    async fn test_change_master_password_refuses_when_key_does_not_match_database() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+
+        // Simulate a different vault's settings landing under the unlocked vault.
+        let other_salt = crate::crypto::generate_salt().unwrap();
+        let other = kdf::derive_v2(b"OtherVaultPass123!", other_salt.as_str()).unwrap();
+        VaultState::write_v2_kdf_state(
+            &rusqlite::Connection::open(&db_path).unwrap(),
+            other_salt.as_str(),
+            &other.verifier,
+        )
+        .unwrap();
+
+        let err = vault
+            .change_master_password(
+                SecretString::from("OtherVaultPass123!"),
+                SecretString::from("BrandNewPassword789!"),
+            )
+            .await
+            .unwrap_err();
+        assert!(err.contains("does not match"), "unexpected error: {}", err);
+        assert_eq!(vault_setting(&db_path, "salt").as_deref(), Some(other_salt.as_str()));
+
+        cleanup_test_db(&db_path);
     }
 
     #[tokio::test]

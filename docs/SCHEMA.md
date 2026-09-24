@@ -8,7 +8,7 @@ The application uses a single SQLite database (`quasar.db`) owned and migrated b
 |-------|--------|
 | `hosts` | Saved remote hosts (address, port, username, protocol). |
 | `credentials` | Encrypted credentials (password or SSH key). Consolidated from legacy `credentials_new`; single table post-migration 005/009. |
-| `vault_settings` | Vault master password hash, salt, auto-lock config. |
+| `vault_settings` | Key/value rows: `salt`, `master_password_verifier` (hex HKDF verifier) and `kdf_version` (`2`), plus `vault_initialized`, `auto_lock_timeout`, `lockout_failed_attempts`, `lockout_until_unix`. A legacy v1 vault has `master_password_hash` (a PHC string equal to the key, RSEC-001) and no `kdf_version`; it's migrated on the next unlock. See `src-tauri/src/vault/kdf.rs`. |
 | `security_audit_log` | Audit trail for vault and credential operations. |
 | `ssh_known_hosts` | SSH host key verification (fingerprints, trust status). |
 | `discovered_hosts` | Network scanner results (IP, hostname, device type, etc.). |
