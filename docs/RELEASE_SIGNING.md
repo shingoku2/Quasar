@@ -24,8 +24,9 @@ you securely (it isn't recoverable from the public key).
 | `TAURI_SIGNING_PRIVATE_KEY` | Contents of the private key file |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | The password chosen when the key was generated |
 
-To rotate the key (e.g. if it's ever exposed): run `npx tauri signer generate -w quasar-updater.key`
-locally, replace `pubkey` in `tauri.conf.json` with the new `quasar-updater.key.pub` contents,
+To rotate the key (e.g. if it's ever exposed): run `npx tauri signer generate -w ~/.tauri/quasar-updater.key`
+locally (outside the repo, never commit it; `*.key` is gitignored as a backstop), replace `pubkey`
+in `tauri.conf.json` with the new `~/.tauri/quasar-updater.key.pub` contents,
 update both secrets above, and ship the next release — older installs can no longer verify
 future updates signed with a different key, so this is a breaking change for anyone who
 hasn't updated past the last release signed with the old key.

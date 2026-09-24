@@ -66,6 +66,11 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
+    env:
+      # The `secrets` context isn't available in a step's `if:`, and using it
+      # there makes GitHub reject the whole workflow file (CI-001). Evaluate it
+      # once here, at job level where `secrets` is allowed, and test the env.
+      HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -120,7 +125,7 @@ jobs:
       # WINDOWS_CERTIFICATE isn't configured, so forks/PRs without the secret
       # still produce an (unsigned) build. See docs/RELEASE_SIGNING.md.
       - name: Import Windows code-signing certificate
-        if: runner.os == 'Windows' && secrets.WINDOWS_CERTIFICATE != ''
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
         env:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}

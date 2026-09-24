@@ -483,11 +483,12 @@ See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and t
 targeted `main`/`develop` until Aug 26, 2026, neither of which exist here, so CI had never
 actually run on GitHub before that fix; see `AGENTS.md`):
 
-1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test` + `npm audit --audit-level=high`
-2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
-3. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
+1. **Workflow lint** (Ubuntu): `actionlint` (checksum-pinned 1.7.7) over `.github/workflows/*.yml`. GitHub silently rejects an invalid workflow file (it never runs, it just shows a 0-job failure), so this is the only thing that turns that red. **Never put the `secrets` context in a step `if:`**: evaluate it into a job-level `env` and test the env instead (see `release.yml` `HAS_WINDOWS_CERTIFICATE`). That mistake made `release.yml` invalid from Aug 26 to Sep 24, 2026 (CI-001): no release or updater artifact was ever built in that time.
+2. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test` + `npm audit --audit-level=high`
+3. **Backend** (Ubuntu): `cargo clippy --all-targets -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
+4. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
-`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers.
+`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers. Releases are created as **drafts** (`releaseDraft: true`): the updater endpoint (`releases/latest/download/latest.json`) serves nothing until a human publishes the draft. Generate updater keys outside the repo (`~/.tauri/`); `*.key` and `.claude/settings.local.json` are gitignored.
 
 ---
 

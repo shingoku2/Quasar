@@ -10,6 +10,24 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  workflow-lint:
+    # Catches invalid workflow files (e.g. the `secrets` context in a step
+    # `if:`, which silently broke release.yml for a month: CI-001). A file
+    # GitHub rejects never runs, so without this nothing ever goes red.
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install actionlint 1.7.7 (checksum-pinned)
+        run: |
+          curl -sSL -o actionlint.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  actionlint.tgz" | sha256sum -c -
+          tar xzf actionlint.tgz actionlint
+
+      - name: Run actionlint
+        run: ./actionlint -color .github/workflows/*.yml
+
   frontend-checks:
     name: Frontend (Lint + Test)
     runs-on: ubuntu-latest
