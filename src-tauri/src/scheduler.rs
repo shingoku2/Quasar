@@ -4,9 +4,9 @@
 use chrono::{DateTime, Utc};
 use cron::Schedule;
 use log::{error, info};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Semaphore;
@@ -23,6 +23,40 @@ const SSH_TIMEOUT_SECS: u64 = 120;
 /// same tick ran strictly sequentially, so one unreachable host could delay
 /// every other due task behind its full SSH_TIMEOUT_SECS timeout.
 const MAX_CONCURRENT_TASKS: usize = 5;
+/// Upper bound on one scheduled SFTP transfer. Transfers had no limit, and a stalled one
+/// held its concurrency slot (and, before runs were detached, the whole tick) forever
+/// (audit RUST-006).
+const SFTP_TASK_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+
+/// Ids of tasks with a run in progress, from the scheduler or "Run now". A task never runs
+/// twice at once: a double click or a cron tick during a manual run used to start a
+/// second concurrent run (audit RUST-005).
+fn in_flight() -> &'static Mutex<HashSet<String>> {
+    static IN_FLIGHT: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    IN_FLIGHT.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// "Run now" error for a task with a run in progress. Shown to the user verbatim.
+pub const ALREADY_RUNNING: &str = "This task is already running";
+
+/// Marks a task as running until dropped.
+struct InFlightGuard(String);
+
+impl InFlightGuard {
+    fn claim(task_id: &str) -> Option<Self> {
+        let mut running = in_flight().lock().unwrap_or_else(|e| e.into_inner());
+        running.insert(task_id.to_string()).then(|| Self(task_id.to_string()))
+    }
+}
+
+impl Drop for InFlightGuard {
+    fn drop(&mut self) {
+        in_flight()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.0);
+    }
+}
 
 /// Result of a single task run (scheduled or manual).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -402,6 +436,15 @@ async fn resolve_cred_for_task(
     Ok((password, key_path, private_key, key_passphrase))
 }
 
+async fn bounded_sftp<F>(transfer: F) -> Result<(), String>
+where
+    F: std::future::Future<Output = Result<(), String>>,
+{
+    tokio::time::timeout(SFTP_TASK_TIMEOUT, transfer)
+        .await
+        .unwrap_or_else(|_| Err("SFTP transfer timed out".to_string()))
+}
+
 /// Execute SSH command with pre-resolved host and credential. No DB reference (Send-safe).
 async fn run_one_task(
     app: &AppHandle,
@@ -423,7 +466,7 @@ async fn run_one_task(
                 (Some(l), Some(r)) => (l, r),
                 _ => return Err("SFTP upload requires local_path and remote_path".to_string()),
             };
-            match crate::sftp::upload_file(
+            match bounded_sftp(crate::sftp::upload_file(
                 app.clone(),
                 address,
                 port_u16,
@@ -432,7 +475,7 @@ async fn run_one_task(
                 local,
                 remote,
                 None,
-            )
+            ))
             .await
             {
                 Ok(()) => Ok(TaskRunResult {
@@ -452,7 +495,7 @@ async fn run_one_task(
                 (Some(r), Some(l)) => (r, l),
                 _ => return Err("SFTP download requires remote_path and local_path".to_string()),
             };
-            match crate::sftp::download_file(
+            match bounded_sftp(crate::sftp::download_file(
                 app.clone(),
                 address,
                 port_u16,
@@ -461,7 +504,7 @@ async fn run_one_task(
                 remote,
                 local,
                 None,
-            )
+            ))
             .await
             {
                 Ok(()) => Ok(TaskRunResult {
@@ -522,6 +565,7 @@ pub async fn run_scheduled_task_now(
     let conn = db::open_connection(&db_path_str)?;
 
     let task = load_task_by_id(&conn, task_id)?.ok_or_else(|| "Task not found".to_string())?;
+    let _running = InFlightGuard::claim(task_id).ok_or_else(|| ALREADY_RUNNING.to_string())?;
     let host_info = get_host_credentials(&conn, &task.host_id)?
         .ok_or_else(|| format!("Host not found: {}", task.host_id))?;
 
@@ -565,7 +609,25 @@ pub async fn run_scheduled_task_now(
     Ok(result)
 }
 
-async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, DateTime<Utc>>) {
+/// Scheduler state that outlives a single tick.
+struct SchedulerState {
+    /// Shared across ticks so the concurrency bound holds for detached runs.
+    semaphore: Arc<Semaphore>,
+    /// When each task last started, by task id; guards against re-running a task whose
+    /// `last_run_at` couldn't be persisted.
+    last_executed: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
+}
+
+impl SchedulerState {
+    fn new() -> Self {
+        Self {
+            semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS)),
+            last_executed: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+async fn run_due_tasks(app: &AppHandle, state: &SchedulerState) {
     let db_path = match get_db_path(app) {
         Ok(p) => p,
         Err(e) => {
@@ -574,10 +636,10 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
         }
     };
     let db_path_str = match db_path.to_str() {
-        Some(s) => s,
+        Some(s) => s.to_string(),
         None => return,
     };
-    let conn = match db::open_connection(db_path_str) {
+    let conn = match db::open_connection(&db_path_str) {
         Ok(c) => c,
         Err(e) => {
             error!("scheduler: failed to open db: {}", e);
@@ -592,57 +654,65 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
             return;
         }
     };
+    drop(conn);
 
     let now = Utc::now();
-    let now_ts = now.timestamp();
-    let guard_duration = chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64);
-
-    // Guard against repeated execution when DB persistence of last_run_at failed.
-    let due_tasks: Vec<TaskRow> = tasks
-        .into_iter()
-        .filter(|task| {
-            if !is_due(&task.cron_expression, task.last_run_at, now) {
-                return false;
-            }
-            if let Some(last) = last_executed.get(&task.id) {
-                if now.signed_duration_since(*last) < guard_duration {
-                    return false;
-                }
-            }
-            true
-        })
-        .collect();
-
-    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS));
-    let mut handles = Vec::with_capacity(due_tasks.len());
-
-    for task in due_tasks {
-        let semaphore = semaphore.clone();
+    let app = app.clone();
+    spawn_due_runs(tasks, now, state, move |task, now| {
         let app = app.clone();
-        let db_path_str = db_path_str.to_string();
-        handles.push(tokio::spawn(async move {
-            // Held for the duration of this task's run so at most
-            // MAX_CONCURRENT_TASKS execute at once; released on drop. The semaphore
-            // is never closed, so acquire_owned only errors if that ever changes.
+        let db_path_str = db_path_str.clone();
+        async move { run_and_record_task(&app, &db_path_str, task, now, now.timestamp()).await }
+    });
+}
+
+/// Starts every due task that isn't already running, without waiting for any of them:
+/// a slow or stalled run used to hold up the tick, so no other task's schedule advanced
+/// until it finished (audit RUST-006). Each run holds its in-flight claim (RUST-005) and a
+/// concurrency permit until it ends.
+fn spawn_due_runs<R, Fut>(tasks: Vec<TaskRow>, now: DateTime<Utc>, state: &SchedulerState, run: R)
+where
+    R: Fn(TaskRow, DateTime<Utc>) -> Fut,
+    Fut: std::future::Future<Output = Option<(String, DateTime<Utc>)>> + Send + 'static,
+{
+    let guard_duration = chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64);
+    for task in tasks {
+        if !is_due(&task.cron_expression, task.last_run_at, now) {
+            continue;
+        }
+        let recently_started = state
+            .last_executed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&task.id)
+            .is_some_and(|last| now.signed_duration_since(*last) < guard_duration);
+        if recently_started {
+            continue;
+        }
+        // Claimed here, synchronously, so the next tick can't start it a second time.
+        let Some(running) = InFlightGuard::claim(&task.id) else {
+            info!("scheduler: task '{}' is still running; skipping this tick", task.name);
+            continue;
+        };
+        let semaphore = state.semaphore.clone();
+        let last_executed = state.last_executed.clone();
+        let fut = run(task, now);
+        tokio::spawn(async move {
+            let _running = running;
+            // The semaphore is never closed, so acquire_owned only errors if that changes.
             let _permit = match semaphore.acquire_owned().await {
                 Ok(p) => p,
                 Err(e) => {
                     error!("scheduler: semaphore closed unexpectedly: {}", e);
-                    return None;
+                    return;
                 }
             };
-            run_and_record_task(&app, &db_path_str, task, now, now_ts).await
-        }));
-    }
-
-    for handle in handles {
-        match handle.await {
-            Ok(Some((task_id, ran_at))) => {
-                last_executed.insert(task_id, ran_at);
+            if let Some((task_id, ran_at)) = fut.await {
+                last_executed
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(task_id, ran_at);
             }
-            Ok(None) => {}
-            Err(e) => error!("scheduler: task join failed: {}", e),
-        }
+        });
     }
 }
 
@@ -765,11 +835,11 @@ async fn run_and_record_task(
 pub fn start_scheduler(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_secs(CHECK_INTERVAL_SECS));
-        let mut last_executed: HashMap<String, DateTime<Utc>> = HashMap::new();
+        let state = SchedulerState::new();
         ticker.tick().await; // first tick fires immediately; skip so we wait CHECK_INTERVAL_SECS first
         loop {
             ticker.tick().await;
-            run_due_tasks(&app, &mut last_executed).await;
+            run_due_tasks(&app, &state).await;
         }
     });
 }
@@ -793,6 +863,90 @@ mod tests {
         conn.execute_batch(include_str!("../migrations/010_scheduled_tasks.sql"))
             .unwrap();
         conn
+    }
+
+    fn every_second_task(id: &str) -> TaskRow {
+        TaskRow {
+            id: id.to_string(),
+            name: id.to_string(),
+            cron_expression: "* * * * * *".to_string(),
+            host_id: "host-1".to_string(),
+            command: "true".to_string(),
+            credential_id: None,
+            enabled: 1,
+            last_run_at: None,
+            created_at: 0,
+            updated_at: 0,
+            task_type: "ssh".to_string(),
+            local_path: None,
+            remote_path: None,
+        }
+    }
+
+    /// RUST-005 / RUST-006: the tick doesn't wait for runs, a stalled run doesn't hold up
+    /// other tasks, and a task that is still running isn't started again.
+    #[tokio::test]
+    async fn due_runs_are_detached_and_never_overlap() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let state = SchedulerState::new();
+        let starts: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let release_slow = Arc::new(tokio::sync::Notify::new());
+        let fast_done = Arc::new(AtomicUsize::new(0));
+        let runner = {
+            let starts = starts.clone();
+            let release_slow = release_slow.clone();
+            let fast_done = fast_done.clone();
+            move |task: TaskRow, now: DateTime<Utc>| {
+                starts.lock().unwrap().push(task.id.clone());
+                let release_slow = release_slow.clone();
+                let fast_done = fast_done.clone();
+                async move {
+                    if task.id == "sched-test-slow" {
+                        release_slow.notified().await;
+                    } else {
+                        fast_done.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Some((task.id, now))
+                }
+            }
+        };
+        let tasks = || vec![every_second_task("sched-test-slow"), every_second_task("sched-test-fast")];
+
+        let t0 = Utc::now();
+        spawn_due_runs(tasks(), t0, &state, runner.clone());
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while fast_done.load(Ordering::SeqCst) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the fast task must finish while the slow one is still running");
+
+        // Next tick: the fast task runs again, the stalled one is skipped.
+        let t1 = t0 + chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64 + 1);
+        spawn_due_runs(tasks(), t1, &state, runner.clone());
+        let slow_starts = starts.lock().unwrap().iter().filter(|id| *id == "sched-test-slow").count();
+        assert_eq!(slow_starts, 1, "a running task must not start again");
+        assert!(InFlightGuard::claim("sched-test-slow").is_none(), "Run now is refused too");
+
+        // Once it finishes, it can run again.
+        release_slow.notify_one();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while InFlightGuard::claim("sched-test-slow").is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the claim is released when the run ends");
+    }
+
+    #[test]
+    fn in_flight_claims_are_exclusive_until_dropped() {
+        let first = InFlightGuard::claim("sched-test-claim").unwrap();
+        assert!(InFlightGuard::claim("sched-test-claim").is_none());
+        assert!(InFlightGuard::claim("sched-test-other").is_some());
+        drop(first);
+        assert!(InFlightGuard::claim("sched-test-claim").is_some());
     }
 
     #[test]

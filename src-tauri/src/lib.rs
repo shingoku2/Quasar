@@ -1031,7 +1031,13 @@ async fn run_scheduled_task_now(
         if matches!(&result, Ok(r) if r.success) { "success" } else { "failure" },
         None,
     );
-    result.map_err(|e| sanitize_error(e, "run task"))
+    result.map_err(|e| {
+        if e == scheduler::ALREADY_RUNNING {
+            e
+        } else {
+            sanitize_error(e, "run task")
+        }
+    })
 }
 
 /// How many hosts are probed at once by `get_remote_hosts_health`.
