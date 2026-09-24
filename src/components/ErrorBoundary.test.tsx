@@ -100,4 +100,36 @@ describe('ErrorBoundary', () => {
 
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
+
+  // FE-002: a scoped boundary contains the crash and can recover without a reload.
+  it('scoped boundary shows an inline panel and recovers on Try again', () => {
+    const reload = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, 'location', { value: { ...original, reload }, configurable: true });
+    let shouldThrow = true;
+    const Flaky = () => {
+      if (shouldThrow) throw new Error('view broke');
+      return <div>view ok</div>;
+    };
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      render(
+        <div>
+          <span>sibling view</span>
+          <ErrorBoundary scope="Monitoring"><Flaky /></ErrorBoundary>
+        </div>
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('The Monitoring view hit an error.');
+      expect(screen.getByText('sibling view')).toBeInTheDocument();
+      expect(screen.queryByText('App Crashed')).not.toBeInTheDocument();
+
+      shouldThrow = false;
+      fireEvent.click(screen.getByRole('button', { name: /Try again/i }));
+      expect(screen.getByText('view ok')).toBeInTheDocument();
+      expect(reload).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+      Object.defineProperty(window, 'location', { value: original, configurable: true });
+    }
+  });
 });

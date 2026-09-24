@@ -449,7 +449,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 
 - Functional components with hooks only (no class components)
 - Global vault state via `VaultProvider` context (`src/components/vault/VaultProvider.tsx`)
-- Wrap the app (or risky subtrees) in `ErrorBoundary`
+- The app root has an `ErrorBoundary` (full-screen "Reload App"), and `Layout` wraps each view in `<ErrorBoundary scope="…">`, whose inline fallback re-mounts only that view ("Try again"), so a render error in one view no longer blanks the app or forces a reload that drops SSH sessions (FE-002)
 - SSH host-key prompts are rendered once, app-wide, by `vault/HostKeyPromptHost` in `Layout` (FE-011: inside RemoteManager they were invisible from other views). Don't mount `useSshHostKeyVerification` a second time: each instance would queue its own copy of every prompt.
 - SSH credential selectors must filter out `ssh_key` type when the target is SFTP (backend only supports password auth for SFTP)
 

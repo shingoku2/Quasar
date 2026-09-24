@@ -2,6 +2,12 @@ import React, { Component, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  /**
+   * Name of the view this boundary isolates. With a scope, a crash shows an inline panel
+   * with "Try again" (re-mounts the view) instead of the full-screen "Reload App": one
+   * broken view no longer blanks the app or drops live SSH sessions by reloading (FE-002).
+   */
+  scope?: string;
 }
 
 interface State {
@@ -23,7 +29,26 @@ class ErrorBoundary extends Component<Props, State> {
     console.error('React Error Boundary caught:', error, errorInfo);
   }
 
+  private reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
+    if (this.state.hasError && this.props.scope) {
+      return (
+        <div role="alert" className="m-6 p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-sm">
+          <p className="font-bold text-red-400">The {this.props.scope} view hit an error.</p>
+          <p className="mt-1 text-gray-300 font-mono break-all">{this.state.error?.message}</p>
+          <p className="mt-1 text-gray-500">Other views and open sessions are unaffected.</p>
+          <button
+            onClick={this.reset}
+            className="mt-3 px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/30"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
     if (this.state.hasError) {
       return (
         <div style={{ 
