@@ -46,24 +46,15 @@ interface CredentialSummary {
 }
 
 
-/** Validate a 6-field cron expression: sec min hour day month dow */
-function isValidCronExpression(expr: string): boolean {
-  const parts = expr.trim().split(/\s+/);
-  if (parts.length !== 6) return false;
-  // Very basic field range check (not exhaustive, full validation is done backend-side)
-  const ranges = [
-    [0, 59],  // seconds
-    [0, 59],  // minutes
-    [0, 23],  // hours
-    [1, 31],  // day of month
-    [1, 12],  // month
-    [0, 7],   // day of week
-  ];
-  return parts.every((part, i) => {
-    if (part === '*') return true;
-    const n = parseInt(part, 10);
-    return Number.isInteger(n) && n >= ranges[i][0] && n <= ranges[i][1];
-  });
+/**
+ * Shape check only: 6 fields (sec min hour day month dow) or 7 (plus year). The backend's
+ * cron parser is the single source of truth for the grammar and its error message is shown
+ * as-is. A hand-rolled field check here used to reject valid steps like `*\/5` and accept
+ * values the backend refused (FE-005).
+ */
+function hasCronShape(expr: string): boolean {
+  const fields = expr.trim().split(/\s+/).length;
+  return fields === 6 || fields === 7;
 }
 
 const DEFAULT_CRON = '0 0 9 * * *'; // 9:00 daily (6-field: sec min hour day month dow)
@@ -137,8 +128,8 @@ const ScheduledTasksView: React.FC = () => {
       setError('Name, schedule, and host are required.');
       return;
     }
-    if (!isValidCronExpression(form.cron_expression)) {
-      setError('Invalid cron expression. Use 6-field format: sec min hour day month dow (e.g. 0 0 9 * * *)');
+    if (!hasCronShape(form.cron_expression)) {
+      setError('Invalid cron expression. Use 6 fields: sec min hour day month dow (e.g. 0 */5 * * * * for every 5 minutes)');
       return;
     }
     if (!form.host_id) {

@@ -131,6 +131,35 @@ describe('ScheduledTasksView', () => {
     });
   });
 
+  // FE-005: steps like */5 are valid cron; the client check used to block "every 5 minutes".
+  it('submits a step expression and leaves grammar checks to the backend', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_saved_hosts') return Promise.resolve([mockHost]);
+      if (cmd === 'list_credentials') return Promise.resolve([]);
+      if (cmd === 'add_scheduled_task') return Promise.resolve('task-new');
+      return Promise.resolve([]);
+    });
+    render(<ScheduledTasksView />);
+
+    await waitFor(() => screen.getByText('Add task'));
+    fireEvent.click(screen.getByText('Add task'));
+    await waitFor(() => screen.getByPlaceholderText('e.g. Daily backup'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Daily backup'), { target: { value: 'Every 5' } });
+    fireEvent.change(screen.getByPlaceholderText('0 0 9 * * *'), { target: { value: '0 */5 * * * *' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. /opt/scripts/backup.sh'), { target: { value: 'uptime' } });
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'host-1' } });
+    fireEvent.click(screen.getByText('Add'));
+
+    await waitFor(() => {
+      expect(vi.mocked(invoke)).toHaveBeenCalledWith(
+        'add_scheduled_task',
+        expect.objectContaining({ cronExpression: '0 */5 * * * *' }),
+      );
+    });
+    expect(screen.queryByText(/Invalid cron expression/i)).not.toBeInTheDocument();
+  });
+
   it('shows error state when backend call fails', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     vi.mocked(invoke).mockRejectedValue(new Error('Network error'));

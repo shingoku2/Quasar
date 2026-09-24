@@ -949,6 +949,18 @@ mod tests {
         assert!(InFlightGuard::claim("sched-test-claim").is_some());
     }
 
+    /// FE-005: the grammar the Scheduled Tasks help text promises. The frontend only checks
+    /// the field count and shows this parser's error, so this is the contract.
+    #[test]
+    fn cron_grammar_contract() {
+        for ok in ["0 0 9 * * *", "0 */5 * * * *", "0 0 9 * * Mon-Fri", "0 30 2 1 * *", "0 0 9 * * * 2030"] {
+            assert!(Schedule::from_str(ok).is_ok(), "should accept {}", ok);
+        }
+        for bad in ["*/5 * * * *", "0 60 * * * *", "0 0 24 * * *", "not cron"] {
+            assert!(Schedule::from_str(bad).is_err(), "should reject {}", bad);
+        }
+    }
+
     #[test]
     fn test_is_due() {
         // cron crate 0.12 uses 6-field: sec min hour day month dow. "0 0 9 * * *" = daily 9:00.
