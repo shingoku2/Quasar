@@ -68,6 +68,27 @@ pub struct SshKeyManager {
 }
 
 impl SshKeyManager {
+    /// Host-key decision for connections that can't prompt the user (one-shot exec, the
+    /// pooled sessions behind monitoring and scheduled tasks, SFTP): only a key already
+    /// stored as trusted for this host *and port* is accepted. Unknown, changed and rejected
+    /// keys, and any lookup error, refuse the connection.
+    pub async fn check_non_interactive(
+        &self,
+        host: &str,
+        port: u16,
+        server_public_key: &russh::keys::PublicKey,
+    ) -> Result<bool, russh::Error> {
+        use russh::keys::PublicKeyBase64;
+        let fingerprint = crate::crypto::ssh_host_key_fingerprint(&server_public_key.public_key_bytes());
+        match self
+            .verify_host_key_by_fingerprint(host, port, &fingerprint, "ssh-key")
+            .await
+        {
+            Ok(result) if result.allowed => Ok(true),
+            _ => Err(russh::Error::Disconnect),
+        }
+    }
+
     pub fn new(db_path: String) -> Result<Self, String> {
         let conn = db::open_connection(&db_path)?;
 
@@ -419,6 +440,38 @@ mod tests {
             .verify_host_key_by_fingerprint("h", 22, "SHA256:x", "ssh-key")
             .await
             .is_err());
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// TEST-003: table test of the non-interactive decision (exec, pool, SFTP).
+    #[tokio::test]
+    async fn test_non_interactive_accepts_only_a_trusted_key_for_that_port() {
+        use russh::keys::PublicKeyBase64;
+        let (manager, db_path) = create_test_manager().await;
+        let key = |_: ()| {
+            russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519)
+                .unwrap()
+                .public_key()
+                .clone()
+        };
+        let (trusted, other, rejected) = (key(()), key(()), key(()));
+        let fp = |k: &russh::keys::PublicKey| crate::crypto::ssh_host_key_fingerprint(&k.public_key_bytes());
+        manager.trust_host_key("h", 22, &fp(&trusted), "ssh-key", vec![1], TrustStatus::Trusted).await.unwrap();
+        manager.trust_host_key("r", 22, &fp(&rejected), "ssh-key", vec![2], TrustStatus::Rejected).await.unwrap();
+
+        let cases: [(&str, u16, &russh::keys::PublicKey, bool); 5] = [
+            ("h", 22, &trusted, true),     // stored and trusted
+            ("h", 2222, &trusted, false),  // same key, other port
+            ("h", 22, &other, false),      // changed key
+            ("new", 22, &other, false),    // never seen: no TOFU without a prompt
+            ("r", 22, &rejected, false),   // explicitly rejected
+        ];
+        for (host, port, k, allowed) in cases {
+            let decision = manager.check_non_interactive(host, port, k).await;
+            assert_eq!(decision.is_ok(), allowed, "{}:{}", host, port);
+        }
+        manager.conn.lock().unwrap().execute_batch("DROP TABLE ssh_known_hosts;").unwrap();
+        assert!(manager.check_non_interactive("h", 22, &trusted).await.is_err(), "lookup error fails closed");
         let _ = std::fs::remove_file(&db_path);
     }
 

@@ -1,6 +1,4 @@
-use crate::crypto;
 use crate::vault::SshKeyManager;
-use russh::keys::PublicKeyBase64;
 use russh::*;
 use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
@@ -35,29 +33,11 @@ impl client::Handler for SftpClient {
         &mut self,
         server_public_key: &russh::keys::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Get SSH key manager from app state
-        let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
-
-        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
-        let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
-        let key_type = "ssh-key";
-
-        // Verify host key
-        match ssh_key_manager
-            .verify_host_key_by_fingerprint(&self.host, self.port, &fingerprint, key_type)
+        // Non-interactive: only an already-trusted key is accepted.
+        self.app_handle
+            .state::<SshKeyManager>()
+            .check_non_interactive(&self.host, self.port, server_public_key)
             .await
-        {
-            Ok(result) => {
-                if result.allowed {
-                    Ok(true)
-                } else {
-                    // Reject connection for SFTP operations if not already trusted
-                    Err(russh::Error::Disconnect)
-                }
-            }
-            Err(_) => Err(russh::Error::Disconnect),
-        }
     }
 }
 
