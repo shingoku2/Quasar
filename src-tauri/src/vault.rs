@@ -1474,8 +1474,13 @@ mod tests {
             tokio::task::yield_now().await;
         }
         assert!(vault.changing_password.load(Ordering::SeqCst), "rotation should be in flight");
+        // Holding `inner` keeps the rotation from installing its key and finishing, so the
+        // abort below always lands mid-rotation and exercises the drop guard.
+        let hold = vault.inner.write().await;
         rotation.abort();
-        let _ = rotation.await;
+        let outcome = rotation.await;
+        drop(hold);
+        assert!(outcome.is_err_and(|e| e.is_cancelled()), "rotation must be cancelled, not completed");
         assert!(!vault.changing_password.load(Ordering::SeqCst));
         cleanup_test_db(&db_path);
     }
