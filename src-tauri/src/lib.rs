@@ -800,7 +800,7 @@ async fn list_scheduled_tasks(app: AppHandle) -> Result<Vec<scheduler::Scheduled
 
 /// `set_host_monitoring_credential` used to bind any id to any host without checks; the
 /// 30 s monitoring poll would then log in with it (IPC-003).
-fn check_monitoring_binding(
+fn check_credential_binding(
     conn: &rusqlite::Connection,
     host_id: &str,
     credential_id: &str,
@@ -839,6 +839,7 @@ fn validate_scheduled_task<'a>(
     task_type: Option<&'a str>,
     local_path: Option<&str>,
     remote_path: Option<&str>,
+    credential_id: Option<&str>,
 ) -> Result<&'a str, String> {
     let task_type = task_type.unwrap_or("ssh");
     if !scheduler::TASK_TYPES.contains(&task_type) {
@@ -867,6 +868,10 @@ fn validate_scheduled_task<'a>(
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     if !host_exists {
         return Err("Host not found".to_string());
+    }
+    // Reject a host-bound credential for another host when saving, not at the first run.
+    if let Some(cid) = credential_id {
+        check_credential_binding(conn, host_id, cid)?;
     }
     Ok(task_type)
 }
@@ -914,6 +919,7 @@ async fn add_scheduled_task(
         task_type.as_deref(),
         local_path.as_deref(),
         remote_path.as_deref(),
+        credential_id.as_deref(),
     )?;
     if let (Some(intent), Some(lp)) = (task_local_intent(task_type), local_path.as_deref()) {
         grants.take(lp, intent)?;
@@ -962,6 +968,7 @@ async fn update_scheduled_task(
         task_type.as_deref(),
         local_path.as_deref(),
         remote_path.as_deref(),
+        credential_id.as_deref(),
     )?;
     if let (Some(intent), Some(lp)) = (task_local_intent(task_type), local_path.as_deref()) {
         // An unchanged path and type were granted when the task was saved. Switching between
@@ -1160,7 +1167,7 @@ async fn set_host_monitoring_credential(
     let conn = db::open_connection(db_path_str)?;
     match credential_id.as_deref() {
         Some(id) if !id.is_empty() => {
-            check_monitoring_binding(&conn, &host_id, id)?;
+            check_credential_binding(&conn, &host_id, id)?;
             conn.execute(
                 "INSERT OR REPLACE INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, ?2)",
                 rusqlite::params![host_id, id],
@@ -2659,17 +2666,27 @@ mod saved_host_tests {
         let mut conn = migrated_memory_db();
         let host = upsert_saved_host_in_conn(&mut conn, "srv", "10.0.0.5", "ssh", None, Some("root")).unwrap();
         let ok = |t: Option<&str>, cmd: &str, lp: Option<&str>, rp: Option<&str>| {
-            validate_scheduled_task(&conn, "backup", &host.id, cmd, t, lp, rp).map(str::to_string)
+            validate_scheduled_task(&conn, "backup", &host.id, cmd, t, lp, rp, None).map(str::to_string)
         };
         assert_eq!(ok(None, "uptime", None, None).unwrap(), "ssh");
         assert!(ok(Some("SFTP_UPLOAD"), "uptime", None, None).unwrap_err().contains("Unknown task type"));
         assert!(ok(Some("ssh"), "   ", None, None).is_err());
         assert!(ok(Some("sftp_upload"), "", Some("/tmp/a"), None).is_err());
         assert_eq!(ok(Some("sftp_upload"), "", Some("/tmp/a"), Some("/srv/a")).unwrap(), "sftp_upload");
-        assert!(validate_scheduled_task(&conn, "t", "no-such-host", "uptime", None, None, None)
+        assert!(validate_scheduled_task(&conn, "t", "no-such-host", "uptime", None, None, None, None)
             .unwrap_err()
             .contains("Host not found"));
-        assert!(validate_scheduled_task(&conn, "", &host.id, "uptime", None, None, None).is_err());
+        assert!(validate_scheduled_task(&conn, "", &host.id, "uptime", None, None, None, None).is_err());
+        // A credential bound to another host is refused when the task is saved.
+        conn.execute(
+            "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, created_at, updated_at)
+             VALUES ('elsewhere', 'elsewhere', 'u', X'00', zeroblob(12), zeroblob(16), 'password', 'evil.example', 0, 0)",
+            [],
+        )
+        .unwrap();
+        assert!(validate_scheduled_task(&conn, "t", &host.id, "uptime", None, None, None, Some("elsewhere"))
+            .unwrap_err()
+            .contains("restricted"));
     }
 
     /// IPC-003: a monitoring binding needs an existing host and credential, and a credential
@@ -2689,11 +2706,11 @@ mod saved_host_tests {
         insert("free", None);
         insert("bound-here", Some("10.0.0.5"));
         insert("bound-elsewhere", Some("evil.example"));
-        assert!(check_monitoring_binding(&conn, &host.id, "free").is_ok());
-        assert!(check_monitoring_binding(&conn, &host.id, "bound-here").is_ok());
-        assert!(check_monitoring_binding(&conn, &host.id, "bound-elsewhere").unwrap_err().contains("restricted"));
-        assert!(check_monitoring_binding(&conn, &host.id, "missing").is_err());
-        assert!(check_monitoring_binding(&conn, "no-host", "free").is_err());
+        assert!(check_credential_binding(&conn, &host.id, "free").is_ok());
+        assert!(check_credential_binding(&conn, &host.id, "bound-here").is_ok());
+        assert!(check_credential_binding(&conn, &host.id, "bound-elsewhere").unwrap_err().contains("restricted"));
+        assert!(check_credential_binding(&conn, &host.id, "missing").is_err());
+        assert!(check_credential_binding(&conn, "no-host", "free").is_err());
     }
 
     /// IPC-007 / IPC-008: the shipped capability and CSP stay least-privilege.

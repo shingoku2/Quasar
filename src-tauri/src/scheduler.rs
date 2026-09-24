@@ -367,6 +367,7 @@ async fn resolve_cred_for_task(
     app: &AppHandle,
     credential_id: Option<&str>,
     target_host: &str,
+    user_initiated: bool,
 ) -> Result<(String, Option<String>, Option<String>, Option<String>), String> {
     let (password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
         let vault_state = app
@@ -375,10 +376,14 @@ async fn resolve_cred_for_task(
         let credential_manager = app
             .try_state::<crate::vault::CredentialManager>()
             .ok_or_else(|| "Credential manager not available".to_string())?;
-        // Scheduled runs are background work: they must not reset the auto-lock timer (RSEC-002).
-        let access = vault_state.credential_access_background().await.map_err(|_| {
-            "Vault is locked — unlock the vault for scheduled tasks to run".to_string()
-        })?;
+        // Scheduled runs are background work: they must not reset the auto-lock timer
+        // (RSEC-002). "Run now" is the user acting, so it counts as activity.
+        let access = if user_initiated {
+            vault_state.credential_access().await
+        } else {
+            vault_state.credential_access_background().await
+        }
+        .map_err(|_| "Vault is locked — unlock the vault for scheduled tasks to run".to_string())?;
         let cred = credential_manager
             .get_credential(access.key(), cid)
             .map_err(|e| format!("Credential error: {}", e))?;
@@ -529,7 +534,7 @@ pub async fn run_scheduled_task_now(
     let cred_id = task.credential_id.clone();
     drop(conn);
 
-    let cred = resolve_cred_for_task(app, cred_id.as_deref(), &address).await?;
+    let cred = resolve_cred_for_task(app, cred_id.as_deref(), &address, true).await?;
     let result = run_one_task(
         app,
         &address,
@@ -681,7 +686,7 @@ async fn run_and_record_task(
     let task_name = task.name.clone();
     drop(conn);
 
-    let result = match resolve_cred_for_task(app, task.credential_id.as_deref(), &address).await {
+    let result = match resolve_cred_for_task(app, task.credential_id.as_deref(), &address, false).await {
         Ok(cred) => {
             run_one_task(
                 app,
