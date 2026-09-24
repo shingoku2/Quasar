@@ -8,8 +8,9 @@ use crate::db;
 use rusqlite::{OptionalExtension, TransactionBehavior};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::{OwnedRwLockReadGuard, RwLock};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tokio::time::{Duration, Instant};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
@@ -21,15 +22,18 @@ pub use ssh_keys::{HostKeyVerificationResult, SshHostKey, SshKeyManager, TrustSt
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultSettings {
     pub auto_lock_timeout_minutes: u64,
-    pub require_password_on_credential_use: bool,
     pub vault_initialized: bool,
 }
+
+/// Accepted auto-lock timeout range, in minutes (1 minute to 24 hours). Enforced here, not
+/// just in the Settings UI, so an IPC caller can't disable auto-lock (IPC-006).
+pub const AUTO_LOCK_MINUTES_RANGE: std::ops::RangeInclusive<u64> = 1..=1440;
+const DEFAULT_AUTO_LOCK_MINUTES: u64 = 15;
 
 impl Default for VaultSettings {
     fn default() -> Self {
         Self {
-            auto_lock_timeout_minutes: 15,
-            require_password_on_credential_use: false,
+            auto_lock_timeout_minutes: DEFAULT_AUTO_LOCK_MINUTES,
             vault_initialized: false,
         }
     }
@@ -49,6 +53,18 @@ pub struct VaultState {
     ///
     /// Lock order: `credential_gate` before `inner`, never the reverse.
     credential_gate: Arc<RwLock<()>>,
+    /// True while `change_master_password` runs; suspends auto-lock. An atomic outside
+    /// `inner` so a drop guard can reset it even if the rotation future is cancelled.
+    changing_password: Arc<AtomicBool>,
+}
+
+/// Resets `changing_password` when dropped: on success, error, or a cancelled future.
+struct RotationInProgress(Arc<AtomicBool>);
+
+impl Drop for RotationInProgress {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }
 
 /// The master key plus a shared hold on the credential gate. While this is alive, a
@@ -74,7 +90,6 @@ struct VaultStateInner {
     failed_attempts: u32,
     lockout_until: Option<Instant>,
     db_path: String,
-    changing_password: bool,
 }
 
 struct MasterKey {
@@ -106,9 +121,9 @@ impl VaultState {
                 failed_attempts: 0,
                 lockout_until: None,
                 db_path,
-                changing_password: false,
             })),
             credential_gate: Arc::new(RwLock::new(())),
+            changing_password: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -314,6 +329,16 @@ impl VaultState {
             };
 
             Self::persist_lockout(&conn, inner.failed_attempts, inner.lockout_until)?;
+            let details = format!(
+                "failed attempt {}{}",
+                inner.failed_attempts,
+                if lockout_message.is_some() { "; lockout started" } else { "" }
+            );
+            if let Err(e) = Self::log_audit_event(
+                &conn, "vault_unlock", None, None, "vault", "unlock", "failure", Some(&details),
+            ) {
+                log::warn!("Failed to audit failed unlock: {}", e);
+            }
 
             return Err(lockout_message.unwrap_or_else(|| {
                 format!(
@@ -356,6 +381,9 @@ impl VaultState {
         };
 
         inner.master_key = Some(MasterKey { key: *key });
+        // The in-memory settings start at defaults on every launch; without this the
+        // saved timeout was ignored after a restart (RUST-003).
+        inner.settings.auto_lock_timeout_minutes = Self::load_auto_lock_minutes(&conn);
         inner.last_activity = Some(Instant::now());
         inner.failed_attempts = 0;
         inner.lockout_until = None;
@@ -397,15 +425,33 @@ impl VaultState {
         Ok(())
     }
 
+    /// For replacing the whole database file (`import_database`): waits for in-flight
+    /// credential operations, blocks new ones and any password change for as long as the
+    /// returned guard lives, and locks the vault, whose in-memory key belongs to the
+    /// database being replaced (RSEC-004). The next unlock derives the imported vault's key.
+    pub async fn lock_for_database_replacement(&self) -> Result<OwnedRwLockWriteGuard<()>, String> {
+        let gate = self.credential_gate.clone().write_owned().await;
+        let mut inner = self.inner.write().await;
+        inner.master_key = None;
+        inner.last_activity = None;
+        if let Ok(conn) = db::open_connection(&inner.db_path) {
+            let _ = Self::log_audit_event(
+                &conn, "vault_lock", None, None, "vault", "lock", "success", Some("database import"),
+            );
+        }
+        Ok(gate)
+    }
+
     pub async fn check_auto_lock(&self) -> Result<bool, String> {
         let mut inner = self.inner.write().await;
 
-        if inner.master_key.is_none() || inner.changing_password {
+        if inner.master_key.is_none() || self.changing_password.load(Ordering::SeqCst) {
             return Ok(false);
         }
 
         if let Some(last_activity) = inner.last_activity {
-            let timeout = Duration::from_secs(inner.settings.auto_lock_timeout_minutes * 60);
+            let timeout =
+                Duration::from_secs(inner.settings.auto_lock_timeout_minutes.saturating_mul(60));
             if Instant::now().duration_since(last_activity) > timeout {
                 inner.master_key = None;
                 inner.last_activity = None;
@@ -423,8 +469,13 @@ impl VaultState {
         }
     }
 
-    pub async fn get_master_key(&self) -> Result<[u8; 32], String> {
+    /// Test/rotation-internals only; credential code uses `credential_access()`.
+    pub(crate) async fn get_master_key(&self) -> Result<[u8; 32], String> {
         self.update_activity().await;
+        self.current_key().await
+    }
+
+    async fn current_key(&self) -> Result<[u8; 32], String> {
         let inner = self.inner.read().await;
         inner
             .master_key
@@ -436,9 +487,19 @@ impl VaultState {
     /// Returns the master key together with a shared credential-gate guard. Use this
     /// (not `get_master_key`) for any credential operation: it waits for an in-flight
     /// master-password change to finish, then pins the key until the guard is dropped.
+    /// Counts as user activity (resets the auto-lock timer).
     pub async fn credential_access(&self) -> Result<CredentialAccess, String> {
         let gate = self.credential_gate.clone().read_owned().await;
         let key = Zeroizing::new(self.get_master_key().await?);
+        Ok(CredentialAccess { key, _gate: gate })
+    }
+
+    /// Like `credential_access`, but for background work (monitoring polls, scheduled
+    /// tasks) that must **not** reset the auto-lock timer: otherwise a 30 s dashboard poll
+    /// keeps an unattended vault unlocked forever (RSEC-002).
+    pub async fn credential_access_background(&self) -> Result<CredentialAccess, String> {
+        let gate = self.credential_gate.clone().read_owned().await;
+        let key = Zeroizing::new(self.current_key().await?);
         Ok(CredentialAccess { key, _gate: gate })
     }
 
@@ -468,19 +529,9 @@ impl VaultState {
             .ok()
             .map(|v| v == "true")
             .unwrap_or(false);
-        let auto_lock_timeout_minutes: u64 = conn
-            .query_row(
-                "SELECT value FROM vault_settings WHERE key = 'auto_lock_timeout'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(15);
         VaultSettings {
             vault_initialized,
-            auto_lock_timeout_minutes,
-            require_password_on_credential_use: in_memory.require_password_on_credential_use,
+            auto_lock_timeout_minutes: Self::load_auto_lock_minutes(&conn),
         }
     }
 
@@ -500,11 +551,8 @@ impl VaultState {
         let _credential_gate = self.credential_gate.clone().write_owned().await;
 
         let (old_key, db_path) = {
-            let mut inner = self.inner.write().await;
+            let inner = self.inner.read().await;
 
-            if inner.changing_password {
-                return Err("A password change is already in progress".to_string());
-            }
 
             // The vault MUST be unlocked: re-encrypting stored credentials requires the
             // current master key. Proceeding while locked would rewrite the password hash
@@ -516,15 +564,17 @@ impl VaultState {
                 }
             };
 
-            // Set flag to prevent auto-lock during password change. `check_auto_lock`
-            // checks this flag under its own brief write-lock acquisition, so it's
-            // safe to drop our lock here: other vault reads (e.g. an in-flight SSH
-            // credential lookup) proceed with the old key instead of stalling for the
-            // whole re-encryption pass, and we swap in the new key atomically below.
-            inner.changing_password = true;
-
             (old_key, inner.db_path.clone())
         };
+
+        // Suspend auto-lock for the rotation. It's safe to drop `inner` now: other vault
+        // reads (e.g. an in-flight SSH credential lookup) proceed with the old key instead
+        // of stalling for the whole re-encryption pass, and the new key is swapped in
+        // atomically below. The guard clears the flag on every exit path, including this
+        // future being dropped mid-rotation (RSEC-016); it's dropped after the new key is
+        // installed, so auto-lock can't fire in between.
+        self.changing_password.store(true, Ordering::SeqCst);
+        let _rotation = RotationInProgress(self.changing_password.clone());
 
         // Perform heavy crypto and DB operations in a blocking thread, without holding
         // the vault lock.
@@ -596,11 +646,13 @@ impl VaultState {
         // credential code must not use it.)
         let mut inner = self.inner.write().await;
 
-        // CRITICAL: Always reset changing_password on ALL code paths (success, error, panic).
-        // If this flag stays true, auto-lock is permanently disabled (security vulnerability).
-        inner.changing_password = false;
-
-        // Now propagate the error (flag is already reset)
+        if let Err(e) = &result {
+            if let Ok(conn) = db::open_connection(&inner.db_path) {
+                let _ = Self::log_audit_event(
+                    &conn, "password_change", None, None, "vault", "update", "failure", Some(e.as_str()),
+                );
+            }
+        }
         let mut new_master_key = result?;
 
         // The vault lock was dropped for the (multi-second) re-encryption work above,
@@ -618,21 +670,41 @@ impl VaultState {
         Ok(())
     }
 
+    /// Only the auto-lock timeout is caller-settable; `vault_initialized` is derived state
+    /// and is ignored here (it used to be copied from the webview's struct wholesale).
     pub async fn update_settings(&self, settings: VaultSettings) -> Result<(), String> {
+        let minutes = settings.auto_lock_timeout_minutes;
+        if !AUTO_LOCK_MINUTES_RANGE.contains(&minutes) {
+            return Err(format!(
+                "Auto-lock timeout must be between {} and {} minutes",
+                AUTO_LOCK_MINUTES_RANGE.start(),
+                AUTO_LOCK_MINUTES_RANGE.end()
+            ));
+        }
         let mut inner = self.inner.write().await;
         let conn = db::open_connection(&inner.db_path)?;
 
         conn.execute(
-            "UPDATE vault_settings SET value = ?1, updated_at = ?2 WHERE key = 'auto_lock_timeout'",
-            rusqlite::params![
-                settings.auto_lock_timeout_minutes.to_string(),
-                chrono::Utc::now().timestamp()
-            ],
+            "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES ('auto_lock_timeout', ?1, ?2)",
+            rusqlite::params![minutes.to_string(), chrono::Utc::now().timestamp()],
         )
         .map_err(|e| format!("Failed to update auto-lock timeout: {}", e))?;
 
-        inner.settings = settings;
+        inner.settings.auto_lock_timeout_minutes = minutes;
         Ok(())
+    }
+
+    /// The persisted auto-lock timeout, clamped to the valid range (default 15).
+    fn load_auto_lock_minutes(conn: &rusqlite::Connection) -> u64 {
+        conn.query_row(
+            "SELECT value FROM vault_settings WHERE key = 'auto_lock_timeout'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|m| AUTO_LOCK_MINUTES_RANGE.contains(m))
+        .unwrap_or(DEFAULT_AUTO_LOCK_MINUTES)
     }
 
     /// Reads which key-derivation format this vault is stored in.
@@ -713,8 +785,26 @@ impl VaultState {
         skip_undecryptable: bool,
     ) -> Result<Vec<String>, String> {
         let credential_manager = credentials::CredentialManager::new(db_path.to_string());
+        let summaries = credential_manager.list_credentials_conn(tx)?;
+        if !skip_undecryptable {
+            // Name every credential that can't be carried over, instead of failing on the
+            // first one with a generic error the user can't act on (RSEC-012).
+            let mut undecryptable = Vec::new();
+            for summary in &summaries {
+                if !Self::password_blob_decrypts(tx, &summary.id, old_key)? {
+                    undecryptable.push(format!("{} ({})", summary.name, summary.id));
+                }
+            }
+            if !undecryptable.is_empty() {
+                return Err(format!(
+                    "{} credential(s) can't be decrypted with the current key and would be lost by a password change: {}. Delete or re-create them, then retry.",
+                    undecryptable.len(),
+                    undecryptable.join(", ")
+                ));
+            }
+        }
         let mut skipped = Vec::new();
-        for summary in credential_manager.list_credentials_conn(tx)? {
+        for summary in summaries {
             // Only an authentication failure under `old_key` marks a row as an orphan
             // (encrypted under some other key). Any other problem (malformed columns, a failed
             // write) aborts, so a row that *is* readable is never left behind under a key
@@ -1302,6 +1392,183 @@ mod tests {
         cleanup_test_db(&db_path);
     }
 
+    /// RSEC-002: background credential use (monitoring polls, scheduled runs) must not reset
+    /// the auto-lock timer; user-initiated use must.
+    #[tokio::test]
+    async fn test_background_access_does_not_count_as_activity() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let past = Instant::now() - Duration::from_secs(600);
+        vault.inner.write().await.last_activity = Some(past);
+
+        drop(vault.credential_access_background().await.unwrap());
+        assert_eq!(vault.inner.read().await.last_activity, Some(past));
+
+        drop(vault.credential_access().await.unwrap());
+        assert!(vault.inner.read().await.last_activity.unwrap() > past);
+        cleanup_test_db(&db_path);
+    }
+
+    /// RUST-003: the saved timeout is what auto-lock uses after a restart.
+    #[tokio::test]
+    async fn test_saved_auto_lock_timeout_is_loaded_on_unlock() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        vault
+            .update_settings(VaultSettings { auto_lock_timeout_minutes: 5, vault_initialized: true })
+            .await
+            .unwrap();
+
+        let restarted = VaultState::new(db_path.clone());
+        assert_eq!(restarted.inner.read().await.settings.auto_lock_timeout_minutes, 15);
+        restarted.unlock_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        assert_eq!(restarted.inner.read().await.settings.auto_lock_timeout_minutes, 5);
+        cleanup_test_db(&db_path);
+    }
+
+    /// IPC-006: out-of-range timeouts are rejected server-side (0 locked within 30 s; a huge
+    /// value overflowed `* 60`), and `vault_initialized` can't be set by the caller.
+    #[tokio::test]
+    async fn test_update_settings_validates_timeout_and_ignores_derived_fields() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        for bad in [0, 1441, u64::MAX] {
+            assert!(vault
+                .update_settings(VaultSettings { auto_lock_timeout_minutes: bad, vault_initialized: true })
+                .await
+                .is_err());
+        }
+        vault
+            .update_settings(VaultSettings { auto_lock_timeout_minutes: 30, vault_initialized: false })
+            .await
+            .unwrap();
+        assert!(vault.inner.read().await.settings.vault_initialized);
+        assert_eq!(vault.get_settings().await.auto_lock_timeout_minutes, 30);
+        cleanup_test_db(&db_path);
+    }
+
+    /// RSEC-016: a rotation future dropped mid-flight must not leave auto-lock disabled.
+    #[tokio::test]
+    async fn test_cancelled_password_change_clears_rotation_flag() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let rotation = {
+            let vault = vault.clone();
+            tokio::spawn(async move {
+                vault
+                    .change_master_password(
+                        SecretString::from("TestPassword123!"),
+                        SecretString::from("AnotherPassword456!"),
+                    )
+                    .await
+            })
+        };
+        for _ in 0..1000 {
+            if vault.changing_password.load(Ordering::SeqCst) {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert!(vault.changing_password.load(Ordering::SeqCst), "rotation should be in flight");
+        rotation.abort();
+        let _ = rotation.await;
+        assert!(!vault.changing_password.load(Ordering::SeqCst));
+        cleanup_test_db(&db_path);
+    }
+
+    /// RSEC-012: a password change names the credentials it can't carry over.
+    #[tokio::test]
+    async fn test_password_change_lists_undecryptable_credentials() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let orphan_id = credentials::CredentialManager::new(db_path.clone())
+            .add_credential(&[5u8; 32], "lost-cred".into(), "u".into(), "p".into(),
+                "password".into(), None, None, None, None, None, None)
+            .unwrap();
+        let err = vault
+            .change_master_password(SecretString::from("TestPassword123!"), SecretString::from("AnotherPassword456!"))
+            .await
+            .unwrap_err();
+        assert!(err.contains("can't be decrypted with the current key"), "{}", err);
+        assert!(err.contains("lost-cred") && err.contains(&orphan_id), "{}", err);
+        cleanup_test_db(&db_path);
+    }
+
+    /// RSEC-011: failed unlocks are audited.
+    #[tokio::test]
+    async fn test_failed_unlock_is_audited() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        vault.lock_vault().await.unwrap();
+        assert!(vault.unlock_vault(SecretString::from("WrongPassword123!")).await.is_err());
+        let failures: i64 = rusqlite::Connection::open(&db_path).unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM security_audit_log WHERE event_type = 'vault_unlock' AND result = 'failure'",
+                [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(failures, 1);
+        cleanup_test_db(&db_path);
+    }
+
+    /// TEST-008: the gate must stay exclusively held until the new key is installed. The
+    /// EDW-15 test can't catch a rotation that releases the gate right after commit.
+    #[tokio::test]
+    async fn test_gate_held_until_new_key_installed() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let initial_verifier = vault_setting(&db_path, "master_password_verifier");
+
+        let rotation = {
+            let vault = vault.clone();
+            tokio::spawn(async move {
+                vault
+                    .change_master_password(
+                        SecretString::from("TestPassword123!"),
+                        SecretString::from("AnotherPassword456!"),
+                    )
+                    .await
+            })
+        };
+        for _ in 0..1000 {
+            if vault.changing_password.load(Ordering::SeqCst) {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        // Hold `inner` so the rotation can't install the new key, then wait for its commit.
+        let held = vault.inner.read().await;
+        let mut committed = false;
+        for _ in 0..3000 {
+            if vault_setting(&db_path, "master_password_verifier") != initial_verifier {
+                committed = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert!(committed, "rotation should have committed");
+        for _ in 0..50 {
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            vault.credential_gate.try_read().is_err(),
+            "gate must stay exclusive until the new key is in memory"
+        );
+        drop(held);
+        rotation.await.unwrap().unwrap();
+        let access = vault.credential_access().await.unwrap();
+        let expected = kdf::derive_v2(b"AnotherPassword456!", &vault_setting(&db_path, "salt").unwrap()).unwrap();
+        assert_eq!(access.key(), &*expected.enc_key);
+        drop(access);
+        cleanup_test_db(&db_path);
+    }
+
     /// If the migration can't complete, the unlock still succeeds on the legacy key (the
     /// user keeps access to their credentials) and nothing is half-migrated.
     #[tokio::test]
@@ -1597,7 +1864,7 @@ mod tests {
             "the rotation must queue on the credential gate"
         );
         assert!(
-            !vault.inner.read().await.changing_password,
+            !vault.changing_password.load(Ordering::SeqCst),
             "a rotation queued on the gate must not have marked itself in progress yet"
         );
 

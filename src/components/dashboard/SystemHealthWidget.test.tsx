@@ -65,7 +65,6 @@ describe('SystemHealthWidget setup', () => {
       if (cmd === 'get_vault_settings') {
         return Promise.resolve({
           auto_lock_timeout_minutes: 15,
-          require_password_on_credential_use: true,
           vault_initialized: true
         });
       }
@@ -111,7 +110,6 @@ describe('SystemHealthWidget setup', () => {
         if (cmd === 'get_vault_settings') {
           return Promise.resolve({
             auto_lock_timeout_minutes: 42,
-            require_password_on_credential_use: true,
             vault_initialized: true
           });
         }

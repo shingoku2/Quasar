@@ -55,7 +55,6 @@ interface RemoteHostMetric {
 
 interface VaultSettings {
   auto_lock_timeout_minutes: number;
-  require_password_on_credential_use: boolean;
   vault_initialized: boolean;
 }
 

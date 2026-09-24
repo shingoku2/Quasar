@@ -347,6 +347,19 @@ impl CredentialManager {
         Ok(credential)
     }
 
+    /// Audits an explicit plaintext reveal to the UI as its own event type, so it can be told
+    /// apart from background decrypts (audit RSEC-011 / IPC-005). Best effort.
+    pub fn record_reveal(&self, credential_id: &str) {
+        let result = db::open_connection(&self.db_path).and_then(|conn| {
+            Self::log_audit_event(
+                &conn, "credential_reveal", Some(credential_id), Some("credential"), "reveal", "success", None,
+            )
+        });
+        if let Err(e) = result {
+            log::warn!("Failed to audit credential reveal: {}", e);
+        }
+    }
+
     pub fn list_credentials(&self) -> Result<Vec<CredentialSummary>, String> {
         let conn = db::open_connection(&self.db_path)?;
         self.list_credentials_conn(&conn)

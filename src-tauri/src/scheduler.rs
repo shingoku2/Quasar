@@ -370,7 +370,8 @@ async fn resolve_cred_for_task(
         let credential_manager = app
             .try_state::<crate::vault::CredentialManager>()
             .ok_or_else(|| "Credential manager not available".to_string())?;
-        let access = vault_state.credential_access().await.map_err(|_| {
+        // Scheduled runs are background work: they must not reset the auto-lock timer (RSEC-002).
+        let access = vault_state.credential_access_background().await.map_err(|_| {
             "Vault is locked — unlock the vault for scheduled tasks to run".to_string()
         })?;
         let cred = credential_manager

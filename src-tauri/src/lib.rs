@@ -128,6 +128,11 @@ static MIGRATIONS: Lazy<Migrations> = Lazy::new(|| {
 
 use once_cell::sync::Lazy;
 
+/// `user_version` after every migration in `MIGRATIONS` has run (one per entry). Kept in
+/// step by `migrations_apply_to_fresh_and_current_databases`. `import_database` rejects
+/// anything newer, which would otherwise fail `to_latest` and brick startup (RUST-004).
+const LATEST_SCHEMA_VERSION: i64 = 13;
+
 /// Database filename (renamed from titan.db for Quasar).
 const DB_FILENAME: &str = "quasar.db";
 /// SQLite application_id marker for Quasar databases ("QSR1").
@@ -995,7 +1000,13 @@ async fn get_remote_hosts_health(
     use futures::stream::StreamExt;
 
     let hosts = get_saved_hosts_from_db(&app)?;
-    let access = vault_state.credential_access().await.ok(); // None if vault locked
+    // Background poll: must not count as user activity, or the dashboard's 30 s poll keeps
+    // the vault unlocked forever (RSEC-002). Skip the gate entirely when no host needs it.
+    let access = if hosts.iter().any(|h| h.credential_id.is_some()) {
+        vault_state.credential_access_background().await.ok() // None if vault locked
+    } else {
+        None
+    };
 
     // Decrypt credentials up front: these are blocking SQLite reads, so they are
     // kept out of the concurrent network phase below.
@@ -1203,7 +1214,7 @@ async fn unlock_vault(
     state
         .unlock_vault(SecretString::from(master_password))
         .await
-        .map_err(|e| sanitize_error(e, "vault"))
+        .map_err(errors::user_facing_vault_error)
 }
 
 #[tauri::command]
@@ -1234,7 +1245,7 @@ async fn update_vault_settings(
     state
         .update_settings(settings)
         .await
-        .map_err(|e| sanitize_error(e, "vault"))
+        .map_err(errors::user_facing_vault_error)
 }
 
 // Credential management commands
@@ -1310,10 +1321,13 @@ async fn reveal_credential_password(
         .credential_access()
         .await
         .map_err(|e| sanitize_error(e, "vault"))?;
-    credential_manager
+    let password = credential_manager
         .get_credential(access.key(), &credential_id)
         .map(|c| c.password)
-        .map_err(|e| sanitize_error(e, "credential"))
+        .map_err(|e| sanitize_error(e, "credential"))?;
+    // A plaintext reveal is audited separately from ordinary (background) credential use.
+    credential_manager.record_reveal(&credential_id);
+    Ok(password)
 }
 
 #[tauri::command]
@@ -1512,7 +1526,7 @@ async fn change_master_password(
             secrecy::SecretString::from(new_password),
         )
         .await
-        .map_err(|e| sanitize_error(e, "vault"))
+        .map_err(errors::user_facing_vault_error)
 }
 
 // Audit log commands
@@ -1726,20 +1740,50 @@ fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
+async fn import_database(
+    app: AppHandle,
+    vault_state: State<'_, vault::VaultState>,
+    source_path: String,
+) -> Result<(), String> {
     validate_path(&source_path)?;
     let app_dir = app
         .path()
         .app_data_dir()
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    import_database_at(&app_dir, &source_path, &vault_state).await?;
+    // The frontend already handles this event by showing the unlock dialog.
+    let _ = app.emit("vault-auto-locked", ());
+    log::warn!(
+        "Database imported from '{}'. Vault locked; restart recommended so background tasks reload it.",
+        source_path
+    );
+    Ok(())
+}
+
+/// Replaces the live database with `source_path` (after backing it up to `<db>.bak`).
+///
+/// Holds the credential gate exclusively and **locks the vault** first: the imported file
+/// has its own salt/verifier, so the in-memory key belongs to the old database. Without
+/// this, credentials written after an import were encrypted with the old key and lost at
+/// the next unlock, and an import could interleave with a password change (RSEC-004).
+/// Rejects databases from a newer schema, which used to brick startup (RUST-004).
+async fn import_database_at(
+    app_dir: &std::path::Path,
+    source_path: &str,
+    vault_state: &vault::VaultState,
+) -> Result<(), String> {
     let db_path = app_dir.join(DB_FILENAME);
+    let db_path_str = db_path
+        .to_str()
+        .ok_or_else(|| "Invalid database path".to_string())?
+        .to_string();
 
     // Validate that the source file is a readable SQLite database.
-    if !std::path::Path::new(&source_path).exists() {
+    if !std::path::Path::new(source_path).exists() {
         return Err("Source file not found".to_string());
     }
     let source_conn =
-        rusqlite::Connection::open_with_flags(&source_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        rusqlite::Connection::open_with_flags(source_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|_| "Source is not a valid SQLite database".to_string())?;
     source_conn
         .execute_batch("SELECT count(*) FROM sqlite_master;")
@@ -1749,6 +1793,17 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
             "Source is a valid SQLite file but is not a recognized Quasar backup".to_string(),
         );
     }
+    let source_version: i64 = source_conn
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    if source_version > LATEST_SCHEMA_VERSION {
+        return Err(format!(
+            "This backup is from a newer version of Quasar (schema {} > {}). Update Quasar before importing it.",
+            source_version, LATEST_SCHEMA_VERSION
+        ));
+    }
+
+    let _exclusive = vault_state.lock_for_database_replacement().await?;
 
     // Both the backup and the restore go through SQLite's backup API rather than
     // touching files directly.
@@ -1764,38 +1819,25 @@ fn import_database(app: AppHandle, source_path: String) -> Result<(), String> {
     if db_path.exists() {
         // Start from a clean destination so no previous backup's WAL lingers.
         let _ = std::fs::remove_file(&backup_path);
-        let src = db::open_connection(
-            db_path
-                .to_str()
-                .ok_or_else(|| "Invalid database path".to_string())?,
-        )?;
+        let src = db::open_connection(&db_path_str)?;
         let mut dst = rusqlite::Connection::open(&backup_path)
             .map_err(|e| sanitize_error(e.to_string(), "database"))?;
         rusqlite::backup::Backup::new(&src, &mut dst)
             .map_err(|e| sanitize_error(e.to_string(), "database"))?
             .run_to_completion(100, std::time::Duration::from_millis(0), None)
             .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+        drop(dst);
+        db::restrict_to_owner(&backup_path)?;
     }
 
     // Restore into the live database file in place.
     let src = source_conn;
-    let mut dst = db::open_connection(
-        db_path
-            .to_str()
-            .ok_or_else(|| "Invalid database path".to_string())?,
-    )?;
+    let mut dst = db::open_connection(&db_path_str)?;
     rusqlite::backup::Backup::new(&src, &mut dst)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?
         .run_to_completion(100, std::time::Duration::from_millis(0), None)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     set_quasar_application_id(&dst).map_err(|e| sanitize_error(e, "database"))?;
-
-    // Long-lived connections may still serve cached reads, so a restart is
-    // recommended — but the file itself is now consistent either way.
-    log::warn!(
-        "Database imported from '{}'. Restart recommended so background tasks reload it.",
-        source_path
-    );
     Ok(())
 }
 
@@ -2211,6 +2253,69 @@ mod saved_host_tests {
         assert!(remove_saved_hosts_in_conn(&mut conn, &["id".to_string()]).is_err());
     }
 
+    fn migrated_quasar_db(path: &std::path::Path) {
+        let mut conn = rusqlite::Connection::open(path).unwrap();
+        MIGRATIONS.to_latest(&mut conn).unwrap();
+        set_quasar_application_id(&conn).unwrap();
+    }
+
+    fn import_test_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("quasar_import_{}_{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// RSEC-004: importing replaces the vault's salt/verifier, so the vault must end up
+    /// locked (its in-memory key belongs to the old database).
+    #[tokio::test]
+    async fn import_locks_the_vault() {
+        let dir = import_test_dir("lock");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+        vault
+            .initialize_vault(secrecy::SecretString::from("LivePassword123!"))
+            .await
+            .unwrap();
+        assert!(!vault.is_locked().await);
+
+        let source = dir.join("backup.db");
+        migrated_quasar_db(&source);
+        import_database_at(&dir, source.to_str().unwrap(), &vault).await.unwrap();
+
+        assert!(vault.is_locked().await, "vault must be locked after an import");
+        assert!(dir.join(format!("{}.bak", DB_FILENAME)).exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// RUST-004: a backup from a newer schema is rejected instead of bricking startup, and
+    /// the live database and vault are left alone.
+    #[tokio::test]
+    async fn import_rejects_newer_schema_and_leaves_vault_alone() {
+        let dir = import_test_dir("newer");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+        vault
+            .initialize_vault(secrecy::SecretString::from("LivePassword123!"))
+            .await
+            .unwrap();
+
+        let source = dir.join("future.db");
+        migrated_quasar_db(&source);
+        rusqlite::Connection::open(&source)
+            .unwrap()
+            .pragma_update(None, "user_version", LATEST_SCHEMA_VERSION + 1)
+            .unwrap();
+        let err = import_database_at(&dir, source.to_str().unwrap(), &vault)
+            .await
+            .unwrap_err();
+        assert!(err.contains("newer version"), "{}", err);
+        assert!(!vault.is_locked().await);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn migrations_apply_to_fresh_and_current_databases() {
         let mut conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -2219,6 +2324,7 @@ mod saved_host_tests {
             .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
             .unwrap();
         assert_eq!(version, 13);
+        assert_eq!(version, LATEST_SCHEMA_VERSION, "update LATEST_SCHEMA_VERSION with MIGRATIONS");
 
         MIGRATIONS.to_latest(&mut conn).unwrap();
         let version_after_rerun = conn
