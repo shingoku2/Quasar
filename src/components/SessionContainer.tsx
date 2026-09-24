@@ -64,7 +64,7 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
                  }}
                  className={`ml-2 hover:text-white transition-colors p-0.5 rounded hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                     // Highlight if currently in split view
-                    splitViewIds.includes(tab.id) ? 'text-accent' : 'opacity-0 group-hover:opacity-100'
+                    splitViewIds.includes(tab.id) ? 'text-accent' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
                  }`}
                  title="Toggle Split View"
                  aria-label="Toggle Split View"
@@ -80,7 +80,7 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
                   onTabClose(tab.id);
                 }} 
                 className={`ml-1 hover:text-white transition-colors p-0.5 rounded hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                   visibleIds.includes(tab.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                   visibleIds.includes(tab.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
                 }`}
                 aria-label={`Close ${tab.title}`}
               >
