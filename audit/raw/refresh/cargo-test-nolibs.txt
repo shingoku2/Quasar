@@ -1,0 +1,189 @@
+$ cargo test
+   Compiling unicode-ident v1.0.24
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.4
+   Compiling equivalent v1.0.2
+   Compiling memchr v2.8.3
+   Compiling proc-macro2 v1.0.107
+   Compiling indexmap v2.14.0
+   Compiling quote v1.0.47
+   Compiling heck v0.5.0
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.3
+   Compiling syn v2.0.119
+   Compiling zeroize v1.9.0
+   Compiling subtle v2.6.1
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling typenum v1.20.1
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.2
+   Compiling pin-project-lite v0.2.17
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling hybrid-array v0.4.14
+   Compiling futures-core v0.3.34
+   Compiling itoa v1.0.18
+   Compiling bytes v1.12.1
+   Compiling siphasher v1.0.3
+   Compiling smallvec v1.15.2
+   Compiling crypto-common v0.2.2
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling synstructure v0.13.2
+   Compiling once_cell v1.21.4
+   Compiling utf8_iter v1.0.4
+   Compiling bitflags v2.13.1
+   Compiling winnow v1.0.4
+   Compiling phf_shared v0.13.1
+   Compiling serde_derive v1.0.229
+   Compiling zerovec-derive v0.11.6
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling displaydoc v0.2.7
+   Compiling zerofrom v0.1.8
+   Compiling thiserror-impl v1.0.69
+   Compiling semver v1.0.28
+   Compiling futures-io v0.3.34
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling phf_generator v0.13.1
+   Compiling block-buffer v0.12.1
+   Compiling slab v0.4.12
+   Compiling zmij v1.0.23
+   Compiling futures-sink v0.3.34
+   Compiling thiserror v1.0.69
+   Compiling yoke v0.8.3
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling http v1.5.0
+   Compiling futures-channel v0.3.34
+   Compiling zerovec v0.11.8
+   Compiling serde v1.0.229
+   Compiling futures-macro v0.3.34
+   Compiling aho-corasick v1.1.5
+   Compiling toml_datetime v0.6.3
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.20.2
+   Compiling byteorder v1.5.0
+   Compiling futures-task v0.3.34
+   Compiling log v0.4.33
+   Compiling regex-syntax v0.8.11
+   Compiling futures-util v0.3.34
+   Compiling toml v0.8.2
+   Compiling system-deps v6.2.2
+   Compiling regex-automata v0.4.18
+   Compiling phf_macros v0.13.1
+   Compiling thiserror-impl v2.0.20
+   Compiling glib-sys v0.18.1
+   Compiling gobject-sys v0.18.0
+   Compiling const-oid v0.10.2
+   Compiling base64 v0.22.1
+   Compiling thiserror v2.0.20
+   Compiling num-conv v0.2.2
+   Compiling time-core v0.1.9
+   Compiling tinystr v0.8.4
+   Compiling phf_codegen v0.13.1
+   Compiling rustc_version v0.4.1
+   Compiling powerfmt v0.2.0
+   Compiling toml_writer v1.1.2+spec-1.1.0
+   Compiling deranged v0.5.8
+   Compiling darling_core v0.23.0
+   Compiling icu_locale_core v2.3.0
+   Compiling regex v1.13.1
+   Compiling gio-sys v0.18.1
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling typeid v1.0.3
+   Compiling unic-char-range v0.9.0
+   Compiling fnv v1.0.7
+   Compiling unic-common v0.9.0
+   Compiling unic-char-property v0.9.0
+   Compiling unic-ucd-version v0.9.0
+   Compiling digest v0.11.3
+   Compiling phf v0.13.1
+   Compiling parking_lot_core v0.9.12
+   Compiling string_cache_codegen v0.6.1
+   Compiling darling_macro v0.23.0
+   Compiling alloc-no-stdlib v2.0.4
+   Compiling alloc-stdlib v0.2.4
+   Compiling parking_lot v0.12.5
+   Compiling web_atoms v0.2.6
+   Compiling darling v0.23.0
+   Compiling serde_with_macros v3.22.0
+   Compiling unic-ucd-ident v0.9.0
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling quick-xml v0.41.0
+   Compiling serde_spanned v1.1.1
+   Compiling string_cache v0.9.0
+   Compiling brotli-decompressor v5.0.3
+   Compiling serde_json v1.0.151
+   Compiling idna_adapter v1.2.2
+   Compiling block-padding v0.4.2
+   Compiling dunce v1.0.5
+   Compiling cpufeatures v0.3.0
+   Compiling same-file v1.0.6
+   Compiling ctor v0.8.0
+   Compiling inout v0.2.2
+   Compiling walkdir v2.5.0
+   Compiling uuid v1.24.1
+   Compiling brotli v8.0.4
+   Compiling idna v1.1.0
+   Compiling anyhow v1.0.104
+   Compiling selectors v0.36.1
+   Compiling gdk-sys v0.18.2
+   Compiling derive_more-impl v2.1.1
+   Compiling cssparser-macros v0.6.1
+   Compiling errno v0.3.14
+   Compiling dyn-clone v1.0.20
+   Compiling stable_deref_trait v1.2.1
+   Compiling glob v0.3.4
+   Compiling signal-hook-registry v1.4.8
+   Compiling derive_more v2.1.1
+   Compiling cssparser v0.36.0
+   Compiling markup5ever v0.38.0
+error: failed to run custom build command for `gdk-sys v0.18.2`
+note: To improve backtraces for build dependencies, set the CARGO_PROFILE_TEST_BUILD_OVERRIDE_DEBUG=true environment variable to enable debug information generation.
+
+Caused by:
+  process didn't exit successfully: `/home/user/Quasar/src-tauri/target/debug/build/gdk-sys-d336443fa1c691bb/build-script-build` (exit status: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=GDK_3.0_NO_PKG_CONFIG
+  cargo:rerun-if-env-changed=PKG_CONFIG_x86_64-unknown-linux-gnu
+  cargo:rerun-if-env-changed=PKG_CONFIG_x86_64_unknown_linux_gnu
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG
+  cargo:rerun-if-env-changed=PKG_CONFIG
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH_x86_64-unknown-linux-gnu
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH_x86_64_unknown_linux_gnu
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_PATH
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR_x86_64-unknown-linux-gnu
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR_x86_64_unknown_linux_gnu
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_LIBDIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR_x86_64-unknown-linux-gnu
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_gnu
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_SYSROOT_DIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR
+
+  --- stderr
+
+  pkg-config exited with status code 1
+  > PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --cflags gdk-3.0 'gdk-3.0 >= 3.22'
+
+  pkg-config output:
+    Package gdk-3.0 was not found in the pkg-config search path.
+    Perhaps you should add the directory containing `gdk-3.0.pc'
+    to the PKG_CONFIG_PATH environment variable
+    Package 'gdk-3.0', required by 'virtual:world', not found
+    Package 'gdk-3.0', required by 'virtual:world', not found
+
+  The system library `gdk-3.0` required by crate `gdk-sys` was not found.
+  The file `gdk-3.0.pc` needs to be installed and the PKG_CONFIG_PATH environment variable must contain its parent directory.
+  The PKG_CONFIG_PATH environment variable is not set.
+
+  HINT: if you have installed the library, try setting PKG_CONFIG_PATH to the directory containing `gdk-3.0.pc`.
+
+warning: build failed, waiting for other jobs to finish...

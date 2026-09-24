@@ -1,0 +1,22 @@
+# RSEC-001 runtime proof (scratch crate outside the repo; argon2 =0.5.3, same Params/Algorithm/Version as vault.rs)
+## src/main.rs
+// Mirrors src-tauri/src/vault.rs initialize_vault: verifier via hash_password, key via hash_password_into.
+use argon2::{password_hash::{PasswordHash, PasswordHasher, SaltString, Salt}, Algorithm, Argon2, Params, Version};
+fn main() {
+    let pw = b"correct horse battery staple";
+    let salt = SaltString::from_b64("c29tZXNhbHRzb21lc2FsdA").unwrap(); // fixed 16-byte salt for reproducibility
+    let params = Params::new(47104, 2, 1, Some(32)).unwrap();
+    let a = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let stored = a.hash_password(pw, &salt).unwrap().to_string(); // what vault.rs writes to vault_settings
+    let mut buf = [0u8; 64];
+    let raw = Salt::from_b64(salt.as_str()).unwrap().decode_b64(&mut buf).unwrap();
+    let mut key = [0u8; 32];
+    a.hash_password_into(pw, raw, &mut key).unwrap(); // what vault.rs uses as the AES-256-GCM key
+    let parsed = PasswordHash::new(&stored).unwrap();
+    let from_db = parsed.hash.unwrap();
+    println!("stored verifier: {stored}");
+    println!("hash field == master key: {}", from_db.as_bytes() == key);
+}
+## output
+stored verifier: $argon2id$v=19$m=47104,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$SGZc7xTufLxRuqf0X5h8MEC5AApJvMMcWQYRBN/oDSE
+hash field == master key: true

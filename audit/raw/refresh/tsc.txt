@@ -1,0 +1,3 @@
+$ npx tsc --noEmit
+npm notice run quasar@0.1.0 npx
+npm notice run 'tsc' --noEmit

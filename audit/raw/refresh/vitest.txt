@@ -1,0 +1,12 @@
+$ npx vitest run
+npm notice run quasar@0.1.0 npx
+npm notice run 'vitest' run
+
+ RUN  v4.1.11 /home/user/Quasar
+
+
+ Test Files  49 passed (49)
+      Tests  351 passed (351)
+   Start at  21:14:25
+   Duration  27.14s (transform 2.53s, setup 852ms, import 14.39s, tests 16.62s, environment 39.49s)
+

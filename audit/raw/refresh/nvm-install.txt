@@ -1,0 +1,8 @@
+$ nvm install 24.15.0
+Downloading and installing node v24.15.0...
+Downloading https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.xz...
+#=#=#                                                                                                                                                     0.5%##########                                                                14.5%##############################                                            42.8%####################################################                      72.5%######################################################################## 100.0%
+Computing checksum with sha256sum
+Checksums matched!
+Now using node v24.15.0 (npm v11.12.1)
+Creating default alias: [0;32mdefault[0m [0;90m->[0m [0;32m24.15.0[0m ([0;90m->[0m [0;32mv24.15.0[0m)

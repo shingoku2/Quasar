@@ -1,0 +1,14 @@
+HEAD 1845f375142c1c23165a0fe22e049deed7c9f529 (source tree = master 97dd84a + audit/ only)
+rustup-update exit=0
+nvm-install exit=0
+npm-upgrade exit=0
+toolchain exit=0
+npm-ci exit=0
+tsc exit=0
+vitest exit=0
+cargo-clippy exit=101
+cargo-test exit=101
+DONE
+(clippy/test above failed only on missing gdk-3.0 system libs; apt-installed CI's package list, see apt-install.txt, then re-ran)
+cargo-clippy exit=0
+cargo-test exit=0

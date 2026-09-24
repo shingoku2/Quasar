@@ -1,0 +1,6 @@
+$ npm i -g npm@12.0.2
+
+removed 10 packages, and changed 82 packages in 5s
+
+15 packages are looking for funding
+  run `npm fund` for details
