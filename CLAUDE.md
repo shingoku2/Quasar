@@ -2,6 +2,36 @@
 
 Quasar is a Tauri 2.x desktop application for remote infrastructure management: SSH sessions, SFTP, system monitoring, network discovery, cron-scheduled automation, and a security vault. React + TypeScript frontend, Rust backend, SQLite database.
 
+## Session Start (agents: do this first)
+
+1. **Load Memco memory before your first substantive reply.** Call `start_session` on
+   **Memco Personal Memory** and on **Memco Shared Memory** (call `list_domains` before your
+   first shared-memory search or write). If a Memco server isn't connected in this session, say so.
+   Don't skip it silently.
+2. **Keep Linear and Notion in sync with any Quasar work.** This is personal memory
+   `quasar_linear_notion_continuous_updates`. Do it during the same task, not at session end:
+   - **Identify the issue first.** Use an explicit EDW identifier from the task, branch, PR, or
+     commit. Without one, pick an issue only if exactly one open issue's scope clearly matches the
+     work, and name it (with the reason) in your reply. If none or several match, don't guess:
+     skip the sync entirely (no Linear or Notion edits of any kind, including Last verified),
+     and report that it was skipped and why.
+   - **Match the state change to the evidence** (for the identified issue). Only finished work,
+     backed by a merged or pushed commit/PR and passing checks, moves it to Done or ticks a "Done
+     when" box. Tick only the boxes that evidence covers. Partial work sets In Progress and gets a
+     comment listing what is left. Review-only or investigation work gets a comment and no status
+     change.
+   - **Overlapping issues are comment-only** (comment and link, no status or box changes, even for
+     partial work) unless the same evidence completes their own "Done when" criteria, in which
+     case they follow the Done rule above.
+   - **Linear** (team "Edward's Playground", key EDW): apply the status and boxes above, and
+     comment with the outcome, evidence, and commit/PR links. Projects: "Quasar: Full Audit +
+     Cleanup" (EDW-17..EDW-26), "Quasar: Maintenance & PR triage".
+   - **Notion** ("Quasar" entry in App Projects → Projects): whenever an issue was identified,
+     set Last verified date and add links. Change Next action or the phase table under Current priorities only to match
+     tracker changes made under the rules above. Never mark a phase done that Linear doesn't
+     show as Done.
+   - If an update fails or is skipped, report which one and why.
+
 ## Recent Work: Linear Backlog EDW-15 / EDW-16 (September 24, 2026)
 
 - **EDW-15: credential writes are now serialized with master-password rekeying.** This was
