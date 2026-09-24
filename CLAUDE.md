@@ -30,7 +30,24 @@ branch.)
 
 ---
 
-## Recent Work: PR Triage (September 24, 2026)
+## Recent Work: Google Jules MCP Connector (September 24, 2026)
+
+`tools/jules-mcp/server.mjs` is a dependency-free MCP server (stdio, newline-delimited
+JSON-RPC) that wraps the Jules REST API (`https://jules.googleapis.com/v1alpha`, auth via the
+`X-Goog-Api-Key` header). It's registered project-wide in `.mcp.json` as `jules`, and the key
+comes from `JULES_API_KEY` (`${JULES_API_KEY:-}` so a missing var doesn't break config
+parsing; tool calls return a clear error instead). **Never commit the key.** Tools:
+`jules_list_sources`, `jules_get_source`, `jules_create_session`, `jules_list_sessions`,
+`jules_get_session`, `jules_approve_plan`, `jules_send_message`, `jules_list_activities`.
+Session IDs and source names are normalized and regex-validated before they're put into
+URL paths. Activity responses have base64 screenshots stripped and patches capped at 20k
+chars each. The tests are `npm run test:jules-mcp` (`node:test`). The test file is named
+`server.check.mjs` on purpose, because Vitest's default include would pick up `*.test.mjs`
+and run it under jsdom. This is dev tooling only, so the Tauri app doesn't import it.
+
+---
+
+## Previous Work: PR Triage (September 24, 2026)
 
 Nine open bot-authored PRs (#54–#62) were reviewed against their Codex/Sourcery feedback.
 Three had real, verified defects that were fixed before merging:
@@ -124,6 +141,7 @@ Quasar/
 │   ├── SCHEMA.md               # Database schema reference
 │   └── CORE_WORKFLOWS.md       # End-to-end user workflows
 ├── scripts/tauri-dev.js        # Tauri dev wrapper (sets CARGO_TARGET_DIR)
+├── tools/jules-mcp/            # Google Jules MCP connector for Claude Code (see .mcp.json)
 ├── .github/workflows/
 │   ├── ci.yml                  # PR checks (TypeScript, Vitest, Clippy, Cargo test)
 │   └── release.yml             # Multi-platform build + GitHub release
@@ -175,6 +193,9 @@ npm run build
 
 # Run frontend tests
 npm test
+
+# Jules MCP connector tests (node:test)
+npm run test:jules-mcp
 
 # Rust: lint
 cd src-tauri && cargo clippy -- -D warnings
