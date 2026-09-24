@@ -444,3 +444,53 @@ Phase 7 rules (EDW-26): one agent, sequential, one logical change per commit, wi
 - Which Dependabot alert #1 is (API 403; identified by elimination).
 - FE-016's stream-end frequency.
 - The per-library bundle split (FE-026).
+
+---
+
+## 10. Changes made (Phase 7, EDW-26)
+
+Approval: Edward approved **P7-0 and P7-1** on 2026-09-24 (recorded on EDW-25). Nothing beyond those two batches was changed. Branch `claude/stoic-einstein-j4ajfe`. Raw outputs are in `audit/raw/phase7/`.
+
+### Commits
+
+| Commit | Batch | Finding(s) | Change |
+|---|---|---|---|
+| `eee12f3` | P7-0 | CLEAN-001, CLEAN-013 | Untracked `.claude/settings.local.json` (the file stays on disk). `.gitignore` gains that file plus `*.key`/`*.key.pub`, `.env*`, coverage output and Windows junk. |
+| `2f9e6a7` | P7-0 | CI-001 | `release.yml`: `secrets` in the step `if:` replaced by a job-level `HAS_WINDOWS_CERTIFICATE` env. New `workflow-lint` job in `ci.yml` runs actionlint 1.7.7 (checksum-pinned). RELEASE_SIGNING now generates the key in `~/.tauri/`. |
+| `12a7355` | P7-1 | RSEC-001, TEST-005 | New `vault/kdf.rs`: Argon2id → HKDF-SHA256 into the encryption key (memory only) and a verifier (stored). v1 vaults migrate on unlock under a fresh salt, followed by VACUUM and a checkpoint. `unlock_vault` takes the credential gate. Password change writes v2 and refuses when the key doesn't match the DB. KATs pin the KDF. |
+| `d2d2eff` | P7-1 | RSEC-009 | `secure_delete = ON` on every connection. The DB, WAL and SHM files are 0600, the app data dir 0700, and exports 0600 (Unix). |
+| `57e109a` | P7-1 | RSEC-001 follow-up (security review) | Post-commit steps are best-effort, so the vault can't fall back to a stale key. Only AEAD-failing rows are skipped, and `legacy_salt` is kept for them. Malformed key blobs are an error rather than being silently wiped. The busy result of the WAL checkpoint is honoured, with `kdf_scrub_pending` retry. `.bak` loses the legacy hash. Stored hex parsing is strict. |
+
+### Verification
+
+- **RSEC-001.** The new test `test_stored_vault_settings_never_contain_master_key` failed on the old code with `master_password_hash PHC hash field is the master key` (`raw/phase7/rsec001-test-before-fix.txt`) and passes now.
+- **Mutation checks.** Each of these mutations makes the named test fail:
+  - removing VACUUM fails the migration scrub test;
+  - restoring `?` on the post-commit audit fails both post-commit tests;
+  - removing the gate from `unlock_vault` fails the gate test.
+- **KATs.** The Argon2 output matches the standalone reproduction. The HKDF outputs were computed independently in Python.
+- **CI-001.** actionlint flags the old `release.yml:123` (`context "secrets" is not allowed here`) and passes the new workflows, including shellcheck.
+- **Independent review.** A read-only reviewer subagent reviewed P7-1 before its follow-up commit. It found one blocker and six should-fix items. Everything in P7-1 scope was fixed in `57e109a`. Items left open:
+  - `import_database` doesn't gate or lock the vault. That is RSEC-004 in P7-2, which isn't approved yet.
+  - Two nits: legacy unlock runs Argon2 two or three times (once per vault, only during migration), and pre-existing unzeroized stack copies of the key (RSEC-010).
+
+### Before / after
+
+| Metric | Before (`97dd84a`, EDW-25 re-run) | After (`57e109a`) |
+|---|---|---|
+| npm vulnerabilities | 0 | 0 |
+| cargo audit vulnerabilities (unignored) | 0 (1 ignored: RUSTSEC-2023-0071) | 0 (same ignore); 8 allowed warnings, unchanged. The yanked check is still hitting registry 503s. |
+| Clippy `--all-targets -D warnings` | 0 | 0 |
+| Rust tests | 132 lib + 4 integration | **148 lib** + 4 integration |
+| Frontend tests | 351 | 351 |
+| RS line coverage | 52.60% (baseline, `fcc58d2`) | **55.51%** (`vault.rs` 85.19% → 89.78%, `vault/kdf.rs` 93.55%, `db.rs` 90.91%) |
+| FE line coverage | 72.83% | 72.88% (no frontend change) |
+| Main JS chunk | 1,313.95 kB (baseline) / 1,314.05 kB (97dd84a) | 1,314.05 kB (unchanged) |
+| Tracked files | 273 at `97dd84a`; 319 with `audit/` | 319: `settings.local.json` removed, `vault/kdf.rs` added |
+| Open Critical / High | 1 / 1 (RSEC-001, CI-001) | **0 / 0** |
+
+### Advisories for Edward
+
+- **Treat every export and every `quasar.db.bak` made before this fix as plaintext-equivalent.** The migration fixes the live DB and strips the hash from the `.bak` in the app dir. It can't reach copies elsewhere, such as backups or exports on other disks. Consider rotating remote passwords that were stored in the vault if a copy may have left the machine.
+- **Pulling `eee12f3` on another clone deletes that clone's `.claude/settings.local.json`,** because git removes files that the pulled commit untracks. Back it up before pulling on the Windows machine if you want to keep it.
+- **`release.yml` now parses, so the next `v*` tag will actually run it for the first time.** Expect the CI-008 follow-ups to surface: tag validation, empty Apple secrets and the release cache.

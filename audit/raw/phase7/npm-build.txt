@@ -1,0 +1,21 @@
+npm notice run quasar@0.1.0 build
+npm notice run tsc && vite build
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 2434 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                 0.45 kB │ gzip:   0.29 kB
+dist/assets/TerminalComponent-CHOd7Rch.css      4.21 kB │ gzip:   1.02 kB
+dist/assets/index-DVy4Vgrh.css                 60.52 kB │ gzip:  10.33 kB
+dist/assets/TerminalComponent-DnD1jupj.js     337.69 kB │ gzip:  85.42 kB
+dist/assets/index-CFSbuw1U.js               1,314.05 kB │ gzip: 379.76 kB
+
+[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0mnode_modules/@tauri-apps/api/event.js is dynamically imported by src/components/vault/VaultProvider.tsx but also statically imported by src/components/AIAssistant.tsx, src/components/Discovery.tsx, src/components/MonitoringView.tsx, src/components/NetworkScanner.tsx, src/components/TerminalComponent.tsx, ..., dynamic import will not move module into another chunk.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 2.08s
