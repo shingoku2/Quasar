@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import SettingsView from './SettingsView';
+import SettingsView, { applyStoredAppearance } from './SettingsView';
 import '@testing-library/jest-dom';
 
 // Mock Tauri API
@@ -87,7 +87,24 @@ describe('SettingsView', () => {
     render(<SettingsView />);
 
     fireEvent.click(screen.getByText('Notifications'));
-    expect(screen.getByText('Desktop Notifications')).toBeInTheDocument();
+    expect(screen.getAllByText(/Alert Feed/).length).toBeGreaterThan(0);
+    // FE-013: no toggles that nothing reads.
+    expect(screen.queryByText('Desktop Notifications')).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+  });
+
+  // FE-013: the saved theme applies at startup, not only after opening Appearance.
+  it('applyStoredAppearance applies the saved theme and accent', () => {
+    localStorage.setItem('quasar_settings', JSON.stringify({ appearance: { theme: 'light', accentColor: '#ff0000' } }));
+    try {
+      applyStoredAppearance();
+      expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+      expect(document.documentElement.style.getPropertyValue('--color-accent')).toBe('#ff0000');
+    } finally {
+      localStorage.removeItem('quasar_settings');
+      document.documentElement.removeAttribute('data-theme');
+      document.documentElement.style.removeProperty('--color-accent');
+    }
   });
 
   it('switches to Appearance category', () => {
