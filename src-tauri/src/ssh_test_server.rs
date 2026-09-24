@@ -93,6 +93,26 @@ impl Handler for TestServer {
 /// Starts a server on 127.0.0.1 that serves connections until the test ends. Returns the
 /// port and the shared log of authentication attempts.
 pub async fn spawn(policy: Policy) -> (u16, Arc<Mutex<Vec<String>>>) {
+    let (port, attempts, _) = spawn_killable(policy).await;
+    (port, attempts)
+}
+
+/// Ends every open server-side session, like a server restart.
+#[derive(Clone)]
+pub struct Killer(Arc<Mutex<Vec<russh::server::Handle>>>);
+
+impl Killer {
+    pub async fn kill_connections(&self) {
+        let handles: Vec<_> = self.0.lock().unwrap().drain(..).collect();
+        for handle in handles {
+            let _ = handle
+                .disconnect(russh::Disconnect::ByApplication, "test kill".into(), "en".into())
+                .await;
+        }
+    }
+}
+
+pub async fn spawn_killable(policy: Policy) -> (u16, Arc<Mutex<Vec<String>>>, Killer) {
     let config = Arc::new(russh::server::Config {
         auth_rejection_time: Duration::from_millis(0),
         auth_rejection_time_initial: Some(Duration::from_millis(0)),
@@ -106,17 +126,20 @@ pub async fn spawn(policy: Policy) -> (u16, Arc<Mutex<Vec<String>>>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let attempts = Arc::new(Mutex::new(Vec::new()));
+    let killer = Killer(Arc::new(Mutex::new(Vec::new())));
     let handler = TestServer { policy, attempts: attempts.clone() };
+    let tasks = killer.clone();
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
             let config = config.clone();
             let handler = handler.clone();
-            tokio::spawn(async move {
-                if let Ok(session) = russh::server::run_stream(config, stream, handler).await {
+            if let Ok(session) = russh::server::run_stream(config, stream, handler).await {
+                tasks.0.lock().unwrap().push(session.handle());
+                tokio::spawn(async move {
                     let _ = session.await;
-                }
-            });
+                });
+            }
         }
     });
-    (port, attempts)
+    (port, attempts, killer)
 }

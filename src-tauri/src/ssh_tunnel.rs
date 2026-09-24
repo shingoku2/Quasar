@@ -68,20 +68,38 @@ where
     Ok(())
 }
 
+/// How often an idle tunnel checks whether its SSH session is still alive.
+const SESSION_CHECK_INTERVAL: Duration = Duration::from_secs(5);
+
+/// SSH keepalives, so a dead network path is noticed even when no data flows
+/// (russh closes the session after `keepalive_max` unanswered keepalives).
+const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
+const KEEPALIVE_MAX: usize = 3;
+
 /// Run the tunnel loop: accept local connections and forward each via SSH direct-tcpip.
-async fn run_tunnel_loop(
+/// Ends when the user stops the tunnel or the SSH session dies; either way the local
+/// port is released and the tunnel leaves the active list. It used to run forever on a
+/// dead session, still listed as active, failing every connection (audit RUST-008).
+async fn run_tunnel_loop<H: russh::client::Handler>(
     tunnel_id: String,
     mut cancel_rx: mpsc::Receiver<()>,
     listener: TcpListener,
-    handle: Handle<Client>,
+    handle: Handle<H>,
     remote_host: String,
     remote_port: u16,
 ) {
+    let mut session_check = tokio::time::interval(SESSION_CHECK_INTERVAL);
     loop {
         tokio::select! {
             _ = cancel_rx.recv() => {
                 info!("Tunnel {} stopped by user", tunnel_id);
                 break;
+            }
+            _ = session_check.tick() => {
+                if handle.is_closed() {
+                    error!("Tunnel {} closed: SSH session ended", tunnel_id);
+                    break;
+                }
             }
             accepted = listener.accept() => {
                 let (stream, peer) = match accepted {
@@ -107,6 +125,10 @@ async fn run_tunnel_loop(
                     Err(e) => {
                         error!("Tunnel {} channel_open_direct_tcpip error: {}", tunnel_id, e);
                         drop(stream);
+                        if handle.is_closed() {
+                            error!("Tunnel {} closed: SSH session ended", tunnel_id);
+                            break;
+                        }
                         continue;
                     }
                 };
@@ -154,6 +176,8 @@ pub async fn start_tunnel(
     let config = Arc::new(russh::client::Config {
         window_size: 4 * 1024 * 1024,
         maximum_packet_size: 32 * 1024,
+        keepalive_interval: Some(KEEPALIVE_INTERVAL),
+        keepalive_max: KEEPALIVE_MAX,
         ..Default::default()
     });
 
@@ -230,4 +254,58 @@ pub async fn start_tunnel(
     });
 
     Ok(info)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct AcceptAnyKey;
+
+    impl russh::client::Handler for AcceptAnyKey {
+        type Error = russh::Error;
+        async fn check_server_key(
+            &mut self,
+            _key: &russh::keys::PublicKey,
+        ) -> Result<bool, Self::Error> {
+            Ok(true)
+        }
+    }
+
+    /// RUST-008: when the SSH session dies, the loop ends and frees the local port.
+    #[tokio::test]
+    async fn tunnel_loop_ends_when_the_session_dies() {
+        let policy = crate::ssh_test_server::Policy { accept_none: true, ..Default::default() };
+        let (port, _, killer) = crate::ssh_test_server::spawn_killable(policy).await;
+        let mut handle = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(russh::client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        ssh_auth::authenticate(&mut handle, "u", None, None, None, None).await.unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let local = listener.local_addr().unwrap();
+        let (_cancel_tx, cancel_rx) = mpsc::channel(1);
+        let tunnel = tokio::spawn(run_tunnel_loop(
+            "t".to_string(),
+            cancel_rx,
+            listener,
+            handle,
+            "127.0.0.1".to_string(),
+            9,
+        ));
+
+        killer.kill_connections().await;
+        tokio::time::timeout(SESSION_CHECK_INTERVAL * 3, tunnel)
+            .await
+            .expect("tunnel loop must end after the session dies")
+            .unwrap();
+        // The listener was dropped with the loop, so the port can be bound again.
+        assert!(TcpListener::bind(local).await.is_ok());
+    }
 }
