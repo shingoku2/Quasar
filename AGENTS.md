@@ -7,6 +7,67 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Credential-Access Gate for Master-Password Rekeying (September 24, 2026, EDW-15)
+
+Closes the last deferred audit finding. Before this, `add_credential`/`update_credential`
+fetched the master key with no coordination with `change_master_password`. A write that
+landed during the multi-second Argon2id + re-encryption pass (or in the gap between the
+DB commit and the in-memory key swap) was encrypted with the old key, and that
+credential was then permanently undecryptable under the new one. Reads in the same window
+got transient AEAD failures.
+
+**Fix (`vault.rs`):** `VaultState` gains `credential_gate: Arc<tokio::sync::RwLock<()>>`.
+- `credential_access()` takes a shared guard, then the key, and returns
+  `CredentialAccess { key: Zeroizing<[u8; 32]>, _gate }`. The key is valid for as long as
+  the guard lives. `credential_gate()` returns a bare shared guard for `delete_credential`,
+  which needs no key but shouldn't interleave with the rekey transaction.
+- `change_master_password` sets `changing_password` under `inner` (so a second concurrent
+  rotation still fails fast with "already in progress"), releases `inner`, then takes the
+  gate with `write_owned()` and holds it until the function returns, after the new key is
+  installed. tokio's `RwLock` is fair, so a pending rotation blocks new credential ops. They
+  **wait** instead of failing, as the Sep 2 design specified.
+- Lock order is always gate → `inner`. Nothing acquires the gate while holding `inner`.
+- The explicit-lock-wins check at the end of `change_master_password` is untouched.
+
+**Call sites moved to `credential_access()`:** `add_credential`, `update_credential`,
+`get_credential`, `reveal_credential_password`, `connect_ssh` / `start_ssh_tunnel` (guard
+dropped right after decrypting, before the network connect), `get_remote_hosts_health`
+(guard dropped before the concurrent probe phase), scheduler `resolve_cred_for_task`.
+`delete_credential` now takes the plain gate. No non-test code calls `get_master_key()`
+directly any more; keep it that way for credential code.
+
+**Regression test:** `vault::tests::test_credential_write_waits_for_master_password_change`.
+It holds a credential guard, starts a rotation, issues a write mid-rotation, asserts the
+write is blocked, releases, then asserts the write used the new key and decrypts under it.
+Mutation-checked: removing the gate acquisition from `change_master_password` fails it.
+
+Not covered: `import_database` replaces the whole DB file and is not gated. It's a
+different operation (an import mid-rotation is a user racing themselves), and it's out of
+scope here.
+
+### Dependabot Alert #1 Triage (September 24, 2026, EDW-16)
+
+The alert couldn't be read directly: the session's GitHub tooling has no Dependabot API
+access (the REST endpoint returns 403). It was identified by elimination instead:
+- `npm audit`: 0 vulnerabilities at any severity. npm uses the same GitHub Advisory DB, so
+  the alert isn't an npm package.
+- `cargo audit` on `src-tauri/Cargo.lock` (691 crates): the only vulnerability is
+  RUSTSEC-2023-0071 in `rsa 0.10.0-rc.18` (via `russh 0.62.7` and `ssh-key 0.7.0-rc.11`),
+  already suppressed in `src-tauri/.cargo/audit.toml`. Everything else is an
+  unmaintained/unsound/yanked warning, which Dependabot doesn't raise as an alert. Its
+  GHSA aliases are GHSA-c38w-74pg-36hr and GHSA-4grx-2x9w-596c (CVE-2023-49092,
+  CVSS 5.9 medium, which is why the high-threshold CI gates didn't trip).
+- The advisory still lists `patched = []` as of 2026-09-12. No version bump fixes it, so
+  there's nothing to upgrade to.
+
+The accepted-risk rationale in `SECURITY.md` still holds, and the advisory's own workaround
+agrees: "local use on a non-compromised computer is fine". Quasar only signs SSH auth
+challenges locally, one per connection. `SECURITY.md` and `audit.toml` now list the GHSA
+aliases so the alert can be matched to the documented decision. The remaining action is in
+the GitHub UI: dismiss alert #1 as "Tolerable risk", linking `SECURITY.md`. If the alert
+turns out **not** to be `rsa`, this triage is wrong and needs redoing. Re-evaluate when
+russh/ssh-key move to an `rsa` release that closes RustCrypto/RSA#626.
+
 ### Tailscale Integration - Complete (September 19, 2026)
 
 #### Overview
@@ -143,7 +204,9 @@ September 2 entry below.
 
 #### Finding-by-finding status (verified by code reading + `git log -S` attribution, clean tree @ `31f6fa99`)
 Numbered as in the September 2 entry below:
-1. **Master-password rotation racing credential writes — STILL OPEN (narrowed, not closed).**
+1. **Master-password rotation racing credential writes — FIXED September 24, 2026 (EDW-15);
+   see "Credential-Access Gate for Master-Password Rekeying" above. Status as of Sep 17:
+   STILL OPEN (narrowed, not closed).**
    Rotation is hardened: the `changing_password` flag (rejects concurrent rotations,
    suspends auto-lock, and is always reset on every code path — a stuck flag would
    permanently disable auto-lock), single-connection transactional re-encryption that

@@ -218,13 +218,14 @@ async fn connect_ssh(
 ) -> Result<(), String> {
     let (username, password, key_path, private_key, key_passphrase) =
         if let Some(cid) = credential_id {
-            let key = vault_state
-                .get_master_key()
+            let access = vault_state
+                .credential_access()
                 .await
                 .map_err(|e| sanitize_error(e, "vault"))?;
             let cred = credential_manager
-                .get_credential(&key, &cid)
+                .get_credential(access.key(), &cid)
                 .map_err(|e| sanitize_error(e, "credential"))?;
+            drop(access);
             (
                 cred.username,
                 if cred.password.is_empty() {
@@ -282,13 +283,14 @@ async fn start_ssh_tunnel(
     validate_port(remote_port)?;
     let (username, password, key_path, private_key, key_passphrase) =
         if let Some(cid) = credential_id {
-            let key = vault_state
-                .get_master_key()
+            let access = vault_state
+                .credential_access()
                 .await
                 .map_err(|e| sanitize_error(e, "vault"))?;
             let cred = credential_manager
-                .get_credential(&key, &cid)
+                .get_credential(access.key(), &cid)
                 .map_err(|e| sanitize_error(e, "credential"))?;
+            drop(access);
             (
                 cred.username,
                 if cred.password.is_empty() {
@@ -993,21 +995,24 @@ async fn get_remote_hosts_health(
     use futures::stream::StreamExt;
 
     let hosts = get_saved_hosts_from_db(&app)?;
-    let master_key = vault_state.get_master_key().await.ok(); // None if vault locked
+    let access = vault_state.credential_access().await.ok(); // None if vault locked
 
     // Decrypt credentials up front: these are blocking SQLite reads, so they are
     // kept out of the concurrent network phase below.
     let jobs: Vec<(SavedHost, Option<vault::credentials::Credential>)> = hosts
         .into_iter()
         .map(|h| {
-            let credential = h
-                .credential_id
-                .as_ref()
-                .zip(master_key.as_ref())
-                .and_then(|(cred_id, key)| credential_manager.get_credential(key, cred_id).ok());
+            let credential = match (h.credential_id.as_ref(), access.as_ref()) {
+                (Some(cred_id), Some(access)) => credential_manager
+                    .get_credential(access.key(), cred_id)
+                    .ok(),
+                _ => None,
+            };
             (h, credential)
         })
         .collect();
+    // Release the credential gate before the network phase, which can take seconds.
+    drop(access);
 
     // `buffered` preserves input order, so results stay sorted by host name.
     let results = futures::stream::iter(jobs.into_iter().map(|(host, credential)| {
@@ -1258,13 +1263,13 @@ async fn add_credential(
     if let Some(p) = port {
         validate_port(p)?;
     }
-    let master_key = vault_state
-        .get_master_key()
+    let access = vault_state
+        .credential_access()
         .await
         .map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager
         .add_credential(
-            &master_key,
+            access.key(),
             name.clone(),
             username,
             password,
@@ -1285,12 +1290,12 @@ async fn get_credential(
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
 ) -> Result<vault::CredentialFrontendView, String> {
-    let master_key = vault_state
-        .get_master_key()
+    let access = vault_state
+        .credential_access()
         .await
         .map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager
-        .get_credential(&master_key, &credential_id)
+        .get_credential(access.key(), &credential_id)
         .map(vault::CredentialFrontendView::from)
         .map_err(|e| sanitize_error(e, "credential"))
 }
@@ -1301,12 +1306,12 @@ async fn reveal_credential_password(
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
 ) -> Result<String, String> {
-    let master_key = vault_state
-        .get_master_key()
+    let access = vault_state
+        .credential_access()
         .await
         .map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager
-        .get_credential(&master_key, &credential_id)
+        .get_credential(access.key(), &credential_id)
         .map(|c| c.password)
         .map_err(|e| sanitize_error(e, "credential"))
 }
@@ -1342,13 +1347,13 @@ async fn update_credential(
     if let Some(ref u) = username {
         validate_username(u)?;
     }
-    let master_key = vault_state
-        .get_master_key()
+    let access = vault_state
+        .credential_access()
         .await
         .map_err(|e| sanitize_error(e, "vault"))?;
     credential_manager
         .update_credential(
-            &master_key,
+            access.key(),
             &credential_id,
             name,
             username,
@@ -1366,9 +1371,11 @@ async fn update_credential(
 
 #[tauri::command]
 async fn delete_credential(
+    vault_state: State<'_, vault::VaultState>,
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
 ) -> Result<(), String> {
+    let _gate = vault_state.credential_gate().await;
     credential_manager
         .delete_credential(&credential_id)
         .map_err(|e| sanitize_error(e, "credential"))

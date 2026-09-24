@@ -21,6 +21,9 @@ ignore = [
     # than dropped, since removing RSA key support would break every user
     # currently authenticating with an RSA SSH key.
     #
+    # GitHub/Dependabot aliases: GHSA-c38w-74pg-36hr, GHSA-4grx-2x9w-596c
+    # (CVE-2023-49092). Re-checked 2026-09-24: rsa 0.10.0-rc.18, still unpatched.
+    #
     # Re-evaluate when russh/ssh-key bump their `rsa` dependency past a
     # fixed release, or if RSA usage in this codebase ever grows beyond
     # SSH client auth (e.g. decrypting attacker-influenced ciphertext).

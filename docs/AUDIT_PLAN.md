@@ -5,10 +5,10 @@
 > remaining concurrency/persistence findings, four are now implemented — SSH
 > pending-connection cancellation, FIFO host-key prompts, database-import validation via a
 > Quasar `application_id` marker plus legacy-signature fallback, and immediate removal of
-> remotely closed SSH sessions (September 16–17 commits `d9064f1e`/`5b6bc93a`). One
-> remains open: credential writes racing master-password rekeying — the planned
-> credential-access gate was not implemented. See `AGENTS.md`'s September 17, 2026
-> status-reconciliation entry for the finding-by-finding write-up.
+> remotely closed SSH sessions (September 16–17 commits `d9064f1e`/`5b6bc93a`). The fifth,
+> credential writes racing master-password rekeying, was fixed September 24, 2026 (EDW-15)
+> with the planned credential-access gate (`VaultState::credential_gate`). See `AGENTS.md`'s
+> September 17 and September 24, 2026 entries.
 
 **Date:** 2026-02-28
 **Scope:** Full codebase — 10,818 frontend LOC (62 TS/TSX files) + 8,806 backend LOC (24 Rust files) + 12 migrations + CI/CD

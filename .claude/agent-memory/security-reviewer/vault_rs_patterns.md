@@ -42,7 +42,14 @@ same session:
    again, preserve that guard — don't reintroduce an unconditional `inner.master_key = Some(...)`
    at the end.
 
-2. **Torn-state/write race (OPEN; remediation planned 2026-09-02).**
+2. **Torn-state/write race (FIXED 2026-09-24, EDW-15; history below).** Implemented as
+   `VaultState::credential_gate` (`Arc<tokio::sync::RwLock<()>>`). Credential operations use
+   `credential_access()` (shared guard + key, `CredentialAccess`) or `credential_gate()`
+   (deletes); `change_master_password` takes `write_owned()` right after its `inner` block and
+   holds it to function end. Lock order is gate → `inner`, never the reverse. Don't add
+   a `get_master_key()` call in credential code: it bypasses the gate. Regression test:
+   `vault::tests::test_credential_write_waits_for_master_password_change` (mutation-checked).
+   Original analysis:
    Between the SQLite `tx.commit()` inside `spawn_blocking` (DB now has credentials
    re-encrypted with the new key) and the outer function reacquiring the write lock to swap
    `inner.master_key`, `get_master_key()` still returns the OLD key. Any concurrent credential
@@ -52,9 +59,8 @@ same session:
    undecryptable with the new key. The agreed fix is a fair credential-access gate: all
    key-bound credential operations hold a shared lease from key lookup through DB completion,
    while `change_master_password` holds the exclusive lease through transaction commit and
-   the in-memory key swap. Operations wait rather than fail during rotation. This is planned,
-   not implemented; see `docs/DEFERRED_AUDIT_FIX_PLAN.md` and preserve the explicit-lock-wins
-   behavior described above.
+   the in-memory key swap. Operations wait rather than fail during rotation. (Implemented as
+   described; the explicit-lock-wins behavior above is preserved.)
 
 3. **Not a regression, pre-existing:** `old_key`/`new_master_key` as plain `[u8;32]` (not
    `Zeroizing<[u8;32]>`) at the point they're extracted/returned across the
