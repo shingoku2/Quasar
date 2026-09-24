@@ -104,6 +104,25 @@ impl From<Credential> for CredentialSummary {
     }
 }
 
+/// A credential with a stored `host` may only be used against that host (case-insensitive,
+/// surrounding whitespace ignored). One without a host is unrestricted. Before this, any
+/// credential could be pointed at any host, so a compromised webview could bind a vault
+/// password to an attacker's server and let the monitoring poll send it there (IPC-003).
+pub fn host_allowed(credential_host: Option<&str>, target_host: &str) -> bool {
+    match credential_host.map(str::trim).filter(|h| !h.is_empty()) {
+        None => true,
+        Some(bound) => bound.eq_ignore_ascii_case(target_host.trim()),
+    }
+}
+
+pub fn host_mismatch_error(name: &str, bound: Option<&str>) -> String {
+    format!(
+        "Credential '{}' is restricted to host '{}'. Use it with that host, or clear its Host field.",
+        name,
+        bound.unwrap_or_default()
+    )
+}
+
 pub struct CredentialManager {
     db_path: String,
 }
@@ -1126,6 +1145,14 @@ mod tests {
         assert!(manager.get_credential(&master_key, &id).is_err(), "partially NULL triple");
 
         cleanup_test_db(&db_path);
+    }
+
+    #[test]
+    fn test_host_allowed_binding_rules() {
+        assert!(host_allowed(None, "anything"));
+        assert!(host_allowed(Some(""), "anything"));
+        assert!(host_allowed(Some(" Server.LAN "), "server.lan"));
+        assert!(!host_allowed(Some("server.lan"), "evil.example"));
     }
 
     #[test]

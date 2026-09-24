@@ -32,6 +32,40 @@ impl AuditLogManager {
         Self { db_path }
     }
 
+    /// Records a security event (best effort: failures are logged, never returned), for
+    /// actions outside the vault module such as scheduled-task changes (IPC-011).
+    pub fn record(
+        &self,
+        event_type: &str,
+        resource_id: Option<&str>,
+        resource_type: &str,
+        action: &str,
+        result: &str,
+        details: Option<&str>,
+    ) {
+        let outcome = crate::db::open_connection(&self.db_path).and_then(|conn| {
+            conn.execute(
+                "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                rusqlite::params![
+                    uuid::Uuid::new_v4().to_string(),
+                    chrono::Utc::now().timestamp(),
+                    event_type,
+                    resource_id,
+                    resource_type,
+                    action,
+                    result,
+                    details
+                ],
+            )
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+        });
+        if let Err(e) = outcome {
+            log::warn!("Failed to record audit event {}: {}", event_type, e);
+        }
+    }
+
     pub fn get_audit_logs(
         &self,
         filter: Option<AuditLogFilter>,

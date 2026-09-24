@@ -123,6 +123,9 @@ fn get_host_credentials(
     rows.next().transpose().map_err(|e| e.to_string())
 }
 
+/// Task types a scheduled task may have.
+pub const TASK_TYPES: [&str; 3] = ["ssh", "sftp_upload", "sftp_download"];
+
 const MAX_OUTPUT_LEN: usize = 4096;
 
 fn set_run_result(
@@ -363,6 +366,7 @@ fn is_due(cron_expression: &str, last_run_at: Option<i64>, now: DateTime<Utc>) -
 async fn resolve_cred_for_task(
     app: &AppHandle,
     credential_id: Option<&str>,
+    target_host: &str,
 ) -> Result<(String, Option<String>, Option<String>, Option<String>), String> {
     let (password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
         let vault_state = app
@@ -378,6 +382,9 @@ async fn resolve_cred_for_task(
         let cred = credential_manager
             .get_credential(access.key(), cid)
             .map_err(|e| format!("Credential error: {}", e))?;
+        if !crate::vault::credentials::host_allowed(cred.host.as_deref(), target_host) {
+            return Err(crate::vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
+        }
         (
             cred.password,
             cred.key_path.clone(),
@@ -464,7 +471,7 @@ async fn run_one_task(
                 }),
             }
         }
-        _ => {
+        "ssh" => {
             match ssh_exec::execute_ssh_command(
                 app.clone(),
                 address,
@@ -491,6 +498,9 @@ async fn run_one_task(
                 }),
             }
         }
+        // Only the three types the commands accept. Unknown values used to fall through
+        // to SSH exec (running `command`, possibly empty) instead of failing (IPC-011).
+        other => Err(format!("Unknown task type: {}", other)),
     }
 }
 
@@ -519,7 +529,7 @@ pub async fn run_scheduled_task_now(
     let cred_id = task.credential_id.clone();
     drop(conn);
 
-    let cred = resolve_cred_for_task(app, cred_id.as_deref()).await?;
+    let cred = resolve_cred_for_task(app, cred_id.as_deref(), &address).await?;
     let result = run_one_task(
         app,
         &address,
@@ -671,7 +681,7 @@ async fn run_and_record_task(
     let task_name = task.name.clone();
     drop(conn);
 
-    let result = match resolve_cred_for_task(app, task.credential_id.as_deref()).await {
+    let result = match resolve_cred_for_task(app, task.credential_id.as_deref(), &address).await {
         Ok(cred) => {
             run_one_task(
                 app,

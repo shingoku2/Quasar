@@ -231,6 +231,9 @@ async fn connect_ssh(
                 .get_credential(access.key(), &cid)
                 .map_err(|e| sanitize_error(e, "credential"))?;
             drop(access);
+            if !vault::credentials::host_allowed(cred.host.as_deref(), &host) {
+                return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
+            }
             (
                 cred.username,
                 if cred.password.is_empty() {
@@ -296,6 +299,9 @@ async fn start_ssh_tunnel(
                 .get_credential(access.key(), &cid)
                 .map_err(|e| sanitize_error(e, "credential"))?;
             drop(access);
+            if !vault::credentials::host_allowed(cred.host.as_deref(), &ssh_host) {
+                return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
+            }
             (
                 cred.username,
                 if cred.password.is_empty() {
@@ -788,9 +794,83 @@ async fn list_scheduled_tasks(app: AppHandle) -> Result<Vec<scheduler::Scheduled
 }
 
 
+/// `set_host_monitoring_credential` used to bind any id to any host without checks; the
+/// 30 s monitoring poll would then log in with it (IPC-003).
+fn check_monitoring_binding(
+    conn: &rusqlite::Connection,
+    host_id: &str,
+    credential_id: &str,
+) -> Result<(), String> {
+    use rusqlite::OptionalExtension;
+    let address: String = conn
+        .query_row("SELECT address FROM hosts WHERE id = ?1", [host_id], |r| r.get(0))
+        .optional()
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?
+        .ok_or_else(|| "Host not found".to_string())?;
+    let (name, bound_host): (String, Option<String>) = conn
+        .query_row(
+            "SELECT name, host FROM credentials WHERE id = ?1",
+            [credential_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?
+        .ok_or_else(|| "Credential not found".to_string())?;
+    if !vault::credentials::host_allowed(bound_host.as_deref(), &address) {
+        return Err(vault::credentials::host_mismatch_error(&name, bound_host.as_deref()));
+    }
+    Ok(())
+}
+
+const MAX_TASK_NAME_LEN: usize = 200;
+const MAX_TASK_COMMAND_LEN: usize = 16 * 1024;
+
+/// Validates a scheduled task before it's stored (IPC-011): known task type, an existing
+/// host, bounded name/command, and the paths an SFTP task needs. Returns the task type.
+fn validate_scheduled_task<'a>(
+    conn: &rusqlite::Connection,
+    name: &str,
+    host_id: &str,
+    command: &str,
+    task_type: Option<&'a str>,
+    local_path: Option<&str>,
+    remote_path: Option<&str>,
+) -> Result<&'a str, String> {
+    let task_type = task_type.unwrap_or("ssh");
+    if !scheduler::TASK_TYPES.contains(&task_type) {
+        return Err(format!("Unknown task type: {}", task_type));
+    }
+    if name.trim().is_empty() || name.len() > MAX_TASK_NAME_LEN {
+        return Err(format!("Task name must be 1-{} characters", MAX_TASK_NAME_LEN));
+    }
+    if command.len() > MAX_TASK_COMMAND_LEN {
+        return Err("Task command is too long".to_string());
+    }
+    if task_type == "ssh" && command.trim().is_empty() {
+        return Err("An SSH task needs a command".to_string());
+    }
+    if task_type != "ssh" {
+        match (local_path, remote_path) {
+            (Some(lp), Some(rp)) => {
+                validate_path(lp)?;
+                validate_path(rp)?;
+            }
+            _ => return Err("SFTP tasks need both a local and a remote path".to_string()),
+        }
+    }
+    let host_exists: bool = conn
+        .query_row("SELECT EXISTS(SELECT 1 FROM hosts WHERE id = ?1)", [host_id], |r| r.get(0))
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    if !host_exists {
+        return Err("Host not found".to_string());
+    }
+    Ok(task_type)
+}
+
 #[tauri::command]
 async fn add_scheduled_task(
     app: AppHandle,
+    audit: State<'_, vault::AuditLogManager>,
     name: String,
     cron_expression: String,
     host_id: String,
@@ -803,17 +883,17 @@ async fn add_scheduled_task(
 ) -> Result<String, String> {
     cron::Schedule::from_str(&cron_expression)
         .map_err(|e| format!("Invalid cron expression: {}", e))?;
-    let task_type = task_type.as_deref().unwrap_or("ssh");
-    if task_type == "sftp_upload" || task_type == "sftp_download" {
-        if let Some(ref lp) = local_path {
-            validate_path(lp)?;
-        }
-        if let Some(ref rp) = remote_path {
-            validate_path(rp)?;
-        }
-    }
     let conn = scheduled_tasks_conn(&app)?;
-    scheduler::add_scheduled_task(
+    let task_type = validate_scheduled_task(
+        &conn,
+        &name,
+        &host_id,
+        &command,
+        task_type.as_deref(),
+        local_path.as_deref(),
+        remote_path.as_deref(),
+    )?;
+    let id = scheduler::add_scheduled_task(
         &conn,
         &name,
         &cron_expression,
@@ -825,12 +905,15 @@ async fn add_scheduled_task(
         local_path.as_deref(),
         remote_path.as_deref(),
     )
-    .map_err(|e| sanitize_error(e, "scheduled task"))
+    .map_err(|e| sanitize_error(e, "scheduled task"))?;
+    audit.record("scheduled_task_create", Some(&id), "scheduled_task", "create", "success", Some(&name));
+    Ok(id)
 }
 
 #[tauri::command]
 async fn update_scheduled_task(
     app: AppHandle,
+    audit: State<'_, vault::AuditLogManager>,
     id: String,
     name: String,
     cron_expression: String,
@@ -844,16 +927,16 @@ async fn update_scheduled_task(
 ) -> Result<(), String> {
     cron::Schedule::from_str(&cron_expression)
         .map_err(|e| format!("Invalid cron expression: {}", e))?;
-    let task_type = task_type.as_deref().unwrap_or("ssh");
-    if task_type == "sftp_upload" || task_type == "sftp_download" {
-        if let Some(ref lp) = local_path {
-            validate_path(lp)?;
-        }
-        if let Some(ref rp) = remote_path {
-            validate_path(rp)?;
-        }
-    }
     let conn = scheduled_tasks_conn(&app)?;
+    let task_type = validate_scheduled_task(
+        &conn,
+        &name,
+        &host_id,
+        &command,
+        task_type.as_deref(),
+        local_path.as_deref(),
+        remote_path.as_deref(),
+    )?;
     scheduler::update_scheduled_task(
         &conn,
         &id,
@@ -867,23 +950,39 @@ async fn update_scheduled_task(
         local_path.as_deref(),
         remote_path.as_deref(),
     )
-    .map_err(|e| sanitize_error(e, "scheduled task"))
+    .map_err(|e| sanitize_error(e, "scheduled task"))?;
+    audit.record("scheduled_task_update", Some(&id), "scheduled_task", "update", "success", Some(&name));
+    Ok(())
 }
 
 #[tauri::command]
-async fn remove_scheduled_task(app: AppHandle, id: String) -> Result<(), String> {
+async fn remove_scheduled_task(
+    app: AppHandle,
+    audit: State<'_, vault::AuditLogManager>,
+    id: String,
+) -> Result<(), String> {
     let conn = scheduled_tasks_conn(&app)?;
-    scheduler::remove_scheduled_task(&conn, &id).map_err(|e| sanitize_error(e, "scheduled task"))
+    scheduler::remove_scheduled_task(&conn, &id).map_err(|e| sanitize_error(e, "scheduled task"))?;
+    audit.record("scheduled_task_delete", Some(&id), "scheduled_task", "delete", "success", None);
+    Ok(())
 }
 
 #[tauri::command]
 async fn run_scheduled_task_now(
     app: AppHandle,
+    audit: State<'_, vault::AuditLogManager>,
     id: String,
 ) -> Result<scheduler::TaskRunResult, String> {
-    scheduler::run_scheduled_task_now(&app, &id)
-        .await
-        .map_err(|e| sanitize_error(e, "run task"))
+    let result = scheduler::run_scheduled_task_now(&app, &id).await;
+    audit.record(
+        "scheduled_task_run",
+        Some(&id),
+        "scheduled_task",
+        "run",
+        if matches!(&result, Ok(r) if r.success) { "success" } else { "failure" },
+        None,
+    );
+    result.map_err(|e| sanitize_error(e, "run task"))
 }
 
 /// How many hosts are probed at once by `get_remote_hosts_health`.
@@ -979,7 +1078,9 @@ async fn get_remote_hosts_health(
             let credential = match (h.credential_id.as_ref(), access.as_ref()) {
                 (Some(cred_id), Some(access)) => credential_manager
                     .get_credential(access.key(), cred_id)
-                    .ok(),
+                    .ok()
+                    // A credential bound to another host is never sent to this one (IPC-003).
+                    .filter(|c| vault::credentials::host_allowed(c.host.as_deref(), &h.address)),
                 _ => None,
             };
             (h, credential)
@@ -1017,6 +1118,7 @@ async fn set_host_monitoring_credential(
     let conn = db::open_connection(db_path_str)?;
     match credential_id.as_deref() {
         Some(id) if !id.is_empty() => {
+            check_monitoring_binding(&conn, &host_id, id)?;
             conn.execute(
                 "INSERT OR REPLACE INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, ?2)",
                 rusqlite::params![host_id, id],
@@ -2197,6 +2299,56 @@ mod saved_host_tests {
         assert!(err.contains("newer version"), "{}", err);
         assert!(!vault.is_locked().await);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn migrated_memory_db() -> rusqlite::Connection {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        MIGRATIONS.to_latest(&mut conn).unwrap();
+        conn
+    }
+
+    /// IPC-011: task creation rejects unknown types (which used to run as SSH exec),
+    /// missing hosts, empty SSH commands and SFTP tasks without both paths.
+    #[test]
+    fn scheduled_task_validation() {
+        let mut conn = migrated_memory_db();
+        let host = upsert_saved_host_in_conn(&mut conn, "srv", "10.0.0.5", "ssh", None, Some("root")).unwrap();
+        let ok = |t: Option<&str>, cmd: &str, lp: Option<&str>, rp: Option<&str>| {
+            validate_scheduled_task(&conn, "backup", &host.id, cmd, t, lp, rp).map(str::to_string)
+        };
+        assert_eq!(ok(None, "uptime", None, None).unwrap(), "ssh");
+        assert!(ok(Some("SFTP_UPLOAD"), "uptime", None, None).unwrap_err().contains("Unknown task type"));
+        assert!(ok(Some("ssh"), "   ", None, None).is_err());
+        assert!(ok(Some("sftp_upload"), "", Some("/tmp/a"), None).is_err());
+        assert_eq!(ok(Some("sftp_upload"), "", Some("/tmp/a"), Some("/srv/a")).unwrap(), "sftp_upload");
+        assert!(validate_scheduled_task(&conn, "t", "no-such-host", "uptime", None, None, None)
+            .unwrap_err()
+            .contains("Host not found"));
+        assert!(validate_scheduled_task(&conn, "", &host.id, "uptime", None, None, None).is_err());
+    }
+
+    /// IPC-003: a monitoring binding needs an existing host and credential, and a credential
+    /// restricted to another host can't be bound.
+    #[test]
+    fn monitoring_binding_respects_credential_host() {
+        let mut conn = migrated_memory_db();
+        let host = upsert_saved_host_in_conn(&mut conn, "srv", "10.0.0.5", "ssh", None, Some("root")).unwrap();
+        let insert = |id: &str, bound: Option<&str>| {
+            conn.execute(
+                "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, created_at, updated_at)
+                 VALUES (?1, ?1, 'u', X'00', zeroblob(12), zeroblob(16), 'password', ?2, 0, 0)",
+                rusqlite::params![id, bound],
+            )
+            .unwrap();
+        };
+        insert("free", None);
+        insert("bound-here", Some("10.0.0.5"));
+        insert("bound-elsewhere", Some("evil.example"));
+        assert!(check_monitoring_binding(&conn, &host.id, "free").is_ok());
+        assert!(check_monitoring_binding(&conn, &host.id, "bound-here").is_ok());
+        assert!(check_monitoring_binding(&conn, &host.id, "bound-elsewhere").unwrap_err().contains("restricted"));
+        assert!(check_monitoring_binding(&conn, &host.id, "missing").is_err());
+        assert!(check_monitoring_binding(&conn, "no-host", "free").is_err());
     }
 
     /// IPC-007 / IPC-008: the shipped capability and CSP stay least-privilege.
