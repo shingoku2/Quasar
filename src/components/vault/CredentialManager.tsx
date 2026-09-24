@@ -597,10 +597,13 @@ const CredentialViewDialog: React.FC<{
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Copy works only after an explicit reveal. Revealing needs a native confirmation, and
+  // waiting on that dialog would outlive the click's user gesture, which WebKit requires
+  // for clipboard writes, so a reveal-then-copy in one click failed silently.
   const copyPasswordToClipboard = async () => {
+    if (revealedPassword === null) return;
     try {
-      const password = revealedPassword || await invoke<string>('reveal_credential_password', { credentialId: credential.id });
-      await navigator.clipboard.writeText(password);
+      await navigator.clipboard.writeText(revealedPassword);
       setCopiedPassword(true);
       setTimeout(() => setCopiedPassword(false), 2000);
 
@@ -613,7 +616,7 @@ const CredentialViewDialog: React.FC<{
         clipboardClearTimerRef.current = null;
       }, 30000);
     } catch (err) {
-      console.error('Failed to reveal password for copying', err);
+      console.error('Failed to copy password', err);
     }
   };
 
@@ -699,7 +702,10 @@ const CredentialViewDialog: React.FC<{
                   </button>
                   <button
                     onClick={copyPasswordToClipboard}
-                    className="text-gray-400 hover:text-accent transition-colors text-xs"
+                    disabled={revealedPassword === null}
+                    aria-label="Copy password"
+                    title={revealedPassword === null ? 'Reveal the password first' : undefined}
+                    className="text-gray-400 hover:text-accent transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {copiedPassword ? 'Copied!' : 'Copy'}
                   </button>

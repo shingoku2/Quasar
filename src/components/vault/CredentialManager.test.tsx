@@ -328,6 +328,39 @@ describe('CredentialManager', () => {
     await waitFor(() => expect(dialog).not.toHaveTextContent('secret123'));
   });
 
+  // P7-4 review: copying waits for an explicit reveal, so the clipboard write happens inside
+  // the click (the native reveal dialog would otherwise expire WebKit's user gesture).
+  it('enables Copy only after the password is revealed, then copies it', async () => {
+    const fullCred = { ...mockCredentials[0], has_password: true, has_private_key: false, has_key_passphrase: false };
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_credentials') return mockCredentials;
+      if (cmd === 'get_credential') return fullCred;
+      if (cmd === 'reveal_credential_password') return 'secret123';
+      return undefined;
+    });
+    const originalClipboard = navigator.clipboard;
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    try {
+      render(<CredentialManager />);
+      await waitFor(() => expect(screen.getByText('Prod SSH')).toBeInTheDocument());
+      fireEvent.click(screen.getAllByTitle('View')[0]);
+      await screen.findByRole('dialog', { name: /View Credential/i });
+
+      const copy = screen.getByRole('button', { name: /Copy password/i });
+      expect(copy).toBeDisabled();
+      fireEvent.click(copy);
+      expect(mockInvoke).not.toHaveBeenCalledWith('reveal_credential_password', expect.anything());
+
+      fireEvent.click(screen.getByRole('button', { name: /Toggle password visibility/i }));
+      await waitFor(() => expect(copy).not.toBeDisabled());
+      fireEvent.click(copy);
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('secret123'));
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true });
+    }
+  });
+
   it('shows password controls for every password-backed credential type', async () => {
     const rdpCred = {
       id: '9',
