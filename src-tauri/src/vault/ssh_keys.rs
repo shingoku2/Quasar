@@ -1,4 +1,5 @@
 use crate::db;
+use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -56,6 +57,10 @@ pub struct HostKeyVerificationResult {
     pub status: TrustStatus,
     pub fingerprint: String,
     pub message: String,
+    /// The previously stored fingerprint when `status` is `Changed` (FE-010: the UI used to
+    /// show the whole prose `message`, new fingerprint included, as the "old" one).
+    #[serde(default)]
+    pub old_fingerprint: Option<String>,
 }
 
 pub struct SshKeyManager {
@@ -104,7 +109,10 @@ impl SshKeyManager {
                     })
                 },
             )
-            .ok()
+            .optional()
+            // A lookup error must fail closed. It used to read as "no known key", so a DB
+            // problem showed a first-use prompt and could hide a changed key (RUST-013).
+            .map_err(|e| format!("Failed to look up known host key: {}", e))?
         }; // MutexGuard dropped here
 
         let result = match existing {
@@ -118,6 +126,7 @@ impl SshKeyManager {
                         "Unknown host key for {}:{}. Fingerprint: {}",
                         host, port, fingerprint
                     ),
+                    old_fingerprint: None,
                 }
             }
             Some(known) => {
@@ -134,12 +143,14 @@ impl SshKeyManager {
                             status: TrustStatus::Trusted,
                             fingerprint: fingerprint.to_string(),
                             message: format!("Trusted host key for {}:{}", host, port),
+                            old_fingerprint: None,
                         },
                         TrustStatus::Rejected => HostKeyVerificationResult {
                             allowed: false,
                             status: TrustStatus::Rejected,
                             fingerprint: fingerprint.to_string(),
                             message: format!("Rejected host key for {}:{}", host, port),
+                            old_fingerprint: None,
                         },
                         _ => HostKeyVerificationResult {
                             allowed: false,
@@ -149,6 +160,7 @@ impl SshKeyManager {
                                 "Host key for {}:{} requires confirmation",
                                 host, port
                             ),
+                            old_fingerprint: None,
                         },
                     }
                 } else {
@@ -161,6 +173,7 @@ impl SshKeyManager {
                             "WARNING: Host key for {}:{} has changed!\nOld: {}\nNew: {}\nThis could indicate a man-in-the-middle attack!",
                             host, port, known.fingerprint, fingerprint
                         ),
+                        old_fingerprint: Some(known.fingerprint.clone()),
                     }
                 }
             }
@@ -395,6 +408,42 @@ mod tests {
         assert!(!result.allowed);
         assert!(matches!(result.status, TrustStatus::Unknown));
         cleanup_test_db(&db_path);
+    }
+
+    /// RUST-013 / TEST-003: a lookup error fails closed instead of reading as "unknown host".
+    #[tokio::test]
+    async fn test_lookup_error_fails_closed() {
+        let (manager, db_path) = create_test_manager().await;
+        manager.conn.lock().unwrap().execute_batch("DROP TABLE ssh_known_hosts;").unwrap();
+        assert!(manager
+            .verify_host_key_by_fingerprint("h", 22, "SHA256:x", "ssh-key")
+            .await
+            .is_err());
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// TEST-003: a rejected key is not allowed; ports are isolated; a changed key reports the
+    /// old fingerprint on its own (FE-010).
+    #[tokio::test]
+    async fn test_rejected_port_isolation_and_old_fingerprint() {
+        let (manager, db_path) = create_test_manager().await;
+        manager
+            .trust_host_key("h", 22, "SHA256:old", "ssh-key", vec![1], TrustStatus::Trusted)
+            .await
+            .unwrap();
+        let other_port = manager.verify_host_key_by_fingerprint("h", 2222, "SHA256:old", "ssh-key").await.unwrap();
+        assert!(!other_port.allowed);
+        let changed = manager.verify_host_key_by_fingerprint("h", 22, "SHA256:new", "ssh-key").await.unwrap();
+        assert!(!changed.allowed);
+        assert_eq!(changed.old_fingerprint.as_deref(), Some("SHA256:old"));
+        manager
+            .trust_host_key("r", 22, "SHA256:r", "ssh-key", vec![2], TrustStatus::Rejected)
+            .await
+            .unwrap();
+        let rejected = manager.verify_host_key_by_fingerprint("r", 22, "SHA256:r", "ssh-key").await.unwrap();
+        assert!(!rejected.allowed);
+        assert!(matches!(rejected.status, TrustStatus::Rejected));
+        let _ = std::fs::remove_file(&db_path);
     }
 
     #[tokio::test]

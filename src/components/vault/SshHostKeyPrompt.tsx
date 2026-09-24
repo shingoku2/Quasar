@@ -22,7 +22,10 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
   onTrust,
   onReject,
 }) => {
-  const [trustPermanently, setTrustPermanently] = useState(true);
+  // A changed key is the MITM case: don't default to replacing the stored key forever, and
+  // require an explicit confirmation before it can be accepted at all (RSEC-007).
+  const [trustPermanently, setTrustPermanently] = useState(!isChanged);
+  const [verifiedChange, setVerifiedChange] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const copyFingerprint = async () => {
@@ -147,10 +150,25 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
             </label>
           </div>
 
+          {isChanged && (
+            <label className="flex items-start space-x-3 cursor-pointer bg-alert/10 border border-alert/40 rounded-lg p-4">
+              <input
+                type="checkbox"
+                checked={verifiedChange}
+                onChange={(e) => setVerifiedChange(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-600 bg-bg-root text-alert focus:ring-alert focus:ring-offset-0"
+              />
+              <span className="text-white text-sm">
+                I verified the new fingerprint with the server's administrator through a separate channel
+              </span>
+            </label>
+          )}
+
           <div className="pt-2 flex space-x-3">
             <button
               onClick={() => onTrust(trustPermanently)}
-              className={`flex-1 ${isChanged ? 'bg-alert hover:bg-alert/80' : 'bg-accent hover:bg-accent/80'} text-white py-3 rounded-lg text-sm font-bold transition-all shadow-lg flex items-center justify-center`}
+              disabled={isChanged && !verifiedChange}
+              className={`flex-1 ${isChanged ? 'bg-alert hover:bg-alert/80' : 'bg-accent hover:bg-accent/80'} text-white py-3 rounded-lg text-sm font-bold transition-all shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <ShieldCheck className="h-4 w-4 mr-2" />
               {isChanged ? 'Accept New Key & Connect' : 'Trust & Connect'}

@@ -1447,32 +1447,48 @@ async fn verify_ssh_host_key(
 async fn trust_ssh_host_key(
     ssh_key_manager: State<'_, vault::SshKeyManager>,
     approval_state: State<'_, ssh::HostKeyApprovalState>,
-    host: String,
-    port: u16,
-    fingerprint: String,
-    key_type: String,
-    key_bytes: Vec<u8>,
-    trust_status: vault::TrustStatus,
-    request_id: Option<String>,
+    audit: State<'_, vault::AuditLogManager>,
+    request_id: String,
 ) -> Result<(), String> {
-    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
-        return Err("Invalid host format".to_string());
-    }
-    validate_port(port)?;
-    ssh_key_manager
-        .trust_host_key(
-            &host,
-            port,
-            &fingerprint,
-            &key_type,
-            key_bytes,
-            trust_status,
-        )
+    // Only a key a handshake actually presented can be trusted, and only through its
+    // pending approval. The webview used to pass host/fingerprint/key bytes itself and
+    // could pin any key for any host, silently enabling a MITM on the unattended SSH,
+    // SFTP and monitoring paths (IPC-002).
+    let manager = ssh_key_manager.inner();
+    let mut trusted: Option<(String, u16, String)> = None;
+    approval_state
+        .accept_and_persist(&request_id, |key| {
+            trusted = Some((key.host.clone(), key.port, key.fingerprint.clone()));
+            async move {
+                manager
+                    .trust_host_key(
+                        &key.host,
+                        key.port,
+                        &key.fingerprint,
+                        &key.key_type,
+                        key.key_bytes,
+                        vault::TrustStatus::Trusted,
+                    )
+                    .await
+            }
+        })
         .await
-        .map_err(|e| sanitize_error(e, "ssh"))?;
-
-    if let Some(request_id) = request_id {
-        approval_state.resolve(&request_id, true)?;
+        .map_err(|e| {
+            if e.contains("no longer pending") || e.contains("stopped waiting") {
+                e
+            } else {
+                sanitize_error(e, "ssh")
+            }
+        })?;
+    if let Some((host, port, fingerprint)) = trusted {
+        audit.record(
+            "ssh_host_key_trust",
+            None,
+            "ssh_host_key",
+            "trust",
+            "success",
+            Some(&format!("{}:{} {}", host, port, fingerprint)),
+        );
     }
     Ok(())
 }
@@ -1515,6 +1531,7 @@ async fn remove_ssh_host_key(
 #[tauri::command]
 async fn update_ssh_host_trust(
     ssh_key_manager: State<'_, vault::SshKeyManager>,
+    audit: State<'_, vault::AuditLogManager>,
     host: String,
     port: u16,
     trust_status: vault::TrustStatus,
@@ -1523,10 +1540,14 @@ async fn update_ssh_host_trust(
         return Err("Invalid host format".to_string());
     }
     validate_port(port)?;
+    let details = format!("{}:{} -> {:?}", host, port, trust_status);
     ssh_key_manager
         .update_trust_status(&host, port, trust_status)
         .await
-        .map_err(|e| sanitize_error(e, "ssh"))
+        .map_err(|e| sanitize_error(e, "ssh"))?;
+    // Trust changes on stored keys are security-relevant (IPC-002).
+    audit.record("ssh_host_key_trust_change", None, "ssh_host_key", "update", "success", Some(&details));
+    Ok(())
 }
 
 // Change master password command

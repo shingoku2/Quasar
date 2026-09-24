@@ -10,8 +10,23 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
+/// The key a handshake actually presented, kept with its pending approval so that trusting
+/// it persists *these* bytes, not whatever the caller supplies (IPC-002).
+pub struct PresentedHostKey {
+    pub host: String,
+    pub port: u16,
+    pub fingerprint: String,
+    pub key_type: String,
+    pub key_bytes: Vec<u8>,
+}
+
+struct PendingApproval {
+    sender: tokio::sync::oneshot::Sender<bool>,
+    key: PresentedHostKey,
+}
+
 pub struct HostKeyApprovalState {
-    pending: Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>,
+    pending: Mutex<HashMap<String, PendingApproval>>,
 }
 
 impl HostKeyApprovalState {
@@ -21,26 +36,52 @@ impl HostKeyApprovalState {
         }
     }
 
-    fn register(&self) -> Result<(String, tokio::sync::oneshot::Receiver<bool>), String> {
+    fn register(
+        &self,
+        key: PresentedHostKey,
+    ) -> Result<(String, tokio::sync::oneshot::Receiver<bool>), String> {
         let request_id = uuid::Uuid::new_v4().to_string();
         let (sender, receiver) = tokio::sync::oneshot::channel();
         self.pending
             .lock()
             .map_err(|_| "Host key approval state is unavailable".to_string())?
-            .insert(request_id.clone(), sender);
+            .insert(request_id.clone(), PendingApproval { sender, key });
         Ok((request_id, receiver))
     }
 
-    pub fn resolve(&self, request_id: &str, accepted: bool) -> Result<(), String> {
-        let sender = self
-            .pending
+    fn take(&self, request_id: &str) -> Result<PendingApproval, String> {
+        self.pending
             .lock()
             .map_err(|_| "Host key approval state is unavailable".to_string())?
             .remove(request_id)
-            .ok_or_else(|| "Host key approval request is no longer pending".to_string())?;
-        sender
+            .ok_or_else(|| "Host key approval request is no longer pending".to_string())
+    }
+
+    /// Answers a pending prompt without persisting anything (one-time trust or reject).
+    pub fn resolve(&self, request_id: &str, accepted: bool) -> Result<(), String> {
+        self.take(request_id)?
+            .sender
             .send(accepted)
             .map_err(|_| "SSH connection stopped waiting for host key approval".to_string())
+    }
+
+    /// Accepts a pending prompt and hands back the key that handshake presented, for the
+    /// caller to persist. The connection is released only after `persist` succeeds.
+    pub async fn accept_and_persist<F, Fut>(&self, request_id: &str, persist: F) -> Result<(), String>
+    where
+        F: FnOnce(PresentedHostKey) -> Fut,
+        Fut: std::future::Future<Output = Result<(), String>>,
+    {
+        let PendingApproval { sender, key } = self.take(request_id)?;
+        match persist(key).await {
+            Ok(()) => sender
+                .send(true)
+                .map_err(|_| "SSH connection stopped waiting for host key approval".to_string()),
+            Err(e) => {
+                let _ = sender.send(false);
+                Err(e)
+            }
+        }
     }
 
     fn cancel(&self, request_id: &str) {
@@ -80,7 +121,13 @@ impl client::Handler for Client {
                 } else {
                     let approval_state = self.app_handle.state::<HostKeyApprovalState>();
                     let (request_id, receiver) = approval_state
-                        .register()
+                        .register(PresentedHostKey {
+                            host: self.host.clone(),
+                            port: self.port,
+                            fingerprint: fingerprint.clone(),
+                            key_type: key_type.to_string(),
+                            key_bytes: key_bytes.clone(),
+                        })
                         .map_err(|_| russh::Error::Disconnect)?;
 
                     // Keep this handshake pending while the frontend displays the
@@ -99,6 +146,7 @@ impl client::Handler for Client {
                                 "keyBytes": key_bytes,
                                 "status": format!("{:?}", result.status),
                                 "message": result.message,
+                                "oldFingerprint": result.old_fingerprint,
                             }),
                         )
                         .is_err()
@@ -605,17 +653,61 @@ pub async fn disconnect_ssh(state: tauri::State<'_, SshState>, id: String) -> Re
 
 #[cfg(test)]
 mod host_key_approval_tests {
-    use super::{HostKeyApprovalState, SshState};
+    use super::{HostKeyApprovalState, PresentedHostKey, SshState};
+
+    fn presented(host: &str) -> PresentedHostKey {
+        PresentedHostKey {
+            host: host.to_string(),
+            port: 22,
+            fingerprint: format!("SHA256:{}", host),
+            key_type: "ssh-key".to_string(),
+            key_bytes: vec![1, 2, 3],
+        }
+    }
 
     #[tokio::test]
     async fn resolves_the_matching_pending_approval() {
         let state = HostKeyApprovalState::new();
-        let (request_id, receiver) = state.register().unwrap();
+        let (request_id, receiver) = state.register(presented("a")).unwrap();
 
         state.resolve(&request_id, true).unwrap();
 
         assert!(receiver.await.unwrap());
         assert!(state.resolve(&request_id, true).is_err());
+    }
+
+    /// IPC-002: trusting persists the key the handshake presented (not caller data), and
+    /// the connection is only released once that succeeded.
+    #[tokio::test]
+    async fn accept_persists_the_presented_key_then_releases_the_handshake() {
+        let state = HostKeyApprovalState::new();
+        let (request_id, receiver) = state.register(presented("real.host")).unwrap();
+        let mut persisted = None;
+        state
+            .accept_and_persist(&request_id, |key| {
+                persisted = Some((key.host.clone(), key.fingerprint.clone(), key.key_bytes.clone()));
+                async { Ok(()) }
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            persisted,
+            Some(("real.host".to_string(), "SHA256:real.host".to_string(), vec![1, 2, 3]))
+        );
+        assert!(receiver.await.unwrap());
+        assert!(state.accept_and_persist(&request_id, |_| async { Ok(()) }).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn failed_persist_rejects_the_handshake() {
+        let state = HostKeyApprovalState::new();
+        let (request_id, receiver) = state.register(presented("h")).unwrap();
+        let err = state
+            .accept_and_persist(&request_id, |_| async { Err("disk full".to_string()) })
+            .await
+            .unwrap_err();
+        assert_eq!(err, "disk full");
+        assert!(!receiver.await.unwrap());
     }
 
     #[test]
