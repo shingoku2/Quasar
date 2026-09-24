@@ -23,6 +23,9 @@ const { mockInvoke, mockSelect, mockExecute } = vi.hoisted(() => {
       ]);
     }
     if (command === 'get_saved_hosts') return mockSelect();
+    if (command === 'get_tailscale_status') {
+      return Promise.resolve({ installed: false, backend_state: '', magic_dns_enabled: false, magic_dns_suffix: null, self_node: null, peers: [] });
+    }
     if (
       command === 'upsert_saved_host' ||
       command === 'update_saved_host' ||

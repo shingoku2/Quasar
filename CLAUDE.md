@@ -4,19 +4,46 @@ Quasar is a Tauri 2.x desktop application for remote infrastructure management: 
 
 ## Current Work: Deferred Audit Fixes
 
-As of September 2, 2026, five audit findings are planned but not implemented:
+Status as of September 17, 2026, verified in code on master (`31f6fa99`): four of the five
+September 2 findings are implemented —
 
-- serialize credential operations with master-password rekeying;
-- cancel SSH attempts when their terminal closes while connecting;
-- queue concurrent SSH host-key prompts instead of replacing the active prompt;
-- reject unrelated SQLite files during database import while supporting recognized legacy
-  Quasar backups; and
-- remove remotely closed SSH sessions from the registry immediately.
+- cancel SSH attempts when their terminal closes while connecting — done
+  (`SshState::pending_connections` cancellation registry, `ssh.rs`);
+- queue concurrent SSH host-key prompts instead of replacing the active prompt — done
+  (requestId-correlated `HostKeyApprovalState` + FIFO queue in
+  `src/hooks/useSshHostKeyVerification.ts`);
+- reject unrelated SQLite files during database import — done (Quasar `application_id`
+  "QSR1" marker + strict legacy-signature fallback in `lib.rs`);
+- remove remotely closed SSH sessions from the registry immediately — done (session
+  driver removes the entry when the transport future completes).
 
-The decision-complete design and required deterministic tests are in
-`docs/DEFERRED_AUDIT_FIX_PLAN.md`. Credential operations should wait during rekeying,
-host-key prompts should be FIFO, and import should use a Quasar `application_id` plus a
-strict legacy-schema fallback. No code or tests were changed during the planning session.
+Still open: **serialize credential operations with master-password rekeying.** The planned
+credential-access gate (queueing credential operations behind rotation) was never
+implemented — `add_credential`/`update_credential` don't check `changing_password`, so a
+write landing during the re-encryption transaction or the post-commit key-swap window is
+encrypted with the old key and orphaned under the new one. Rotation itself is hardened
+(single-connection transactional re-encryption with AEAD probe, auto-lock suspension).
+Finding-by-finding write-up with commit attribution: `AGENTS.md`, September 17, 2026
+"Deferred Bug-Audit Fixes: Status Reconciliation". (`docs/DEFERRED_AUDIT_FIX_PLAN.md`
+never landed on master — it exists only on the unmerged `copilot/vscode-mu4rlxtb-cd2d`
+branch.)
+
+---
+
+## Recent Work: PR Backlog Cleanup (September 17, 2026)
+
+26 open PRs (bot-authored: perf micro-optimizations, dead-code/comment removal, and test
+coverage additions) were triaged and merged. 17 were clean as-authored. 9 had real,
+verified problems and were fixed before merging — mostly test-quality issues (weak
+assertions that couldn't actually catch a regression, mock state leaking across tests) but
+one was a genuine concurrency bug: **PR #39's own "TOCTOU fix" for `scan_network` was
+itself a no-op** (it only reordered two lock acquisitions already inside the same critical
+section). The real race — a `stop_scan()` call landing in the window between
+`tokio::spawn(...)` and the spawned task actually starting could be silently discarded —
+is fixed by `scanner::claim_scan()`, called synchronously in the `scan_network` command
+*before* `tokio::spawn`, not from inside the spawned task. See Security Notes item 11
+below and `AGENTS.md` for the full writeup, including an incident where an automated bot
+reverted this fix mid-review and it had to be reapplied.
 
 ---
 
@@ -33,7 +60,7 @@ Quasar/
 │   ├── db.ts                   # Tauri SQL plugin interface
 │   ├── test-setup.ts           # Vitest global mocks
 │   ├── App.tsx                 # Root component + routing
-│   └── *.test.tsx              # 32 test files / 208 tests (co-located with sources)
+│   └── *.test.ts*              # 47 test files / 329 tests (co-located with sources)
 ├── src-tauri/                  # Rust/Tauri backend
 │   ├── src/
 │   │   ├── lib.rs              # App setup, migrations, ALL Tauri commands
@@ -49,6 +76,7 @@ Quasar/
 │   │   ├── ssh_pool.rs         # Pooled/reused SSH sessions for scheduled tasks
 │   │   ├── ssh_tunnel.rs       # SSH port forwarding
 │   │   ├── sftp.rs             # SFTP file transfer (password-auth only)
+│   │   ├── tailscale.rs        # `tailscale status --json` CLI integration (no API key)
 │   │   ├── launcher.rs         # External SSH/RDP client launch (OS terminal, mstsc)
 │   │   ├── scheduler.rs        # Cron task runner
 │   │   ├── monitoring.rs       # System metrics + alert rules
@@ -104,6 +132,7 @@ Quasar/
 | Cron | cron 0.12 |
 | AI (optional) | ollama-rs 0.3 |
 | Auto-update | tauri-plugin-updater / `@tauri-apps/plugin-updater` 2.x (signed artifacts, verified against an embedded pubkey) |
+| Tailscale | local `tailscale` CLI only — no API key, no control-plane calls (`src-tauri/src/tailscale.rs`) |
 | Testing | Vitest 4, React Testing Library 16, jsdom |
 
 ---
@@ -191,6 +220,9 @@ All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key g
 **SSH Tunnels**
 - `create_tunnel(host_id, local_port, remote_addr, remote_port, ...)` / `close_tunnel(tunnel_id)` / `list_tunnels()`
 
+**Tailscale**
+- `get_tailscale_status()` — runs `tailscale status --json` locally and returns tailnet peers; `installed: false` (not an error) when the CLI isn't found
+
 **AI**
 - `send_ai_message(message, context?)`
 
@@ -267,7 +299,10 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (38 files / 257 tests as of August 2026)
+#### Test file inventory (49 files / 344 tests as of September 19, 2026)
+
+Not exhaustive — a curated subset covering the components with the most notable test
+patterns or regression history. Run `find src -name "*.test.ts*"` for the full list.
 
 | Test file | Component tested | Key scenarios |
 |-----------|-----------------|---------------|
@@ -276,11 +311,17 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 | `ErrorBoundary.test.tsx` | ErrorBoundary | Error catching, crash UI, reload |
 | `TopBar.test.tsx` | TopBar | View label mapping for all 7 views |
 | `HostManagement.test.tsx` | HostList, AddHostDialog | List, filter, connect/SFTP callbacks, remove, duplicates, empty state, full protocol option list (ssh/rdp/database/api/other), required-port toggle for protocols without a backend default |
+| `HostList.test.tsx` | HostList | Loading/empty states, filtering, duplicate detection/removal, single removal (both verify the row disappears after the post-removal refresh, not just that the `invoke` call happened), protocol-gated action buttons (database host has neither Connect nor SFTP). `window.confirm` is spied per-test with `afterEach` restore — a module-scope spy here previously leaked into other test files. |
 | `NetworkScanner.test.tsx` | NetworkScanner | CIDR input, scan start/stop, CIDR validation error, scan failure, initialResults |
+| `NetworkTopologyView.test.tsx` | NetworkTopologyView | Empty/populated states, physics/fit/zoom controls, search, click/double-click callbacks. The zoom test models the mocked network's actual scale statefully across clicks (asserting the compounded value) rather than a fixed mock return, and the topology-population assertion checks specific node/edge ids and call count. |
 | `SshFileManager.test.tsx` | SshFileManager | Path bar, loading, error, file listing |
 | `HealthCheckBadge.test.tsx` | HealthCheckBadge | Online/offline/checking states |
+| `HostDetailDialog.test.tsx` | HostDetailDialog | Tabs, connect/close callbacks, clipboard-copy-failure logging (saves and restores `navigator.clipboard` in a `finally` — it used to overwrite the global permanently and leak into later tests) |
 | `PreflightDialog.test.tsx` | PreflightDialog | Health check flow |
 | `AIAssistant.test.tsx` | AIAssistant | Chat, streaming, error |
+| `CredentialPrompt.test.tsx` | CredentialPrompt | Render, submit, cancel, save-credential toggle, empty-field validation (includes a whitespace-only username case, which satisfies the native `required` attribute but must still fail the component's own `.trim()` guard — a plain empty-field case never reaches the component's `handleSubmit` because jsdom blocks the native-invalid form submit first) |
+| `ScheduledTasksView.test.tsx` | ScheduledTasksView | Form validation: save without a host, invalid cron expression |
+| `UpdateBanner.test.tsx` | UpdateBanner | No update / available / install-and-relaunch / dismiss / check-failure |
 | `vault/VaultProvider.test.tsx` | VaultProvider | Loading, init, unlock, error states |
 | `vault/VaultInitDialog.test.tsx` | VaultInitDialog | Password validation (all rules), strength indicator, invoke, error |
 | `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password, success, error, cancel, password toggle |
@@ -293,8 +334,12 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 | `dashboard/AlertFeed.test.tsx` | AlertFeed | Empty state, alert render, dismiss, acknowledge, clear all, metrics summary |
 | `dashboard/QuickConnectWidget.test.tsx` | QuickConnectWidget | Loading, host list, search, connect callback, overflow indicator |
 | `dashboard/AlertRules.test.tsx` | AlertRules | Rule CRUD |
-| `dashboard/MetricChartCard.test.tsx` | MetricChartCard | Rendering |
-| `dashboard/SystemHealthWidget.test.tsx` | SystemHealthWidget | Metrics display |
+| `dashboard/MetricChartCard.test.tsx` | MetricChartCard | Rendering, custom color forwarded to the chart's stroke/gradient (the Recharts `Area` mock must forward its props — a mock that discards them lets a broken color prop pass silently) |
+| `dashboard/SystemHealthWidget.test.tsx` | SystemHealthWidget | Metrics display, CPU/memory/disk/alerts/hosts-online/vault-timeout, event-driven updates |
+| `hooks/useUpdater.test.ts` | useUpdater | State transitions (idle/checking/available/upToDate/error/downloading), auto-check, install+relaunch (awaits the `installUpdate()` promise itself rather than polling for the intermediate `downloadAndInstall` call, which is invoked synchronously and can't be used to infer that the later `relaunch()` call has actually run), unmount cleanup |
+| `lib/utils.test.ts` | `cn()`, `getErrorMessage()` | Class merging/conditionals/arrays/falsy values/Tailwind conflicts; error extraction from `Error`/string/object/non-string `.message`/null/undefined with fallback |
+| `TailscalePeers.test.tsx` | TailscalePeers | Not-installed hint, needs-login hint, peer list with SSH chip/online dot, Add payload uses `preferred_address`, "Saved" state for a peer matching an existing host, empty state |
+| `hooks/useTailscaleStatus.test.ts` | useTailscaleStatus, `findTailscalePeer` | Fetch on mount, error surfaced with status left `null`, `refresh()` re-fetches, concurrently mounted consumers coalesce onto one backend call, matcher matches by MagicDNS name/IPv4/hostname case-insensitively and returns `undefined` for no match/no status/no address. The poll is module-scoped and shared, so tests touching it must call `resetTailscaleStatusCache()` in `beforeEach`. |
 
 #### Key testing patterns
 
@@ -354,6 +399,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 - Validate all external inputs through `validation.rs` before processing
 - Database work should use transactions for multi-step operations
 - `discovery.rs` uses a singleton pattern (`Arc<AtomicBool>`) — do not bypass it
+- `tailscale.rs` only shells out to the local `tailscale` CLI with fixed arguments (`status --json`) — never pass user input into that command, and never call the Tailscale control-plane API directly
 
 ### Component Patterns
 
@@ -376,6 +422,8 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 8. **All SQLite connections must go through `db::open_connection()`.** It sets the 5s busy-timeout, WAL journal mode, and the foreign-keys pragma. `HostTracker` and `MetricsStore` used to open raw `rusqlite::Connection`s directly and got none of these — under normal write contention (scheduler + monitoring + a network scan writing concurrently) they'd fail fast with `SQLITE_BUSY` instead of waiting, and the caller only logged it, so scanned hosts and monitoring samples were silently dropped. Fixed Aug 22, 2026 by routing both through `db::open_connection()`; don't reintroduce a raw `Connection::open()` call outside `db.rs`.
 9. **`VaultState.changing_password` only gates `check_auto_lock()`, not `lock_vault()`.** `change_master_password` drops its write lock during the multi-second Argon2id + credential re-encryption pass (so other vault reads, e.g. an in-flight SSH credential lookup, aren't stalled for the whole operation) and only reacquires it briefly at the start and end. Because of that window, an explicit `lock_vault()` call can land mid-change — the reacquire-and-install step at the end checks `inner.master_key.is_some()` before installing the new key, so an explicit lock is respected instead of silently reverted. If you touch `change_master_password` again, preserve that check; see `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full locking model and a regression test at `vault::tests::test_lock_vault_during_password_change_stays_locked`.
 10. **`unlock_vault`'s failed-attempt lockout (5 → 5 min, 10 → 15 min, 15 → 60 min) is persisted to `vault_settings`** (`lockout_failed_attempts` / `lockout_until_unix`), not just tracked in-memory. `VaultStateInner` is rebuilt fresh on every app launch, so an in-memory-only counter would let an attacker with local file access bypass the lockout by relaunching the app every 4 guesses. `load_persisted_lockout()` folds the persisted state into `inner` at the top of every `unlock_vault` call (only ever raising it, never lowering) and `persist_lockout()` writes it back on every failure and on success (clearing it). Regression tests: `vault::tests::test_lockout_persists_across_vault_state_restart`, `test_successful_unlock_clears_persisted_lockout`.
+11. **`scan_network`'s claim (`is_scanning` check-and-set + `stop_signal` reset) must happen synchronously in the `scan_network` Tauri command, before `tokio::spawn`, via `scanner::claim_scan()` — never inside the spawned task.** The command spawns the actual scan and returns immediately; if the claim happened inside the spawned task instead, a `stop_scan()` call landing in the window between `tokio::spawn(...)` and the task actually starting would set `stop_signal = true`, only for the still-starting scan to unconditionally reset it back to `false` when its own claim ran — silently discarding the user's stop request. `scan_network()` itself now assumes the caller already claimed it: it installs `ScanRunningGuard` as its first action (before any fallible work, so the claim is always released even on early return) and checks `stop_signal` before opening the raw ICMP socket (so an already-stopped scan doesn't pay for, or need privileges for, a socket it won't use). Fixed Sep 17, 2026; regression tests: `scanner::tests::test_claim_scan_rejects_concurrent_claim`, `test_stop_request_after_claim_is_not_lost`. See `AGENTS.md` for the incident where a bot-pushed commit reverted this fix mid-review and it had to be reapplied on top of a master merge.
+12. **`ssh_auth::authenticate` falls back to `none` authentication only when no password and no key material were supplied at all** — a present-but-wrong password or key still fails normally; this path exists specifically for identity-aware servers like Tailscale SSH, which authenticate the tailnet connection out-of-band and accept a bare `authenticate_none` request. Tailscale SSH "check mode" (browser re-verification over keyboard-interactive) is not implemented — it surfaces as a connection error in the terminal, same as any other rejected `none` auth attempt.
 
 See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
 
@@ -407,6 +455,7 @@ actually run on GitHub before that fix; see `AGENTS.md`):
 | Change SSH session handling | `src-tauri/src/ssh.rs` (interactive) or `ssh_exec.rs` (one-shot) |
 | Change SSH connect/timeout/error-reporting | `src-tauri/src/ssh_connect.rs` — shared by `ssh.rs`, `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs`; reports which phase (DNS/TCP/handshake) failed instead of one opaque timeout |
 | Change cron/scheduler logic | `src-tauri/src/scheduler.rs` |
+| Change Tailscale peer listing/matching | `src-tauri/src/tailscale.rs` (backend), `src/hooks/useTailscaleStatus.ts` + `src/components/TailscalePeers.tsx` (frontend) |
 | Change encryption | `src-tauri/src/crypto.rs` |
 | Change input validation | `src-tauri/src/validation.rs` |
 | Understand DB schema | `docs/SCHEMA.md` + `src-tauri/migrations/` |

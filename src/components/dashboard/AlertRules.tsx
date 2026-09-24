@@ -225,6 +225,7 @@ const AlertRules: React.FC = () => {
             </div>
 
             <button
+              aria-label={`Delete alert rule: ${METRIC_LABELS[rule.metric]} ${OPERATOR_LABELS[rule.operator]} ${rule.threshold}%`}
               onClick={() => deleteRule(rule.id)}
               className="p-1.5 hover:bg-red-500/10 rounded text-gray-500 hover:text-red-400 transition-colors"
             >

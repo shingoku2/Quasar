@@ -365,8 +365,6 @@ impl VaultState {
             .map_err(|e| format!("Failed to decode salt: {}", e))?;
 
         let mut master_key = [0u8; 32];
-        // FIX: Decode base64 salt to raw bytes - binary data must not be converted through UTF-8
-        // Per NIST SP 800-132: salt is arbitrary binary data, not text
         let mut salt_bytes = [0u8; 64]; // Max salt length
         let salt_decoded = salt
             .decode_b64(&mut salt_bytes)
@@ -529,7 +527,7 @@ impl VaultState {
         // Perform heavy crypto and DB operations in a blocking thread, without holding
         // the vault lock.
         let result = tauri::async_runtime::spawn_blocking(move || {
-            // FIX: Use single connection for entire operation to prevent connection leak
+            // Use single connection for entire operation to prevent connection leak
             let mut conn = db::open_connection(&db_path)?;
 
             let stored_hash: String = conn.query_row(
@@ -574,16 +572,17 @@ impl VaultState {
             // Re-encrypt all credentials with new key using transaction for safety
             {
                 let credential_manager = credentials::CredentialManager::new(db_path.clone());
-                let summaries = credential_manager.list_credentials()?;
 
-                // FIX: Reuse existing connection for transaction (no second connection)
+                // Reuse existing connection for transaction (no second connection)
                 let tx = conn.transaction()
                     .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+
+                let summaries = credential_manager.list_credentials_conn(&tx)?;
 
                 // Collect all re-encrypted credentials first
                 let mut re_encrypted_credentials = Vec::new();
                 for summary in &summaries {
-                    let credential = credential_manager.get_credential(&old_key, &summary.id)?;
+                    let credential = credential_manager.get_credential_conn(&tx, &old_key, &summary.id)?;
                     re_encrypted_credentials.push((
                         summary.id.clone(),
                         credential.created_at,

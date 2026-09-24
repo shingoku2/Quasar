@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import Discovery, { DiscoveredHost } from './Discovery';
+import TailscalePeers from './TailscalePeers';
 import HealthCheckBadge from './HealthCheckBadge';
+import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { AddHostInitialValues, HostProtocol } from './AddHostDialog';
 
 export interface Host {
@@ -32,6 +34,7 @@ const HostList: React.FC<{
   const [hosts, setHosts] = useState<Host[]>([]);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const { status: tailscaleStatus } = useTailscaleStatus();
 
   const fetchHosts = async () => {
     try {
@@ -60,7 +63,7 @@ const HostList: React.FC<{
     return duplicateIds;
   };
 
-  const duplicateHostIds = getDuplicateHostIds(hosts);
+  const duplicateHostIds = useMemo(() => getDuplicateHostIds(hosts), [hosts]);
 
   const handleRemoveDuplicates = async () => {
     if (duplicateHostIds.length === 0) {
@@ -123,10 +126,13 @@ const HostList: React.FC<{
     }
   };
 
-  const filteredHosts = hosts.filter(h => 
-    h.name.toLowerCase().includes(filter.toLowerCase()) || 
-    h.address.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredHosts = useMemo(() => {
+    const lowerFilter = filter.toLowerCase();
+    return hosts.filter(h =>
+      h.name.toLowerCase().includes(lowerFilter) ||
+      h.address.toLowerCase().includes(lowerFilter)
+    );
+  }, [hosts, filter]);
 
   if (loading) return <div className="p-4 text-gray-400">Loading hosts...</div>;
 
@@ -186,6 +192,19 @@ const HostList: React.FC<{
                     <div className="flex items-center space-x-2">
                       <span>{host.address}{host.port ? `:${host.port}` : ''}</span>
                       <HealthCheckBadge host={host.address} />
+                      {(() => {
+                        const peer = findTailscalePeer(tailscaleStatus, host.address);
+                        if (!peer) return null;
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-sky-900/50 text-sky-300 px-1.5 py-0.5 rounded"
+                            title={peer.online ? 'Online on Tailscale' : 'Offline on Tailscale'}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${peer.online ? 'bg-green-500' : 'bg-gray-500'}`} />
+                            Tailscale
+                          </span>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -236,9 +255,10 @@ const HostList: React.FC<{
         )}
       </div>
       
-      {/* LAN Discovery Section */}
+      {/* LAN Discovery + Tailscale Section */}
       <div className="border-t border-gray-700 bg-gray-850 p-4">
         <Discovery onAddHost={handleAddDiscoveredHost} />
+        <TailscalePeers hosts={hosts} onAddHost={onAddHost} />
       </div>
     </div>
   );

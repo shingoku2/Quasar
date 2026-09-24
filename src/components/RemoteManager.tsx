@@ -11,6 +11,7 @@ import CredentialSelector from './vault/CredentialSelector';
 import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
+import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
 
@@ -44,6 +45,13 @@ const RemoteManager: React.FC = () => {
   
   // SSH host key verification
   const { promptData, handleTrust, handleReject } = useSshHostKeyVerification();
+
+  // Tailscale SSH peers can authenticate by tailnet identity alone, so the
+  // manual credential prompt should not require a password for them.
+  const { status: tailscaleStatus } = useTailscaleStatus();
+  const pendingHostIsTailscaleSsh = pendingHost
+    ? !!findTailscalePeer(tailscaleStatus, pendingHost.address)?.tailscale_ssh
+    : false;
 
   const addTab = (id: string, title: string, content: React.ReactNode) => {
     setTabs(prev => [...prev, { id, title, content, closable: true }]);
@@ -217,8 +225,6 @@ const RemoteManager: React.FC = () => {
         // Mark as processed
         processedQuickConnects.current.add(host.id);
 
-        console.log('Quick Connect: Triggering connection to', host.name);
-
         const hostToConnect = {
           id: host.id,
           name: host.name,
@@ -362,6 +368,7 @@ const RemoteManager: React.FC = () => {
           hostName={pendingHost.name}
           initialUsername={pendingHost.username}
           allowSaveCredential={allowCredentialSave}
+          allowNoPassword={pendingMode === 'ssh' && pendingHostIsTailscaleSsh}
           onSubmit={async (enteredUsername, password, options) => {
             if (pendingMode === 'sftp') {
               startSftpSession(pendingHost, password, enteredUsername);

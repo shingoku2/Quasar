@@ -776,12 +776,9 @@ impl MetricsStore {
             })
             .map_err(|e| format!("Failed to query metrics: {}", e))?;
 
-        let mut results = Vec::new();
-        for metric in metrics_iter {
-            results.push(metric.map_err(|e| format!("Failed to parse metric: {}", e))?);
-        }
-
-        Ok(results)
+        metrics_iter
+            .map(|metric| metric.map_err(|e| format!("Failed to parse metric: {}", e)))
+            .collect()
     }
 
     pub fn cleanup_old_metrics(&self) -> Result<usize, String> {
@@ -875,12 +872,9 @@ impl MetricsStore {
             })
             .map_err(|e| format!("Failed to query alerts: {}", e))?;
 
-        let mut results = Vec::new();
-        for alert in alerts_iter {
-            results.push(alert.map_err(|e| format!("Failed to parse alert: {}", e))?);
-        }
-
-        Ok(results)
+        alerts_iter
+            .map(|alert| alert.map_err(|e| format!("Failed to parse alert: {}", e)))
+            .collect()
     }
 }
 

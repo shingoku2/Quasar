@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Server, Database as DatabaseIcon, Globe, Terminal } from 'lucide-react';
 import { invoke } from "@tauri-apps/api/core";
 
@@ -36,11 +36,14 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
     }
   };
 
-  const filteredHosts = hosts.filter(host => 
-    host.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    host.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (host.username && host.username.toLowerCase().includes(searchQuery.toLowerCase()))
-  ).slice(0, 6); // Show max 6 hosts
+  const filteredHosts = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return hosts.filter(host =>
+      host.name.toLowerCase().includes(query) ||
+      host.address.toLowerCase().includes(query) ||
+      (host.username && host.username.toLowerCase().includes(query))
+    ).slice(0, 6); // Show max 6 hosts
+  }, [hosts, searchQuery]);
 
   const getHostIcon = (protocol: string) => {
     switch (protocol.toLowerCase()) {

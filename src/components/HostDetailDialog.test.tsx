@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import HostDetailDialog from './HostDetailDialog';
 import '@testing-library/jest-dom';
@@ -68,11 +68,10 @@ describe('HostDetailDialog', () => {
 
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
-    const { container } = render(<HostDetailDialog host={mockHost} onClose={onClose} />);
+    render(<HostDetailDialog host={mockHost} onClose={onClose} />);
 
-    // The close button is the one with the X icon in the header
-    const closeBtn = container.querySelector('.lucide-x')?.closest('button');
-    if (closeBtn) fireEvent.click(closeBtn);
+    const closeBtn = screen.getByRole('button', { name: 'Close dialog' });
+    fireEvent.click(closeBtn);
 
     expect(onClose).toHaveBeenCalled();
   });
@@ -92,5 +91,31 @@ describe('HostDetailDialog', () => {
     fireEvent.click(connectBtns[0]);
 
     expect(onConnect).toHaveBeenCalledWith(mockHost);
+  });
+
+  it('logs an error when clipboard copy fails', async () => {
+    const originalClipboard = navigator.clipboard;
+    const mockClipboardWrite = vi.fn().mockRejectedValue(new Error('Clipboard error'));
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: mockClipboardWrite,
+      },
+    });
+
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      render(<HostDetailDialog host={mockHost} onClose={vi.fn()} />);
+
+      fireEvent.click(screen.getByText('Actions'));
+      fireEvent.click(screen.getByText('Copy IP Address'));
+
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to copy:', expect.any(Error));
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+      Object.assign(navigator, { clipboard: originalClipboard });
+    }
   });
 });

@@ -27,6 +27,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'get_vault_settings') return Promise.resolve({ auto_lock_timeout_minutes: 15, require_password_on_credential_use: false, vault_initialized: true });
     if (cmd === 'list_scheduled_tasks') return Promise.resolve([]);
     if (cmd === 'get_saved_hosts') return Promise.resolve([]);
+    if (cmd === 'get_tailscale_status') return Promise.resolve({ installed: false, backend_state: '', magic_dns_enabled: false, magic_dns_suffix: null, self_node: null, peers: [] });
     return Promise.resolve();
   }),
 }));

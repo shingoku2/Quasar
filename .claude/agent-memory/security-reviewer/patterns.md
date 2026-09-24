@@ -1,3 +1,70 @@
+# scanner.rs — claim_scan() / TOCTOU pattern (2026-09-17 review)
+
+Reviewed a fix for a real TOCTOU race in `scan_network`: the `lib.rs` command does
+`tokio::spawn(async move { ...scanner::scan_network(...).await... })` and returns
+immediately. If the atomic "check `is_scanning`, set it, reset `stop_signal`" claim
+happens *inside* the spawned task (as it originally did, and as a bot-authored PR's
+"fix" — which only reordered two locks already in the same critical section — left it),
+a `stop_scan()` call landing in the window between `tokio::spawn(...)` and the task
+actually starting sets `stop_signal = true`, only for the still-starting task to
+unconditionally reset it back to `false` when it reaches its own claim. Silent loss of
+the user's stop request.
+
+**Fix pattern, confirmed correct**: extract the claim into a standalone
+`scanner::claim_scan(state) -> Result<(), String>` and call it *synchronously in the
+command handler, before `tokio::spawn`* — not from within the spawned async fn. The
+spawned function must then assume the claim already happened, and must install its
+`Drop`-based release guard (`ScanRunningGuard`) as its very first statement, before any
+fallible work (e.g. `validate_cidr`), so an early `?` return still releases the claim.
+
+**Verified, not just assumed**:
+- Single call site (`lib.rs:scan_network` command) via full-crate grep — as of this
+  review, nothing else in the crate calls `scan_network` directly. This is a search-time
+  observation to recheck on future changes, not a compiler-enforced guarantee: `mod
+  scanner;` (non-`pub`) only blocks *external* crates from reaching
+  `quasar_lib::scanner::...`; every module inside this crate is a descendant of the
+  crate root and can still reach `crate::scanner::scan_network` directly (it's a `pub
+  fn`) without going through `claim_scan()`, since Rust module privacy doesn't restrict
+  sibling-module access within the same crate the way it restricts cross-crate access.
+  If a future internal caller is added, it must call `claim_scan()` itself first, or
+  `scan_network` should be encapsulated (e.g. made crate-private, or merged with
+  `claim_scan` into one function) so the API can't be called without it.
+- No deadlock risk from the lock-acquisition order inside `claim_scan` (`stop_signal`
+  then `is_scanning`) — grepped for other sites locking both mutexes together; this is
+  the only one, so ordering is irrelevant across call sites.
+- Frontend (`NetworkScanner.tsx::handleStartScan`) already does
+  `await invoke('scan_network', ...)` in try/catch and only sets `isScanning(true)` on
+  success — so `claim_scan`'s `Err` (e.g. "Scan already in progress") now surfacing as
+  a direct command rejection, instead of only via a delayed `scan_error` event as
+  before, is handled correctly with no frontend changes needed. This is worth checking
+  again if the command's error-return behavior changes further.
+
+**One real gap found and fixed**: the new `claim_scan()` error path in the `lib.rs`
+command initially bypassed `sanitize_error()`, while every other error path in the same
+function used it (the two `Err` branches inside the spawned task, three lines later).
+Low actual risk (the only error strings are "Scan already in progress" or a generic
+lock-poison message — no paths, SQL, or internal state), but inconsistent with the
+project's own convention. Fixed: `scanner::claim_scan(&scanner_state).map_err(|e|
+sanitize_error(e, "scanner"))?;`.
+
+**One residual noted, not fixed (very low priority)**: if the spawned future is somehow
+never polled (realistic trigger: Tokio runtime shutdown before first poll, i.e. app
+exit — essentially moot), `is_scanning` would stay `true` forever, since the only thing
+that resets it (`ScanRunningGuard`) lives inside `scan_network`, which never got
+entered. Previously this same scenario was harmless (the claim lived inside the
+never-polled task, so was simply never taken). Not worth guarding against unless this
+function gets a second caller.
+
+**Unrelated but relevant if this file changes again**: `scan_network` also unconditionally
+opened a raw ICMP `Client` (`surge_ping`) before its per-host loop's stop-signal check.
+On a sandboxed CI runner without `CAP_NET_RAW`/`ping_group_range`, that fails outright
+with "Permission denied creating ICMP socket" — this actually broke a regression test in
+CI (locally the sandbox had raw-socket capability, masking it). Added a stop-signal check
+before the `Client::new(...)` call, not just inside the loop, so a scan that's already
+been asked to stop never attempts the privileged socket open at all.
+
+---
+
 # Detailed Security Findings — 2026-03-02 Broad Audit
 
 ## crypto.rs

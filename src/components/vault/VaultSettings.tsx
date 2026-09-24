@@ -68,6 +68,42 @@ const VaultSettings: React.FC = () => {
     }
   };
 
+  const handleChangeMasterPassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('All fields are required');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 12) {
+      setError('New password must be at least 12 characters');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      await invoke('change_master_password', {
+        currentPassword,
+        newPassword,
+      });
+      setSuccessMessage('Master password changed successfully');
+      setShowChangeMasterPassword(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to change master password'));
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-bg-root">
       <div className="p-6 border-b border-gray-800">
@@ -247,41 +283,7 @@ const VaultSettings: React.FC = () => {
 
                     <div className="flex space-x-2">
                       <button
-                        onClick={async () => {
-                          if (!currentPassword || !newPassword || !confirmPassword) {
-                            setError('All fields are required');
-                            return;
-                          }
-                          if (newPassword !== confirmPassword) {
-                            setError('New passwords do not match');
-                            return;
-                          }
-                          if (newPassword.length < 12) {
-                            setError('New password must be at least 12 characters');
-                            return;
-                          }
-
-                          setIsChangingPassword(true);
-                          setError('');
-                          setSuccessMessage('');
-
-                          try {
-                            await invoke('change_master_password', {
-                              currentPassword,
-                              newPassword,
-                            });
-                            setSuccessMessage('Master password changed successfully');
-                            setShowChangeMasterPassword(false);
-                            setCurrentPassword('');
-                            setNewPassword('');
-                            setConfirmPassword('');
-                            setTimeout(() => setSuccessMessage(''), 3000);
-                          } catch (err) {
-                            setError(getErrorMessage(err, 'Failed to change master password'));
-                          } finally {
-                            setIsChangingPassword(false);
-                          }
-                        }}
+                        onClick={handleChangeMasterPassword}
                         disabled={isChangingPassword}
                         className="flex-1 bg-accent hover:bg-accent/80 disabled:bg-accent/50 disabled:cursor-not-allowed text-white py-2 rounded-lg text-sm font-medium transition-all"
                       >

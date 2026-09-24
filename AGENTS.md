@@ -7,6 +7,338 @@ Quasar is a Tauri-based remote infrastructure management application with React 
 
 ## Recent Implementations
 
+### Tailscale Integration - Complete (September 19, 2026)
+
+#### Overview
+User asked for Tailscale integration: see tailnet peers, add them as saved hosts with one
+click, connect over the tailnet, and — for peers running Tailscale SSH — connect using
+tailnet identity without a password or key. Per the user's decision, this integrates only
+via the local `tailscale` CLI (`tailscale status --json`); there is no API key, no control-
+plane calls, and no new crates.
+
+#### Backend: `src-tauri/src/tailscale.rs` (new)
+- `find_tailscale_binary()` checks PATH first, then per-platform fallback install paths
+  (`/Applications/Tailscale.app/...` on macOS, `C:\Program Files\Tailscale\tailscale.exe`
+  on Windows, `/usr/bin/tailscale` on Linux).
+- `fetch_status()` runs `tailscale status --json` via `tokio::process::Command` with a 5s
+  timeout and `CREATE_NO_WINDOW` on Windows. A missing binary returns `Ok(installed: false)`
+  rather than an error, so the UI can show an install hint instead of an error state.
+- `parse_status()` is a pure, unit-tested parser: strips the trailing dot from `DNSName`,
+  computes `preferred_address` (MagicDNS name when the tailnet has MagicDNS enabled,
+  otherwise the 100.x IPv4), maps non-empty `sshHostKeys` to `tailscale_ssh`, and —
+  importantly — runs every emitted hostname/IP through the existing
+  `validate_hostname`/`validate_ip` checks, dropping a peer entirely if it has no address
+  that passes validation (e.g. IPv6-only peers). This means nothing the `tailscale` CLI
+  returns can bypass the app's normal input validation downstream. Peers are sorted
+  online-first, then by hostname.
+- New Tauri command `get_tailscale_status`, registered in `lib.rs` and routed through
+  `sanitize_error(e, "tailscale")`.
+- 8 new unit tests in `tailscale::tests` (fixture modelled on real CLI output): self/peer
+  parsing with MagicDNS on/off, empty `sshHostKeys` ⇒ no Tailscale SSH, sort order,
+  `BackendState` passthrough (`NeedsLogin`/`Stopped`), invalid-address peer dropped,
+  hostname-missing fallback, invalid JSON ⇒ error.
+
+#### Backend: identity-based (`none`) SSH auth — `src-tauri/src/ssh_auth.rs`
+- `authenticate()` now falls back to `session.authenticate_none(username)` only when
+  *neither* a password nor key material was supplied at all (a present-but-wrong
+  password/key still fails normally, unchanged). Tailscale SSH peers accept this outright
+  because the tailnet already authenticated the connection, so such hosts can be opened
+  with just a username. A rejected `none` attempt returns a clear error explaining that
+  identity-based auth was tried and failed. Tailscale SSH "check mode" (browser
+  re-verification over keyboard-interactive) is out of scope and surfaces as a normal
+  connection error in the terminal. This is a shared helper, so SFTP/pooled/tunnel/
+  scheduled-task SSH paths gain the capability too, though their UIs still require a
+  credential and were not changed.
+
+#### Frontend
+- `src/hooks/useTailscaleStatus.ts` (new): polls `get_tailscale_status` on mount and every
+  30s (same cadence as `SystemHealthWidget`'s host-health poll), exposes
+  `{ status, loading, error, refresh }`, and the exported `findTailscalePeer(status,
+  address)` helper matches case-insensitively against `dns_name`, `ipv4`, and `hostname`.
+  The timer, the in-flight request, and the last result live in module scope and are
+  shared by every consumer: the hook is mounted three times over in the same tree
+  (`RemoteManager` → `HostList` → `TailscalePeers`) and each fetch spawns a `tailscale
+  status --json` subprocess, so per-instance polling would have meant three subprocesses
+  every 30s. A late-mounting consumer renders the cached status immediately instead of
+  starting at `loading`. `resetTailscaleStatusCache()` is exported for tests, which must
+  call it in `beforeEach` (see `useTailscaleStatus.test.ts`, `TailscalePeers.test.tsx`,
+  `HostList.test.tsx`) so one test's peers can't leak into the next.
+- `src/components/TailscalePeers.tsx` (new): panel rendered next to `Discovery` in
+  `HostList`, below the Add button. Handles not-installed, needs-login (any
+  `backend_state !== 'Running'`), error, empty, and list states; each peer row shows an
+  online dot, hostname, OS + address, an "SSH" chip when `tailscale_ssh`, and an Add
+button (replaced by a "Saved" label when the peer already matches a saved host by
+  address). Excludes the local node (the backend never includes it in `peers`).
+- `src/components/HostList.tsx`: renders `TailscalePeers` and adds a small Tailscale
+  badge + online/offline dot to the Address column for any saved host whose address
+  matches a peer.
+- `src/components/CredentialPrompt.tsx`: new `allowNoPassword` prop — password input is
+  no longer `required`, helper text explains identity-based auth, and the submit guard
+  becomes `username.trim() && (password || allowNoPassword)`. Saving to the vault is
+  still forced off when the password is empty, even if the save-credential checkbox was
+  checked, since there is nothing to persist.
+- `src/components/RemoteManager.tsx`: computes whether `pendingHost` is a Tailscale SSH
+  peer via `findTailscalePeer(...).tailscale_ssh` and passes that as `allowNoPassword` to
+  the manual `CredentialPrompt`. `CredentialSelector` (vault-backed) still appears first
+  when the vault is unlocked; "Manual entry" leads to the relaxed prompt.
+- Test mocks: added a default `get_tailscale_status` response (`{ installed: false, peers:
+  [] }`) to the existing `invoke` mocks in `HostList.test.tsx`, `HostManagement.test.tsx`,
+  `Layout.test.tsx`, and `App.test.tsx` so the new `TailscalePeers` panel they now render
+  doesn't change any existing assertions.
+- New tests: `TailscalePeers.test.tsx` (not-installed/needs-login/list/Add payload/Saved
+  state/SSH chip/empty state), `hooks/useTailscaleStatus.test.ts` (fetch, error, refresh,
+  matcher, request coalescing across concurrent consumers), a `HostList.test.tsx` case for
+  the badge/online-dot (scoped to the matching row — the panel's own "Tailscale" heading
+  text would otherwise collide with a naive `getByText('Tailscale')`; the test also waits
+  on the address cell rather than the host name, since a peer sharing its name with a
+  saved host renders that name in both the table and the panel), and two
+  `CredentialPrompt.test.tsx` cases for `allowNoPassword` (submits with empty password;
+  does not offer to save an empty-password credential even with `allowSaveCredential`
+  set).
+
+#### Verification
+- `cargo clippy --all-targets -- -D warnings` and `cargo test` — clean; 130 lib tests
+  passing (up from 122, +8 for `tailscale::tests`).
+- `npx tsc --noEmit` — clean.
+- `npx vitest run` — 49 files / 344 tests passing (up from 47/329).
+- Did not have a live tailnet in this environment to verify against a real `tailscale`
+  binary; verified via the unit-tested `parse_status()` against a fixture modelled on real
+  `tailscale status --json` output instead.
+
+#### Files modified
+- `src-tauri/src/tailscale.rs` (new)
+- `src-tauri/src/lib.rs` (`mod tailscale;`, `get_tailscale_status` command + registration)
+- `src-tauri/src/errors.rs` (`"tailscale"` sanitize context)
+- `src-tauri/src/ssh_auth.rs` (`none` auth fallback)
+- `src/hooks/useTailscaleStatus.ts` (new)
+- `src/components/TailscalePeers.tsx`, `TailscalePeers.test.tsx` (new)
+- `src/hooks/useTailscaleStatus.test.ts` (new)
+- `src/components/HostList.tsx`, `HostList.test.tsx` (panel + badge, badge test)
+- `src/components/CredentialPrompt.tsx`, `CredentialPrompt.test.tsx` (`allowNoPassword`)
+- `src/components/RemoteManager.tsx` (wiring)
+- `src/components/HostManagement.test.tsx`, `Layout.test.tsx`, `App.test.tsx` (mock default)
+- `CLAUDE.md`, `AGENTS.md` (this entry), `docs/CORE_WORKFLOWS.md` (new "Connect via
+  Tailscale" section)
+
+---
+
+### Deferred Bug-Audit Fixes: Status Reconciliation - Complete (September 17, 2026)
+
+#### Overview
+After pulling latest (`31f6fa99`), the deferred-audit status was reconciled against the
+code. The September 2 plan entry below, `CLAUDE.md`'s "Current Work" section, and the
+follow-up note in `docs/AUDIT_PLAN.md` all stated the five deferred findings were planned
+but not implemented. That stopped being true on September 16: commit `d9064f1e` ("Fix
+comprehensive audit findings across SSH, import validation, and security hardening"),
+twin commit `7cbfc73d` (identical message/timestamp, also in master's history), and
+follow-up `5b6bc93a` ("Fix SSH review follow-ups", September 17) implemented four of the
+five. The docs were never updated when the code landed, and the September 17 PR-backlog
+session then re-asserted the stale claim into `CLAUDE.md`.
+
+Also discovered: `docs/DEFERRED_AUDIT_FIX_PLAN.md` — cited as "the canonical plan" by all
+three docs — never landed on master. It exists only on the unmerged
+`copilot/vscode-mu4rlxtb-cd2d` branch (commit `1470927b`), so `docs/AUDIT_PLAN.md`'s
+relative link to it dangled. The plan's agreed decisions remain summarized in the
+September 2 entry below.
+
+#### Finding-by-finding status (verified by code reading + `git log -S` attribution, clean tree @ `31f6fa99`)
+Numbered as in the September 2 entry below:
+1. **Master-password rotation racing credential writes — STILL OPEN (narrowed, not closed).**
+   Rotation is hardened: the `changing_password` flag (rejects concurrent rotations,
+   suspends auto-lock, and is always reset on every code path — a stuck flag would
+   permanently disable auto-lock), single-connection transactional re-encryption that
+   preserves credential ids so scheduled_tasks/monitoring references stay valid (PR #40,
+   `19eae7f9`), an in-transaction AEAD round-trip probe before commit, and a documented
+   narrow torn-state window (DB committed under the new key before `inner.master_key`
+   swaps; a `get_master_key()` in the gap gets the old key and the caller sees a transient,
+   retriable decrypt error). But the agreed credential-access gate — queueing credential
+   operations behind rotation — was never implemented: `add_credential`/`update_credential`
+   never check `changing_password`, so a credential write that commits during the
+   re-encryption transaction or in the torn-state window is encrypted with the old key and
+   orphaned under the new one. This is the one deferred finding that remains open. See
+   `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` (2026-09-02 note on the
+   open race) when implementing the gate.
+2. **Closing a terminal while `connect_ssh` is pending — FIXED** (`d9064f1e`, with
+   follow-up hardening in `5b6bc93a`): `SshState` tracks `pending_connections`
+   (`begin_pending_connection` / `mark_pending_cancelled` / `is_pending_cancelled` /
+   `finish_pending_connection`) beside the active `sessions` map. `connect_ssh` registers
+   the attempt before any network work and re-checks cancellation after auth and again
+   after session insertion — a connect completing after its terminal closed is dropped,
+   not registered.
+3. **Concurrent host-key events overwriting the single frontend prompt — FIXED.** Backend
+   requestId correlation (`HostKeyApprovalState` oneshot register/resolve/cancel +
+   `respond_ssh_host_key_verification`) landed earlier, August 30 (`5ed86db4`); the
+   September fix is the frontend FIFO queue in `src/hooks/useSshHostKeyVerification.ts`
+   (note: the hook moved from `src/components/vault/` to `src/hooks/`) — prompts queue and
+   are processed head-of-queue via `completeCurrentPrompt` with an in-flight requestId
+   guard (queue in `d9064f1e`; guard + tests in `5b6bc93a`).
+4. **Database import accepting unrelated valid SQLite files — FIXED** (`d9064f1e`): Quasar
+   stamps `PRAGMA application_id` with `QUASAR_APPLICATION_ID` ("QSR1", 0x51535231) at DB
+   creation and after import; `import_database` accepts only sources passing
+   `is_recognized_quasar_database()` — application_id match OR the strict
+   `has_quasar_legacy_signature()` fallback — so unmarked legacy Quasar backups still
+   import while unrelated SQLite files are rejected. Covered by
+   `database_recognition_accepts_quasar_application_id` and the legacy-signature tests.
+5. **Remotely closed SSH transports remaining registered — FIXED** (`d9064f1e`): the
+   session driver task (from the February `ed0a21be` refactor) now removes the session
+   from the registry the moment the session future completes (remote close), cancels the
+   stats reporter, and emits `ssh_closed_{id}` — previously the entry stayed registered
+   until the idle-timeout sweep cleaned it up.
+
+#### Verification (this pass; no code changed)
+- `cargo test` — 122 lib + 4 integration passed, 1 ignored (includes
+  `test_change_master_password_preserves_credential_ids`,
+  `test_lock_vault_during_password_change_stays_locked`, `host_key_approval_tests`, and
+  the database-recognition tests).
+- `npx vitest run` — 329 passed / 47 files; `npx tsc --noEmit` — clean.
+
+#### Files modified (this pass — documentation reconciliation only)
+- `AGENTS.md` (this entry; the September 2 entry's stale "Session close status" paragraph
+  corrected; footer date bumped)
+- `CLAUDE.md` ("Current Work: Deferred Audit Fixes" rewritten to this status)
+- `docs/AUDIT_PLAN.md` (September 2 follow-up note corrected; dangling
+  `DEFERRED_AUDIT_FIX_PLAN.md` link removed)
+
+---
+
+### PR Backlog Cleanup & Real Network-Scanner TOCTOU Fix - Complete (September 17, 2026)
+
+#### Overview
+User asked to go through all 26 open PRs (bot-authored: Sourcery/Copilot/Jules-generated
+perf micro-optimizations, dead-code/comment cleanup, and test-coverage additions), merge
+what needed nothing, and fix what the review bots flagged before merging. All 26 are now
+merged; their branches were deleted afterward (branch deletion itself had to be done by the
+user — the git credentials available in this session got an unexplained 403 on every
+`git push --delete` attempt, single or batched, with no proxy-level relay failure logged,
+so the request reached GitHub and GitHub refused it. No GitHub MCP tool wraps ref deletion
+either. Root cause not confirmed — plausibly the GitHub App installation's permission scope
+allows content pushes/merges but not ref deletion, or a repo ruleset blocks it for this
+identity).
+
+**17 PRs were clean as authored** — green CI, and Sourcery/Copilot review comments were
+either genuine approvals or, in a couple of cases, findings that didn't hold up under
+direct verification (e.g. PR #27's `clsx` default-import "will fail TS1259 without
+esModuleInterop" claim was checked with a real `tsc --noEmit` run and was a false
+positive — this repo's `moduleResolution: "bundler"` handles it fine).
+
+**9 PRs had real, verified findings** and were fixed before merging — see the "Frontend
+test-quality fixes" and "Real backend fix" sections below. The common pattern across most
+of them: a test's assertion technically passed but couldn't actually catch the regression
+it claimed to guard against (weak mock, wrong await point, or state leaking across tests).
+
+#### Frontend test-quality fixes (bot-flagged, verified, then fixed)
+- **`CredentialPrompt.test.tsx`**: native `required` attributes on the username/password
+  inputs make jsdom block form submission before `handleSubmit` runs, so the "empty field"
+  cases never exercised the component's own `username.trim() && password` guard. Added a
+  whitespace-only-username case, which satisfies `required` but must still fail `.trim()`.
+- **`dashboard/MetricChartCard.test.tsx`**: the Recharts `Area` mock discarded every prop
+  it received, so the "custom color" test only checked the pulse indicator, not that the
+  color actually reached the chart. Forwarded props through the mock and asserted the
+  color on `stroke`/`fill`/gradient stop.
+- **`HostList.test.tsx`**: `window.confirm` was spied at module scope with no restore
+  (leaks into other test files); the removal tests asserted only that `remove_saved_hosts`
+  was *called*, with the mock still returning the pre-removal list afterward, so they'd
+  pass even if the UI never refreshed; a test named for covering "missing hosts and no
+  matches" only exercised the empty-list branch. Fixed all three, matching the
+  `vi.spyOn(...).../afterEach(...mockRestore())` pattern already used in
+  `HostManagement.test.tsx`; also added protocol-gating coverage (a database host renders
+  neither Connect nor SFTP).
+- **`HostDetailDialog.test.tsx`**: the clipboard-failure test replaced
+  `navigator.clipboard` with a permanently-rejecting mock and never restored it — any test
+  running afterward in the same jsdom environment would see the contaminated mock. Now
+  saved/restored in a `try`/`finally`.
+- **`NetworkTopologyView.test.tsx`**: the zoom test's `getScale` mock always returned
+  `1.0`, so it couldn't distinguish correct scale-multiplication logic from a broken one;
+  made the mock stateful (tracks scale across zoom in/out clicks, asserts the compounded
+  value). Also strengthened the node/edge population assertion to check specific ids and
+  call count instead of just "was called."
+- **`hooks/useUpdater.test.ts`**: the install/relaunch test called `installUpdate()`
+  without awaiting it, then polled `waitFor` on the `downloadAndInstall` mock having been
+  *called* (which happens synchronously, before the first `await`) before immediately
+  asserting `relaunch` — a race, since nothing guaranteed the post-`await` continuation
+  that calls `relaunch()` had actually run yet. Fixed to await the `installUpdate()`
+  promise itself before asserting either call. (A second bot-claimed finding on this same
+  file — a TS1259-style "`resolveCheck` used before assignment" compile error — was
+  checked with `tsc --noEmit` and was a false positive; TS's control-flow analysis
+  correctly proves definite assignment through the synchronous `new Promise(executor)`
+  callback.)
+
+#### Real backend fix: `scan_network` TOCTOU race (PR #39)
+The bot's own PR, titled "Fix TOCTOU race condition in network scanner," did not fix
+anything — its diff only reordered two mutex lock acquisitions that were already inside
+the same critical section, a no-op. Both Sourcery and Copilot correctly called this out
+and described the actual race: `lib.rs`'s `scan_network` command does
+`tokio::spawn(async move { ...scanner::scan_network(...).await... })` and returns
+immediately; a `stop_scan()` call landing in the window between that spawn and the spawned
+task actually starting sets `stop_signal = true`, only for the still-starting
+`scan_network` to unconditionally reset it back to `false` in its own init block —
+silently discarding the user's stop request.
+
+**Fix**: extracted the atomic check-and-set into `scanner::claim_scan()`, called
+synchronously in the `lib.rs` command *before* `tokio::spawn` (returning `Err` — now
+routed through `sanitize_error()`, per security review below — directly to the frontend
+if a scan is already running, instead of only via a delayed `scan_error` event as before).
+`scan_network()` no longer re-claims; it installs `ScanRunningGuard` as its very first
+action (before any fallible work, so the claim is always released on early return) and
+added a stop-signal check *before* opening the raw ICMP `Client` (a scan that was already
+asked to stop shouldn't pay for, or need raw-socket privileges for, a socket it won't
+use — this also fixed a real CI failure, see below). See CLAUDE.md Security Notes item 11.
+
+A `security-reviewer` subagent pass on the fix (before the CI-failure detour below) found
+one real gap: the new `claim_scan()` error path bypassed `sanitize_error()` while every
+other error path in the same command used it. Fixed for consistency.
+
+**CI exposed a second backend bug while running the new regression test**: `cargo test` failed on
+GitHub's runner (not locally, where the sandbox apparently has raw-socket capability) with
+`Permission denied creating ICMP socket`. The test claims the scan, stops it, then awaits
+`scan_network()` — but at that point the function still unconditionally opened a real ICMP
+`Client` before ever checking the loop's per-host stop-signal check, so a scan that should
+exit immediately was instead attempting privileged socket creation. This is exactly the
+"check stop before opening the socket" fix described above — added specifically because
+this failure surfaced it, not the other way around.
+
+**Incident: an automated bot reverted the fix mid-review.** After the CI-failure fix was
+pushed and green, `google-labs-jules[bot]` pushed an unsolicited commit
+("fix: prevent TOCTOU race condition when starting network scan") that reverted
+`scanner.rs`/`lib.rs` back to the original no-op reorder, deleted both regression tests,
+and re-added a stray `scanner.rs.orig` backup file plus a new duplicate `tmp_scanner.rs`
+and `patch.diff` — apparently replaying a stale, pre-fix snapshot of the whole PR (the
+commit's diff also touched ~15 files from unrelated, already-separately-merged PRs, all
+reverted to their pre-fix state). Per this project's rule against rewriting another
+identity's git history, this was **not** force-pushed over — instead: merged current
+`master` into the branch (which cleanly restored everything *except* the scanner.rs/lib.rs
+fix itself, since master never had `claim_scan()` either — PR #39 was the only PR that
+implemented it), manually reapplied the exact verified fix and both tests on top, deleted
+the stray files again, and re-verified clean (`cargo build`/`clippy --all-targets -D
+warnings`/`test`, `tsc --noEmit`, full frontend suite) before pushing. **If a bot-authored
+branch you're driving to green gets an unexplained new commit mid-review, diff it against
+your last known-good commit before trusting it — don't assume a bot's own commit on its
+own PR is authoritative.**
+
+#### Verification
+- `cargo build`, `cargo clippy --all-targets -- -D warnings` — clean throughout.
+- `cargo test` — 126 passing (122 lib + 4 integration, 1 ignored), including the two new
+  `scanner::tests::` regression tests, after every fix round.
+- `npx tsc --noEmit` — clean throughout.
+- `npx vitest run` — 329 passing / 47 files (final count, all fixes included).
+
+#### Files modified
+- 9 PR branches, each with a targeted fix (see above): `add-credential-prompt-test-*`,
+  `add-metric-chart-card-tests-*`, `add-hostlist-test-*`,
+  `test/clipboard-error-handling-*`, `add-network-topology-view-tests-*`,
+  `add-useupdater-tests-*`, `fix/remove-fix-comment-for-db-conn-*` (merged master in rather
+  than editing — see below), `fix-toctou-*` (the real fix, several rounds), plus 17 merged
+  as-authored.
+- `fix/remove-fix-comment-for-db-conn-*` (PR #38) only removed stale `FIX:` comment
+  prefixes; its branch predated PR #40 (which actually implemented single-connection reuse
+  during vault re-encryption), so merging master in — rather than hand-editing the
+  comment — made the PR's own claim true instead of just rewording it.
+- `src-tauri/src/scanner.rs`, `src-tauri/src/lib.rs` (the real fix)
+- `CLAUDE.md` (test counts/inventory, Security Notes item 11, this session noted at the top)
+- `AGENTS.md` (this entry)
+
+---
+
 ### Deferred Bug-Audit Concurrency & Persistence Fixes - Planned (September 2, 2026)
 
 Five higher-complexity findings remain open from the bug audit: master-password rotation
@@ -23,10 +355,13 @@ gate, a pending/active SSH registry with cancellation and generation-aware clean
 frontend prompt queue, and staged database migration/validation with a Quasar
 `application_id` marker.
 
-**Session close status:** planning and code-path inspection only. No implementation files
-were changed and no validation suite was run. Start the next session from the canonical
-plan above and do not mark these findings complete until its deterministic concurrency,
-persistence, and security-review requirements pass.
+**Status (superseded September 17, 2026 — see the status-reconciliation entry above):**
+four of the five findings were implemented September 16–17 (`d9064f1e`, `5b6bc93a`) and
+are verified in code; only finding 1 (rotation racing credential writes) remains open —
+the agreed credential-access gate was never implemented, though rotation itself was
+hardened. Also: `docs/DEFERRED_AUDIT_FIX_PLAN.md` never landed on master (it exists only
+on the unmerged `copilot/vscode-mu4rlxtb-cd2d` branch), so the canonical-plan reference
+above now means the design decisions summarized in this entry.
 
 ---
 
@@ -1584,7 +1919,7 @@ When working on this codebase:
 
 ---
 
-*Last Updated: February 20, 2026 (Light theme app UI text overrides, terminal app-theme sync reverted, Solarized Light theme foreground/cursor).*
+*Last Updated: September 17, 2026 (deferred-audit status reconciliation — four of five findings verified implemented, rotation/credential-write race still open; PR backlog cleanup & real network-scanner TOCTOU fix).*
 
 ---
 
