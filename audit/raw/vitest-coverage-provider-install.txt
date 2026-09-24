@@ -1,0 +1,9 @@
+$ npm i --no-save @vitest/coverage-v8@4.1.11
+
+added 16 packages, and audited 213 packages in 3s
+
+46 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+[exit=0 duration=3s]

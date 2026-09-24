@@ -1,0 +1,202 @@
+$ cargo deny check 2>&1 | tail -200
+      │               │   ├── (build) tauri-plugin-fs v2.5.1 (*)
+      │               │   ├── (build) tauri-plugin-opener v2.5.4 (*)
+      │               │   ├── (build) tauri-plugin-process v2.3.1 (*)
+      │               │   └── (build) tauri-plugin-updater v2.10.1 (*)
+      │               ├── (build) tauri-plugin-fs v2.5.1 (*)
+      │               ├── tauri-runtime v2.11.3
+      │               │   ├── tauri v2.11.5 (*)
+      │               │   └── tauri-runtime-wry v2.11.4
+      │               │       └── tauri v2.11.5 (*)
+      │               └── tauri-runtime-wry v2.11.4 (*)
+      └── unic-ucd-ident v0.9.0 (*)
+
+error[unmaintained]: `unic-common` is unmaintained
+    ┌─ /home/user/Quasar/src-tauri/Cargo.lock:550:1
+    │
+550 │ unic-common 0.9.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+    │
+    ├ ID: RUSTSEC-2025-0080
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2025-0080
+    ├ All Unicode crates that are part of https://github.com/open-i18n/rust-unic are unmaintained.
+    ├ Announcement: https://github.com/rustsec/advisory-db/issues/2414
+    ├ Solution: No safe upgrade is available!
+    ├ unic-common v0.9.0
+      └── unic-ucd-version v0.9.0
+          └── unic-ucd-ident v0.9.0
+              └── urlpattern v0.3.0
+                  └── tauri-utils v2.9.3
+                      ├── tauri v2.11.5
+                      │   ├── quasar v0.1.0
+                      │   ├── tauri-plugin-dialog v2.7.2
+                      │   │   └── quasar v0.1.0 (*)
+                      │   ├── tauri-plugin-fs v2.5.1
+                      │   │   └── tauri-plugin-dialog v2.7.2 (*)
+                      │   ├── tauri-plugin-opener v2.5.4
+                      │   │   └── quasar v0.1.0 (*)
+                      │   ├── tauri-plugin-process v2.3.1
+                      │   │   └── quasar v0.1.0 (*)
+                      │   └── tauri-plugin-updater v2.10.1
+                      │       └── quasar v0.1.0 (*)
+                      ├── tauri-build v2.6.3
+                      │   ├── (build) quasar v0.1.0 (*)
+                      │   └── (build) tauri v2.11.5 (*)
+                      ├── tauri-codegen v2.6.3
+                      │   └── tauri-macros v2.6.3
+                      │       └── tauri v2.11.5 (*)
+                      ├── tauri-macros v2.6.3 (*)
+                      ├── tauri-plugin v2.6.3
+                      │   ├── (build) tauri-plugin-dialog v2.7.2 (*)
+                      │   ├── (build) tauri-plugin-fs v2.5.1 (*)
+                      │   ├── (build) tauri-plugin-opener v2.5.4 (*)
+                      │   ├── (build) tauri-plugin-process v2.3.1 (*)
+                      │   └── (build) tauri-plugin-updater v2.10.1 (*)
+                      ├── (build) tauri-plugin-fs v2.5.1 (*)
+                      ├── tauri-runtime v2.11.3
+                      │   ├── tauri v2.11.5 (*)
+                      │   └── tauri-runtime-wry v2.11.4
+                      │       └── tauri v2.11.5 (*)
+                      └── tauri-runtime-wry v2.11.4 (*)
+
+error[unmaintained]: `unic-ucd-ident` is unmaintained
+    ┌─ /home/user/Quasar/src-tauri/Cargo.lock:551:1
+    │
+551 │ unic-ucd-ident 0.9.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+    │
+    ├ ID: RUSTSEC-2025-0100
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2025-0100
+    ├ All Unicode crates that are part of https://github.com/open-i18n/rust-unic are unmaintained.
+      
+      ## Recommended alternatives
+      
+      - [`icu_properties`](https://crates.io/crates/icu_properties)
+      - [`unicode-ident`](https://crates.io/crates/unicode-ident)
+    ├ Announcement: https://github.com/rustsec/advisory-db/issues/2414
+    ├ Solution: No safe upgrade is available!
+    ├ unic-ucd-ident v0.9.0
+      └── urlpattern v0.3.0
+          └── tauri-utils v2.9.3
+              ├── tauri v2.11.5
+              │   ├── quasar v0.1.0
+              │   ├── tauri-plugin-dialog v2.7.2
+              │   │   └── quasar v0.1.0 (*)
+              │   ├── tauri-plugin-fs v2.5.1
+              │   │   └── tauri-plugin-dialog v2.7.2 (*)
+              │   ├── tauri-plugin-opener v2.5.4
+              │   │   └── quasar v0.1.0 (*)
+              │   ├── tauri-plugin-process v2.3.1
+              │   │   └── quasar v0.1.0 (*)
+              │   └── tauri-plugin-updater v2.10.1
+              │       └── quasar v0.1.0 (*)
+              ├── tauri-build v2.6.3
+              │   ├── (build) quasar v0.1.0 (*)
+              │   └── (build) tauri v2.11.5 (*)
+              ├── tauri-codegen v2.6.3
+              │   └── tauri-macros v2.6.3
+              │       └── tauri v2.11.5 (*)
+              ├── tauri-macros v2.6.3 (*)
+              ├── tauri-plugin v2.6.3
+              │   ├── (build) tauri-plugin-dialog v2.7.2 (*)
+              │   ├── (build) tauri-plugin-fs v2.5.1 (*)
+              │   ├── (build) tauri-plugin-opener v2.5.4 (*)
+              │   ├── (build) tauri-plugin-process v2.3.1 (*)
+              │   └── (build) tauri-plugin-updater v2.10.1 (*)
+              ├── (build) tauri-plugin-fs v2.5.1 (*)
+              ├── tauri-runtime v2.11.3
+              │   ├── tauri v2.11.5 (*)
+              │   └── tauri-runtime-wry v2.11.4
+              │       └── tauri v2.11.5 (*)
+              └── tauri-runtime-wry v2.11.4 (*)
+
+error[unmaintained]: `unic-ucd-version` is unmaintained
+    ┌─ /home/user/Quasar/src-tauri/Cargo.lock:552:1
+    │
+552 │ unic-ucd-version 0.9.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+    │
+    ├ ID: RUSTSEC-2025-0098
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2025-0098
+    ├ All Unicode crates that are part of https://github.com/open-i18n/rust-unic are unmaintained.
+    ├ Announcement: https://github.com/rustsec/advisory-db/issues/2414
+    ├ Solution: No safe upgrade is available!
+    ├ unic-ucd-version v0.9.0
+      └── unic-ucd-ident v0.9.0
+          └── urlpattern v0.3.0
+              └── tauri-utils v2.9.3
+                  ├── tauri v2.11.5
+                  │   ├── quasar v0.1.0
+                  │   ├── tauri-plugin-dialog v2.7.2
+                  │   │   └── quasar v0.1.0 (*)
+                  │   ├── tauri-plugin-fs v2.5.1
+                  │   │   └── tauri-plugin-dialog v2.7.2 (*)
+                  │   ├── tauri-plugin-opener v2.5.4
+                  │   │   └── quasar v0.1.0 (*)
+                  │   ├── tauri-plugin-process v2.3.1
+                  │   │   └── quasar v0.1.0 (*)
+                  │   └── tauri-plugin-updater v2.10.1
+                  │       └── quasar v0.1.0 (*)
+                  ├── tauri-build v2.6.3
+                  │   ├── (build) quasar v0.1.0 (*)
+                  │   └── (build) tauri v2.11.5 (*)
+                  ├── tauri-codegen v2.6.3
+                  │   └── tauri-macros v2.6.3
+                  │       └── tauri v2.11.5 (*)
+                  ├── tauri-macros v2.6.3 (*)
+                  ├── tauri-plugin v2.6.3
+                  │   ├── (build) tauri-plugin-dialog v2.7.2 (*)
+                  │   ├── (build) tauri-plugin-fs v2.5.1 (*)
+                  │   ├── (build) tauri-plugin-opener v2.5.4 (*)
+                  │   ├── (build) tauri-plugin-process v2.3.1 (*)
+                  │   └── (build) tauri-plugin-updater v2.10.1 (*)
+                  ├── (build) tauri-plugin-fs v2.5.1 (*)
+                  ├── tauri-runtime v2.11.3
+                  │   ├── tauri v2.11.5 (*)
+                  │   └── tauri-runtime-wry v2.11.4
+                  │       └── tauri v2.11.5 (*)
+                  └── tauri-runtime-wry v2.11.4 (*)
+
+warning[yanked]: detected yanked crate (try `cargo update -p chacha20`)
+   ┌─ /home/user/Quasar/src-tauri/Cargo.lock:70:1
+   │
+70 │ chacha20 0.10.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ yanked version
+   │
+   ├ chacha20 v0.10.1
+     ├── rand v0.10.2
+     │   ├── internal-russh-num-bigint v0.5.0
+     │   │   └── russh v0.62.7
+     │   │       └── quasar v0.1.0
+     │   ├── pageant v0.2.2
+     │   │   └── russh v0.62.7 (*)
+     │   ├── quasar v0.1.0 (*)
+     │   ├── russh v0.62.7 (*)
+     │   └── surge-ping v0.9.0
+     │       └── quasar v0.1.0 (*)
+     └── ssh-cipher v0.3.0
+         └── ssh-key v0.7.0-rc.11
+             └── russh v0.62.7 (*)
+
+warning[yanked]: detected yanked crate (try `cargo update -p wnaf`)
+    ┌─ /home/user/Quasar/src-tauri/Cargo.lock:648:1
+    │
+648 │ wnaf 0.14.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ yanked version
+    │
+    ├ wnaf v0.14.0
+      └── primeorder v0.14.0
+          ├── p256 v0.14.0
+          │   ├── russh v0.62.7
+          │   │   └── quasar v0.1.0
+          │   └── ssh-key v0.7.0-rc.11
+          │       └── russh v0.62.7 (*)
+          ├── p384 v0.14.0
+          │   ├── russh v0.62.7 (*)
+          │   └── ssh-key v0.7.0-rc.11 (*)
+          └── p521 v0.14.0
+              ├── russh v0.62.7 (*)
+              └── ssh-key v0.7.0-rc.11 (*)
+
+advisories FAILED, bans ok, licenses FAILED, sources ok
+[exit=0 duration=2s]

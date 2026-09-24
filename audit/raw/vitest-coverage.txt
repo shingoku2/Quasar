@@ -1,0 +1,6 @@
+$ npm test -- --coverage --coverage.reportsDirectory=audit/coverage-fe
+npm notice run quasar@0.1.0 test
+npm notice run vitest run --coverage --coverage.reportsDirectory=audit/coverage-fe
+ MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'
+
+[exit=1 duration=1s]
