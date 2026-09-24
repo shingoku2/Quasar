@@ -33,8 +33,11 @@ interface PendingPromptEntry {
 
 const isDismissiblePromptError = (err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
+  // 'Cancelled': the user declined the backend's native changed-key confirmation, which
+  // also rejected the pending handshake.
   return message.includes('no longer pending')
-    || message.includes('stopped waiting for host key approval');
+    || message.includes('stopped waiting for host key approval')
+    || message === 'Cancelled';
 };
 
 export const useSshHostKeyVerification = () => {

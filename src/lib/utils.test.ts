@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, getErrorMessage } from './utils';
+import { cn, getErrorMessage, isUserCancelled } from './utils';
 
 describe('utils', () => {
   describe('cn', () => {
@@ -59,6 +59,16 @@ describe('utils', () => {
     it('should use the default fallback for other types like numbers or booleans', () => {
       expect(getErrorMessage(123)).toBe('An unknown error occurred');
       expect(getErrorMessage(true)).toBe('An unknown error occurred');
+    });
+  });
+
+  describe('isUserCancelled', () => {
+    it('matches only the backend native-dialog decline', () => {
+      expect(isUserCancelled('Cancelled')).toBe(true);
+      expect(isUserCancelled(new Error('Cancelled'))).toBe(true);
+      expect(isUserCancelled('Cancelled by server')).toBe(false);
+      expect(isUserCancelled('Failed to remove host key')).toBe(false);
+      expect(isUserCancelled(null)).toBe(false);
     });
   });
 });

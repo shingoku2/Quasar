@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Shield, Trash2, Search, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
-import { getErrorMessage } from '../../lib/utils';
+import { getErrorMessage, isUserCancelled } from '../../lib/utils';
 
 interface KnownHost {
   id: number;
@@ -37,16 +37,14 @@ const KnownHostsManager: React.FC = () => {
     loadHosts();
   }, []);
 
+  // The backend asks for confirmation in a native dialog (a webview prompt could be
+  // bypassed by a compromised webview), so there's no confirm() here.
   const handleRemove = async (host: string, port: number) => {
-    if (!confirm(`Remove host key for ${host}:${port}?\n\nYou will be prompted to trust this host again on the next connection.`)) {
-      return;
-    }
-
     try {
       await invoke('remove_ssh_host_key', { host, port });
       await loadHosts();
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to remove host key'));
+      if (!isUserCancelled(err)) setError(getErrorMessage(err, 'Failed to remove host key'));
     }
   };
 
@@ -55,7 +53,7 @@ const KnownHostsManager: React.FC = () => {
       await invoke('update_ssh_host_trust', { host, port, trustStatus });
       await loadHosts();
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to update trust status'));
+      if (!isUserCancelled(err)) setError(getErrorMessage(err, 'Failed to update trust status'));
     }
   };
 

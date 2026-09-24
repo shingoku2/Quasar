@@ -13,3 +13,11 @@ export function getErrorMessage(err: unknown, fallback: string = 'An unknown err
   }
   return fallback;
 }
+
+/**
+ * True when the backend reports that the user declined a native confirmation dialog
+ * (`native_confirm::DECLINED`). Callers treat it as a no-op, not an error.
+ */
+export function isUserCancelled(err: unknown): boolean {
+  return getErrorMessage(err, '') === 'Cancelled';
+}

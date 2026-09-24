@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, Plus, Edit2, Trash2, Search, Server, User, Lock, Save, X, Eye, EyeOff } from 'lucide-react';
-import { getErrorMessage } from '../../lib/utils';
+import { getErrorMessage, isUserCancelled } from '../../lib/utils';
 
 interface CredentialSummary {
   id: string;
@@ -383,7 +383,8 @@ const CredentialDialog: React.FC<{
       }
       onSaved();
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to save credential'));
+      // Declining the native host-change confirmation keeps the form open unchanged.
+      if (!isUserCancelled(err)) setError(getErrorMessage(err, 'Failed to save credential'));
     } finally {
       setIsSaving(false);
     }

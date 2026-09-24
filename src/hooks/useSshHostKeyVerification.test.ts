@@ -151,6 +151,45 @@ describe('useSshHostKeyVerification', () => {
     consoleError.mockRestore();
   });
 
+  // The backend rejects the handshake when the user declines its native changed-key dialog.
+  it('dequeues the prompt when the native changed-key confirmation is declined', async () => {
+    let verificationListener: ((event: { payload: Record<string, unknown> }) => void) | undefined;
+    vi.mocked(listen).mockImplementation(async (_eventName, callback) => {
+      verificationListener = callback as typeof verificationListener;
+      return () => {};
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'respond_ssh_host_key_verification') throw 'Cancelled';
+      return undefined;
+    });
+
+    const { result } = renderHook(() => useSshHostKeyVerification());
+    act(() => {
+      verificationListener?.({
+        payload: {
+          requestId: 'req-changed',
+          host: 'host-1',
+          port: 22,
+          fingerprint: 'fp-new',
+          keyType: 'ssh-ed25519',
+          keyBytes: [1],
+          status: 'Changed',
+          message: 'changed',
+          oldFingerprint: 'fp-old',
+        },
+      });
+    });
+    await waitFor(() => expect(result.current.promptData?.host).toBe('host-1'));
+
+    await act(async () => {
+      await result.current.handleTrust(false);
+    });
+
+    await waitFor(() => expect(result.current.promptData).toBeNull());
+    consoleError.mockRestore();
+  });
+
   it('dequeues the current prompt when handleTrust fails with a dismissible error', async () => {
     let verificationListener: ((event: { payload: {
       requestId: string;

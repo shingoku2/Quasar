@@ -17,7 +17,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 pub use audit::{AuditLogEntry, AuditLogFilter, AuditLogManager};
 pub use credentials::{CredentialFrontendView, CredentialManager, CredentialSummary};
-pub use ssh_keys::{HostKeyVerificationResult, SshHostKey, SshKeyManager, TrustStatus};
+pub use ssh_keys::{SshHostKey, SshKeyManager, TrustStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultSettings {

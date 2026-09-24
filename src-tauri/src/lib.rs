@@ -2,6 +2,7 @@ mod ai;
 mod crypto;
 mod db;
 mod local_paths;
+mod native_confirm;
 #[cfg(test)]
 mod ssh_test_server;
 mod discovery;
@@ -1374,14 +1375,31 @@ async fn get_credential(
 
 #[tauri::command]
 async fn reveal_credential_password(
+    app: AppHandle,
     vault_state: State<'_, vault::VaultState>,
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
 ) -> Result<String, String> {
+    let name = credential_manager
+        .list_credentials()
+        .map_err(|e| sanitize_error(e, "credential"))?
+        .into_iter()
+        .find(|c| c.id == credential_id)
+        .map(|c| c.name)
+        .ok_or_else(|| "Credential not found".to_string())?;
+    // The plaintext leaves the vault only on a native confirmation, so a compromised
+    // webview can't silently read every stored password (P7-3 review).
+    native_confirm::confirm(
+        &app,
+        "Reveal password",
+        format!("Show the password for credential '{}'?", name),
+        "Reveal",
+    )
+    .await?;
     let access = vault_state
         .credential_access()
         .await
-        .map_err(|e| sanitize_error(e, "vault"))?;
+        .map_err(errors::user_facing_vault_error)?;
     let password = credential_manager
         .get_credential(access.key(), &credential_id)
         .map(|c| c.password)
@@ -1402,6 +1420,7 @@ async fn list_credentials(
 
 #[tauri::command]
 async fn update_credential(
+    app: AppHandle,
     vault_state: State<'_, vault::VaultState>,
     credential_manager: State<'_, vault::CredentialManager>,
     credential_id: String,
@@ -1421,6 +1440,31 @@ async fn update_credential(
     }
     if let Some(ref u) = username {
         validate_username(u)?;
+    }
+    let stored = credential_manager
+        .list_credentials()
+        .map_err(|e| sanitize_error(e, "credential"))?
+        .into_iter()
+        .find(|c| c.id == credential_id)
+        .ok_or_else(|| "Credential not found".to_string())?;
+    if native_confirm::host_change_needs_confirm(stored.host.as_deref(), host.as_deref()) {
+        // Moving or clearing a host binding widens where the secret can be sent (IPC-003).
+        let to = host.as_deref().map(str::trim).filter(|h| !h.is_empty());
+        native_confirm::confirm(
+            &app,
+            "Change credential host",
+            format!(
+                "Credential '{}' is restricted to host '{}'. {}?",
+                stored.name,
+                stored.host.as_deref().unwrap_or_default(),
+                match to {
+                    Some(h) => format!("Allow it to be used with '{}' instead", h),
+                    None => "Allow it to be used with any host".to_string(),
+                }
+            ),
+            "Change host",
+        )
+        .await?;
     }
     let access = vault_state
         .credential_access()
@@ -1467,30 +1511,14 @@ async fn search_credentials(
 }
 
 #[tauri::command]
-async fn verify_ssh_host_key(
-    ssh_key_manager: State<'_, vault::SshKeyManager>,
-    host: String,
-    port: u16,
-    fingerprint: String,
-    key_type: String,
-) -> Result<vault::HostKeyVerificationResult, String> {
-    if validate_ip(&host).is_err() && validate_hostname(&host).is_err() {
-        return Err("Invalid host format".to_string());
-    }
-    validate_port(port)?;
-    ssh_key_manager
-        .verify_host_key_by_fingerprint(&host, port, &fingerprint, &key_type)
-        .await
-        .map_err(|e| sanitize_error(e, "ssh"))
-}
-
-#[tauri::command]
 async fn trust_ssh_host_key(
+    app: AppHandle,
     ssh_key_manager: State<'_, vault::SshKeyManager>,
     approval_state: State<'_, ssh::HostKeyApprovalState>,
     audit: State<'_, vault::AuditLogManager>,
     request_id: String,
 ) -> Result<(), String> {
+    confirm_changed_host_key(&app, &approval_state, &request_id).await?;
     // Only a key a handshake actually presented can be trusted, and only through its
     // pending approval. The webview used to pass host/fingerprint/key bytes itself and
     // could pin any key for any host, silently enabling a MITM on the unattended SSH,
@@ -1536,11 +1564,33 @@ async fn trust_ssh_host_key(
 
 #[tauri::command]
 async fn respond_ssh_host_key_verification(
+    app: AppHandle,
     approval_state: State<'_, ssh::HostKeyApprovalState>,
     request_id: String,
     accepted: bool,
 ) -> Result<(), String> {
+    if accepted {
+        confirm_changed_host_key(&app, &approval_state, &request_id).await?;
+    }
     approval_state.resolve(&request_id, accepted)
+}
+
+/// A changed host key is accepted (once or permanently) only after a native confirmation:
+/// the webview's own prompt can be skipped by a compromised webview. Declining rejects the
+/// pending handshake.
+async fn confirm_changed_host_key(
+    app: &AppHandle,
+    approval_state: &ssh::HostKeyApprovalState,
+    request_id: &str,
+) -> Result<(), String> {
+    let Some(warning) = approval_state.changed_key_warning(request_id)? else {
+        return Ok(());
+    };
+    if let Err(e) = native_confirm::confirm(app, "Host key changed", warning, "Trust new key").await {
+        let _ = approval_state.resolve(request_id, false);
+        return Err(e);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -1555,7 +1605,9 @@ async fn get_known_ssh_hosts(
 
 #[tauri::command]
 async fn remove_ssh_host_key(
+    app: AppHandle,
     ssh_key_manager: State<'_, vault::SshKeyManager>,
+    audit: State<'_, vault::AuditLogManager>,
     host: String,
     port: u16,
 ) -> Result<(), String> {
@@ -1563,14 +1615,36 @@ async fn remove_ssh_host_key(
         return Err("Invalid host format".to_string());
     }
     validate_port(port)?;
+    // Removing a key turns the next connection into a first-seen (TOFU) prompt, which would
+    // let a compromised webview replace a pinned key; so the user confirms natively.
+    native_confirm::confirm(
+        &app,
+        "Remove host key",
+        format!(
+            "Remove the stored host key for {}:{}?\n\nThe next connection will ask you to trust whatever key the server presents.",
+            host, port
+        ),
+        "Remove",
+    )
+    .await?;
     ssh_key_manager
         .remove_host_key(&host, port)
         .await
-        .map_err(|e| sanitize_error(e, "ssh"))
+        .map_err(|e| sanitize_error(e, "ssh"))?;
+    audit.record(
+        "ssh_host_key_remove",
+        None,
+        "ssh_host_key",
+        "delete",
+        "success",
+        Some(&format!("{}:{}", host, port)),
+    );
+    Ok(())
 }
 
 #[tauri::command]
 async fn update_ssh_host_trust(
+    app: AppHandle,
     ssh_key_manager: State<'_, vault::SshKeyManager>,
     audit: State<'_, vault::AuditLogManager>,
     host: String,
@@ -1581,6 +1655,18 @@ async fn update_ssh_host_trust(
         return Err("Invalid host format".to_string());
     }
     validate_port(port)?;
+    if native_confirm::trust_change_needs_confirm(&trust_status) {
+        native_confirm::confirm(
+            &app,
+            "Trust host key",
+            format!(
+                "Trust the stored host key for {}:{}?\n\nConnections, including scheduled tasks and monitoring, will then accept it without asking.",
+                host, port
+            ),
+            "Trust",
+        )
+        .await?;
+    }
     let details = format!("{}:{} -> {:?}", host, port, trust_status);
     ssh_key_manager
         .update_trust_status(&host, port, trust_status)
@@ -2281,7 +2367,6 @@ pub fn run() {
             update_credential,
             delete_credential,
             search_credentials,
-            verify_ssh_host_key,
             trust_ssh_host_key,
             respond_ssh_host_key_verification,
             get_known_ssh_hosts,

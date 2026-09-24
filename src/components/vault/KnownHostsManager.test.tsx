@@ -115,8 +115,9 @@ describe('KnownHostsManager', () => {
     expect(screen.getByText(/No matching hosts found/i)).toBeInTheDocument();
   });
 
-  it('calls remove_ssh_host_key after confirmation', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  // The confirmation is a backend-owned native dialog; the webview must not gate it itself.
+  it('calls remove_ssh_host_key without a webview confirm', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     mockInvoke
       .mockResolvedValueOnce(mockHosts as any)
       .mockResolvedValueOnce(undefined) // remove
@@ -134,19 +135,24 @@ describe('KnownHostsManager', () => {
         port: 22,
       });
     });
+    expect(confirmSpy).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
 
-  it('does not remove host when confirmation is cancelled', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('shows no error when the native confirmation is declined', async () => {
+    mockInvoke
+      .mockResolvedValueOnce(mockHosts as any)
+      .mockRejectedValueOnce('Cancelled');
     render(<KnownHostsManager />);
     await waitFor(() => expect(screen.getByText(/prod-server.example.com/)).toBeInTheDocument());
 
-    const removeButtons = screen.getAllByTitle('Remove host key');
-    fireEvent.click(removeButtons[0]);
+    fireEvent.click(screen.getAllByTitle('Remove host key')[0]);
 
-    expect(mockInvoke).not.toHaveBeenCalledWith('remove_ssh_host_key', expect.anything());
-    confirmSpy.mockRestore();
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('remove_ssh_host_key', expect.anything());
+    });
+    expect(screen.queryByText(/Cancelled|Failed to remove/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/prod-server.example.com/)).toBeInTheDocument();
   });
 
   it('shows Mark as Trusted button for non-trusted hosts', async () => {

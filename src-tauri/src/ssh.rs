@@ -18,6 +18,8 @@ pub struct PresentedHostKey {
     pub fingerprint: String,
     pub key_type: String,
     pub key_bytes: Vec<u8>,
+    /// Set when the host already had a different stored key (a possible MITM).
+    pub old_fingerprint: Option<String>,
 }
 
 struct PendingApproval {
@@ -54,6 +56,25 @@ impl HostKeyApprovalState {
             .map_err(|_| "Host key approval state is unavailable".to_string())?
             .insert(request_id.clone(), PendingApproval { sender, key });
         Ok((request_id, receiver))
+    }
+
+    /// For a pending *changed* key, the text of the native confirmation to show before
+    /// accepting it (once or permanently). `None` for a first-seen key.
+    pub fn changed_key_warning(&self, request_id: &str) -> Result<Option<String>, String> {
+        let pending = self
+            .pending
+            .lock()
+            .map_err(|_| "Host key approval state is unavailable".to_string())?;
+        let approval = pending
+            .get(request_id)
+            .ok_or_else(|| "Host key approval request is no longer pending".to_string())?;
+        let key = &approval.key;
+        Ok(key.old_fingerprint.as_ref().map(|old| {
+            format!(
+                "The host key for {}:{} has CHANGED.\n\nStored: {}\nPresented: {}\n\nThis can mean someone is intercepting the connection. Only continue if you have verified the new fingerprint with the server's administrator.",
+                key.host, key.port, old, key.fingerprint
+            )
+        }))
     }
 
     fn take(&self, request_id: &str) -> Result<PendingApproval, String> {
@@ -134,6 +155,7 @@ impl client::Handler for Client {
                             fingerprint: fingerprint.clone(),
                             key_type: key_type.to_string(),
                             key_bytes: key_bytes.clone(),
+                            old_fingerprint: result.old_fingerprint.clone(),
                         })
                         .map_err(|_| russh::Error::Disconnect)?;
 
@@ -670,7 +692,22 @@ mod host_key_approval_tests {
             fingerprint: format!("SHA256:{}", host),
             key_type: "ssh-key".to_string(),
             key_bytes: vec![1, 2, 3],
+            old_fingerprint: None,
         }
+    }
+
+    /// Accepting a changed key needs a native confirmation; a first-seen key doesn't.
+    #[test]
+    fn only_changed_keys_carry_a_native_warning() {
+        let state = HostKeyApprovalState::new();
+        let (fresh, _rx1) = state.register(presented("a")).unwrap();
+        assert_eq!(state.changed_key_warning(&fresh).unwrap(), None);
+        let mut changed = presented("b");
+        changed.old_fingerprint = Some("SHA256:old".to_string());
+        let (id, _rx2) = state.register(changed).unwrap();
+        let warning = state.changed_key_warning(&id).unwrap().unwrap();
+        assert!(warning.contains("SHA256:old") && warning.contains("SHA256:b"));
+        assert!(state.changed_key_warning("missing").is_err());
     }
 
     #[tokio::test]
