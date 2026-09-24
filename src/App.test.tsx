@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 
 vi.mock('./components/vault/VaultProvider', () => ({
   useVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
+  useOptionalVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
   VaultProvider: ({ children }: any) => children,
 }));
 
