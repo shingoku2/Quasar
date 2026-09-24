@@ -80,7 +80,7 @@ describe('CredentialManager', () => {
   });
 
   it('opens view dialog when View button is clicked', async () => {
-    const fullCred = { ...mockCredentials[0], password: 'secret123' };
+    const fullCred = { ...mockCredentials[0], has_password: true, has_private_key: false, has_key_passphrase: false };
     mockInvoke
       .mockResolvedValueOnce(mockCredentials as any)
       .mockResolvedValueOnce(fullCred as any);
@@ -97,7 +97,7 @@ describe('CredentialManager', () => {
   });
 
   it('opens edit dialog when Edit button is clicked', async () => {
-    const fullCred = { ...mockCredentials[0], password: 'secret123' };
+    const fullCred = { ...mockCredentials[0], has_password: true, has_private_key: false, has_key_passphrase: false };
     mockInvoke
       .mockResolvedValueOnce(mockCredentials as any)
       .mockResolvedValueOnce(fullCred as any);
@@ -187,7 +187,7 @@ describe('CredentialManager', () => {
   });
 
   it('sends camelCase argument keys when updating a credential', async () => {
-    const fullCred = { ...mockCredentials[0], password: 'secret123' };
+    const fullCred = { ...mockCredentials[0], has_password: true, has_private_key: false, has_key_passphrase: false };
     mockInvoke
       .mockResolvedValueOnce(mockCredentials as any) // initial list
       .mockResolvedValueOnce(fullCred as any) // get_credential for edit dialog
@@ -211,6 +211,9 @@ describe('CredentialManager', () => {
         credentialType: 'ssh',
         host: '10.0.0.1',
         port: 6969,
+        // Not prefilled (get_credential no longer returns it) and left blank, so
+        // null tells the backend to keep the stored password.
+        password: null,
       }));
     });
 
@@ -235,7 +238,7 @@ describe('CredentialManager', () => {
       username: 'edward',
       credential_type: 'ssh_key',
       created_at: '2024-01-03T00:00:00Z',
-      password: '',
+      has_password: false,
       has_private_key: true,
       has_key_passphrase: false,
     };
@@ -268,7 +271,7 @@ describe('CredentialManager', () => {
     const credentialWithoutPort = {
       ...mockCredentials[1],
       port: null,
-      password: 'api-secret',
+      has_password: true,
       has_private_key: false,
       has_key_passphrase: false,
     };
@@ -297,5 +300,56 @@ describe('CredentialManager', () => {
         port: null,
       }));
     });
+  });
+
+  it('does not put the password in state until it is explicitly revealed', async () => {
+    const fullCred = { ...mockCredentials[0], has_password: true, has_private_key: false, has_key_passphrase: false };
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_credentials') return mockCredentials;
+      if (cmd === 'get_credential') return fullCred;
+      if (cmd === 'reveal_credential_password') return 'secret123';
+      return undefined;
+    });
+
+    render(<CredentialManager />);
+    await waitFor(() => expect(screen.getByText('Prod SSH')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByTitle('View')[0]);
+    const dialog = await screen.findByRole('dialog', { name: /View Credential/i });
+    expect(dialog).not.toHaveTextContent('secret123');
+    expect(mockInvoke).not.toHaveBeenCalledWith('reveal_credential_password', expect.anything());
+
+    fireEvent.click(screen.getByRole('button', { name: /Toggle password visibility/i }));
+    await waitFor(() => expect(dialog).toHaveTextContent('secret123'));
+    expect(mockInvoke).toHaveBeenCalledWith('reveal_credential_password', { credentialId: '1' });
+
+    // Hiding it again drops it from the rendered output.
+    fireEvent.click(screen.getByRole('button', { name: /Toggle password visibility/i }));
+    await waitFor(() => expect(dialog).not.toHaveTextContent('secret123'));
+  });
+
+  it('shows password controls for every password-backed credential type', async () => {
+    const rdpCred = {
+      id: '9',
+      name: 'Office RDP',
+      username: 'admin',
+      credential_type: 'rdp',
+      created_at: '2024-01-03T00:00:00Z',
+      has_password: true,
+      has_private_key: false,
+      has_key_passphrase: false,
+    };
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_credentials') return [rdpCred];
+      if (cmd === 'get_credential') return rdpCred;
+      return undefined;
+    });
+
+    render(<CredentialManager />);
+    await waitFor(() => expect(screen.getByText('Office RDP')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTitle('View'));
+    await screen.findByRole('dialog', { name: /View Credential/i });
+    expect(screen.getByRole('button', { name: /Toggle password visibility/i })).toBeInTheDocument();
   });
 });

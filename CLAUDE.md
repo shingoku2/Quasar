@@ -30,7 +30,31 @@ branch.)
 
 ---
 
-## Recent Work: PR Backlog Cleanup (September 17, 2026)
+## Recent Work: PR Triage (September 24, 2026)
+
+Nine open bot-authored PRs (#54–#62) were reviewed against their Codex/Sourcery feedback.
+Three had real, verified defects that were fixed before merging:
+
+- **#60 "Fix plaintext password exposure" didn't fix it.** It added `reveal_credential_password`
+  but left `password` in `CredentialFrontendView`, so `get_credential` still put the plaintext
+  into React state on every view/edit/select. Now the view carries only `has_password`; the
+  edit form no longer prefills the password (blank = keep); SFTP fetches it on demand (see
+  Security Notes item 13). Its type allowlist also hid password controls for
+  rdp/database/api/other credentials. That's now gated on `has_password`.
+- **#58 (which folded in #54–56):** the `Intl.DateTimeFormat` cache in `MonitoringView` was
+  keyed on UTC offset, which misses zone switches between zones sharing an offset (New York →
+  Lima in winter). The cache was removed; metrics arrive every ~5s, so it saved nothing.
+  `formatMetricTime` is now per-call; the test covers the same-offset switch.
+- **#62's IPC audit note recorded "None found"** while the credential-write/rekey race
+  (see "Current Work" above) is still open. It now records that race as an open exception.
+
+#54/#55/#56 were closed as superseded by #58. #57 (AuditLogViewer `useMemo`), #59 (host-key
+hook error-path tests, which were mutation-checked and do catch a regression) and #61
+(`React.memo`'d `RemoteHostsList`) were clean. #57, #61 and #62 had never had CI run on them.
+
+---
+
+## Previous Work: PR Backlog Cleanup (September 17, 2026)
 
 26 open PRs (bot-authored: perf micro-optimizations, dead-code/comment removal, and test
 coverage additions) were triaged and merged. 17 were clean as-authored. 9 had real,
@@ -60,7 +84,7 @@ Quasar/
 │   ├── db.ts                   # Tauri SQL plugin interface
 │   ├── test-setup.ts           # Vitest global mocks
 │   ├── App.tsx                 # Root component + routing
-│   └── *.test.ts*              # 47 test files / 329 tests (co-located with sources)
+│   └── *.test.ts*              # 49 test files / 351 tests (co-located with sources)
 ├── src-tauri/                  # Rust/Tauri backend
 │   ├── src/
 │   │   ├── lib.rs              # App setup, migrations, ALL Tauri commands
@@ -182,7 +206,8 @@ All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key g
 **Credentials**
 - `add_credential(name, credential_type, username, password?, private_key?, ...)`
 - `update_credential(id, ...)` / `remove_credential(id)`
-- `list_credentials()` / `get_credential(id)`
+- `list_credentials()` / `get_credential(id)` — `get_credential` returns **no secrets** (only `has_password` / `has_private_key` / `has_key_passphrase` flags)
+- `reveal_credential_password(credential_id)` — the only command that returns a decrypted password to the frontend; call it only at the moment of explicit reveal/copy or SFTP session start
 
 **Hosts**
 - `add_host(hostname, port, username, protocol)` / `update_host(...)` / `remove_host(id)`
@@ -195,11 +220,11 @@ All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key g
 - `execute_ssh_command(host_id, command, credential_id?, password?)`
 - `get_ssh_known_hosts()` / `verify_ssh_host_key(...)` / `remove_known_host(hostname)`
 
-**SFTP** — password auth only (no SSH key support in backend)
-- `sftp_upload_file(host_id, local_path, remote_path, credential_id?, password?)`
-- `sftp_download_file(host_id, remote_path, local_path, credential_id?, password?)`
-- `sftp_list_directory(host_id, path, credential_id?, password?)`
-- `sftp_remote_exists(host_id, path, credential_id?, password?)`
+**SFTP** — password auth only (no SSH key support in backend). These take the plaintext password directly; there is no `credential_id` lookup (unlike SSH sessions).
+- `sftp_upload_file(host, port, username, password, local_path, remote_path)`
+- `sftp_download_file(host, port, username, password, remote_path, local_path)`
+- `sftp_list_directory(host, port, username, password, remote_path)`
+- `sftp_remote_exists(host, port, username, password, remote_path)`
 
 **Monitoring & Alerts**
 - `get_system_metrics()` / `get_remote_hosts_health()`
@@ -299,7 +324,7 @@ Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setu
 
 **All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
 
-#### Test file inventory (49 files / 344 tests as of September 19, 2026)
+#### Test file inventory (49 files / 351 tests as of September 24, 2026)
 
 Not exhaustive — a curated subset covering the components with the most notable test
 patterns or regression history. Run `find src -name "*.test.ts*"` for the full list.
@@ -326,7 +351,7 @@ patterns or regression history. Run `find src -name "*.test.ts*"` for the full l
 | `vault/VaultInitDialog.test.tsx` | VaultInitDialog | Password validation (all rules), strength indicator, invoke, error |
 | `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password, success, error, cancel, password toggle |
 | `vault/CredentialSelector.test.tsx` | CredentialSelector | Loading, type/host filter (incl. SFTP ssh_key exclusion), search, select, manual entry, error |
-| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error, camelCase `invoke` payload keys on update (regression guard), editing an SSH-key credential with no `key_path` (`has_private_key`-gated validation, regression guard) |
+| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error, camelCase `invoke` payload keys on update (regression guard), editing an SSH-key credential with no `key_path` (`has_private_key`-gated validation, regression guard), password never rendered/fetched until the reveal toggle calls `reveal_credential_password`, password controls shown for every password-backed type (e.g. rdp), edit leaves password blank and sends `password: null` (keep) |
 | `vault/KnownHostsManager.test.tsx` | KnownHostsManager | List, search by host/fingerprint, remove with confirm, trust updates, error |
 | `vault/AuditLogViewer.test.tsx` | AuditLogViewer | List, search, event type filter, result filter, resource info, error |
 | `vault/SshHostKeyPrompt.test.tsx` | SshHostKeyPrompt | New vs changed key, trust/reject, permanent toggle, copy fingerprint, MITM warning |
@@ -349,7 +374,7 @@ patterns or regression history. Run `find src -name "*.test.ts*"` for the full l
 - When multiple elements match the same text (heading + button both say "Unlock Vault"), use `getAllByText(...)` or role-scoped queries like `getByRole('button', { name: ... })`
 - Saved-host components mock `invoke` commands such as `get_saved_hosts`, `upsert_saved_host`, and `remove_saved_hosts`; frontend tests never open SQLite directly
 - **`invoke()` payload keys must be lowerCamelCase.** Tauri's command macro matches JSON keys against the camelCased Rust parameter name and silently treats a missing key as `None` for `Option<T>` params — there is no "unknown key" error. A snake_case key (e.g. `key_path` instead of `keyPath`) doesn't fail, it just never updates that field. This bit `CredentialManager.tsx`'s update/add payloads once; `CredentialManager.test.tsx` now asserts no payload key contains `_`.
-- **`get_credential` never returns decrypted private-key/passphrase material** — only `has_private_key`/`has_key_passphrase` booleans (see `CredentialFrontendView` in `vault/credentials.rs`). Any form/validation built on the result of `get_credential` must treat an empty `private_key` field as "not shown", not "not stored" — check the `has_*` flag (or `key_path`, which *is* returned in cleartext) before concluding no key exists. Got this backwards once in `CredentialManager.tsx`'s edit-submit validation, which blocked saving any change to a credential whose key was originally pasted as PEM rather than a file path.
+- **`get_credential` never returns any decrypted secret — password, private key, or passphrase** — only `has_password`/`has_private_key`/`has_key_passphrase` booleans (see `CredentialFrontendView` in `vault/credentials.rs`). Any form/validation built on the result of `get_credential` must treat an empty `private_key` field as "not shown", not "not stored" — check the `has_*` flag (or `key_path`, which *is* returned in cleartext) before concluding no key exists. Got this backwards once in `CredentialManager.tsx`'s edit-submit validation, which blocked saving any change to a credential whose key was originally pasted as PEM rather than a file path. Same for the password: don't prefill it in forms, and never re-add it to `CredentialFrontendView`; fetch it via `reveal_credential_password` only when the user explicitly asks or SFTP needs it (`RemoteManager.test.tsx` covers the SFTP path).
 
 ### Rust Tests
 
@@ -424,6 +449,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 10. **`unlock_vault`'s failed-attempt lockout (5 → 5 min, 10 → 15 min, 15 → 60 min) is persisted to `vault_settings`** (`lockout_failed_attempts` / `lockout_until_unix`), not just tracked in-memory. `VaultStateInner` is rebuilt fresh on every app launch, so an in-memory-only counter would let an attacker with local file access bypass the lockout by relaunching the app every 4 guesses. `load_persisted_lockout()` folds the persisted state into `inner` at the top of every `unlock_vault` call (only ever raising it, never lowering) and `persist_lockout()` writes it back on every failure and on success (clearing it). Regression tests: `vault::tests::test_lockout_persists_across_vault_state_restart`, `test_successful_unlock_clears_persisted_lockout`.
 11. **`scan_network`'s claim (`is_scanning` check-and-set + `stop_signal` reset) must happen synchronously in the `scan_network` Tauri command, before `tokio::spawn`, via `scanner::claim_scan()` — never inside the spawned task.** The command spawns the actual scan and returns immediately; if the claim happened inside the spawned task instead, a `stop_scan()` call landing in the window between `tokio::spawn(...)` and the task actually starting would set `stop_signal = true`, only for the still-starting scan to unconditionally reset it back to `false` when its own claim ran — silently discarding the user's stop request. `scan_network()` itself now assumes the caller already claimed it: it installs `ScanRunningGuard` as its first action (before any fallible work, so the claim is always released even on early return) and checks `stop_signal` before opening the raw ICMP socket (so an already-stopped scan doesn't pay for, or need privileges for, a socket it won't use). Fixed Sep 17, 2026; regression tests: `scanner::tests::test_claim_scan_rejects_concurrent_claim`, `test_stop_request_after_claim_is_not_lost`. See `AGENTS.md` for the incident where a bot-pushed commit reverted this fix mid-review and it had to be reapplied on top of a master merge.
 12. **`ssh_auth::authenticate` falls back to `none` authentication only when no password and no key material were supplied at all** — a present-but-wrong password or key still fails normally; this path exists specifically for identity-aware servers like Tailscale SSH, which authenticate the tailnet connection out-of-band and accept a bare `authenticate_none` request. Tailscale SSH "check mode" (browser re-verification over keyboard-interactive) is not implemented — it surfaces as a connection error in the terminal, same as any other rejected `none` auth attempt.
+13. **Decrypted passwords only cross IPC through `reveal_credential_password`.** `get_credential`'s `CredentialFrontendView` has `has_password` instead of a `password` field (Rust regression test `vault::credentials::tests::test_frontend_view_carries_no_secret_material`). The frontend calls `reveal_credential_password` only on an explicit reveal/copy in the view dialog, or when starting an SFTP session (SFTP commands take the password directly). SSH sessions pass the credential ID and never need it. Until September 24, 2026 the view carried the plaintext, so opening any credential put it into React state.
 
 See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
 

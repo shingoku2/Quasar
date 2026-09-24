@@ -11,6 +11,7 @@ import CredentialSelector from './vault/CredentialSelector';
 import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
 import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
+import { getErrorMessage } from '../lib/utils';
 import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
@@ -19,7 +20,6 @@ interface Credential {
   id: string;
   name: string;
   username: string;
-  password: string;
   credential_type: string;
   host?: string;
   port?: number;
@@ -182,7 +182,7 @@ const RemoteManager: React.FC = () => {
     }
   };
 
-  const handleCredentialSelected = (credential: Credential) => {
+  const handleCredentialSelected = async (credential: Credential) => {
     if (pendingHost) {
       const selectedUsername = credential.username || pendingHost.username;
       if (!selectedUsername) {
@@ -192,7 +192,18 @@ const RemoteManager: React.FC = () => {
       }
 
       if (pendingMode === 'sftp') {
-        startSftpSession(pendingHost, credential.password, selectedUsername);
+        // SFTP commands take the password directly (no credential-ID lookup in the
+        // backend), so fetch it on demand here instead of carrying it in the
+        // general get_credential view.
+        let password: string;
+        try {
+          password = await invoke<string>('reveal_credential_password', { credentialId: credential.id });
+        } catch (err) {
+          console.error('Failed to retrieve credential password for SFTP:', err);
+          alert(getErrorMessage(err, 'Failed to retrieve credential password'));
+          return;
+        }
+        startSftpSession(pendingHost, password, selectedUsername);
       } else {
         // Pass credentialId only — the backend fetches the credential from the vault
         // by ID, so the password never needs to cross the IPC boundary for SSH sessions.
