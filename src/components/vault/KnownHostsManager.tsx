@@ -3,16 +3,23 @@ import { invoke } from '@tauri-apps/api/core';
 import { Shield, Trash2, Search, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import { getErrorMessage, isUserCancelled } from '../../lib/utils';
 
+/**
+ * `SshHostKey` as the backend serializes it (vault/ssh_keys.rs). Timestamps are Unix
+ * seconds; this used to read `first_seen`/`last_seen` ISO strings, which don't exist, so
+ * every date rendered as "Invalid Date" (FE-006).
+ */
 interface KnownHost {
-  id: number;
+  id: string;
   host: string;
   port: number;
   key_type: string;
   fingerprint: string;
   trust_status: string;
-  first_seen: string;
-  last_seen?: string;
+  first_seen_at: number;
+  last_seen_at: number;
 }
+
+const formatUnixSeconds = (secs: number): string => new Date(secs * 1000).toLocaleString();
 
 const KnownHostsManager: React.FC = () => {
   const [hosts, setHosts] = useState<KnownHost[]>([]);
@@ -175,12 +182,12 @@ const KnownHostsManager: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
                       <label className="block text-gray-500 mb-1">First Seen</label>
-                      <p className="text-gray-300">{new Date(host.first_seen).toLocaleString()}</p>
+                      <p className="text-gray-300">{formatUnixSeconds(host.first_seen_at)}</p>
                     </div>
-                    {host.last_seen && (
+                    {host.last_seen_at > 0 && (
                       <div>
                         <label className="block text-gray-500 mb-1">Last Seen</label>
-                        <p className="text-gray-300">{new Date(host.last_seen).toLocaleString()}</p>
+                        <p className="text-gray-300">{formatUnixSeconds(host.last_seen_at)}</p>
                       </div>
                     )}
                   </div>
