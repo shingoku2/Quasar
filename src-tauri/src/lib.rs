@@ -870,6 +870,23 @@ fn validate_scheduled_task<'a>(
     Ok(task_type)
 }
 
+/// The local-file access a scheduled task type needs: uploads read the file, downloads write it.
+fn task_local_intent(task_type: &str) -> Option<local_paths::Intent> {
+    match task_type {
+        "sftp_upload" => Some(local_paths::Intent::Read),
+        "sftp_download" => Some(local_paths::Intent::Write),
+        _ => None,
+    }
+}
+
+fn task_path_unchanged(
+    stored: Option<(Option<String>, Option<String>)>,
+    local_path: &str,
+    task_type: &str,
+) -> bool {
+    matches!(stored, Some((Some(p), Some(t))) if p == local_path && t == task_type)
+}
+
 #[tauri::command]
 async fn add_scheduled_task(
     app: AppHandle,
@@ -897,10 +914,8 @@ async fn add_scheduled_task(
         local_path.as_deref(),
         remote_path.as_deref(),
     )?;
-    if task_type != "ssh" {
-        if let Some(lp) = local_path.as_deref() {
-            grants.check(lp)?;
-        }
+    if let (Some(intent), Some(lp)) = (task_local_intent(task_type), local_path.as_deref()) {
+        grants.take(lp, intent)?;
     }
     let id = scheduler::add_scheduled_task(
         &conn,
@@ -947,17 +962,20 @@ async fn update_scheduled_task(
         local_path.as_deref(),
         remote_path.as_deref(),
     )?;
-    if task_type != "ssh" {
-        if let Some(lp) = local_path.as_deref() {
-            // An unchanged path was granted when the task was created.
-            use rusqlite::OptionalExtension;
-            let stored: Option<Option<String>> = conn
-                .query_row("SELECT local_path FROM scheduled_tasks WHERE id = ?1", [&id], |r| r.get(0))
-                .optional()
-                .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-            if stored.flatten().as_deref() != Some(lp) {
-                grants.check(lp)?;
-            }
+    if let (Some(intent), Some(lp)) = (task_local_intent(task_type), local_path.as_deref()) {
+        // An unchanged path and type were granted when the task was saved. Switching between
+        // upload and download changes read access into write access, so it needs a new pick.
+        use rusqlite::OptionalExtension;
+        let stored: Option<(Option<String>, Option<String>)> = conn
+            .query_row(
+                "SELECT local_path, task_type FROM scheduled_tasks WHERE id = ?1",
+                [&id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+        if !task_path_unchanged(stored, lp, task_type) {
+            grants.take(lp, intent)?;
         }
     }
     scheduler::update_scheduled_task(
@@ -1613,11 +1631,11 @@ async fn pick_local_file(
     app: AppHandle,
     grants: State<'_, local_paths::LocalPathGrants>,
     title: Option<String>,
+    extensions: Option<Vec<String>>,
 ) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
     let dialog_app = app.clone();
     let picked = tauri::async_runtime::spawn_blocking(move || {
-        let mut builder = dialog_app.dialog().file();
+        let mut builder = file_dialog(&dialog_app, extensions);
         if let Some(title) = title {
             builder = builder.set_title(title);
         }
@@ -1625,7 +1643,7 @@ async fn pick_local_file(
     })
     .await
     .map_err(|e| sanitize_error(e.to_string(), "dialog"))?;
-    record_pick(&grants, picked)
+    record_pick(&grants, picked, local_paths::Intent::Read)
 }
 
 /// Opens a native "save file" dialog from the backend and records the choice (IPC-001).
@@ -1634,11 +1652,11 @@ async fn pick_save_location(
     app: AppHandle,
     grants: State<'_, local_paths::LocalPathGrants>,
     default_name: Option<String>,
+    extensions: Option<Vec<String>>,
 ) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
     let dialog_app = app.clone();
     let picked = tauri::async_runtime::spawn_blocking(move || {
-        let mut builder = dialog_app.dialog().file();
+        let mut builder = file_dialog(&dialog_app, extensions);
         if let Some(name) = default_name {
             builder = builder.set_file_name(name);
         }
@@ -1646,12 +1664,30 @@ async fn pick_save_location(
     })
     .await
     .map_err(|e| sanitize_error(e.to_string(), "dialog"))?;
-    record_pick(&grants, picked)
+    record_pick(&grants, picked, local_paths::Intent::Write)
+}
+
+/// A file dialog parented to the main window, optionally filtered to `extensions`.
+fn file_dialog(
+    app: &AppHandle,
+    extensions: Option<Vec<String>>,
+) -> tauri_plugin_dialog::FileDialogBuilder<tauri::Wry> {
+    use tauri_plugin_dialog::DialogExt;
+    let mut builder = app.dialog().file();
+    if let Some(window) = app.get_webview_window("main") {
+        builder = builder.set_parent(&window);
+    }
+    if let Some(exts) = extensions.filter(|e| !e.is_empty()) {
+        let exts: Vec<&str> = exts.iter().map(String::as_str).collect();
+        builder = builder.add_filter("Files", &exts);
+    }
+    builder
 }
 
 fn record_pick(
     grants: &local_paths::LocalPathGrants,
     picked: Option<tauri_plugin_dialog::FilePath>,
+    intent: local_paths::Intent,
 ) -> Result<Option<String>, String> {
     let Some(picked) = picked else { return Ok(None) };
     let path = picked
@@ -1661,7 +1697,7 @@ fn record_pick(
         .to_str()
         .ok_or_else(|| "Selected path is not valid UTF-8".to_string())?
         .to_string();
-    grants.grant(path);
+    grants.grant(path, intent);
     Ok(Some(path_str))
 }
 
@@ -1716,7 +1752,7 @@ async fn sftp_upload_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
-    grants.check(&local_path)?;
+    grants.take(&local_path, local_paths::Intent::Read)?;
     let (username, password) = resolve_sftp_auth(
         &vault_state,
         &credential_manager,
@@ -1761,7 +1797,7 @@ async fn sftp_download_file(
     }
     validate_port(port)?;
     validate_username(&username)?;
-    grants.check(&local_path)?;
+    grants.take(&local_path, local_paths::Intent::Write)?;
     let (username, password) = resolve_sftp_auth(
         &vault_state,
         &credential_manager,
@@ -1887,7 +1923,7 @@ fn export_database(
     dest_path: String,
 ) -> Result<(), String> {
     validate_path(&dest_path)?;
-    grants.check(&dest_path)?;
+    grants.take(&dest_path, local_paths::Intent::Write)?;
     let app_dir = app
         .path()
         .app_data_dir()
@@ -1920,7 +1956,7 @@ async fn import_database(
     source_path: String,
 ) -> Result<(), String> {
     validate_path(&source_path)?;
-    grants.check(&source_path)?;
+    grants.take(&source_path, local_paths::Intent::Read)?;
     let app_dir = app
         .path()
         .app_data_dir()
@@ -2494,6 +2530,22 @@ mod saved_host_tests {
 
     /// IPC-011: task creation rejects unknown types (which used to run as SSH exec),
     /// missing hosts, empty SSH commands and SFTP tasks without both paths.
+    /// P7-3 review: an upload task's read grant must not carry over when the task is
+    /// switched to a download (write) on the same path.
+    #[test]
+    fn scheduled_task_path_exemption_requires_same_type() {
+        use local_paths::Intent;
+        assert_eq!(task_local_intent("sftp_upload"), Some(Intent::Read));
+        assert_eq!(task_local_intent("sftp_download"), Some(Intent::Write));
+        assert_eq!(task_local_intent("ssh"), None);
+        let stored = |p: &str, t: &str| Some((Some(p.to_string()), Some(t.to_string())));
+        assert!(task_path_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_upload"));
+        assert!(!task_path_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_download"));
+        assert!(!task_path_unchanged(stored("/a", "sftp_upload"), "/b", "sftp_upload"));
+        assert!(!task_path_unchanged(None, "/a", "sftp_upload"));
+        assert!(!task_path_unchanged(Some((None, Some("ssh".into()))), "/a", "sftp_upload"));
+    }
+
     #[test]
     fn scheduled_task_validation() {
         let mut conn = migrated_memory_db();

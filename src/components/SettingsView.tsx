@@ -345,6 +345,7 @@ const DataSettings: React.FC = () => {
     // The backend opens the dialog and only accepts paths chosen there (IPC-001).
     const path = await invoke<string | null>('pick_save_location', {
       defaultName: `quasar-backup-${new Date().toISOString().slice(0, 10)}.db`,
+      extensions: ['db'],
     });
     if (!path) return;
     setExporting(true);
@@ -363,7 +364,10 @@ const DataSettings: React.FC = () => {
   };
 
   const handleImport = async () => {
-    const path = await invoke<string | null>('pick_local_file', { title: 'Choose a Quasar backup to import' });
+    const path = await invoke<string | null>('pick_local_file', {
+      title: 'Choose a Quasar backup to import',
+      extensions: ['db'],
+    });
     if (!path) return;
     setImporting(true);
     setError('');
