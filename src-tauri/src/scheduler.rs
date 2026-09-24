@@ -370,11 +370,11 @@ async fn resolve_cred_for_task(
         let credential_manager = app
             .try_state::<crate::vault::CredentialManager>()
             .ok_or_else(|| "Credential manager not available".to_string())?;
-        let key = vault_state.get_master_key().await.map_err(|_| {
+        let access = vault_state.credential_access().await.map_err(|_| {
             "Vault is locked — unlock the vault for scheduled tasks to run".to_string()
         })?;
         let cred = credential_manager
-            .get_credential(&key, cid)
+            .get_credential(access.key(), cid)
             .map_err(|e| format!("Credential error: {}", e))?;
         (
             cred.password,

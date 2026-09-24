@@ -73,7 +73,10 @@ Tracked, accepted risks in third-party dependencies — checked by `cargo audit`
   targets an RSA *decryption* oracle — Quasar only uses `rsa` via russh for SSH client
   auth, which *signs* a challenge rather than decrypting attacker-supplied ciphertext, so
   the specific timing oracle this advisory describes isn't reachable through that path.
-  Re-evaluate when russh/ssh-key bump past a fixed `rsa` release.
+  Re-evaluate when russh/ssh-key bump past a fixed `rsa` release. GitHub aliases:
+  GHSA-c38w-74pg-36hr / GHSA-4grx-2x9w-596c (CVE-2023-49092, medium). This is what
+  GitHub's Dependabot flags for `src-tauri/Cargo.lock`. Re-checked September 24, 2026:
+  `rsa 0.10.0-rc.18` (the version in the lockfile) is still unpatched upstream.
 
 ## Known Design Notes
 

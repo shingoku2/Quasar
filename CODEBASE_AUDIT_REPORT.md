@@ -7,6 +7,9 @@
 > regression requirements are documented in
 > [`docs/DEFERRED_AUDIT_FIX_PLAN.md`](docs/DEFERRED_AUDIT_FIX_PLAN.md). No fixes were applied
 > during the planning session.
+>
+> **Status as of September 24, 2026: all five are fixed.** Four landed September 16–17; the
+> rekey/write serialization landed September 24 (EDW-15). See `AGENTS.md`.
 
 **Date:** February 18, 2026  
 **Scope:** Full codebase (src/, src-tauri/, migrations/, config, tests)  

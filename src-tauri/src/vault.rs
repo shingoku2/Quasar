@@ -12,7 +12,7 @@ use argon2::{
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 use tokio::time::{Duration, Instant};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
@@ -41,6 +41,33 @@ impl Default for VaultSettings {
 #[derive(Clone)]
 pub struct VaultState {
     inner: Arc<RwLock<VaultStateInner>>,
+    /// Serializes credential operations with master-password rekeying. Every
+    /// operation that encrypts, decrypts or deletes a stored credential holds a
+    /// shared guard for as long as it uses the master key (see `credential_access`);
+    /// `change_master_password` takes it exclusively first thing, before it marks
+    /// itself in progress or reads the old key, and holds it until the new key is
+    /// installed. Without this, a credential write
+    /// landing mid-rotation is encrypted with the old key after (or while) the
+    /// re-encryption pass runs, and is undecryptable under the new key.
+    ///
+    /// Lock order: `credential_gate` before `inner`, never the reverse.
+    credential_gate: Arc<RwLock<()>>,
+}
+
+/// The master key plus a shared hold on the credential gate. While this is alive, a
+/// master-password change stays queued on the gate (it hasn't read the old key or
+/// set `changing_password` yet), so the key stays valid for every credential read or
+/// write made with it. Drop it as soon as the credential work is
+/// done (not after a slow network operation that merely uses the decrypted result).
+pub struct CredentialAccess {
+    key: Zeroizing<[u8; 32]>,
+    _gate: OwnedRwLockReadGuard<()>,
+}
+
+impl CredentialAccess {
+    pub fn key(&self) -> &[u8; 32] {
+        &self.key
+    }
 }
 
 struct VaultStateInner {
@@ -75,6 +102,7 @@ impl VaultState {
                 db_path,
                 changing_password: false,
             })),
+            credential_gate: Arc::new(RwLock::new(())),
         }
     }
 
@@ -456,6 +484,21 @@ impl VaultState {
             .ok_or_else(|| "Vault is locked".to_string())
     }
 
+    /// Returns the master key together with a shared credential-gate guard. Use this
+    /// (not `get_master_key`) for any credential operation: it waits for an in-flight
+    /// master-password change to finish, then pins the key until the guard is dropped.
+    pub async fn credential_access(&self) -> Result<CredentialAccess, String> {
+        let gate = self.credential_gate.clone().read_owned().await;
+        let key = Zeroizing::new(self.get_master_key().await?);
+        Ok(CredentialAccess { key, _gate: gate })
+    }
+
+    /// Shared credential-gate guard for credential operations that don't need the key
+    /// (deletes), so they can't interleave with the rekey transaction either.
+    pub async fn credential_gate(&self) -> OwnedRwLockReadGuard<()> {
+        self.credential_gate.clone().read_owned().await
+    }
+
     pub async fn get_settings(&self) -> VaultSettings {
         let (db_path, in_memory) = {
             let inner = self.inner.read().await;
@@ -497,6 +540,16 @@ impl VaultState {
         current_password: SecretString,
         new_password: SecretString,
     ) -> Result<(), String> {
+        // Wait for in-flight credential operations to drain, then block new ones until
+        // the new key is installed below (the guard lives to the end of this function).
+        // Taken before `inner`, matching the lock order credential operations use, and
+        // before `changing_password` is set, so if this future is dropped while queued
+        // here (the one wait whose length depends on other operations) the flag is never
+        // left stuck at true.
+        // A second concurrent rotation queues here too; by the time it gets the gate
+        // the first has finished, so it fails verification against the new hash.
+        let _credential_gate = self.credential_gate.clone().write_owned().await;
+
         let (old_key, db_path) = {
             let mut inner = self.inner.write().await;
 
@@ -658,11 +711,12 @@ impl VaultState {
             .map_err(|e| format!("Task failed: {}", e))
             .and_then(|inner_result| inner_result);
 
-        // Narrow torn-state window: the DB transaction above already committed
-        // credentials/hash/salt under the new key, but `inner.master_key` (below)
-        // isn't swapped until we reacquire the lock here. A `get_master_key()` call
-        // that lands in this gap gets the old key and will fail to decrypt against
-        // the now-new-key ciphertext; the caller sees a transient error and can retry.
+        // The DB transaction above already committed credentials/hash/salt under the
+        // new key, but `inner.master_key` isn't swapped until we reacquire the lock
+        // here. Credential operations can't observe that gap: they go through
+        // `credential_access()`, which is blocked on `_credential_gate` until this
+        // function returns. (A bare `get_master_key()` caller could, which is why
+        // credential code must not use it.)
         let mut inner = self.inner.write().await;
 
         // CRITICAL: Always reset changing_password on ALL code paths (success, error, panic).
@@ -1014,6 +1068,109 @@ mod tests {
             .expect("failed to list credentials");
         assert_eq!(summaries.len(), 1, "password change must not duplicate credentials");
         assert_eq!(summaries[0].id, id);
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[tokio::test]
+    async fn test_credential_write_waits_for_master_password_change() {
+        // Regression test (EDW-15): credential writes used to ignore an in-flight
+        // change_master_password(). One landing during the re-encryption pass or the
+        // post-commit key-swap window was encrypted with the old key and became
+        // undecryptable under the new one. Writes now queue behind the rotation via
+        // credential_access(), and must come out encrypted under the new key.
+        use crate::vault::credentials::CredentialManager;
+
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault
+            .initialize_vault(SecretString::from("TestPassword123!"))
+            .await
+            .unwrap();
+        let old_key = vault.get_master_key().await.unwrap();
+
+        // An in-flight credential operation holds the gate, so the rotation below
+        // parks waiting for exclusive access before it touches any vault state.
+        let in_flight = vault.credential_access().await.unwrap();
+
+        let rekey = tokio::spawn({
+            let vault = vault.clone();
+            async move {
+                vault
+                    .change_master_password(
+                        SecretString::from("TestPassword123!"),
+                        SecretString::from("NewPassword456!"),
+                    )
+                    .await
+            }
+        });
+        // The rotation is queued once the gate can't be read-acquired any more: tokio's
+        // RwLock is fair, so a waiting writer blocks new readers.
+        for _ in 0..1000 {
+            if vault.credential_gate.try_read().is_err() {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            vault.credential_gate.try_read().is_err(),
+            "the rotation must queue on the credential gate"
+        );
+        assert!(
+            !vault.inner.read().await.changing_password,
+            "a rotation queued on the gate must not have marked itself in progress yet"
+        );
+
+        // A credential write issued mid-rotation.
+        let writer = tokio::spawn({
+            let vault = vault.clone();
+            let db_path = db_path.clone();
+            async move {
+                let access = vault.credential_access().await?;
+                let id = CredentialManager::new(db_path).add_credential(
+                    access.key(),
+                    "Mid-rotation".to_string(),
+                    "root".to_string(),
+                    "hunter2".to_string(),
+                    "password".to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )?;
+                Ok::<_, String>((id, *access.key()))
+            }
+        });
+        for _ in 0..50 {
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            !writer.is_finished(),
+            "a credential write must not proceed while a password change is pending"
+        );
+
+        drop(in_flight);
+        rekey
+            .await
+            .unwrap()
+            .expect("password change should succeed");
+        let (id, write_key) = writer
+            .await
+            .unwrap()
+            .expect("credential write should succeed");
+
+        let new_key = vault.get_master_key().await.unwrap();
+        assert_ne!(new_key, old_key);
+        assert_eq!(
+            write_key, new_key,
+            "queued write must use the post-rotation key"
+        );
+        let cred = CredentialManager::new(db_path.clone())
+            .get_credential(&new_key, &id)
+            .expect("credential written mid-rotation must decrypt under the new key");
+        assert_eq!(cred.password, "hunter2");
 
         cleanup_test_db(&db_path);
     }
