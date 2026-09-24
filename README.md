@@ -44,6 +44,12 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **Host Tracking** - Persistent storage of discovered hosts with history
 - **Hostname Resolution** - Automatic reverse DNS lookup for discovered hosts
 
+### 🔗 Tailscale
+- **Tailnet Peers** - Remote → Inventory lists the devices on your tailnet (online status, OS, address) using the local `tailscale` CLI — no API key or account setup in the app
+- **Add** - Open a prefilled SSH host dialog for a peer, then review and save the host; the stored address is its MagicDNS name when MagicDNS is enabled, otherwise its `100.x.y.z` address
+- **Tailscale Badge** - Saved hosts that match a tailnet peer show a Tailscale badge with a live online/offline indicator
+- **Identity-based SSH** - Peers running Tailscale SSH can be opened with just a username; the password can be left blank and the session authenticates by tailnet identity
+
 ### 🎨 Modern UI
 - **React + TypeScript** - Type-safe frontend with modern React patterns
 - **Tailwind CSS** - Beautiful, responsive design with shadcn/ui components
@@ -59,12 +65,13 @@ Quasar provides a comprehensive desktop application for managing remote infrastr
 - **UI Library**: Tailwind CSS + Lucide icons
 - **Terminal**: xterm.js for SSH terminal emulation
 - **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library (47 test files / 329 tests)
+- **Testing**: Vitest + React Testing Library (49 test files / 344 tests)
 
 ### Backend
 - **Runtime**: Tauri (Rust)
 - **Database**: SQLite with rusqlite
 - **SSH/SFTP**: russh + russh-sftp
+- **Tailscale**: local `tailscale status --json` CLI only (no control-plane API calls)
 - **Encryption**: AES-256-GCM with Argon2id key derivation
 - **Security**: zeroize for secure memory clearing
 
@@ -154,6 +161,14 @@ This creates platform-specific installers in `src-tauri/target/release/bundle/`.
 3. View historical data and trends
 4. Set up health checks for critical hosts
 
+### Connecting via Tailscale
+1. Install and log in to Tailscale on this machine (the `tailscale` CLI must be on your PATH or in its default install location)
+2. Navigate to **Remote → Inventory**; the **Tailscale** panel beside LAN Discovery lists your tailnet peers
+3. Click **Add** on a peer to open a prefilled SSH host dialog, then review and save it (peers already saved show **Saved**)
+4. Click **Connect** on the saved host. For peers with the **SSH** chip (Tailscale SSH enabled), leave the password blank to authenticate by tailnet identity; other peers need a password or SSH key as usual
+
+See `docs/CORE_WORKFLOWS.md` for details, including the Tailscale SSH "check mode" limitation.
+
 ## Project Structure
 
 ```
@@ -171,6 +186,7 @@ Quasar/
 │   │   ├── vault/               # Credential vault module
 │   │   ├── ssh_exec.rs          # SSH command execution
 │   │   ├── sftp.rs              # SFTP file transfer
+│   │   ├── tailscale.rs         # Tailscale CLI integration (tailnet peers)
 │   │   ├── scheduler.rs         # Cron-based scheduled tasks
 │   │   ├── health.rs            # Health check system
 │   │   └── lib.rs               # Main Tauri application
@@ -207,6 +223,12 @@ See `conductor/code_styleguides/` for detailed coding standards:
 5. Submit a pull request
 
 ## Recent Updates
+
+### September 19, 2026 - Tailscale Integration
+- ✅ **Tailnet peers in Remote → Inventory** — a new Tailscale panel beside LAN Discovery lists your tailnet devices with online status, OS, and address, sourced from the local `tailscale status --json` CLI (no API key, no control-plane calls, no new dependencies).
+- ✅ **Add from peer list** — opens a prefilled SSH host dialog (review, then save) using the peer's MagicDNS name (or `100.x` IP when MagicDNS is off); saved hosts matching a peer get a Tailscale badge with a live online dot.
+- ✅ **Identity-based SSH** — peers running Tailscale SSH can be opened with only a username: the credential prompt makes the password optional and the SSH layer falls back to `none` authentication when no password or key is supplied. Normal password/key hosts are unaffected.
+- ✅ **Verification** — `cargo clippy -- -D warnings`, `cargo test` (130 lib tests, +8 new), `tsc --noEmit`, and `npm test` (344/344 across 49 files) all clean; see `AGENTS.md` for the full writeup.
 
 ### September 17, 2026 - PR Backlog Cleanup & Network Scanner Race Fix
 - ✅ **26 open PRs triaged and merged** — bot-authored perf tweaks, dead-code cleanup, and test-coverage additions. 17 were clean as-authored; 9 had real bugs the review bots flagged (mostly test-quality issues that couldn't actually catch a regression) and were fixed before merging.
@@ -297,7 +319,7 @@ See `conductor/code_styleguides/` for detailed coding standards:
 
 - **README.md** (this file) — Overview, features, getting started, usage
 - **AGENTS.md** — AI agent context, implementation history, and bug-fix log
-- **docs/CORE_WORKFLOWS.md** — Core user workflows (vault, SSH, scheduled tasks including SFTP types, SFTP, monitoring, discovery)
+- **docs/CORE_WORKFLOWS.md** — Core user workflows (vault, SSH, scheduled tasks including SFTP types, SFTP, monitoring, discovery, Tailscale)
 - **docs/SCHEMA.md** — Database schema and migration notes
 - **MVP_COMPLETION_ROADMAP.md** — Development roadmap and success criteria
 - **CODEBASE_AUDIT_REPORT.md** — Audit findings and applied fixes
@@ -307,7 +329,7 @@ See `conductor/code_styleguides/` for detailed coding standards:
 ## Tech Stack
 
 **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui, xterm.js  
-**Backend**: Rust, Tauri, russh, russh-sftp, rusqlite  
+**Backend**: Rust, Tauri, russh, russh-sftp, rusqlite, Tailscale CLI integration  
 **Security**: AES-256-GCM, Argon2id, zeroize  
 **Database**: SQLite
 

@@ -79,6 +79,7 @@ const HostDetailDialog: React.FC<HostDetailDialogProps> = ({
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-white transition-colors"
+            aria-label="Close dialog"
           >
             <X className="h-5 w-5" />
           </button>

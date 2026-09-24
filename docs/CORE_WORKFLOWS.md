@@ -66,7 +66,7 @@ This document describes the main user workflows for remote management, automatio
 
 - **Requirement**: The `tailscale` CLI must be installed and logged in on this machine. Quasar only shells out to `tailscale status --json` locally — no API key or account setup inside the app.
 - **Location**: Remote → Inventory, in the "Tailscale" panel beside LAN Discovery. Shows your tailnet peers (not your own node), online status, OS, and address.
-- **Add a peer**: Click **Add** on a peer to save it as an SSH host. The stored address is the peer's MagicDNS name (e.g. `myhost.tailXXXX.ts.net`) when MagicDNS is enabled for the tailnet, otherwise its `100.x.y.z` address. A peer that matches an already-saved host shows **Saved** instead.
+- **Add a peer**: Click **Add** on a peer to open the Add Host dialog prefilled for it, then review and save it as an SSH host. The stored address is the peer's MagicDNS name (e.g. `myhost.tailXXXX.ts.net`) when MagicDNS is enabled for the tailnet, otherwise its `100.x.y.z` address. A peer that matches an already-saved host shows **Saved** instead.
 - **Badge on saved hosts**: Any saved host whose address matches a tailnet peer shows a Tailscale badge with an online/offline dot in the host list's Address column.
 - **Connecting**: Peers with an "SSH" chip run Tailscale SSH. Connecting to one lets you leave the password blank in the manual credential prompt — Quasar authenticates the SSH session by tailnet identity (`none` auth) instead. Peers without the chip need a normal password or SSH key as usual.
 - **Not supported**: Tailscale SSH "check mode" (the browser re-verification prompt some tailnet policies require) is not implemented; a connection that requires it will show an authentication error in the terminal.

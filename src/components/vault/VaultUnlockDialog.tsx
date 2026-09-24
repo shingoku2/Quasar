@@ -47,7 +47,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
             <h2 className="text-base font-bold text-white uppercase tracking-wider">Unlock Vault</h2>
           </div>
           {onCancel && (
-            <button onClick={onCancel} className="text-gray-500 hover:text-white transition-colors">
+            <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">
               <X className="h-4 w-4" />
             </button>
           )}
@@ -101,6 +101,7 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label="Toggle password visibility"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
               tabIndex={-1}
             >
