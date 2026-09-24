@@ -2,7 +2,8 @@
 //! attempt and accepts according to a policy, so connect/auth behaviour can be tested
 //! against real russh handshakes on 127.0.0.1.
 
-use russh::server::{Auth, Handler};
+use russh::server::{Auth, ChannelOpenHandle, Handler, Msg, Session};
+use russh::{Channel, ChannelId};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,6 +12,15 @@ pub struct Policy {
     pub accept_none: bool,
     pub password: Option<String>,
     pub accept_publickey: bool,
+    /// Reply to any `exec` request. Sent like OpenSSH does: output, EOF, then the exit
+    /// status, then close (the status arrives *after* EOF).
+    pub exec: Option<ExecReply>,
+}
+
+#[derive(Clone, Default)]
+pub struct ExecReply {
+    pub output: Vec<u8>,
+    pub exit_status: u32,
 }
 
 #[derive(Clone)]
@@ -47,6 +57,36 @@ impl Handler for TestServer {
     ) -> Result<Auth, Self::Error> {
         self.attempts.lock().unwrap().push(format!("publickey:{}", user));
         Ok(if self.policy.accept_publickey { Auth::Accept } else { Auth::reject() })
+    }
+
+    async fn channel_open_session(
+        &mut self,
+        _channel: Channel<Msg>,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        reply.accept().await;
+        Ok(())
+    }
+
+    async fn exec_request(
+        &mut self,
+        channel: ChannelId,
+        _data: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        let Some(reply) = self.policy.exec.clone() else {
+            session.channel_failure(channel)?;
+            return Ok(());
+        };
+        session.channel_success(channel)?;
+        for chunk in reply.output.chunks(32 * 1024) {
+            session.data(channel, chunk.to_vec())?;
+        }
+        session.eof(channel)?;
+        session.exit_status_request(channel, reply.exit_status)?;
+        session.close(channel)?;
+        Ok(())
     }
 }
 
