@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, Plus, Edit2, Trash2, Search, Server, User, Lock, Save, X, Eye, EyeOff } from 'lucide-react';
 import { getErrorMessage, isUserCancelled } from '../../lib/utils';
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 
 interface CredentialSummary {
   id: string;
@@ -60,9 +61,7 @@ const CredentialManager: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadCredentials();
-  }, []);
+  useOnViewShown(() => loadCredentials());
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {

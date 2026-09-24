@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Server, Database as DatabaseIcon, Globe, Terminal } from 'lucide-react';
 import { invoke } from "@tauri-apps/api/core";
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 
 interface SavedHost {
   id: string;
@@ -20,9 +21,7 @@ const QuickConnectWidget: React.FC<QuickConnectWidgetProps> = ({ onConnect }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadHosts();
-  }, []);
+  useOnViewShown(() => loadHosts());
 
   const loadHosts = async () => {
     setIsLoading(true);

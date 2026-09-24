@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Clock, Plus, Pencil, Trash2, Play } from 'lucide-react';
 import { getErrorMessage } from '../lib/utils';
+import { useOnViewShown } from '../hooks/useViewVisibility';
 
 export interface ScheduledTask {
   id: string;
@@ -103,9 +104,7 @@ const ScheduledTasksView: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useOnViewShown(load);
 
   const resetForm = () => {
     setForm({

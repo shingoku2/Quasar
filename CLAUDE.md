@@ -448,6 +448,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 ### Component Patterns
 
 - Functional components with hooks only (no class components)
+- Every view stays mounted (hidden with CSS). Load lists other views can change (hosts, credentials, tasks) with `useOnViewShown` (runs on mount and each time the view is shown), not a mount-only `useEffect`, or they go stale (FE-004). Poll with `useVisiblePolling`.
 - Global vault state via `VaultProvider` context (`src/components/vault/VaultProvider.tsx`)
 - The app root has an `ErrorBoundary` (full-screen "Reload App"), and `Layout` wraps each view in `<ErrorBoundary scope="…">`, whose inline fallback re-mounts only that view ("Try again"), so a render error in one view no longer blanks the app or forces a reload that drops SSH sessions (FE-002)
 - SSH host-key prompts are rendered once, app-wide, by `vault/HostKeyPromptHost` in `Layout` (FE-011: inside RemoteManager they were invisible from other views). Don't mount `useSshHostKeyVerification` a second time: each instance would queue its own copy of every prompt.

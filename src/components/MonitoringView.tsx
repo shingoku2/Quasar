@@ -3,7 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
 import AlertRules from './dashboard/AlertRules';
-import { useVisiblePolling } from '../hooks/useViewVisibility';
+import { useVisiblePolling, useOnViewShown } from '../hooks/useViewVisibility';
 
 interface ProcessInfo {
   pid: number;
@@ -261,10 +261,10 @@ const MonitoringView: React.FC = () => {
   // get_remote_hosts_health pings and SSHes into every saved host, so it must not
   // run while the Monitoring view is hidden.
   useVisiblePolling(fetchRemoteHealth, 30000);
-  useEffect(() => {
+  useOnViewShown(() => {
     invoke<SavedHost[]>('get_saved_hosts').then((data) => setSavedHosts(Array.isArray(data) ? data : [])).catch(() => setSavedHosts([]));
     invoke<CredentialSummary[]>('list_credentials').then((data) => setCredentials(Array.isArray(data) ? data : [])).catch(() => setCredentials([]));
-  }, []);
+  });
 
   const setHostCredential = useCallback(async (hostId: string, credentialId: string | null) => {
     try {
