@@ -39,17 +39,20 @@ pub struct CredentialSummary {
     pub last_used_at: Option<i64>,
 }
 
-/// Credential view for Tauri IPC when the frontend needs to use the credential (e.g. SSH or SFTP auth).
-/// Includes the decrypted password so callers can authenticate; omits private key material and
-/// key passphrase — use `has_private_key` and `has_key_passphrase` to indicate presence.
-/// This is the return type of the `get_credential` Tauri command.
+/// Credential view for Tauri IPC (the return type of the `get_credential` Tauri command).
+/// Carries no secret material: the password, private key and key passphrase are all omitted,
+/// with `has_password`, `has_private_key` and `has_key_passphrase` indicating presence.
+/// Frontend flows that genuinely need the password (explicit reveal/copy, SFTP auth) fetch it
+/// on demand via `reveal_credential_password`; SSH sessions pass the credential ID instead.
 #[derive(Debug, Clone, Serialize)]
 pub struct CredentialFrontendView {
     pub id: String,
     pub name: String,
     pub username: String,
-    /// Decrypted password for password-based auth; present so SSH/SFTP flows can use it over IPC.
-    pub password: String,
+    /// True if a password is stored for this credential (not the password itself).
+    /// The decrypted password is only sent to the frontend on explicit request, via
+    /// the narrowly scoped `reveal_credential_password` command.
+    pub has_password: bool,
     pub credential_type: String,
     pub host: Option<String>,
     pub port: Option<u16>,
@@ -69,10 +72,10 @@ impl From<Credential> for CredentialFrontendView {
         CredentialFrontendView {
             has_private_key: c.private_key.is_some(),
             has_key_passphrase: c.key_passphrase.is_some(),
+            has_password: !c.password.is_empty(),
             id: c.id,
             name: c.name,
             username: c.username,
-            password: c.password,
             credential_type: c.credential_type,
             host: c.host,
             port: c.port,
@@ -823,6 +826,35 @@ mod tests {
         assert_eq!(credential.username, "testuser");
         assert_eq!(credential.password, "SecurePassword123!");
         assert_eq!(credential.credential_type, "password");
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[test]
+    fn test_frontend_view_carries_no_secret_material() {
+        let (db_path, master_key) = setup_test_db();
+        let manager = CredentialManager::new(db_path.clone());
+        let id = manager
+            .add_credential(
+                &master_key,
+                "view-test".to_string(),
+                "admin".to_string(),
+                "hunter2-secret".to_string(),
+                "ssh".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let view = CredentialFrontendView::from(manager.get_credential(&master_key, &id).unwrap());
+        assert!(view.has_password);
+        let json = serde_json::to_value(&view).unwrap();
+        assert!(json.get("password").is_none());
+        assert!(!json.to_string().contains("hunter2-secret"));
 
         cleanup_test_db(&db_path);
     }

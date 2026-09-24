@@ -15,10 +15,11 @@ interface CredentialSummary {
 }
 
 interface Credential extends CredentialSummary {
-  password: string;
   key_path?: string;
-  // get_credential never returns decrypted key material (security by design) —
-  // these flags are how the edit form knows a key already exists server-side.
+  // get_credential never returns decrypted secrets (security by design) — these
+  // flags are how the UI knows a secret already exists server-side. The password
+  // itself is fetched only on explicit reveal/copy via reveal_credential_password.
+  has_password: boolean;
   has_private_key: boolean;
   has_key_passphrase: boolean;
 }
@@ -289,7 +290,8 @@ const CredentialDialog: React.FC<{
   const [formData, setFormData] = useState<CredentialFormData>({
     name: credential?.name || '',
     username: credential?.username || '',
-    password: credential?.password || '',
+    // Never prefilled: get_credential doesn't return it. Blank on edit means "keep".
+    password: '',
     credential_type: credential?.credential_type || 'ssh',
     host: credential?.host || '',
     port: credential?.port?.toString() ?? '',
@@ -535,8 +537,8 @@ const CredentialDialog: React.FC<{
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full bg-bg-root border border-gray-700 rounded-lg pl-10 pr-12 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
-                placeholder="••••••••"
-                required
+                placeholder={credential?.has_password ? 'Leave blank to keep current password' : '••••••••'}
+                required={!credential?.has_password}
               />
               <button
                 type="button"
@@ -678,7 +680,7 @@ const CredentialViewDialog: React.FC<{
             </div>
           </div>
 
-          {(credential.credential_type === 'password' || credential.credential_type === 'ssh' || credential.credential_type === 'ssh_key') && (
+          {credential.has_password && (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
               <div className="flex items-center justify-between bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
