@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import MonitoringView from './MonitoringView';
+import MonitoringView, { formatMetricTime } from './MonitoringView';
 import '@testing-library/jest-dom';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -86,5 +86,29 @@ describe('MonitoringView', () => {
     await waitFor(() => {
       expect(screen.getByText(/No saved hosts/i)).toBeInTheDocument();
     });
+  });
+
+  it('follows OS time-zone changes, including between zones sharing an offset', () => {
+    const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    const originalTimeZone = env.TZ;
+    // New York and Lima are both UTC-5 in January; only New York observes DST.
+    const january = new Date('2026-01-15T12:34:56Z');
+    const july = new Date('2026-07-15T12:34:56Z');
+
+    try {
+      env.TZ = 'UTC';
+      expect(formatMetricTime(january)).toBe('12:34:56');
+
+      env.TZ = 'America/New_York';
+      expect(formatMetricTime(january)).toBe('07:34:56');
+
+      // Same offset as New York in January, so an offset-keyed formatter cache
+      // would never notice this switch and would show New York's DST time in July.
+      env.TZ = 'America/Lima';
+      expect(formatMetricTime(january)).toBe('07:34:56');
+      expect(formatMetricTime(july)).toBe('07:34:56');
+    } finally {
+      env.TZ = originalTimeZone;
+    }
   });
 });

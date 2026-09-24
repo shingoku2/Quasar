@@ -88,6 +88,13 @@ describe('AlertFeed', () => {
     expect(screen.getByText(/0 unacknowledged/)).toBeInTheDocument();
   });
 
+  it('exposes labeled actions that become visible on keyboard focus', () => {
+    render(<AlertFeed alerts={[makeAlert()]} />);
+
+    expect(screen.getByRole('button', { name: 'Acknowledge' })).toHaveClass('focus-visible:opacity-100');
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toHaveClass('focus-visible:opacity-100');
+  });
+
   it('shows metrics summary when system metrics are available', async () => {
     mockInvoke.mockResolvedValueOnce({
       cpu_usage_percent: 45.5,

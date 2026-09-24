@@ -6,7 +6,7 @@ import { useSshHostKeyVerification } from './useSshHostKeyVerification';
 
 describe('useSshHostKeyVerification', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('queues concurrent host key prompts and processes them FIFO', async () => {
@@ -71,6 +71,163 @@ describe('useSshHostKeyVerification', () => {
     await waitFor(() => {
       expect(result.current.promptData?.host).toBe('host-2');
     });
+  });
+
+  it('does not dequeue the current prompt when handleTrust fails with a non-dismissible error', async () => {
+    let verificationListener: ((event: { payload: {
+      requestId: string;
+      host: string;
+      port: number;
+      fingerprint: string;
+      keyType: string;
+      keyBytes: number[];
+      status: string;
+      message: string;
+    } }) => void) | undefined;
+
+    vi.mocked(listen).mockImplementation(async (_eventName, callback) => {
+      verificationListener = callback as typeof verificationListener;
+      return () => {};
+    });
+
+    const approvalError = new Error('network error');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'trust_ssh_host_key') {
+        throw approvalError;
+      }
+      return undefined;
+    });
+
+    const { result } = renderHook(() => useSshHostKeyVerification());
+
+    act(() => {
+      verificationListener?.({
+        payload: {
+          requestId: 'req-approval',
+          host: 'host-1',
+          port: 22,
+          fingerprint: 'fp-1',
+          keyType: 'ssh-ed25519',
+          keyBytes: [1, 2, 3],
+          status: 'Unknown',
+          message: 'first',
+        },
+      });
+      verificationListener?.({
+        payload: {
+          requestId: 'req-approval-2',
+          host: 'host-2',
+          port: 22,
+          fingerprint: 'fp-2',
+          keyType: 'ssh-ed25519',
+          keyBytes: [4, 5, 6],
+          status: 'Unknown',
+          message: 'second',
+        },
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleTrust(true);
+    });
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to approve host key:',
+        approvalError
+      );
+    });
+
+    expect(invoke).toHaveBeenCalledWith(
+      'trust_ssh_host_key',
+      expect.objectContaining({ requestId: 'req-approval' })
+    );
+
+    // Prompt is NOT dequeued
+    expect(result.current.promptData?.host).toBe('host-1');
+
+    consoleError.mockRestore();
+  });
+
+  it('dequeues the current prompt when handleTrust fails with a dismissible error', async () => {
+    let verificationListener: ((event: { payload: {
+      requestId: string;
+      host: string;
+      port: number;
+      fingerprint: string;
+      keyType: string;
+      keyBytes: number[];
+      status: string;
+      message: string;
+    } }) => void) | undefined;
+
+    vi.mocked(listen).mockImplementation(async (_eventName, callback) => {
+      verificationListener = callback as typeof verificationListener;
+      return () => {};
+    });
+
+    const dismissibleError = new Error('Host key approval request is no longer pending');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'trust_ssh_host_key') {
+        throw dismissibleError;
+      }
+      return undefined;
+    });
+
+    const { result } = renderHook(() => useSshHostKeyVerification());
+
+    act(() => {
+      verificationListener?.({
+        payload: {
+          requestId: 'req-approval',
+          host: 'host-1',
+          port: 22,
+          fingerprint: 'fp-1',
+          keyType: 'ssh-ed25519',
+          keyBytes: [1, 2, 3],
+          status: 'Unknown',
+          message: 'first',
+        },
+      });
+      verificationListener?.({
+        payload: {
+          requestId: 'req-approval-2',
+          host: 'host-2',
+          port: 22,
+          fingerprint: 'fp-2',
+          keyType: 'ssh-ed25519',
+          keyBytes: [4, 5, 6],
+          status: 'Unknown',
+          message: 'second',
+        },
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleTrust(true);
+    });
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to approve host key:',
+        dismissibleError
+      );
+    });
+
+    expect(invoke).toHaveBeenCalledWith(
+      'trust_ssh_host_key',
+      expect.objectContaining({ requestId: 'req-approval' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.promptData?.host).toBe('host-2');
+    });
+
+    consoleError.mockRestore();
   });
 
   it('does not dequeue the current prompt when the backend response fails', async () => {
