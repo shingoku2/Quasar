@@ -535,7 +535,24 @@ impl VaultState {
         }
     }
 
+    /// Changes the master password. The rotation runs as its own task, which this awaits:
+    /// if the caller is dropped, the rotation still finishes. Cancelling it between the DB
+    /// commit and installing the new key left memory on the old key while the database used
+    /// the new one, so credentials written next were orphaned (P7-4 review).
     pub async fn change_master_password(
+        &self,
+        current_password: SecretString,
+        new_password: SecretString,
+    ) -> Result<(), String> {
+        let this = self.clone();
+        tauri::async_runtime::spawn(async move {
+            this.rotate_master_password(current_password, new_password).await
+        })
+        .await
+        .map_err(|e| format!("Task failed: {}", e))?
+    }
+
+    async fn rotate_master_password(
         &self,
         current_password: SecretString,
         new_password: SecretString,
@@ -1456,7 +1473,7 @@ mod tests {
         let db_path = setup_test_db();
         let vault = VaultState::new(db_path.clone());
         vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
-        let rotation = {
+        let caller = {
             let vault = vault.clone();
             tokio::spawn(async move {
                 vault
@@ -1474,14 +1491,35 @@ mod tests {
             tokio::task::yield_now().await;
         }
         assert!(vault.changing_password.load(Ordering::SeqCst), "rotation should be in flight");
-        // Holding `inner` keeps the rotation from installing its key and finishing, so the
-        // abort below always lands mid-rotation and exercises the drop guard.
+        // Holding `inner` keeps the rotation from installing its key, so the caller is
+        // dropped mid-rotation (after the DB commit, the dangerous window).
         let hold = vault.inner.write().await;
-        rotation.abort();
-        let outcome = rotation.await;
+        caller.abort();
+        assert!(caller.await.is_err_and(|e| e.is_cancelled()));
         drop(hold);
-        assert!(outcome.is_err_and(|e| e.is_cancelled()), "rotation must be cancelled, not completed");
+
+        // The rotation itself runs on and finishes: flag cleared, new key installed.
+        for _ in 0..500 {
+            if !vault.changing_password.load(Ordering::SeqCst) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
         assert!(!vault.changing_password.load(Ordering::SeqCst));
+        // A credential written now must survive a relock under the new password; with a
+        // stale in-memory key it was encrypted under the old one and orphaned.
+        let cm = credentials::CredentialManager::new(db_path.clone());
+        let id = {
+            let access = vault.credential_access().await.unwrap();
+            cm.add_credential(access.key(), "after".into(), "u".into(), "p".into(),
+                "password".into(), None, None, None, None, None, None)
+                .unwrap()
+        };
+        vault.lock_vault().await.unwrap();
+        vault.unlock_vault(SecretString::from("AnotherPassword456!")).await.unwrap();
+        let access = vault.credential_access().await.unwrap();
+        assert_eq!(cm.get_credential(access.key(), &id).unwrap().password, "p");
+        drop(access);
         cleanup_test_db(&db_path);
     }
 
