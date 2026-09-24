@@ -1488,7 +1488,7 @@ mod tests {
             if vault.changing_password.load(Ordering::SeqCst) {
                 break;
             }
-            tokio::task::yield_now().await;
+            tokio::time::sleep(Duration::from_millis(5)).await; // rotation runs on another runtime
         }
         assert!(vault.changing_password.load(Ordering::SeqCst), "rotation should be in flight");
         // Holding `inner` keeps the rotation from installing its key, so the caller is
@@ -1583,7 +1583,7 @@ mod tests {
             if vault.changing_password.load(Ordering::SeqCst) {
                 break;
             }
-            tokio::task::yield_now().await;
+            tokio::time::sleep(Duration::from_millis(5)).await; // rotation runs on another runtime
         }
         // Hold `inner` so the rotation can't install the new key, then wait for its commit.
         let held = vault.inner.read().await;
@@ -1900,7 +1900,7 @@ mod tests {
             if vault.credential_gate.try_read().is_err() {
                 break;
             }
-            tokio::task::yield_now().await;
+            tokio::time::sleep(Duration::from_millis(5)).await; // rotation runs on another runtime
         }
         assert!(
             vault.credential_gate.try_read().is_err(),
