@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 import {
   Folder,
@@ -39,7 +39,10 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
   credentialId,
 }) => {
   const hasAuth = Boolean(password || credentialId);
-  const auth = { password: password ?? null, credentialId: credentialId ?? null };
+  const auth = useMemo(
+    () => ({ password: password ?? null, credentialId: credentialId ?? null }),
+    [password, credentialId],
+  );
   const [currentPath, setCurrentPath] = useState('/');
   const [files, setFiles] = useState<RemoteFile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,7 +96,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
         setLoading(false);
       }
     }
-  }, [host, port, username, password]);
+  }, [host, port, username, auth]);
 
   useEffect(() => {
     fetchFiles('/');

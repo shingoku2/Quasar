@@ -1961,9 +1961,15 @@ async fn import_database(
         .path()
         .app_data_dir()
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-    import_database_at(&app_dir, &source_path, &vault_state).await?;
-    // The frontend already handles this event by showing the unlock dialog.
-    let _ = app.emit("vault-auto-locked", ());
+    let was_locked = vault_state.is_locked().await;
+    let result = import_database_at(&app_dir, &source_path, &vault_state).await;
+    // The frontend handles this event by showing the unlock dialog. Emit it whenever the
+    // import locked the vault, including a backup/restore failure after the lock, so the UI
+    // never keeps showing an unlocked vault the backend has locked.
+    if !was_locked && vault_state.is_locked().await {
+        let _ = app.emit("vault-auto-locked", ());
+    }
+    result?;
     log::warn!(
         "Database imported from '{}'. Vault locked; restart recommended so background tasks reload it.",
         source_path
@@ -2014,7 +2020,24 @@ async fn import_database_at(
         ));
     }
 
-    let _exclusive = vault_state.lock_for_database_replacement().await?;
+    let exclusive = vault_state.lock_for_database_replacement().await?;
+    let app_dir = app_dir.to_path_buf();
+    // SQLite backup work is blocking; keep it off the async workers. The owned gate guard
+    // moves into the blocking task so the gate stays held until the restore is done.
+    tauri::async_runtime::spawn_blocking(move || {
+        let _exclusive = exclusive;
+        replace_database_blocking(&app_dir, &db_path, &db_path_str, source_conn)
+    })
+    .await
+    .map_err(|e| sanitize_error(e.to_string(), "database"))?
+}
+
+fn replace_database_blocking(
+    app_dir: &std::path::Path,
+    db_path: &std::path::Path,
+    db_path_str: &str,
+    source_conn: rusqlite::Connection,
+) -> Result<(), String> {
 
     // Both the backup and the restore go through SQLite's backup API rather than
     // touching files directly.
@@ -2030,7 +2053,7 @@ async fn import_database_at(
     if db_path.exists() {
         // Start from a clean destination so no previous backup's WAL lingers.
         let _ = std::fs::remove_file(&backup_path);
-        let src = db::open_connection(&db_path_str)?;
+        let src = db::open_connection(db_path_str)?;
         let mut dst = rusqlite::Connection::open(&backup_path)
             .map_err(|e| sanitize_error(e.to_string(), "database"))?;
         rusqlite::backup::Backup::new(&src, &mut dst)
@@ -2043,7 +2066,7 @@ async fn import_database_at(
 
     // Restore into the live database file in place.
     let src = source_conn;
-    let mut dst = db::open_connection(&db_path_str)?;
+    let mut dst = db::open_connection(db_path_str)?;
     rusqlite::backup::Backup::new(&src, &mut dst)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?
         .run_to_completion(100, std::time::Duration::from_millis(0), None)

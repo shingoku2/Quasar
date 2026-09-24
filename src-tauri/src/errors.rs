@@ -35,7 +35,7 @@ pub fn user_facing_vault_error(internal_error: String) -> String {
     const PASS_THROUGH: &[&str] = &[
         "Invalid master password",
         "Too many failed attempts",
-        "Vault is locked out",
+        "Vault is locked",
         "Invalid current password",
         "Master password must",
         "Vault must be unlocked",
@@ -59,6 +59,9 @@ mod tests {
     fn user_facing_vault_errors_pass_through_and_internals_do_not() {
         let lockout = "Vault is locked out. Try again in 42 seconds".to_string();
         assert_eq!(user_facing_vault_error(lockout.clone()), lockout);
+        // The SFTP file manager resolves its credential on every call; after an auto-lock the
+        // user must be told to unlock, not "Vault operation failed" (P7-3 review).
+        assert_eq!(user_facing_vault_error("Vault is locked".to_string()), "Vault is locked");
         let blocked = "2 credential(s) can't be decrypted with the current key and would be lost".to_string();
         assert_eq!(user_facing_vault_error(blocked.clone()), blocked);
         assert_eq!(

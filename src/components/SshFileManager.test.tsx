@@ -86,6 +86,19 @@ describe('SshFileManager', () => {
     });
   });
 
+  // A changed credential must be used by the next listing, not a stale closure.
+  it('re-lists with the new credential id when the prop changes', async () => {
+    mockInvoke.mockResolvedValue([]);
+    const { rerender } = render(<SshFileManager host="10.0.0.5" port={22} username="root" credentialId="c1" />);
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('sftp_list_directory', expect.objectContaining({ credentialId: 'c1' }));
+    });
+    rerender(<SshFileManager host="10.0.0.5" port={22} username="root" credentialId="c2" />);
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('sftp_list_directory', expect.objectContaining({ credentialId: 'c2' }));
+    });
+  });
+
   // IPC-001: uploads use a path the backend's own dialog returned.
   it('asks the backend to pick the upload source', async () => {
     mockInvoke.mockImplementation(async (cmd: string) => {
