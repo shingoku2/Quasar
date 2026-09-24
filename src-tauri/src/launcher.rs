@@ -11,7 +11,8 @@ pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
     };
 
     Command::new("cmd")
-        .args(["/C", "start", "ssh", &target])
+        // Defense in depth: pass `--` before target to prevent option injection
+        .args(["/C", "start", "ssh", "--", &target])
         .spawn()
         .map_err(|e| e.to_string())?;
 
@@ -50,6 +51,8 @@ pub fn launch_ssh(address: &str, username: Option<&str>) -> Result<(), String> {
         for (term, flag) in terminals {
             let mut args: Vec<&str> = flag.to_vec();
             args.push("ssh");
+            // Defense in depth: pass `--` before target to prevent option injection
+            args.push("--");
             args.push(&target);
             if Command::new(term).args(&args).spawn().is_ok() {
                 launched = true;

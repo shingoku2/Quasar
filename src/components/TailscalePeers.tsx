@@ -9,15 +9,6 @@ interface TailscalePeersProps {
   onAddHost?: (values: AddHostInitialValues) => void;
 }
 
-const addressMatches = (host: Host, peer: TailscalePeer) => {
-  const address = host.address.trim().toLowerCase();
-  return (
-    (!!peer.dns_name && peer.dns_name.toLowerCase() === address) ||
-    (!!peer.ipv4 && peer.ipv4.toLowerCase() === address) ||
-    peer.hostname.toLowerCase() === address
-  );
-};
-
 const TailscalePeers: React.FC<TailscalePeersProps> = ({ hosts, onAddHost }) => {
   const { status, loading, error, refresh } = useTailscaleStatus();
 
@@ -26,9 +17,13 @@ const TailscalePeers: React.FC<TailscalePeersProps> = ({ hosts, onAddHost }) => 
     [hosts],
   );
 
+  // O(1) lookups instead of O(N) array iteration per peer.
+  // We check if the preferred_address, dns_name, ipv4, or hostname are in the savedAddresses set.
   const isSaved = (peer: TailscalePeer) =>
     savedAddresses.has(peer.preferred_address.trim().toLowerCase()) ||
-    hosts.some((h) => addressMatches(h, peer));
+    (!!peer.dns_name && savedAddresses.has(peer.dns_name.toLowerCase())) ||
+    (!!peer.ipv4 && savedAddresses.has(peer.ipv4.toLowerCase())) ||
+    savedAddresses.has(peer.hostname.toLowerCase());
 
   const handleAdd = (peer: TailscalePeer) => {
     onAddHost?.({
