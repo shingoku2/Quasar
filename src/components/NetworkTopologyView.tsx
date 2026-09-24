@@ -216,10 +216,11 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
   useEffect(() => {
     if (!networkRef.current || !searchQuery) return;
 
+    const query = searchQuery.toLowerCase();
     const matchingHosts = hosts.filter(h => 
       h.ip.includes(searchQuery) || 
-      h.hostname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      h.device_type.toLowerCase().includes(searchQuery.toLowerCase())
+      h.hostname?.toLowerCase().includes(query) ||
+      h.device_type.toLowerCase().includes(query)
     );
 
     if (matchingHosts.length > 0) {

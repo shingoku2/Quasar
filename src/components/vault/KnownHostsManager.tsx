@@ -59,10 +59,13 @@ const KnownHostsManager: React.FC = () => {
     }
   };
 
-  const filteredHosts = hosts.filter(h =>
-    h.host.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    h.fingerprint.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredHosts = React.useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return hosts.filter(h =>
+      h.host.toLowerCase().includes(query) ||
+      h.fingerprint.toLowerCase().includes(query)
+    );
+  }, [hosts, searchQuery]);
 
   const getTrustIcon = (status: string) => {
     switch (status.toLowerCase()) {

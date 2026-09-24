@@ -75,12 +75,14 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
     }
   };
 
-  const lowerSearch = searchQuery.toLowerCase();
-  const filteredCredentials = credentials.filter(c =>
-    c.name.toLowerCase().includes(lowerSearch) ||
-    c.username.toLowerCase().includes(lowerSearch) ||
-    (c.host && c.host.toLowerCase().includes(lowerSearch))
-  );
+  const filteredCredentials = React.useMemo(() => {
+    const lowerSearch = searchQuery.toLowerCase();
+    return credentials.filter(c =>
+      c.name.toLowerCase().includes(lowerSearch) ||
+      c.username.toLowerCase().includes(lowerSearch) ||
+      (c.host && c.host.toLowerCase().includes(lowerSearch))
+    );
+  }, [credentials, searchQuery]);
 
   return (
     <div role="dialog"
