@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch/PR supersedes the running checks (CI-009).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -20,6 +25,7 @@ jobs:
     # GitHub rejects never runs, so without this nothing ever goes red.
     name: Workflow lint (actionlint)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,8 +41,9 @@ jobs:
         run: ./actionlint -color .github/workflows/*.yml
 
   frontend-checks:
-    name: Frontend (Lint + Test)
+    name: Frontend (Typecheck + Test)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -68,6 +75,7 @@ jobs:
   backend-checks:
     name: Backend (Clippy + Test)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -105,6 +113,7 @@ jobs:
     # Cargo.toml's rust-version is a promise; build it so it stays true (CI-005).
     name: MSRV (Rust 1.95)
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -136,6 +145,7 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

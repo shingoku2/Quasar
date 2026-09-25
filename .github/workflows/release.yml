@@ -13,6 +13,7 @@ jobs:
   ci-checks:
     name: CI Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       # The tag becomes the app version the updater compares, so it must be semver
       # (`v1.2` or `vfoo` used to be stamped in as-is: CI-008).
@@ -93,6 +94,7 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     env:
       # The `secrets` context isn't available in a step's `if:`, and using it
       # there makes GitHub reject the whole workflow file (CI-001). Evaluate it
