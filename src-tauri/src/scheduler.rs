@@ -137,12 +137,20 @@ fn load_enabled_tasks(conn: &rusqlite::Connection) -> Result<Vec<TaskRow>, Strin
     rows.map(|r| r.map_err(|e| e.to_string())).collect()
 }
 
+/// Whether a saved host's protocol lets scheduled tasks (SSH exec and SFTP) run against it.
+/// Other protocols are inventory-only (PR #68 review).
+pub fn host_protocol_runs_tasks(protocol: &str) -> bool {
+    protocol.trim().eq_ignore_ascii_case("ssh")
+}
+
+/// Address, port and username of the task's host. An error if the host has since been
+/// changed to a protocol tasks don't run against.
 fn get_host_credentials(
     conn: &rusqlite::Connection,
     host_id: &str,
 ) -> Result<Option<(String, i64, String)>, String> {
     let mut stmt = conn
-        .prepare("SELECT address, port, username FROM hosts WHERE id = ?1")
+        .prepare("SELECT address, port, username, protocol FROM hosts WHERE id = ?1")
         .map_err(|e| e.to_string())?;
     let mut rows = stmt
         .query_map(rusqlite::params![host_id], |row| {
@@ -151,10 +159,17 @@ fn get_host_credentials(
                 row.get::<_, i64>(1)?,
                 row.get::<_, Option<String>>(2)?
                     .unwrap_or_else(|| "root".to_string()),
+                row.get::<_, String>(3)?,
             ))
         })
         .map_err(|e| e.to_string())?;
-    rows.next().transpose().map_err(|e| e.to_string())
+    match rows.next().transpose().map_err(|e| e.to_string())? {
+        Some((_, _, _, protocol)) if !host_protocol_runs_tasks(&protocol) => {
+            Err(format!("Host {} is not an SSH host; scheduled tasks only run over SSH", host_id))
+        }
+        Some((address, port, username, _)) => Ok(Some((address, port, username))),
+        None => Ok(None),
+    }
 }
 
 /// Task types a scheduled task may have.
@@ -859,7 +874,7 @@ mod tests {
     fn test_conn() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         conn.execute(
-            "CREATE TABLE hosts (id TEXT PRIMARY KEY, address TEXT, port INTEGER, username TEXT)",
+            "CREATE TABLE hosts (id TEXT PRIMARY KEY, address TEXT, port INTEGER, username TEXT, protocol TEXT NOT NULL DEFAULT 'ssh')",
             [],
         )
         .unwrap();
@@ -870,6 +885,19 @@ mod tests {
         conn.execute_batch(include_str!("../migrations/010_scheduled_tasks.sql"))
             .unwrap();
         conn
+    }
+
+    /// PR #68 review: a host changed to an inventory-only protocol after its task was saved
+    /// doesn't run the task.
+    #[test]
+    fn tasks_only_run_against_ssh_hosts() {
+        let conn = test_conn();
+        assert_eq!(get_host_credentials(&conn, "host-1").unwrap().unwrap().0, "127.0.0.1");
+        assert!(get_host_credentials(&conn, "missing").unwrap().is_none());
+        conn.execute("UPDATE hosts SET protocol = 'database' WHERE id = 'host-1'", []).unwrap();
+        assert!(get_host_credentials(&conn, "host-1").unwrap_err().contains("not an SSH host"));
+        assert!(host_protocol_runs_tasks(" SSH "));
+        assert!(!host_protocol_runs_tasks("rdp"));
     }
 
     fn every_second_task(id: &str) -> TaskRow {

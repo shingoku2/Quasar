@@ -57,6 +57,21 @@ describe('ScheduledTasksView', () => {
     });
   });
 
+  // PR #68 review: tasks run over SSH, so inventory-only hosts aren't offered.
+  it('offers only SSH hosts for a task', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const dbHost = { ...mockHost, id: 'host-db', name: 'postgres1', port: 5432, protocol: 'database' };
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_saved_hosts') return Promise.resolve([mockHost, dbHost]);
+      return Promise.resolve([]);
+    });
+    render(<ScheduledTasksView />);
+    await waitFor(() => screen.getByText('Add task'));
+    fireEvent.click(screen.getByText('Add task'));
+    await waitFor(() => screen.getByRole('option', { name: /server1/ }));
+    expect(screen.queryByRole('option', { name: /postgres1/ })).not.toBeInTheDocument();
+  });
+
   it('shows "New task" form when Add task button is clicked', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     vi.mocked(invoke).mockResolvedValue([]);

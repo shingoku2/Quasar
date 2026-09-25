@@ -134,5 +134,5 @@ Each rule has regression tests; don't weaken one without replacing its test. Rat
 - SFTP supports password credentials only (`CredentialSelector allowedTypes={['ssh']}`). Add key auth in `sftp.rs` before exposing `ssh_key` credentials there.
 - The Vite port is fixed at 1420 (Tauri config and CSP depend on it).
 - `discovery.rs` is a singleton; don't bypass it.
-- Only `ssh` and `rdp` hosts have an in-app client; other protocols are inventory-only.
+- Only `ssh` and `rdp` hosts have an in-app client; other protocols are inventory-only. Scheduled tasks run against `ssh` hosts only, checked when saved and at each run (`scheduler::host_protocol_runs_tasks`; tests `scheduled_task_validation`, `tasks_only_run_against_ssh_hosts`).
 - Updater keys live outside the repo (`~/.tauri/`); `*.key` is gitignored.

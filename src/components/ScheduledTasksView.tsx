@@ -62,7 +62,9 @@ const DEFAULT_CRON = '0 0 9 * * *'; // 9:00 daily (6-field: sec min hour day mon
 
 const ScheduledTasksView: React.FC = () => {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
-  const [hosts, setHosts] = useState<SavedHost[]>([]);
+  const [allHosts, setHosts] = useState<SavedHost[]>([]);
+  // Tasks run over SSH; database, API and other hosts are inventory-only (the backend checks too).
+  const hosts = allHosts.filter((h) => h.protocol.trim().toLowerCase() === 'ssh');
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -219,7 +221,7 @@ const ScheduledTasksView: React.FC = () => {
     setShowForm(true);
   };
 
-  const hostName = (hostId: string) => hosts.find((h) => h.id === hostId)?.name ?? hostId;
+  const hostName = (hostId: string) => allHosts.find((h) => h.id === hostId)?.name ?? hostId;
   const credName = (credId: string | null) =>
     credId ? credentials.find((c) => c.id === credId)?.name ?? credId : '—';
 

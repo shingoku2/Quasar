@@ -921,11 +921,17 @@ fn validate_scheduled_task<'a>(
             _ => return Err("SFTP tasks need both a local and a remote path".to_string()),
         }
     }
-    let host_exists: bool = conn
-        .query_row("SELECT EXISTS(SELECT 1 FROM hosts WHERE id = ?1)", [host_id], |r| r.get(0))
+    use rusqlite::OptionalExtension;
+    let protocol: Option<String> = conn
+        .query_row("SELECT protocol FROM hosts WHERE id = ?1", [host_id], |r| r.get(0))
+        .optional()
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-    if !host_exists {
+    let Some(protocol) = protocol else {
         return Err("Host not found".to_string());
+    };
+    // Database, API and other hosts are inventory-only: tasks run over SSH (PR #68 review).
+    if !scheduler::host_protocol_runs_tasks(&protocol) {
+        return Err("Scheduled tasks run over SSH: choose an SSH host".to_string());
     }
     // Reject a host-bound credential for another host when saving, not at the first run.
     if let Some(cid) = credential_id {
@@ -3111,6 +3117,13 @@ mod saved_host_tests {
             .unwrap_err()
             .contains("Host not found"));
         assert!(validate_scheduled_task(&conn, "", &host.id, "uptime", None, None, None, None).is_err());
+        // PR #68 review: inventory-only hosts (database, API, other) can't run tasks.
+        for protocol in ["database", "api", "other", "rdp"] {
+            let other = upsert_saved_host_in_conn(&mut conn, protocol, "10.0.0.9", protocol, Some(5432), None).unwrap();
+            assert!(validate_scheduled_task(&conn, "t", &other.id, "uptime", None, None, None, None)
+                .unwrap_err()
+                .contains("SSH host"));
+        }
         // A credential bound to another host is refused when the task is saved.
         conn.execute(
             "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, created_at, updated_at)
