@@ -1889,7 +1889,10 @@ async fn sftp_upload_file(
     grants.take(&local_path, local_paths::Intent::Read)?;
     validate_path(&local_path)?;
     validate_path(&remote_path)?;
-    let outcome = sftp::upload_file(
+    // The grant is used up even if the transfer fails: giving it back would let a
+    // compromised webview replay the pick against another host (PR #68 review). The UI
+    // opens the dialog again for every transfer.
+    sftp::upload_file(
         app_handle,
         &host,
         port,
@@ -1900,13 +1903,7 @@ async fn sftp_upload_file(
         None,
     )
     .await
-    .map_err(|e| sanitize_error(e, "sftp"));
-    if outcome.is_err() {
-        // A failed transfer (wrong password, unreachable host) gives the pick back, so a
-        // retry doesn't need the dialog again. A success used it up.
-        grants.grant(std::path::PathBuf::from(&local_path), local_paths::Intent::Read);
-    }
-    outcome
+    .map_err(|e| sanitize_error(e, "sftp"))
 }
 
 #[tauri::command]
@@ -1940,7 +1937,8 @@ async fn sftp_download_file(
     grants.take(&local_path, local_paths::Intent::Write)?;
     validate_path(&remote_path)?;
     validate_path(&local_path)?;
-    let outcome = sftp::download_file(
+    // Used up even on failure, as for uploads.
+    sftp::download_file(
         app_handle,
         &host,
         port,
@@ -1951,13 +1949,7 @@ async fn sftp_download_file(
         None,
     )
     .await
-    .map_err(|e| sanitize_error(e, "sftp"));
-    if outcome.is_err() {
-        // A failed transfer (wrong password, unreachable host) gives the pick back, so a
-        // retry doesn't need the dialog again. A success used it up.
-        grants.grant(std::path::PathBuf::from(&local_path), local_paths::Intent::Write);
-    }
-    outcome
+    .map_err(|e| sanitize_error(e, "sftp"))
 }
 
 #[tauri::command]
@@ -2170,11 +2162,15 @@ async fn import_database_at(
     .await
     .map_err(|e| sanitize_error(e.to_string(), "database"))??;
     // In-memory state loaded from the old database must follow the new one: the alert rules
-    // were read once at startup (PR #68 review). Best effort: the import itself succeeded.
+    // were read once at startup (PR #68 review). If they can't be read, the engine is left
+    // with no rules (never the pre-import ones) and the import reports it.
     if let Some(engine) = alert_engine {
-        if let Err(e) = engine.reload() {
-            log::error!("Failed to reload alert rules after import: {}", e);
-        }
+        engine.reload().map_err(|e| {
+            format!(
+                "The database was imported and the vault is locked (unlock it with the imported vault's master password), but its alert rules could not be loaded, so no alert rules are active: {}",
+                sanitize_error(e, "database")
+            )
+        })?;
     }
     Ok(())
 }
@@ -2223,16 +2219,36 @@ fn replace_database_blocking(
     // table until the next restart (PR #68 review). If migrating fails, put the previous
     // database back rather than leave the app on a schema it can't use.
     if let Err(e) = MIGRATIONS.to_latest(&mut dst) {
-        if backup_path.exists() {
-            if let Ok(prev) = rusqlite::Connection::open(&backup_path) {
-                let _ = rusqlite::backup::Backup::new(&prev, &mut dst)
-                    .and_then(|b| b.run_to_completion(100, std::time::Duration::from_millis(0), None));
-            }
+        let migrate_err = sanitize_error(format!("Failed to migrate imported database: {}", e), "database");
+        if !backup_path.exists() {
+            return Err(migrate_err);
         }
-        return Err(sanitize_error(format!("Failed to migrate imported database: {}", e), "database"));
+        // A failed restore must not read as "the previous vault is still live" (PR #68 review).
+        return Err(match restore_previous_database(&backup_path, &mut dst) {
+            Ok(()) => migrate_err,
+            Err(restore_err) => {
+                log::error!("Restoring the database after a failed import also failed: {}", restore_err);
+                format!(
+                    "The imported database could not be migrated, and the previous database could not be restored. It is saved as {}.bak in the app data folder: copy that file elsewhere, then import the copy to get it back.",
+                    DB_FILENAME
+                )
+            }
+        });
     }
     set_quasar_application_id(&dst).map_err(|e| sanitize_error(e, "database"))?;
     Ok(())
+}
+
+/// Copies the pre-import backup back over the live database.
+fn restore_previous_database(
+    backup_path: &std::path::Path,
+    dst: &mut rusqlite::Connection,
+) -> Result<(), String> {
+    let prev = rusqlite::Connection::open_with_flags(backup_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    rusqlite::backup::Backup::new(&prev, dst)
+        .and_then(|b| b.run_to_completion(100, std::time::Duration::from_millis(0), None))
+        .map_err(|e| sanitize_error(e.to_string(), "database"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -2775,6 +2791,92 @@ mod saved_host_tests {
         let ids: Vec<String> = engine.get_rules().into_iter().map(|r| r.id).collect();
         assert_eq!(ids, vec!["new-rule".to_string()]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: if the migration of an imported backup fails, the previous database is
+    /// put back, and the error says so.
+    #[tokio::test]
+    async fn import_restores_the_previous_database_when_migration_fails() {
+        let dir = import_test_dir("migfail");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        rusqlite::Connection::open(&live)
+            .unwrap()
+            .execute("INSERT INTO alert_rules (id, rule, updated_at) VALUES ('live-marker', '{}', 0)", [])
+            .unwrap();
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+
+        // A current schema claiming version 6: migration 008 re-adds a column that exists.
+        let source = dir.join("broken.db");
+        migrated_quasar_db(&source);
+        rusqlite::Connection::open(&source).unwrap().pragma_update(None, "user_version", 6).unwrap();
+        let err = import_database_at(&dir, source.to_str().unwrap(), &vault, None).await.unwrap_err();
+        assert!(!err.contains("could not be restored"), "{}", err);
+
+        let conn = rusqlite::Connection::open(&live).unwrap();
+        let marker: i64 = conn
+            .query_row("SELECT count(*) FROM alert_rules WHERE id = 'live-marker'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(marker, 1, "the previous database is live again");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: a restore that fails is reported, not swallowed.
+    #[test]
+    fn restore_previous_database_reports_failure() {
+        let dir = import_test_dir("restorefail");
+        let backup = dir.join("quasar.db.bak");
+        std::fs::write(&backup, b"not a sqlite database, just some bytes long enough to have a header").unwrap();
+        let mut dst = rusqlite::Connection::open(dir.join(DB_FILENAME)).unwrap();
+        assert!(restore_previous_database(&backup, &mut dst).is_err());
+        assert!(restore_previous_database(&dir.join("missing.bak"), &mut dst).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: when the imported alert rules can't be read, the import says so and
+    /// monitoring runs with no rules, never the pre-import ones.
+    #[tokio::test]
+    async fn import_reports_unreadable_alert_rules_and_drops_the_old_ones() {
+        let dir = import_test_dir("alertfail");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let rule = monitoring::AlertRule {
+            id: "old-rule".to_string(),
+            metric: monitoring::MetricType::CpuUsage,
+            operator: monitoring::ComparisonOperator::GreaterThan,
+            threshold: 90.0,
+            severity: monitoring::AlertSeverity::Warning,
+            enabled: true,
+            cooldown_seconds: 60,
+        };
+        let engine = monitoring::AlertEngine::new();
+        engine.attach_store(live.to_str().unwrap().to_string()).unwrap();
+        engine.add_rule(rule).unwrap();
+
+        // A rule row whose column isn't text can't be loaded.
+        let source = dir.join("backup.db");
+        migrated_quasar_db(&source);
+        rusqlite::Connection::open(&source)
+            .unwrap()
+            .execute("INSERT INTO alert_rules (id, rule, updated_at) VALUES ('bad', x'00ff', 0)", [])
+            .unwrap();
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+        let err = import_database_at(&dir, source.to_str().unwrap(), &vault, Some(&engine))
+            .await
+            .unwrap_err();
+        assert!(err.contains("alert rules could not be loaded"), "{}", err);
+        assert!(engine.get_rules().is_empty(), "pre-import rules must not stay active");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: a local-path grant is single-use even when the transfer fails, so only
+    /// the picker commands may grant a path; nothing hands a used grant back.
+    #[test]
+    fn only_the_pickers_grant_local_paths() {
+        let source = include_str!("lib.rs");
+        let production = source.split("#[cfg(test)]\nmod saved_host_tests").next().unwrap();
+        let grants: Vec<&str> = production.lines().filter(|l| l.contains(".grant(")).collect();
+        assert_eq!(grants, vec!["    grants.grant(path, intent);"], "unexpected grant call sites");
     }
 
     fn migrated_memory_db() -> rusqlite::Connection {

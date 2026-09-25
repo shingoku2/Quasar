@@ -500,16 +500,22 @@ impl AlertEngine {
         Ok(count)
     }
 
-    /// Re-reads the rules from the attached database and forgets active alerts and cooldowns.
-    /// Called after the database is replaced by an import: the rules were loaded once at
-    /// startup, so without this monitoring kept evaluating (and recording alerts from) the
-    /// pre-import rules until restart (PR #68 review). A no-op before `attach_store`.
+    /// Re-reads the rules from the attached database and forgets every piece of alert state
+    /// (active alerts, cooldowns, last triggered state). Called after the database is
+    /// replaced by an import: the rules were loaded once at startup, so without this
+    /// monitoring kept evaluating (and recording alerts from) the pre-import rules until
+    /// restart, and a stale triggered state produced a recovery for an alert of the old
+    /// database (PR #68 review). The old rules are dropped first, so if the new ones can't
+    /// be read the engine has none rather than the pre-import set. A no-op before
+    /// `attach_store`.
     pub fn reload(&self) -> Result<usize, String> {
         let Some(path) = self.store_path() else {
             return Ok(0);
         };
+        self.rules.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.active_alerts.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.cooldown_tracker.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        self.last_alert_state.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.attach_store(path)
     }
 
@@ -1324,6 +1330,41 @@ mod tests {
         let (alerts, _recoveries) = engine.evaluate(&metrics);
         assert_eq!(alerts.len(), 1);
         assert!(matches!(alerts[0].severity, AlertSeverity::Critical));
+    }
+
+    /// PR #68 review: after a reload (an import), a rule id that was triggered in the old
+    /// database must not produce a recovery for an alert the new database never had.
+    #[test]
+    fn reload_forgets_the_previous_triggered_state() {
+        let path = std::env::temp_dir().join(format!("quasar_alert_reload_{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        rusqlite::Connection::open(&path)
+            .unwrap()
+            .execute_batch("CREATE TABLE alert_rules (id TEXT PRIMARY KEY, rule TEXT NOT NULL, updated_at INTEGER NOT NULL);")
+            .unwrap();
+        let engine = AlertEngine::new();
+        engine.attach_store(path.to_str().unwrap().to_string()).unwrap();
+        engine
+            .add_rule(AlertRule {
+                id: "shared-id".to_string(),
+                metric: MetricType::CpuUsage,
+                operator: ComparisonOperator::GreaterThan,
+                threshold: 50.0,
+                severity: AlertSeverity::Warning,
+                enabled: true,
+                cooldown_seconds: 0,
+            })
+            .unwrap();
+        let mut metrics = sample_metrics();
+        metrics.cpu_usage_percent = 90.0;
+        let (alerts, _) = engine.evaluate(&metrics);
+        assert_eq!(alerts.len(), 1, "fixture: the rule triggers before the reload");
+
+        engine.reload().unwrap();
+        metrics.cpu_usage_percent = 10.0;
+        let (_, recoveries) = engine.evaluate(&metrics);
+        assert!(recoveries.is_empty(), "no recovery for an alert of the previous database");
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

@@ -41,7 +41,7 @@ This document describes the main user workflows for remote management, automatio
 
 ## 4. File transfer (SFTP)
 
-- **From Remote**: The SFTP button on a saved host opens an `SFTP: <host>` session tab to browse it, and upload or download files. Local files are chosen with the native file dialog; each choice is good for one transfer (a failed transfer, e.g. a wrong password, keeps it for a retry).
+- **From Remote**: The SFTP button on a saved host opens an `SFTP: <host>` session tab to browse it, and upload or download files. Local files are chosen with the native file dialog; each choice is good for one transfer, successful or not, so a retry opens the dialog again.
 - **Tauri commands**: `sftp_list_directory`, `sftp_upload_file`, `sftp_download_file`.
 - **Authentication**: SFTP currently requires **password-based** credentials. SSH key credentials are not yet supported for SFTP; the credential selector and scheduled-task UI hide or filter key-based credentials for SFTP flows.
 
