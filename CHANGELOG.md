@@ -6,7 +6,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 
 - An SFTP transfer that fails no longer hands its local-file pick back: every pick is good for one transfer, so a compromised webview can't replay it against another host.
 - If migrating an imported backup fails and putting the previous database back fails too, the import now says so, and names the `.bak` file to recover from.
-- If an imported database's alert rules can't be read, the import reports it and monitoring runs with no rules, not the old database's. Reloading also forgets which rules were triggered, so no recovery is announced for an alert of the old database.
+- Monitoring pauses its alert rules while an import swaps the database, so it can't record an old rule's alert into the imported file, and reloads them afterwards (the old ones again if the import failed). If an imported database's alert rules can't be read, the import reports it and monitoring runs with no rules, not the old database's. Reloading also forgets which rules were triggered, so no recovery is announced for an alert of the old database.
 - A single SSH-key credential (no stored password) no longer blocks every master-password change, or stops a legacy vault from migrating off the v1 key-equivalent format. The rekey step now checks each row by whichever encrypted field it has.
 - The release gate runs `cargo deny` and the coverage floor, like CI.
 - The v1 vault migration no longer makes `quasar.db.bak` (the vault an import replaced) impossible to unlock: it migrates that copy too when the same password unlocks it, and leaves it alone otherwise.

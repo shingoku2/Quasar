@@ -2151,6 +2151,34 @@ async fn import_database_at(
         ));
     }
 
+    // In-memory state loaded from the old database must follow the new one: the alert rules
+    // were read once at startup (PR #68 review). They are suspended for the replacement, so
+    // the monitoring loop can't record old-rule alerts into the new file, and reloaded
+    // afterwards whatever the outcome: a failed import leaves the old database (or restores
+    // it), so the reload reads the right one either way.
+    if let Some(engine) = alert_engine {
+        engine.suspend();
+    }
+    let replaced = replace_database(app_dir, db_path, db_path_str, source_conn, vault_state).await;
+    let reloaded = alert_engine.map(|engine| engine.reload());
+    replaced?;
+    if let Some(Err(e)) = reloaded {
+        // The engine is left with no rules (never the pre-import ones); say so.
+        return Err(format!(
+            "The database was imported and the vault is locked (unlock it with the imported vault's master password), but its alert rules could not be loaded, so no alert rules are active: {}",
+            sanitize_error(e, "database")
+        ));
+    }
+    Ok(())
+}
+
+async fn replace_database(
+    app_dir: &std::path::Path,
+    db_path: std::path::PathBuf,
+    db_path_str: String,
+    source_conn: rusqlite::Connection,
+    vault_state: &vault::VaultState,
+) -> Result<(), String> {
     let exclusive = vault_state.lock_for_database_replacement().await?;
     let app_dir = app_dir.to_path_buf();
     // SQLite backup work is blocking; keep it off the async workers. The owned gate guard
@@ -2160,19 +2188,7 @@ async fn import_database_at(
         replace_database_blocking(&app_dir, &db_path, &db_path_str, source_conn)
     })
     .await
-    .map_err(|e| sanitize_error(e.to_string(), "database"))??;
-    // In-memory state loaded from the old database must follow the new one: the alert rules
-    // were read once at startup (PR #68 review). If they can't be read, the engine is left
-    // with no rules (never the pre-import ones) and the import reports it.
-    if let Some(engine) = alert_engine {
-        engine.reload().map_err(|e| {
-            format!(
-                "The database was imported and the vault is locked (unlock it with the imported vault's master password), but its alert rules could not be loaded, so no alert rules are active: {}",
-                sanitize_error(e, "database")
-            )
-        })?;
-    }
-    Ok(())
+    .map_err(|e| sanitize_error(e.to_string(), "database"))?
 }
 
 fn replace_database_blocking(
@@ -2818,6 +2834,38 @@ mod saved_host_tests {
             .query_row("SELECT count(*) FROM alert_rules WHERE id = 'live-marker'", [], |r| r.get(0))
             .unwrap();
         assert_eq!(marker, 1, "the previous database is live again");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: the alert rules are suspended for the replacement and reloaded whatever
+    /// the outcome, so a failed (and rolled back) import leaves the old rules active.
+    #[tokio::test]
+    async fn failed_import_keeps_the_previous_alert_rules() {
+        let dir = import_test_dir("migfail_rules");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let engine = monitoring::AlertEngine::new();
+        engine.attach_store(live.to_str().unwrap().to_string()).unwrap();
+        engine
+            .add_rule(monitoring::AlertRule {
+                id: "live-rule".to_string(),
+                metric: monitoring::MetricType::CpuUsage,
+                operator: monitoring::ComparisonOperator::GreaterThan,
+                threshold: 90.0,
+                severity: monitoring::AlertSeverity::Warning,
+                enabled: true,
+                cooldown_seconds: 60,
+            })
+            .unwrap();
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+
+        let source = dir.join("broken.db");
+        migrated_quasar_db(&source);
+        rusqlite::Connection::open(&source).unwrap().pragma_update(None, "user_version", 6).unwrap();
+        import_database_at(&dir, source.to_str().unwrap(), &vault, Some(&engine)).await.unwrap_err();
+
+        let ids: Vec<String> = engine.get_rules().into_iter().map(|r| r.id).collect();
+        assert_eq!(ids, vec!["live-rule".to_string()]);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

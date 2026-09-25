@@ -500,22 +500,28 @@ impl AlertEngine {
         Ok(count)
     }
 
-    /// Re-reads the rules from the attached database and forgets every piece of alert state
-    /// (active alerts, cooldowns, last triggered state). Called after the database is
-    /// replaced by an import: the rules were loaded once at startup, so without this
-    /// monitoring kept evaluating (and recording alerts from) the pre-import rules until
-    /// restart, and a stale triggered state produced a recovery for an alert of the old
-    /// database (PR #68 review). The old rules are dropped first, so if the new ones can't
-    /// be read the engine has none rather than the pre-import set. A no-op before
-    /// `attach_store`.
-    pub fn reload(&self) -> Result<usize, String> {
-        let Some(path) = self.store_path() else {
-            return Ok(0);
-        };
+    /// Drops every rule and every piece of alert state (active alerts, cooldowns, last
+    /// triggered state) until the next `reload`. An import calls this before it replaces the
+    /// database, so the monitoring loop can't evaluate the old rules and record their alerts
+    /// into the imported database in between (PR #68 review).
+    pub fn suspend(&self) {
         self.rules.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.active_alerts.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.cooldown_tracker.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.last_alert_state.lock().unwrap_or_else(|p| p.into_inner()).clear();
+    }
+
+    /// Forgets all alert state (`suspend`) and re-reads the rules from the attached database.
+    /// Called after an import: the rules were loaded once at startup, so without this
+    /// monitoring kept evaluating (and recording alerts from) the pre-import rules until
+    /// restart, and a stale triggered state produced a recovery for an alert of the old
+    /// database (PR #68 review). If the rules can't be read the engine has none, never the
+    /// pre-import set. A no-op before `attach_store`.
+    pub fn reload(&self) -> Result<usize, String> {
+        let Some(path) = self.store_path() else {
+            return Ok(0);
+        };
+        self.suspend();
         self.attach_store(path)
     }
 
