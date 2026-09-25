@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-## VaultState locking model (as of 2026-08-22)
+## VaultState locking model (as of 2026-08-22; see "Since 2026-08-22" below)
 
 `VaultState.inner` is a `tokio::sync::RwLock<VaultStateInner>`. `MasterKey { key: [u8;32] }` has
 `Drop` that zeroizes; `master_key: Option<MasterKey>` is the single source of truth for
@@ -80,11 +80,19 @@ can't change the value already captured in the local `old_key` variable.
 before a separate write-lock acquisition) — also fixed 2026-08-22 by moving the check inside
 the same write-lock acquisition as the write itself.
 
-## Argon2id params baseline (confirmed in this file)
+## Argon2id params baseline (updated 2026-09-25)
 
-`Params::new(47104, 2, 1, Some(32))` — 47104 KiB (46 MiB) memory, 2 iterations, 1 parallelism,
-32-byte output. Used identically in `initialize_vault`, `unlock_vault`, and
-`change_master_password`. Matches OWASP baseline per the checklist (>= 47 MiB, >= 2 iter).
-Treat any PR that lowers these numbers as a HIGH/CRITICAL finding.
+`Params::new(47104, 2, 1, Some(32))`: 47104 KiB (46 MiB, not 47 MiB) memory, 2 iterations,
+1 parallelism, 32-byte output. Defined once, in `vault/kdf.rs` (`kdf::argon2()`), since the
+v2 KDF (RSEC-001, 2026-09-24). That value *is* the OWASP baseline; don't flag it as below a
+"47 MiB" floor. Lowering it is HIGH/CRITICAL; changing it at all orphans existing vaults
+unless a migration comes with it (the `kdf_known_answer_*` tests pin the outputs).
+
+## Since 2026-08-22
+
+- `changing_password` is now an `AtomicBool` outside `inner`, set by a `RotationInProgress`
+  drop guard, and `credential_gate` (tokio `RwLock<()>`) serializes credential operations with
+  rotation (EDW-15, 2026-09-24). The model above is otherwise unchanged. CLAUDE.md Security
+  Notes 9, 14 and 15 are the current description.
 
 See also [[security-reviewer-memory-index]].

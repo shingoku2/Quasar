@@ -1,51 +1,39 @@
 # Security Reviewer Agent Memory
-# See patterns.md for detailed findings per module (2026-03-02 audit — several items below
-# are now fixed; each is annotated where confirmed). See vault_rs_patterns.md for the
-# vault.rs locking/concurrency model (2026-08-22 review of the change_master_password
-# lock-holding fix; updated 2026-09-02 with the open credential-write/rekey race and agreed
-# credential-access-gate remediation). See patterns.md's top section (2026-09-17) for the
-# scanner.rs claim_scan()/TOCTOU pattern — a general lesson for any "spawn a background
-# task from a command that returns immediately" code: the claim/check-and-set must happen
-# synchronously before the spawn, not inside the spawned task, or a request racing the
-# spawn can be silently lost.
 
-## Confirmed Safe Patterns (as of 2026-03-02 audit; re-confirmed 2026-08-22 where noted)
-- Argon2id params: 47104 KiB memory, 2 iterations, 1 parallelism, 32-byte output — CORRECT in crypto.rs, vault.rs (initialize, unlock, change_password).
-- AES-256-GCM nonces: generated via `rand::rng().fill_bytes()` (CSPRNG) in crypto.rs — CORRECT, unique per call.
-- MasterKey struct implements Drop+Zeroize in vault.rs — CORRECT.
-- `secrecy::Secret<String>` used for master_password in initialize_vault/unlock_vault — CORRECT.
-- Error sanitization pattern: user-facing Tauri commands should pass errors through `sanitize_error()`. Accepted exception: interactive terminal connect path (`lib.rs::connect_ssh` -> `ssh.rs::connect_ssh`) intentionally returns raw SSH diagnostics for troubleshooting; verify no credential material is included.
-- Host key verification: `check_server_key` in both ssh.rs and sftp.rs returns `Err(Disconnect)` for untrusted/unknown keys — NOT bypassed.
-- SFTP host key verification is active (not skipped).
-- `ssh.rs` staged race fix (2026-09-16): `pending_connections` cancellation tracking now guards the connect/disconnect gap, with cancellation checks both after auth and after session insertion before steady-state use.
-- SQL queries use parameterized rusqlite::params! — no string interpolation in credential/vault queries.
-- Argon2 verify_password uses constant-time comparison internally (argon2 crate).
+Updated 2026-09-25 after the full audit (`AUDIT.md`, Phase 7 / EDW-26). Topic files:
+- `vault_rs_patterns.md`: vault locking/concurrency model and the Argon2 baseline.
+- `patterns.md`: the `claim_scan()` TOCTOU lesson (top section: claim synchronously before
+  `tokio::spawn`, never inside the spawned task) and the historical 2026-03-02 findings list.
+- `CLAUDE.md` Security Notes 1-19 are the authoritative list of invariants and their
+  regression tests. If this file disagrees with them, they win; fix this file.
 
-## Known Vulnerabilities Found (2026-03-02 Broad Audit)
-See patterns.md for full details with file:line citations.
+## Established safe patterns (verified 2026-09-25)
+- Vault KDF v2 (`vault/kdf.rs`): one Argon2id pass (47104 KiB, t=2, p=1) → HKDF-SHA256 into
+  the AES key (memory only) and a verifier (constant-time compare). No password hash stored.
+- AES-256-GCM nonces come from `getrandom::fill` (OS CSPRNG), fresh per encryption.
+- Credential access goes through `credential_access()` / `credential_access_background()`
+  (shared `credential_gate`); rotation, v1 migration and DB import hold it exclusively.
+- `get_credential` returns `CredentialFrontendView`: `has_*` flags only, no secrets. Plaintext
+  passwords cross IPC only via `reveal_credential_password`, behind a native confirmation.
+- Host keys: interactive trust is by pending request id only; non-interactive paths (exec, pool,
+  SFTP) use `SshKeyManager::check_non_interactive` (trusted key for that host+port or refuse).
+  Fingerprints come from `vault::ssh_keys::presented_key_bytes` (russh 0.63 certificates pin
+  the certified key). Fingerprint comparison is constant-time.
+- Local file paths for SFTP/export/import come only from backend dialogs (`LocalPathGrants`,
+  single-use, intent-bound).
+- DB export uses the rusqlite backup API (not `VACUUM INTO` string interpolation).
+- `scan_error` events and SFTP/pool/scheduled SSH errors go through `sanitize_error()`. The
+  interactive terminal connect path returns raw diagnostics by design (no credential material).
+- Master/current/new passwords are `SecretString` through `change_master_password`.
 
-HIGH:
-1. ~~Credential struct serialized with private_key+key_passphrase fields — decrypted secrets sent to frontend over IPC.~~ **FIXED, confirmed 2026-08-22**: `get_credential`'s Tauri command now returns `CredentialFrontendView` (`vault/credentials.rs`), which omits `private_key`/`key_passphrase` entirely and exposes only `has_private_key`/`has_key_passphrase` booleans. This is now the established correct pattern — see the checklist item in `.claude/agents/security-reviewer.md` and `CLAUDE.md`. Do not flag a frontend consumer reading those booleans as a vuln.
-2. `rand::rng()` used instead of OsRng in crypto::encrypt — non-CSPRNG nonce generation risk (requires verification — NOT re-checked 2026-08-22, this session didn't touch crypto.rs).
-3. ~~Fingerprint comparison in ssh_keys.rs uses `==` not constant-time — timing oracle on host key DB.~~ **FIXED, confirmed 2026-08-22**: `ssh_keys.rs` now imports and uses `subtle::ConstantTimeEq`.
-4. `export_database` path injection — single-quote escape is insufficient (backslash bypass on some platforms). NOT re-checked 2026-08-22.
-5. `scan_error` events emit raw internal error strings to frontend (lib.rs ~329). NOT re-checked 2026-08-22.
-6. `change_master_password` passes current_password as plain String (not Secret) into spawn_blocking — appears in memory uninstrumented. NOT re-checked 2026-08-22 (this session's vault.rs review was scoped to the lock-holding refactor, not a fresh full pass — see vault_rs_patterns.md).
+## Fixed since the 2026-03-02 list (don't re-report)
+Decrypted secrets in `get_credential`; non-constant-time fingerprint compare; `rand::rng()`
+nonces; `export_database` path injection; raw `scan_error` strings; plain `String` passwords in
+`change_master_password`; the credential-write/rekey race (EDW-15).
 
-MEDIUM:
-1. Several Tauri commands (set_host_monitoring_credential, export_database, import_database, clear_metrics_data, get_app_info) return raw .to_string() / format! errors without sanitize_error(). NOT re-checked 2026-08-22.
-2. ~~Decrypted Credential (with private_key/key_passphrase) returned to frontend by get_credential Tauri command.~~ Same as HIGH #1 above — FIXED, confirmed 2026-08-22.
-3. Intermediate [u8;32] master_key buffers on stack in initialize_vault/unlock_vault not explicitly zeroized before drop. NOT re-checked 2026-08-22 — vault_rs_patterns.md notes the same class of issue (plain `[u8;32]` vs `Zeroizing<[u8;32]>`) still present in change_master_password as of that review.
-4. ssh_auth.rs parse_private_key error leaks "Invalid SSH key: {e}" — may contain PEM parse detail. NOT re-checked 2026-08-22.
-
-**Note (2026-08-22):** two of the six HIGH findings above turned out to be already fixed by the
-time this note was written — this list was stale relative to the actual codebase. Before citing
-any *unconfirmed* item here as a live finding in a new review, re-verify it against current code
-rather than trusting this list at face value; it was last given a full pass on 2026-03-02.
-
-LOW:
-1. `verify_password` in crypto.rs wraps argon2 verify returning bool — fine for non-secret comparison but the function is used for non-master-password hashing (distinct from vault unlock path).
-
-## Recurring Issue Pattern
-- Raw `.map_err(|e| e.to_string())` used in several Tauri commands instead of sanitize_error() — check new commands carefully.
-- Credential struct has sensitive fields and is Serialize — always verify it is not returned directly to frontend unless intentional.
+## Still worth checking in new code
+- New Tauri commands returning `.map_err(|e| e.to_string())` without `sanitize_error()` or
+  `errors::user_facing_vault_error`.
+- Plain `[u8; 32]` key temporaries instead of `Zeroizing<...>`.
+- Any new "drop the lock, do slow work, reacquire and apply" code: re-check state on reacquire.
+- Any webview `confirm()` placed in front of a security decision (use `native_confirm`).
