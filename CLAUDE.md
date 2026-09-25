@@ -178,7 +178,7 @@ Quasar/
 | AI (optional) | ollama-rs 0.3 |
 | Auto-update | tauri-plugin-updater / `@tauri-apps/plugin-updater` 2.x (signed artifacts, verified against an embedded pubkey) |
 | Tailscale | local `tailscale` CLI only — no API key, no control-plane calls (`src-tauri/src/tailscale.rs`) |
-| Testing | Vitest 4, React Testing Library 16, jsdom |
+| Testing | Vitest 5 (+ `@vitest/coverage-v8`), React Testing Library 16, jest-dom 7, jsdom. jest-dom's matcher types are wired to vitest 5 by `src/jest-dom-vitest.d.ts` (jest-dom 7 only augments vitest 4's `Assertion<T>`); drop it once jest-dom ships vitest 5 typings |
 
 ---
 
