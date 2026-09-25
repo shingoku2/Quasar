@@ -694,6 +694,42 @@ fn update_saved_host_in_conn(
         .ok_or_else(|| "Saved host was not found after update".to_string())
 }
 
+/// A saved host whose address or port an edit would change, with the scheduled file transfers
+/// that would follow it: (current address, current port, transfer count). `None` when the
+/// edit keeps the destination or no transfer uses the host. A scheduled SFTP task's local
+/// file was picked for one destination; moving the host moves that file access with it, so
+/// the edit needs a native confirmation (PR #68 review).
+fn transfers_moved_by_host_edit(
+    conn: &rusqlite::Connection,
+    host_id: &str,
+    address: &str,
+    protocol: &str,
+    port: Option<u16>,
+) -> Result<Option<(String, u16, usize)>, String> {
+    let port = port.unwrap_or(if protocol.eq_ignore_ascii_case("rdp") { 3389 } else { 22 });
+    let current: Option<(String, i64)> = conn
+        .query_row("SELECT address, port FROM hosts WHERE id = ?1", [host_id], |r| Ok((r.get(0)?, r.get(1)?)))
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let Some((current_address, current_port)) = current else {
+        return Ok(None);
+    };
+    if current_address.trim().eq_ignore_ascii_case(address.trim()) && current_port == i64::from(port) {
+        return Ok(None);
+    }
+    let transfers: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM scheduled_tasks WHERE host_id = ?1 AND task_type IN ('sftp_upload', 'sftp_download')",
+            [host_id],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if transfers == 0 {
+        return Ok(None);
+    }
+    Ok(Some((current_address, u16::try_from(current_port).unwrap_or(0), transfers as usize)))
+}
+
 fn remove_saved_hosts_in_conn(
     conn: &mut rusqlite::Connection,
     ids: &[String],
@@ -760,6 +796,24 @@ async fn update_saved_host(
     username: Option<String>,
 ) -> Result<SavedHost, String> {
     let conn = app_db_connection(&app).map_err(|e| sanitize_error(e, "database"))?;
+    if let Some((from, from_port, transfers)) =
+        transfers_moved_by_host_edit(&conn, &host_id, &address, &protocol, port)
+            .map_err(|e| sanitize_error(e, "database"))?
+    {
+        native_confirm::confirm(
+            &app,
+            "Change host address",
+            format!(
+                "Move this host to a new address?\n\n{} scheduled file transfer(s) use it and will connect to the new address with the local files already chosen for them.\n\nFrom: \"{}:{}\"\nTo: \"{}\"",
+                transfers,
+                native_confirm::display_text(&from),
+                from_port,
+                native_confirm::display_text(&address),
+            ),
+            "Change address",
+        )
+        .await?;
+    }
     update_saved_host_in_conn(
         &conn,
         &host_id,
@@ -889,12 +943,23 @@ fn task_local_intent(task_type: &str) -> Option<local_paths::Intent> {
     }
 }
 
-fn task_path_unchanged(
-    stored: Option<(Option<String>, Option<String>)>,
+/// A saved SFTP task's transfer: local path, task type, host id, remote path.
+type StoredTransfer = (Option<String>, Option<String>, String, Option<String>);
+
+/// Whether an edited SFTP task keeps the whole transfer its grant was given for. The local
+/// file was picked for one transfer: the same file, direction, host and remote path. Changing
+/// any of them needs a new pick, or a saved upload could be pointed at another destination
+/// without the dialog (PR #68 review), and switching upload/download turns read access into
+/// write access.
+fn task_transfer_unchanged(
+    stored: Option<StoredTransfer>,
     local_path: &str,
     task_type: &str,
+    host_id: &str,
+    remote_path: Option<&str>,
 ) -> bool {
-    matches!(stored, Some((Some(p), Some(t))) if p == local_path && t == task_type)
+    matches!(stored, Some((Some(p), Some(t), h, r))
+        if p == local_path && t == task_type && h == host_id && r.as_deref() == remote_path)
 }
 
 #[tauri::command]
@@ -975,18 +1040,17 @@ async fn update_scheduled_task(
         credential_id.as_deref(),
     )?;
     if let (Some(intent), Some(lp)) = (task_local_intent(task_type), local_path.as_deref()) {
-        // An unchanged path and type were granted when the task was saved. Switching between
-        // upload and download changes read access into write access, so it needs a new pick.
+        // An unchanged transfer was granted when the task was saved; any change needs a new pick.
         use rusqlite::OptionalExtension;
-        let stored: Option<(Option<String>, Option<String>)> = conn
+        let stored: Option<StoredTransfer> = conn
             .query_row(
-                "SELECT local_path, task_type FROM scheduled_tasks WHERE id = ?1",
+                "SELECT local_path, task_type, host_id, remote_path FROM scheduled_tasks WHERE id = ?1",
                 [&id],
-                |r| Ok((r.get(0)?, r.get(1)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .optional()
             .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-        if !task_path_unchanged(stored, lp, task_type) {
+        if !task_transfer_unchanged(stored, lp, task_type, &host_id, remote_path.as_deref()) {
             grants.take(lp, intent)?;
         }
     }
@@ -1693,17 +1757,29 @@ async fn update_ssh_host_trust(
         return Err("Invalid host format".to_string());
     }
     validate_port(port)?;
-    if native_confirm::trust_change_needs_confirm(&trust_status) {
-        native_confirm::confirm(
-            &app,
-            "Trust host key",
+    // Read the current status first: fails closed if it can't be read.
+    let current = ssh_key_manager
+        .trust_status(&host, port)
+        .await
+        .map_err(|e| sanitize_error(e, "ssh"))?;
+    if native_confirm::trust_change_needs_confirm(current.as_ref(), &trust_status) {
+        let message = if matches!(trust_status, vault::TrustStatus::Trusted) {
             format!(
                 "Trust the stored host key for {}:{}?\n\nConnections, including scheduled tasks and monitoring, will then accept it without asking.",
                 host, port
-            ),
-            "Trust",
-        )
-        .await?;
+            )
+        } else {
+            format!(
+                "Stop rejecting the stored host key for {}:{}?\n\nThe next connection will ask whether to trust it instead of refusing it.",
+                host, port
+            )
+        };
+        let (title, action) = if matches!(trust_status, vault::TrustStatus::Trusted) {
+            ("Trust host key", "Trust")
+        } else {
+            ("Stop rejecting host key", "Stop rejecting")
+        };
+        native_confirm::confirm(&app, title, message, action).await?;
     }
     let details = format!("{}:{} -> {:?}", host, port, trust_status);
     ssh_key_manager
@@ -2156,6 +2232,12 @@ async fn import_database_at(
     // the monitoring loop can't record old-rule alerts into the new file, and reloaded
     // afterwards whatever the outcome: a failed import leaves the old database (or restores
     // it), so the reload reads the right one either way.
+    // Held until the reload: a tick that evaluated the old rules before the suspend can't
+    // persist them into the new file in between.
+    let _persistence = match alert_engine {
+        Some(engine) => Some(engine.hold_persistence().await),
+        None => None,
+    };
     if let Some(engine) = alert_engine {
         engine.suspend();
     }
@@ -2182,13 +2264,17 @@ async fn replace_database(
     let exclusive = vault_state.lock_for_database_replacement().await?;
     let app_dir = app_dir.to_path_buf();
     // SQLite backup work is blocking; keep it off the async workers. The owned gate guard
-    // moves into the blocking task so the gate stays held until the restore is done.
-    tauri::async_runtime::spawn_blocking(move || {
-        let _exclusive = exclusive;
-        replace_database_blocking(&app_dir, &db_path, &db_path_str, source_conn)
+    // moves into the blocking task and comes back, so the gate stays held until the restore
+    // is done and the vault has forgotten the old database's lockout.
+    let joined = tauri::async_runtime::spawn_blocking(move || {
+        let replaced = replace_database_blocking(&app_dir, &db_path, &db_path_str, source_conn);
+        (replaced, exclusive)
     })
-    .await
-    .map_err(|e| sanitize_error(e.to_string(), "database"))?
+    .await;
+    // Replaced, rolled back or failed midway: the next unlock must read the live database.
+    vault_state.forget_database_state().await;
+    let (replaced, _exclusive) = joined.map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    replaced
 }
 
 fn replace_database_blocking(
@@ -2869,6 +2955,35 @@ mod saved_host_tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// PR #68 review: the old vault's unlock lockout must not block the imported vault.
+    #[tokio::test]
+    async fn import_forgets_the_previous_vaults_lockout() {
+        let dir = import_test_dir("lockout");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+        vault.initialize_vault(secrecy::SecretString::from("LivePassword123!")).await.unwrap();
+        vault.lock_vault().await.unwrap();
+        for _ in 0..5 {
+            let _ = vault.unlock_vault(secrecy::SecretString::from("wrong-password")).await;
+        }
+        let err = vault.unlock_vault(secrecy::SecretString::from("LivePassword123!")).await.unwrap_err();
+        assert!(err.contains("locked out"), "fixture: the live vault is locked out: {}", err);
+
+        let source = dir.join("other.db");
+        migrated_quasar_db(&source);
+        let other = vault::VaultState::new(source.to_str().unwrap().to_string());
+        other.initialize_vault(secrecy::SecretString::from("OtherPassword123!")).await.unwrap();
+        drop(other);
+        import_database_at(&dir, source.to_str().unwrap(), &vault, None).await.unwrap();
+
+        vault
+            .unlock_vault(secrecy::SecretString::from("OtherPassword123!"))
+            .await
+            .expect("the imported vault unlocks with its own password");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// PR #68 review: a restore that fails is reported, not swallowed.
     #[test]
     fn restore_previous_database_reports_failure() {
@@ -2933,6 +3048,30 @@ mod saved_host_tests {
         conn
     }
 
+    /// PR #68 review: moving a host that scheduled file transfers use needs a native
+    /// confirmation; renaming it, or moving a host no transfer uses, doesn't.
+    #[test]
+    fn moving_a_host_with_scheduled_transfers_is_detected() {
+        let conn = migrated_memory_db();
+        conn.execute(
+            "INSERT INTO hosts (id, name, address, protocol, port, created_at, updated_at) VALUES ('h1', 'box', 'db1.example', 'ssh', 22, 0, 0)",
+            [],
+        )
+        .unwrap();
+        let moved = |address: &str, port: Option<u16>| transfers_moved_by_host_edit(&conn, "h1", address, "ssh", port).unwrap();
+        assert_eq!(moved("evil.example", Some(22)), None, "no transfer uses the host yet");
+        conn.execute(
+            "INSERT INTO scheduled_tasks (id, name, cron_expression, host_id, command, enabled, created_at, updated_at, task_type, local_path, remote_path)
+             VALUES ('t1', 'up', '0 0 * * * *', 'h1', '', 1, 0, 0, 'sftp_upload', '/home/u/report.txt', '/r')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(moved("DB1.example ", None), None, "same destination (case, default port)");
+        assert_eq!(moved("evil.example", Some(22)), Some(("db1.example".to_string(), 22, 1)));
+        assert_eq!(moved("db1.example", Some(2222)), Some(("db1.example".to_string(), 22, 1)));
+        assert_eq!(transfers_moved_by_host_edit(&conn, "missing", "x", "ssh", None).unwrap(), None);
+    }
+
     /// IPC-011: task creation rejects unknown types (which used to run as SSH exec),
     /// missing hosts, empty SSH commands and SFTP tasks without both paths.
     /// P7-3 review: an upload task's read grant must not carry over when the task is
@@ -2943,12 +3082,17 @@ mod saved_host_tests {
         assert_eq!(task_local_intent("sftp_upload"), Some(Intent::Read));
         assert_eq!(task_local_intent("sftp_download"), Some(Intent::Write));
         assert_eq!(task_local_intent("ssh"), None);
-        let stored = |p: &str, t: &str| Some((Some(p.to_string()), Some(t.to_string())));
-        assert!(task_path_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_upload"));
-        assert!(!task_path_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_download"));
-        assert!(!task_path_unchanged(stored("/a", "sftp_upload"), "/b", "sftp_upload"));
-        assert!(!task_path_unchanged(None, "/a", "sftp_upload"));
-        assert!(!task_path_unchanged(Some((None, Some("ssh".into()))), "/a", "sftp_upload"));
+        let stored = |p: &str, t: &str| Some((Some(p.to_string()), Some(t.to_string()), "h1".to_string(), Some("/r".to_string())));
+        let same = |s| task_transfer_unchanged(s, "/a", "sftp_upload", "h1", Some("/r"));
+        assert!(same(stored("/a", "sftp_upload")));
+        assert!(!task_transfer_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_download", "h1", Some("/r")));
+        assert!(!task_transfer_unchanged(stored("/a", "sftp_upload"), "/b", "sftp_upload", "h1", Some("/r")));
+        assert!(!same(None));
+        assert!(!same(Some((None, Some("ssh".into()), "h1".into(), None))));
+        // PR #68 review: a new destination (host or remote path) needs a new pick too.
+        assert!(!task_transfer_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_upload", "evil", Some("/r")));
+        assert!(!task_transfer_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_upload", "h1", Some("/tmp/x")));
+        assert!(!task_transfer_unchanged(stored("/a", "sftp_upload"), "/a", "sftp_upload", "h1", None));
     }
 
     #[test]

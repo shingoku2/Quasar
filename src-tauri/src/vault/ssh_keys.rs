@@ -393,6 +393,27 @@ impl SshKeyManager {
         Ok(())
     }
 
+    /// The stored trust status for `host`:`port` (host matched case-insensitively). If
+    /// several rows match and any is `Rejected`, that is the status, so a refusal can't be
+    /// hidden behind another row.
+    pub async fn trust_status(&self, host: &str, port: u16) -> Result<Option<TrustStatus>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn
+            .prepare("SELECT trust_status FROM ssh_known_hosts WHERE host = ?1 COLLATE NOCASE AND port = ?2")
+            .map_err(|e| format!("Failed to prepare statement: {}", e))?;
+        let statuses = stmt
+            .query_map(params![host, port], |r| r.get::<_, String>(0))
+            .map_err(|e| format!("Failed to query trust status: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to read trust status: {}", e))?;
+        let statuses: Vec<TrustStatus> = statuses.iter().map(|s| TrustStatus::from_string(s)).collect();
+        Ok(statuses
+            .iter()
+            .find(|s| matches!(s, TrustStatus::Rejected))
+            .or(statuses.first())
+            .cloned())
+    }
+
     pub async fn update_trust_status(
         &self,
         host: &str,
@@ -519,6 +540,20 @@ mod tests {
         assert!(!matches_one.allowed);
         assert!(matches!(matches_one.status, TrustStatus::Changed));
         assert_eq!(matches_one.old_fingerprint.as_deref(), Some("SHA256:b"));
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// PR #68 review: `update_ssh_host_trust` reads the stored status to decide whether leaving
+    /// `Rejected` needs a native confirmation, so the lookup must find it case-insensitively.
+    #[tokio::test]
+    async fn trust_status_reports_the_stored_status() {
+        let (manager, db_path) = create_test_manager().await;
+        assert!(manager.trust_status("db1", 22).await.unwrap().is_none());
+        manager.trust_host_key("db1", 22, "SHA256:a", "ssh-key", vec![1], TrustStatus::Rejected).await.unwrap();
+        assert!(matches!(manager.trust_status("DB1", 22).await.unwrap(), Some(TrustStatus::Rejected)));
+        assert!(manager.trust_status("db1", 2222).await.unwrap().is_none());
+        manager.update_trust_status("db1", 22, TrustStatus::Trusted).await.unwrap();
+        assert!(matches!(manager.trust_status("db1", 22).await.unwrap(), Some(TrustStatus::Trusted)));
         let _ = std::fs::remove_file(&db_path);
     }
 

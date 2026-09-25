@@ -462,6 +462,12 @@ pub struct AlertEngine {
     active_alerts: Arc<Mutex<Vec<Alert>>>,
     cooldown_tracker: Arc<Mutex<HashMap<String, Instant>>>,
     last_alert_state: Arc<Mutex<HashMap<String, bool>>>,
+    /// Bumped by every `suspend`. A monitoring tick records the generation before it
+    /// evaluates and persists its alerts only if it hasn't changed (`persist_if_current`).
+    generation: std::sync::atomic::AtomicU64,
+    /// Held by an import for the whole database swap, and by a tick while it persists, so no
+    /// alert from before the swap is written into the imported database (PR #68 review).
+    persistence: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl AlertEngine {
@@ -472,7 +478,32 @@ impl AlertEngine {
             active_alerts: Arc::new(Mutex::new(Vec::new())),
             cooldown_tracker: Arc::new(Mutex::new(HashMap::new())),
             last_alert_state: Arc::new(Mutex::new(HashMap::new())),
+            generation: std::sync::atomic::AtomicU64::new(0),
+            persistence: Arc::new(tokio::sync::Mutex::new(())),
         }
+    }
+
+    /// The current rule generation; read it before `evaluate`.
+    pub fn generation(&self) -> u64 {
+        self.generation.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Blocks `persist_if_current` until the guard is dropped. An import holds it from
+    /// before `suspend` until after `reload`.
+    pub async fn hold_persistence(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.persistence.clone().lock_owned().await
+    }
+
+    /// Runs `persist` (emit and save a tick's alerts) only if no `suspend` happened since
+    /// `generation` was read. Results of an evaluation from before an import are dropped,
+    /// even if the tick got that far before the import started.
+    pub async fn persist_if_current(&self, generation: u64, persist: impl FnOnce()) -> bool {
+        let _guard = self.persistence.lock().await;
+        if self.generation() != generation {
+            return false;
+        }
+        persist();
+        true
     }
 
     /// Loads the persisted rules from `db_path` and persists every later change there.
@@ -505,6 +536,7 @@ impl AlertEngine {
     /// database, so the monitoring loop can't evaluate the old rules and record their alerts
     /// into the imported database in between (PR #68 review).
     pub fn suspend(&self) {
+        self.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.rules.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.active_alerts.lock().unwrap_or_else(|p| p.into_inner()).clear();
         self.cooldown_tracker.lock().unwrap_or_else(|p| p.into_inner()).clear();
@@ -998,6 +1030,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
         ticker.tick().await;
 
         let metrics = collector.collect();
+        let generation = alert_engine.generation();
         let (alerts, recoveries) = alert_engine.evaluate(&metrics);
 
         // Close SSH sessions that have gone idle or aged out. Cheap map scan;
@@ -1051,23 +1084,31 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
             }
         }
 
-        // Emit recovery notifications
-        if !recoveries.is_empty() {
-            let _ = app_handle.emit("alerts-recovered", recoveries);
-        }
-
-        // Save alerts to database (if store available)
-        if !alerts.is_empty() {
-            let _ = app_handle.emit("alerts-triggered", alerts.clone());
-            if let Some(ref store) = metrics_store {
-                for alert in &alerts {
-                    if let Err(e) = store.save_alert(alert, "localhost") {
-                        error!(
-                            "[MONITORING] ERROR: Failed to save alert {}: {}",
-                            alert.id, e
-                        );
+        // Emit recoveries and save alerts, unless an import replaced the rules since this
+        // tick evaluated them.
+        if !recoveries.is_empty() || !alerts.is_empty() {
+            let persisted = alert_engine
+                .persist_if_current(generation, || {
+                    if !recoveries.is_empty() {
+                        let _ = app_handle.emit("alerts-recovered", &recoveries);
                     }
-                }
+                    if !alerts.is_empty() {
+                        let _ = app_handle.emit("alerts-triggered", &alerts);
+                        if let Some(ref store) = metrics_store {
+                            for alert in &alerts {
+                                if let Err(e) = store.save_alert(alert, "localhost") {
+                                    error!(
+                                        "[MONITORING] ERROR: Failed to save alert {}: {}",
+                                        alert.id, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                })
+                .await;
+            if !persisted {
+                info!("[MONITORING] INFO: Dropped alerts evaluated before a database import");
             }
         }
     }
@@ -1336,6 +1377,31 @@ mod tests {
         let (alerts, _recoveries) = engine.evaluate(&metrics);
         assert_eq!(alerts.len(), 1);
         assert!(matches!(alerts[0].severity, AlertSeverity::Critical));
+    }
+
+    /// PR #68 review: a tick that evaluated before an import's suspend must not persist its
+    /// alerts, and a tick can't persist at all while the import holds the swap.
+    #[tokio::test]
+    async fn alerts_from_before_a_suspend_are_not_persisted() {
+        let engine = Arc::new(AlertEngine::new());
+        let before = engine.generation();
+        engine.suspend();
+        let mut ran = false;
+        assert!(!engine.persist_if_current(before, || ran = true).await);
+        assert!(!ran, "stale results are dropped");
+
+        let current = engine.generation();
+        let swap = engine.hold_persistence().await;
+        let waiting = {
+            let engine = engine.clone();
+            tokio::spawn(async move { engine.persist_if_current(current, || {}).await })
+        };
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(!waiting.is_finished(), "persisting waits for the swap");
+        engine.suspend(); // the import's reload
+        drop(swap);
+        assert!(!waiting.await.unwrap(), "and then finds its results stale");
+        assert!(engine.persist_if_current(engine.generation(), || {}).await);
     }
 
     /// PR #68 review: after a reload (an import), a rule id that was triggered in the old

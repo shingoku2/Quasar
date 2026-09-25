@@ -442,6 +442,18 @@ impl VaultState {
         Ok(gate)
     }
 
+    /// Forgets the in-memory state that came from the database: the unlock lockout (failed
+    /// attempts and deadline) and the settings. Called once an import has finished, replaced
+    /// or rolled back, so the next unlock reads them from whichever database is live. The
+    /// lockout is persisted on every failure, so nothing is lost. Without this, an old vault's
+    /// lockout blocked the imported vault's correct password until it expired (PR #68 review).
+    pub async fn forget_database_state(&self) {
+        let mut inner = self.inner.write().await;
+        inner.failed_attempts = 0;
+        inner.lockout_until = None;
+        inner.settings = VaultSettings::default();
+    }
+
     pub async fn check_auto_lock(&self) -> Result<bool, String> {
         let mut inner = self.inner.write().await;
 

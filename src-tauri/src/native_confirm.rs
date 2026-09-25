@@ -121,8 +121,17 @@ pub fn host_change_needs_confirm(stored: Option<&str>, requested: Option<&str>) 
 
 /// Marking a stored key trusted lets every path, including unattended ones, connect to that
 /// host without a prompt. Any other status only makes the next handshake prompt again.
-pub fn trust_change_needs_confirm(status: &crate::vault::TrustStatus) -> bool {
-    matches!(status, crate::vault::TrustStatus::Trusted)
+/// `current` is the stored status for the host and port (`None` when no key is stored).
+/// Trusting always asks. So does any change out of `Rejected`: moving it to `unknown` or
+/// `changed` would turn a refusal into an ordinary prompt the webview can approve itself
+/// (PR #68 review).
+pub fn trust_change_needs_confirm(
+    current: Option<&crate::vault::TrustStatus>,
+    requested: &crate::vault::TrustStatus,
+) -> bool {
+    use crate::vault::TrustStatus;
+    matches!(requested, TrustStatus::Trusted)
+        || (matches!(current, Some(TrustStatus::Rejected)) && !matches!(requested, TrustStatus::Rejected))
 }
 
 #[cfg(test)]
@@ -170,9 +179,17 @@ mod tests {
 
     #[test]
     fn only_restricting_trust_changes_skip_confirmation() {
-        assert!(!trust_change_needs_confirm(&TrustStatus::Rejected));
-        assert!(!trust_change_needs_confirm(&TrustStatus::Unknown));
-        assert!(!trust_change_needs_confirm(&TrustStatus::Changed));
-        assert!(trust_change_needs_confirm(&TrustStatus::Trusted));
+        for current in [None, Some(TrustStatus::Trusted), Some(TrustStatus::Unknown), Some(TrustStatus::Changed)] {
+            assert!(!trust_change_needs_confirm(current.as_ref(), &TrustStatus::Rejected));
+            assert!(!trust_change_needs_confirm(current.as_ref(), &TrustStatus::Unknown));
+            assert!(!trust_change_needs_confirm(current.as_ref(), &TrustStatus::Changed));
+            assert!(trust_change_needs_confirm(current.as_ref(), &TrustStatus::Trusted));
+        }
+        // PR #68 review: leaving Rejected in any direction asks.
+        let rejected = Some(TrustStatus::Rejected);
+        assert!(trust_change_needs_confirm(rejected.as_ref(), &TrustStatus::Unknown));
+        assert!(trust_change_needs_confirm(rejected.as_ref(), &TrustStatus::Changed));
+        assert!(trust_change_needs_confirm(rejected.as_ref(), &TrustStatus::Trusted));
+        assert!(!trust_change_needs_confirm(rejected.as_ref(), &TrustStatus::Rejected));
     }
 }

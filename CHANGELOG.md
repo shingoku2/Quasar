@@ -4,6 +4,10 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 
 ## 2026-09-25: PR #68 review fixes
 
+- A host key marked Rejected can no longer be quietly moved back to "unknown" or "changed" (which turned the refusal into an ordinary prompt): any change out of Rejected asks through a native dialog.
+- A saved SFTP task can no longer be pointed at another host or remote path without picking its local file again, and moving a host that scheduled transfers use asks through a native dialog.
+- After importing another vault, the old vault's unlock lockout no longer blocks the imported vault's password.
+- A monitoring tick that evaluated the old rules just before an import can no longer save their alerts into the imported database.
 - An SFTP transfer that fails no longer hands its local-file pick back: every pick is good for one transfer, so a compromised webview can't replay it against another host.
 - If migrating an imported backup fails and putting the previous database back fails too, the import now says so, and names the `.bak` file to recover from.
 - Monitoring pauses its alert rules while an import swaps the database, so it can't record an old rule's alert into the imported file, and reloads them afterwards (the old ones again if the import failed). If an imported database's alert rules can't be read, the import reports it and monitoring runs with no rules, not the old database's. Reloading also forgets which rules were triggered, so no recovery is announced for an alert of the old database.
