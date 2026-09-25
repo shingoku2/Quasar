@@ -2793,6 +2793,60 @@ mod saved_host_tests {
         assert_eq!(version_after_rerun, version);
     }
 
+    /// RUST-018: docs/SCHEMA.md must describe every table and column the migrations create
+    /// (a `### `table`` heading and a `| `column` |` row each), so it can't drift again.
+    /// On failure it prints the tables as they should be documented.
+    #[test]
+    fn schema_doc_lists_every_table_and_column() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        MIGRATIONS.to_latest(&mut conn).unwrap();
+        let doc = include_str!("../../docs/SCHEMA.md");
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        let mut missing = Vec::new();
+        let mut expected = String::new();
+        for table in &tables {
+            let heading = format!("### `{}`", table);
+            if !doc.contains(&heading) {
+                missing.push(heading.clone());
+            }
+            expected.push_str(&format!("\n{}\n\n| Column | Type | Null | Default | Key |\n|---|---|---|---|---|\n", heading));
+            let mut stmt = conn.prepare(&format!("PRAGMA table_info(\"{}\")", table)).unwrap();
+            let cols = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, bool>(3)?,
+                        r.get::<_, Option<String>>(4)?,
+                        r.get::<_, i64>(5)?,
+                    ))
+                })
+                .unwrap();
+            for col in cols {
+                let (name, ty, notnull, default, pk) = col.unwrap();
+                let row = format!("| `{}` |", name);
+                if !doc.contains(&heading) || !doc[doc.find(&heading).unwrap_or(0)..].contains(&row) {
+                    missing.push(format!("{}.{}", table, name));
+                }
+                expected.push_str(&format!(
+                    "{} {} | {} | {} | {} |\n",
+                    row,
+                    ty,
+                    if notnull { "NOT NULL" } else { "" },
+                    default.unwrap_or_default(),
+                    if pk > 0 { "PK" } else { "" }
+                ));
+            }
+        }
+        assert!(missing.is_empty(), "docs/SCHEMA.md is missing {:?}. Current schema:\n{}", missing, expected);
+    }
+
     #[test]
     fn database_recognition_accepts_quasar_application_id() {
         let conn = rusqlite::Connection::open_in_memory().unwrap();

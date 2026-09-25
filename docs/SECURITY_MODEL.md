@@ -1,5 +1,7 @@
 # Security Model - Credential Vault
 
+_Threat model for the credential vault. Originally written as a January 2026 planning spec; revised September 2026 to match the implementation (`src-tauri/src/vault/kdf.rs`, CLAUDE.md Security Notes). Where this document and the code disagree, the code and its regression tests win._
+
 ## Threat Model
 
 ### Assets to Protect
@@ -91,15 +93,17 @@
 - Resistant to side-channel attacks (data-independent)
 - Configurable time/memory trade-off
 
-**Parameters (Tuned for ~500ms on modern hardware):**
-- Memory: 64 MB (65536 KiB)
-- Iterations: 3
-- Parallelism: 4 threads
-- Salt: 16 bytes (random, stored in vault_settings)
-- Output: 32 bytes (256-bit key for AES)
+**Parameters (OWASP baseline):**
+- Memory: 47104 KiB (46 MiB)
+- Iterations: 2
+- Parallelism: 1
+- Salt: 16 bytes (random, stored B64-encoded in `vault_settings.salt`)
+- Output: 32 bytes of input keying material (`ikm`)
+
+**Key/verifier split (KDF v2):** HKDF-SHA256 expands `ikm` into two independent values with different labels: the 256-bit AES key (kept in memory only) and a verifier (stored in `vault_settings.master_password_verifier`, compared in constant time at unlock). The database never holds a password hash or anything the key can be computed from. (v1, before September 2026, stored an Argon2 PHC hash that was byte-for-byte the key; v1 vaults are migrated on their next unlock.) Changing any parameter or label orphans existing vaults; `vault::kdf::tests::kdf_known_answer_*` pin them.
 
 **Security Properties:**
-- Brute force resistance: ~500ms per attempt = 172,800 attempts/day
+- Brute force resistance: every guess costs one full Argon2id pass, plus the unlock lockout below
 - GPU resistance: Memory-hard algorithm limits GPU advantage
 - Rainbow table resistance: Unique salt per vault
 
@@ -151,13 +155,15 @@
 
 ### State Transitions
 
+(Setting the master password leaves the vault unlocked; the diagram above simplifies this.)
+
 | From State | To State | Trigger | Security Check |
 |------------|----------|---------|----------------|
-| Uninitialized | Locked | Set master password | Password strength validation |
-| Locked | Unlocked | Unlock with password | Argon2id verification, rate limiting |
+| Uninitialized | Unlocked | Set master password | Password strength validation |
+| Locked | Unlocked | Unlock with password | Argon2id + constant-time verifier check, persisted lockout |
+| Unlocked | Locked | Database import | The imported file has its own salt/verifier |
 | Unlocked | Locked | Manual lock | Clear master key from memory |
 | Unlocked | Locked | Auto-lock timeout | Clear master key from memory |
-| Unlocked | Locked | System sleep/hibernate | Clear master key from memory |
 
 ### Rate Limiting
 
@@ -165,6 +171,7 @@
 - 5 failed attempts → 5 minute lockout
 - 10 failed attempts → 15 minute lockout
 - 15 failed attempts → 60 minute lockout
+- The counter and lockout expiry are persisted in `vault_settings`, so relaunching the app doesn't reset them.
 
 **Rationale:**
 - Prevents brute force attacks
@@ -255,7 +262,7 @@
 
 - **Data Minimization:** Only store necessary credential metadata
 - **Right to Erasure:** Delete credential command
-- **Data Portability:** Export credentials in standard format
+- **Data Portability:** Export the database (credentials stay encrypted under the vault key)
 - **Security of Processing:** Encryption at rest and in transit
 
 ## Known Limitations
@@ -264,7 +271,7 @@
 
 ✅ Database theft (encrypted at rest)  
 ✅ SSH MITM attacks (host key verification)  
-✅ Brute force attacks (Argon2id + rate limiting)  
+✅ Brute force attacks (Argon2id + persisted lockout)  
 ✅ Credential leakage from database  
 ✅ Unauthorized credential access (audit log)  
 
@@ -273,7 +280,9 @@
 ❌ Keyloggers (OS-level threat)  
 ❌ Screen capture malware (OS-level threat)  
 ❌ Compromised operating system  
-❌ Physical access to unlocked workstation (auto-lock helps)  
+❌ Physical access to unlocked workstation (auto-lock helps; there is no lock on system sleep)  
+❌ A compromised webview using a credential that has no stored host against any host (bind credentials to a host)  
+❌ Database exports and `quasar.db.bak` files made before the v2 KDF migration (treat them as plaintext)  
 ❌ User choosing weak master password (strength meter helps)  
 ❌ Memory dumps while vault unlocked (minimize exposure time)  
 ❌ Hardware attacks (cold boot, DMA)  
@@ -290,10 +299,10 @@
 
 ## Security Review Checklist
 
-Before marking this track complete, verify:
+Verify on any change to the vault:
 
 - [ ] All credentials encrypted with AES-256-GCM
-- [ ] Master key derived with Argon2id (64 MB, 3 iterations)
+- [ ] Master key derived with Argon2id (47104 KiB, t=2, p=1) + HKDF key/verifier split
 - [ ] Unique nonce per credential
 - [ ] Master key cleared from memory on lock
 - [ ] Decrypted credentials cleared after use

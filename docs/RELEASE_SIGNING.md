@@ -77,3 +77,11 @@ needed. The workflow exports them only on the macOS runner and only the ones tha
 AppImage/`.deb` builds are not code-signed — Linux has no OS-level equivalent to Authenticode
 or notarization gatekeeping. The updater still works there: `latest.json` and the signed
 `.AppImage.tar.gz` are produced and verified the same way as on Windows/macOS.
+
+## 5. Publishing a release
+
+Releases are created as **drafts** (`releaseDraft: true` in `release.yml`). Until a human
+publishes the draft on GitHub (Releases → the draft → **Publish release**), the updater
+endpoint (`releases/latest/download/latest.json`) serves nothing and no installed copy sees
+the update. Before publishing, check that every platform's bundle and `latest.json` are
+attached, and that the version in `latest.json` matches the tag.
