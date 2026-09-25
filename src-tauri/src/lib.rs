@@ -2208,6 +2208,19 @@ fn replace_database_blocking(
         .map_err(|e| sanitize_error(e.to_string(), "database"))?
         .run_to_completion(100, std::time::Duration::from_millis(0), None)
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
+    // An older backup must be brought to the current schema before the app touches it:
+    // startup migrations don't run again, so a schema-14 backup would have no alert_rules
+    // table until the next restart (PR #68 review). If migrating fails, put the previous
+    // database back rather than leave the app on a schema it can't use.
+    if let Err(e) = MIGRATIONS.to_latest(&mut dst) {
+        if backup_path.exists() {
+            if let Ok(prev) = rusqlite::Connection::open(&backup_path) {
+                let _ = rusqlite::backup::Backup::new(&prev, &mut dst)
+                    .and_then(|b| b.run_to_completion(100, std::time::Duration::from_millis(0), None));
+            }
+        }
+        return Err(sanitize_error(format!("Failed to migrate imported database: {}", e), "database"));
+    }
     set_quasar_application_id(&dst).map_err(|e| sanitize_error(e, "database"))?;
     Ok(())
 }
@@ -2683,6 +2696,35 @@ mod saved_host_tests {
             .unwrap_err();
         assert!(err.contains("newer version"), "{}", err);
         assert!(!vault.is_locked().await);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: a backup from an older schema is migrated as part of the import, so the
+    /// running app finds every current table (startup migrations don't run again).
+    #[tokio::test]
+    async fn import_migrates_an_older_backup() {
+        let dir = import_test_dir("older");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+
+        let source = dir.join("old.db");
+        {
+            let mut conn = rusqlite::Connection::open(&source).unwrap();
+            MIGRATIONS.to_version(&mut conn, (LATEST_SCHEMA_VERSION - 1) as usize).unwrap();
+            set_quasar_application_id(&conn).unwrap();
+            let has_rules: bool = conn
+                .query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'alert_rules')", [], |r| r.get(0))
+                .unwrap();
+            assert!(!has_rules, "fixture: schema {} predates alert_rules", LATEST_SCHEMA_VERSION - 1);
+        }
+        import_database_at(&dir, source.to_str().unwrap(), &vault).await.unwrap();
+
+        let conn = rusqlite::Connection::open(&live).unwrap();
+        let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+        assert_eq!(version, LATEST_SCHEMA_VERSION);
+        conn.execute("INSERT INTO alert_rules (id, rule, updated_at) VALUES ('r', '{}', 0)", [])
+            .expect("alert_rules exists after importing an older backup");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

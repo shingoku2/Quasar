@@ -227,4 +227,4 @@ See `src-tauri/src/vault/kdf.rs` and CLAUDE.md Security Notes 10 and 15.
 - **The next migration is the highest existing number + 1** (currently `016_`). Append it to `MIGRATIONS` and bump `LATEST_SCHEMA_VERSION` (a test checks they match).
 - Migrations are append-only: never edit one that has shipped.
 - SQLite has no `ADD COLUMN IF NOT EXISTS`. To add a column that may already exist, use a Rust hook (`M::up_with_hook("SELECT 1;", hook)`) that checks `PRAGMA table_info` first, as 011 and 012 do (`add_scheduled_task_run_result_columns_if_missing`, `add_scheduled_tasks_sftp_columns_if_missing`). To change a constraint, rebuild the table (see 014).
-- `import_database` refuses a backup whose `user_version` is newer than `LATEST_SCHEMA_VERSION`.
+- `import_database` refuses a backup whose `user_version` is newer than `LATEST_SCHEMA_VERSION`, and runs the migrations on an older one before returning (the startup migrations don't run again).
