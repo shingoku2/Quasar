@@ -499,6 +499,8 @@ actually run on GitHub before that fix; see `AGENTS.md`):
 3. **Backend** (Ubuntu): `cargo clippy --all-targets -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
 4. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
+**Workflow hardening (CI-002/003):** both workflows default to a read-only `GITHUB_TOKEN` (`permissions: contents: read`; only the release job gets `contents: write`), check out with `persist-credentials: false`, and pin every action to a full commit SHA with the version in a trailing comment. When bumping an action, resolve the new tag's commit (`git ls-remote --tags https://github.com/<owner>/<repo>`; use the `^{}` line for annotated tags) and keep the comment in sync. Apple signing secrets are passed only on the macOS runner.
+
 `.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers. Releases are created as **drafts** (`releaseDraft: true`): the updater endpoint (`releases/latest/download/latest.json`) serves nothing until a human publishes the draft. Generate updater keys outside the repo (`~/.tauri/`); `*.key` and `.claude/settings.local.json` are gitignored.
 
 ---
