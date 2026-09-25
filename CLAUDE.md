@@ -127,7 +127,7 @@ Each rule has regression tests; don't weaken one without replacing its test. Rat
 
 ## CI
 
-`.github/workflows/ci.yml` (push/PR to `master`): actionlint; frontend (`tsc`, `npm run coverage`, `npm audit`); MSRV check; backend (clippy `--all-targets`, `cargo test`, `cargo audit`, `cargo deny`); build matrix. `release.yml` (`v*` semver tags) builds signed bundles as a **draft** release (publish it by hand; see `docs/RELEASE_SIGNING.md`). `audit.yml` runs audits weekly. Rules: actions pinned to a commit SHA with the version in a comment; read-only `GITHUB_TOKEN` by default; **never use the `secrets` context in a step `if:`** (map it to a job-level env; that bug made `release.yml` invalid for a month). Accepted advisories: `src-tauri/.cargo/audit.toml` and `deny.toml` `ignore` (keep them in sync), documented in `SECURITY.md`.
+`.github/workflows/ci.yml` (push/PR to `master`): actionlint; frontend (`tsc`, `npm run coverage`, `npm audit`); MSRV check; backend (clippy `--all-targets`, `cargo test`, `cargo audit`, `cargo deny`); build matrix. `release.yml` (`v*` semver tags; its gate runs the same checks as `ci.yml`, including the coverage floor and `cargo deny`) builds signed bundles as a **draft** release (publish it by hand; see `docs/RELEASE_SIGNING.md`). `audit.yml` runs audits weekly. Rules: actions pinned to a commit SHA with the version in a comment; read-only `GITHUB_TOKEN` by default; **never use the `secrets` context in a step `if:`** (map it to a job-level env; that bug made `release.yml` invalid for a month). Accepted advisories: `src-tauri/.cargo/audit.toml` and `deny.toml` `ignore` (keep them in sync), documented in `SECURITY.md`.
 
 ## Constraints
 

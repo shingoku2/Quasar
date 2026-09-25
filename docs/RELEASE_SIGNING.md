@@ -14,8 +14,8 @@ step on all three OSes, not just fall back to unsigned.
 
 Release tags must be `vMAJOR.MINOR.PATCH` with an optional `-prerelease` suffix (e.g.
 `v1.4.0`, `v1.4.0-rc.1`): the tag becomes the app version the updater compares, and the
-workflow fails fast on anything else. The release gate runs the same checks as CI plus
-`npm audit` and `cargo audit`, and release builds don't restore Rust caches written by other
+workflow fails fast on anything else. The release gate runs the same checks as CI (tests with the
+coverage floor, clippy, `npm audit`, `cargo audit` and `cargo deny check`), and release builds don't restore Rust caches written by other
 workflows, so a poisoned cache can't reach a signed build.
 
 ## 1. Updater signing key (required for every platform)
