@@ -2099,7 +2099,8 @@ async fn import_database(
         .app_data_dir()
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     let was_locked = vault_state.is_locked().await;
-    let result = import_database_at(&app_dir, &source_path, &vault_state).await;
+    let alert_engine = app.state::<Arc<monitoring::AlertEngine>>();
+    let result = import_database_at(&app_dir, &source_path, &vault_state, Some(alert_engine.as_ref())).await;
     // The frontend handles this event by showing the unlock dialog. Emit it whenever the
     // import locked the vault, including a backup/restore failure after the lock, so the UI
     // never keeps showing an unlocked vault the backend has locked.
@@ -2125,6 +2126,7 @@ async fn import_database_at(
     app_dir: &std::path::Path,
     source_path: &str,
     vault_state: &vault::VaultState,
+    alert_engine: Option<&monitoring::AlertEngine>,
 ) -> Result<(), String> {
     let db_path = app_dir.join(DB_FILENAME);
     let db_path_str = db_path
@@ -2166,7 +2168,15 @@ async fn import_database_at(
         replace_database_blocking(&app_dir, &db_path, &db_path_str, source_conn)
     })
     .await
-    .map_err(|e| sanitize_error(e.to_string(), "database"))?
+    .map_err(|e| sanitize_error(e.to_string(), "database"))??;
+    // In-memory state loaded from the old database must follow the new one: the alert rules
+    // were read once at startup (PR #68 review). Best effort: the import itself succeeded.
+    if let Some(engine) = alert_engine {
+        if let Err(e) = engine.reload() {
+            log::error!("Failed to reload alert rules after import: {}", e);
+        }
+    }
+    Ok(())
 }
 
 fn replace_database_blocking(
@@ -2665,7 +2675,7 @@ mod saved_host_tests {
 
         let source = dir.join("backup.db");
         migrated_quasar_db(&source);
-        import_database_at(&dir, source.to_str().unwrap(), &vault).await.unwrap();
+        import_database_at(&dir, source.to_str().unwrap(), &vault, None).await.unwrap();
 
         assert!(vault.is_locked().await, "vault must be locked after an import");
         assert!(dir.join(format!("{}.bak", DB_FILENAME)).exists());
@@ -2691,7 +2701,7 @@ mod saved_host_tests {
             .unwrap()
             .pragma_update(None, "user_version", LATEST_SCHEMA_VERSION + 1)
             .unwrap();
-        let err = import_database_at(&dir, source.to_str().unwrap(), &vault)
+        let err = import_database_at(&dir, source.to_str().unwrap(), &vault, None)
             .await
             .unwrap_err();
         assert!(err.contains("newer version"), "{}", err);
@@ -2718,13 +2728,52 @@ mod saved_host_tests {
                 .unwrap();
             assert!(!has_rules, "fixture: schema {} predates alert_rules", LATEST_SCHEMA_VERSION - 1);
         }
-        import_database_at(&dir, source.to_str().unwrap(), &vault).await.unwrap();
+        import_database_at(&dir, source.to_str().unwrap(), &vault, None).await.unwrap();
 
         let conn = rusqlite::Connection::open(&live).unwrap();
         let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
         assert_eq!(version, LATEST_SCHEMA_VERSION);
         conn.execute("INSERT INTO alert_rules (id, rule, updated_at) VALUES ('r', '{}', 0)", [])
             .expect("alert_rules exists after importing an older backup");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// PR #68 review: the alert engine follows an imported database. Its rules were loaded
+    /// once at startup, so monitoring kept evaluating the pre-import rules until restart.
+    #[tokio::test]
+    async fn import_reloads_alert_rules() {
+        let dir = import_test_dir("alerts");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let add_rule = |path: &std::path::Path, id: &str| {
+            let rule = monitoring::AlertRule {
+                id: id.to_string(),
+                metric: monitoring::MetricType::CpuUsage,
+                operator: monitoring::ComparisonOperator::GreaterThan,
+                threshold: 90.0,
+                severity: monitoring::AlertSeverity::Warning,
+                enabled: true,
+                cooldown_seconds: 60,
+            };
+            rusqlite::Connection::open(path).unwrap()
+                .execute(
+                    "INSERT INTO alert_rules (id, rule, updated_at) VALUES (?1, ?2, 0)",
+                    rusqlite::params![id, serde_json::to_string(&rule).unwrap()],
+                )
+                .unwrap();
+        };
+        add_rule(&live, "old-rule");
+        let engine = monitoring::AlertEngine::new();
+        assert_eq!(engine.attach_store(live.to_str().unwrap().to_string()).unwrap(), 1);
+
+        let source = dir.join("backup.db");
+        migrated_quasar_db(&source);
+        add_rule(&source, "new-rule");
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+        import_database_at(&dir, source.to_str().unwrap(), &vault, Some(&engine)).await.unwrap();
+
+        let ids: Vec<String> = engine.get_rules().into_iter().map(|r| r.id).collect();
+        assert_eq!(ids, vec!["new-rule".to_string()]);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

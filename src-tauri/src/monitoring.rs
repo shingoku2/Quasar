@@ -500,6 +500,19 @@ impl AlertEngine {
         Ok(count)
     }
 
+    /// Re-reads the rules from the attached database and forgets active alerts and cooldowns.
+    /// Called after the database is replaced by an import: the rules were loaded once at
+    /// startup, so without this monitoring kept evaluating (and recording alerts from) the
+    /// pre-import rules until restart (PR #68 review). A no-op before `attach_store`.
+    pub fn reload(&self) -> Result<usize, String> {
+        let Some(path) = self.store_path() else {
+            return Ok(0);
+        };
+        self.active_alerts.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        self.cooldown_tracker.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        self.attach_store(path)
+    }
+
     fn store_path(&self) -> Option<String> {
         self.store.lock().unwrap_or_else(|p| p.into_inner()).clone()
     }

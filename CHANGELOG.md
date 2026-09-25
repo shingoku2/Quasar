@@ -7,6 +7,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 - A single SSH-key credential (no stored password) no longer blocks every master-password change, or stops a legacy vault from migrating off the v1 key-equivalent format. The rekey step now checks each row by whichever encrypted field it has.
 - The release gate runs `cargo deny` and the coverage floor, like CI.
 - The v1 vault migration no longer makes `quasar.db.bak` (the vault an import replaced) impossible to unlock: it migrates that copy too when the same password unlocks it, and leaves it alone otherwise.
+- After an import, monitoring uses the imported database's alert rules; it kept the old ones until restart.
 - Importing a backup from an older version migrates it to the current schema; before, the app ran on the old schema until restarted (e.g. no alert rules table).
 - A host with different keys trusted on different ports: a new port presenting one of them now gets the changed-key warning and native confirmation, not a first-use prompt.
 - Only SSH-type credentials authenticate SSH connections, and SFTP takes SSH passwords only. Before, an API, database, RDP or other credential could be picked for an SFTP or SSH task (or a monitoring binding) and its secret sent to the SSH server. Checked at save and at use; pickers filter to matching types.
