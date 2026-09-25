@@ -2793,6 +2793,27 @@ mod saved_host_tests {
         assert_eq!(version_after_rerun, version);
     }
 
+    /// CLEAN-002: docs/ARCHITECTURE.md must list every registered command (CLAUDE.md once
+    /// listed 21 that didn't exist). Reads `generate_handler!` from this file's source.
+    #[test]
+    fn architecture_doc_lists_every_command() {
+        let source = include_str!("lib.rs");
+        let doc = include_str!("../../docs/ARCHITECTURE.md");
+        let start = source.find(concat!("generate_handler", "![")).expect("handler list") + 18;
+        let list = &source[start..start + source[start..].find(']').unwrap()];
+        let commands: Vec<&str> = list
+            .split(',')
+            .map(|c| c.trim().rsplit("::").next().unwrap_or(""))
+            .filter(|c| !c.is_empty())
+            .collect();
+        assert!(commands.len() > 50, "parsed {} commands", commands.len());
+        let missing: Vec<&str> = commands
+            .into_iter()
+            .filter(|c| !doc.contains(&format!("| `{}` |", c)))
+            .collect();
+        assert!(missing.is_empty(), "docs/ARCHITECTURE.md is missing commands: {:?}", missing);
+    }
+
     /// RUST-018: docs/SCHEMA.md must describe every table and column the migrations create
     /// (a `### `table`` heading and a `| `column` |` row each), so it can't drift again.
     /// On failure it prints the tables as they should be documented.

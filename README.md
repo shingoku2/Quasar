@@ -1,344 +1,99 @@
 # Quasar
 
-> **Development note (September 2, 2026):** Five deferred concurrency and persistence
-> fixes are designed but not yet implemented. Maintainers should use
-> [`docs/DEFERRED_AUDIT_FIX_PLAN.md`](docs/DEFERRED_AUDIT_FIX_PLAN.md) for the active audit
-> follow-up and required regression coverage. (Unrelated to the September 17, 2026 PR
-> backlog cleanup below — still open.)
-
-A powerful Tauri-based remote infrastructure management application for monitoring, managing, and automating remote servers and infrastructure.
-
-## Overview
-
-Quasar provides a comprehensive desktop application for managing remote infrastructure with features including SSH/SFTP connectivity, real-time monitoring, workflow automation, and secure credential management.
+A desktop app (Tauri 2: Rust backend, React + TypeScript frontend) for managing remote infrastructure: SSH terminals, SFTP, tunnels, monitoring and alerts, network discovery, scheduled tasks, and an encrypted credential vault. Windows, macOS and Linux.
 
 ## Features
 
-### 🔐 Security & Credential Management
-- **Encrypted Vault** - Master password-protected credential storage with AES-256-GCM encryption
-- **Credential Manager** - Store and manage SSH, RDP, database, and API credentials
-- **SSH Host Key Verification** - MITM attack prevention with known hosts management
-- **Auto-lock** - Configurable vault timeout with automatic locking
-- **Audit Logging** - Complete security event tracking and monitoring
+**Credential vault**
+- Master-password vault. Credentials are encrypted with AES-256-GCM under a key derived with Argon2id + HKDF; the key never touches disk.
+- SSH (password or key), RDP, database, API and other credentials. A credential can be bound to a host, and then it only works against that host.
+- Auto-lock (1-1440 minutes) and an unlock lockout that survives restarts.
+- SSH host-key pinning with MITM warnings for changed keys, and an audit log of vault events.
+- Revealing a password or weakening a trust decision asks through a native OS dialog.
 
-### 🖥️ Remote Management
-- **SSH Terminal** - Full-featured SSH terminal with xterm.js integration
-- **SFTP File Transfer** - Upload and download files with progress tracking
-- **Quick Connect** - One-click connection to saved hosts
-- **Session Management** - Multiple concurrent SSH sessions
-- **Real Command Execution** - Execute commands and scripts on remote hosts
-- **Scheduled Tasks** - Cron-based automation: run **SSH commands** or **SFTP upload/download** on saved hosts; task types (SSH command, Upload file, Download file) with optional local/remote paths for file transfer; view last run status (success/failure, output); **Run now** for manual execution
+**Remote access**
+- SSH terminal (xterm.js) with several concurrent sessions, and phase-by-phase connect errors (DNS, TCP, handshake).
+- SFTP browse, upload and download (password credentials). Local files are picked with the native dialog.
+- SSH local port forwarding (tunnels).
+- RDP launch through the system client.
+- Tailscale: lists tailnet peers from the local `tailscale` CLI (no API key), adds them as hosts, and connects to Tailscale SSH peers by tailnet identity.
 
-### 📊 Monitoring & Health Checks
-- **Real-time Metrics** - CPU, memory, disk usage, and system load monitoring
-- **Health Checks** - Pre-flight ping and SSH validation before connections
-- **System Monitor** - Live dashboard with resource utilization graphs
-- **Alert System** - Configurable alerts for system thresholds
-- **Historical Data** - Track metrics over time with SQLite storage
+**Automation**
+- Cron-scheduled tasks (6-field cron): SSH command, SFTP upload or SFTP download, with last-run status and output, and "Run now".
 
-### 🔍 Network Discovery & Scanning
-- **Network Scanner** - Comprehensive CIDR-based network discovery with 13-port scanning
-- **Device Detection** - Automatic classification (server, router, printer, workstation)
-- **Service Identification** - Detect running services (SSH, HTTP, MySQL, RDP, etc.)
-- **Network Topology** - Interactive force-directed graph visualization
-- **Host Tracking** - Persistent storage of discovered hosts with history
-- **Hostname Resolution** - Automatic reverse DNS lookup for discovered hosts
+**Monitoring**
+- Live local metrics: CPU, memory, per-disk usage, network, load.
+- Remote host health: ping, plus SSH metrics on Linux targets.
+- Alert rules with thresholds and cooldowns, persisted and edited in the Monitoring view. Triggered and recovered alerts appear in the dashboard feed.
 
-### 🔗 Tailscale
-- **Tailnet Peers** - Remote → Inventory lists the devices on your tailnet (online status, OS, address) using the local `tailscale` CLI — no API key or account setup in the app
-- **Add** - Open a prefilled SSH host dialog for a peer, then review and save the host; the stored address is its MagicDNS name when MagicDNS is enabled, otherwise its `100.x.y.z` address
-- **Tailscale Badge** - Saved hosts that match a tailnet peer show a Tailscale badge with a live online/offline indicator
-- **Identity-based SSH** - Peers running Tailscale SSH can be opened with just a username; the password can be left blank and the session authenticates by tailnet identity
+**Discovery**
+- CIDR scan (13 common ports) with device classification, service detection and reverse DNS.
+- mDNS discovery, an interactive topology graph, and persistent discovered-host tracking.
 
-### 🎨 Modern UI
-- **React + TypeScript** - Type-safe frontend with modern React patterns
-- **Tailwind CSS** - Beautiful, responsive design with shadcn/ui components
-- **Dark & Light Themes** - Settings → Appearance: dark navy/cyan or light theme with readable text; accent color option
-- **Dashboard Layout** - Hero topology view with real-time metrics, active sessions, and system health cards
-- **Status Bar** - Connection status and scan information footer
-- **Real-time Updates** - Live data updates without page refreshes
+**Other**
+- Optional local AI assistant (Ollama).
+- Dark and light themes with an accent color.
+- Signed auto-updates.
 
-## Architecture
-
-### Frontend
-- **Framework**: React 19 + TypeScript + Vite
-- **UI Library**: Tailwind CSS + Lucide icons
-- **Terminal**: xterm.js for SSH terminal emulation
-- **State Management**: React Context + hooks
-- **Testing**: Vitest + React Testing Library (49 test files / 344 tests)
-
-### Backend
-- **Runtime**: Tauri (Rust)
-- **Database**: SQLite with rusqlite
-- **SSH/SFTP**: russh + russh-sftp
-- **Tailscale**: local `tailscale status --json` CLI only (no control-plane API calls)
-- **Encryption**: AES-256-GCM with Argon2id key derivation
-- **Security**: zeroize for secure memory clearing
-
-### Database Schema
-See `docs/SCHEMA.md` for the full consolidated schema. Main tables:
-- `hosts` - Remote host configurations
-- `credentials` - Encrypted credential storage
-- `vault_settings` - Master password and vault configuration
-- `ssh_known_hosts` - SSH host key fingerprints
-- `security_audit_log` - Security event tracking
-- `scheduled_tasks` - Cron tasks (SSH command or SFTP upload/download)
-- Monitoring/alert and discovery tables (see migrations 004, 006, 007)
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
-- Node.js 24.15+ and npm 12.0.2+
-- Rust 1.95+ and Cargo
-- Windows, macOS, or Linux
 
-### Installation
+- Node.js 24.15 (`.nvmrc`) and npm 12
+- Rust via rustup. `rust-toolchain.toml` pins the toolchain (1.98.1), and the minimum supported version is 1.95.
+- Linux only: WebKitGTK and friends, e.g. on Debian/Ubuntu:
+  ```bash
+  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+  ```
+- Optional: the `tailscale` CLI (Tailscale panel) and Ollama (AI assistant).
 
-1. Clone the repository:
+### Run
+
 ```bash
-git clone https://github.com/yourusername/Quasar.git
+git clone https://github.com/shingoku2/Quasar.git
 cd Quasar
-```
-
-2. Install frontend dependencies:
-```bash
 npm install
+npm run tauri        # dev app: Vite on :1420 + the Rust backend
 ```
 
-3. Install Rust dependencies (handled by Cargo):
+`npm run tauri` runs `scripts/tauri-dev.js`, which sets `CARGO_TARGET_DIR=src-tauri/target` and starts `tauri dev`. On first launch the app asks you to set a master password.
+
+### Build
+
 ```bash
-cd src-tauri
-cargo build
+npx tauri build      # installers in src-tauri/target/release/bundle/
 ```
 
-### Development
+Release builds, signing and the updater are described in [`docs/RELEASE_SIGNING.md`](docs/RELEASE_SIGNING.md).
 
-Run the application in development mode:
+### Test
+
 ```bash
-npm run tauri dev
+npm test                                              # frontend (Vitest)
+npm run coverage                                      # with the coverage floor CI enforces
+npx tsc --noEmit
+cd src-tauri && cargo clippy --all-targets -- -D warnings && cargo test
 ```
-
-This runs `scripts/tauri-dev.js`, which sets `CARGO_TARGET_DIR` to the project’s `src-tauri/target`, then starts `npx tauri dev`. The script checks that `npx` is available before spawning and prints clear errors if Node/npm are missing.
-
-You get:
-- Vite dev server for hot module reloading
-- Tauri backend compile and run
-- Application window
-### Building
-
-Build the application for production:
-```bash
-npm run tauri build
-```
-
-This creates platform-specific installers in `src-tauri/target/release/bundle/`.
-
-## Usage
-
-### First Launch
-1. Initialize the vault with a strong master password
-2. Add your first remote host (hostname, port, username)
-3. Add credentials to the vault or use manual password entry
-4. Connect to your remote host
-
-### Managing Credentials
-1. Navigate to Security → Credentials
-2. Add credentials with name, type, username, and password
-3. Optionally associate credentials with specific hosts
-4. Use credentials for quick SSH connections
-
-### Scheduled Tasks (Automation)
-1. Navigate to **Automation** (sidebar)
-2. Add a task: choose **Task type** (SSH command, Upload file, or Download file), name, cron schedule (6-field e.g. `0 0 9 * * *` for daily 9:00), host, optional credential
-3. For SSH: enter the command. For Upload/Download: enter local path and remote path
-4. Tasks run automatically when due (scheduler checks every 60s)
-5. Use **Run now** to execute a task immediately and see output/error in the result panel
-6. View last run status (Success / Failed) and output on each task card
-
-### Monitoring
-1. View real-time metrics on the Dashboard
-2. Configure alerts in Monitoring → Alerts
-3. View historical data and trends
-4. Set up health checks for critical hosts
-
-### Connecting via Tailscale
-1. Install and log in to Tailscale on this machine (the `tailscale` CLI must be on your PATH or in its default install location)
-2. Navigate to **Remote → Inventory**; the **Tailscale** panel beside LAN Discovery lists your tailnet peers
-3. Click **Add** on a peer to open a prefilled SSH host dialog, then review and save it (peers already saved show **Saved**)
-4. Click **Connect** on the saved host. For peers with the **SSH** chip (Tailscale SSH enabled), leave the password blank to authenticate by tailnet identity; other peers need a password or SSH key as usual
-
-See `docs/CORE_WORKFLOWS.md` for details, including the Tailscale SSH "check mode" limitation.
-
-## Project Structure
-
-```
-Quasar/
-├── src/                          # React frontend
-│   ├── components/               # React components
-│   │   ├── dashboard/           # Dashboard widgets
-│   │   ├── vault/               # Security & credential components
-│   │   └── ...                  # Other components
-│   ├── hooks/                   # Custom React hooks
-│   ├── lib/                     # Utility functions
-│   └── main.tsx                 # Application entry point
-├── src-tauri/                   # Rust backend
-│   ├── src/
-│   │   ├── vault/               # Credential vault module
-│   │   ├── ssh_exec.rs          # SSH command execution
-│   │   ├── sftp.rs              # SFTP file transfer
-│   │   ├── tailscale.rs         # Tailscale CLI integration (tailnet peers)
-│   │   ├── scheduler.rs         # Cron-based scheduled tasks
-│   │   ├── health.rs            # Health check system
-│   │   └── lib.rs               # Main Tauri application
-│   ├── migrations/              # SQLite database migrations
-│   └── Cargo.toml               # Rust dependencies
-├── conductor/                   # Project documentation
-│   ├── tracks/                  # Feature development tracks
-│   └── code_styleguides/        # Code style guidelines
-└── package.json                 # Node.js dependencies
-```
-
-## Development Guidelines
-
-See `conductor/code_styleguides/` for detailed coding standards:
-- `general.md` - General development practices
-- `javascript.md` - TypeScript/React guidelines
-- `html-css.md` - UI/styling guidelines
-
-## Security
-
-- All credentials are encrypted at rest with AES-256-GCM
-- Master password uses Argon2id key derivation (memory-hard)
-- SSH host keys are verified to prevent MITM attacks
-- Vault auto-locks after configurable timeout
-- Complete audit trail of all security operations
-- Master key is securely wiped from memory on vault lock
-
-## Contributing
-
-1. Create a feature branch from `main`
-2. Follow the code style guidelines in `conductor/code_styleguides/`
-3. Write tests for new features
-4. Update documentation as needed
-5. Submit a pull request
-
-## Recent Updates
-
-### September 19, 2026 - Tailscale Integration
-- ✅ **Tailnet peers in Remote → Inventory** — a new Tailscale panel beside LAN Discovery lists your tailnet devices with online status, OS, and address, sourced from the local `tailscale status --json` CLI (no API key, no control-plane calls, no new dependencies).
-- ✅ **Add from peer list** — opens a prefilled SSH host dialog (review, then save) using the peer's MagicDNS name (or `100.x` IP when MagicDNS is off); saved hosts matching a peer get a Tailscale badge with a live online dot.
-- ✅ **Identity-based SSH** — peers running Tailscale SSH can be opened with only a username: the credential prompt makes the password optional and the SSH layer falls back to `none` authentication when no password or key is supplied. Normal password/key hosts are unaffected.
-- ✅ **Verification** — `cargo clippy -- -D warnings`, `cargo test` (130 lib tests, +8 new), `tsc --noEmit`, and `npm test` (344/344 across 49 files) all clean; see `AGENTS.md` for the full writeup.
-
-### September 17, 2026 - PR Backlog Cleanup & Network Scanner Race Fix
-- ✅ **26 open PRs triaged and merged** — bot-authored perf tweaks, dead-code cleanup, and test-coverage additions. 17 were clean as-authored; 9 had real bugs the review bots flagged (mostly test-quality issues that couldn't actually catch a regression) and were fixed before merging.
-- ✅ **Network scan stop requests are now reliably honored** — the bot's own "TOCTOU fix" PR was a no-op (it only reordered two locks already in the same critical section). Found and fixed the actual race: a stop request landing right after a scan starts could be silently discarded. The scan now claims its run state synchronously before the background task is even spawned.
-- ✅ **Survived a bot reverting the fix mid-review** — an automated commit reset the fix back to the no-op and deleted its tests; re-applied on top of a master merge rather than overwriting the bot's commit history. See `AGENTS.md` for the full incident writeup.
-- ✅ **Verification** — `tsc --noEmit`, `npm test` (329/329), `cargo clippy -- -D warnings`, and `cargo test` (126/126) all clean; see `AGENTS.md` for the full technical writeup.
-
-### August 22, 2026 - Full Codebase Bug Audit
-- ✅ **Session-killing tab bug fixed** — adding a host from the Inventory tab was resetting the entire session tab list, silently disconnecting every open SSH terminal and SFTP session. Fixed to merge instead of replace.
-- ✅ **Live network scan data loss fixed** — an unstable callback identity was causing `NetworkScanner` to unlisten/relisten its scan-event channels mid-scan, dropping discovered hosts and occasionally leaving the UI stuck on "Scanning…" forever.
-- ✅ **Alert rule toggle no longer risks silent deletion** — toggling a rule's enabled state used to remove it then re-add it; a failure between those two steps could delete the rule while the UI still showed it as present. Now a single atomic upsert.
-- ✅ **Silent data loss in scan/monitoring history fixed** — `HostTracker` and `MetricsStore` were opening database connections that skipped the app's shared busy-timeout, so a write landing during contention (scheduler + monitoring + a scan all writing near the same moment) could fail outright and get silently dropped instead of waiting.
-- ✅ **Vault password-change performance and safety hardened** — changing the master password used to hold the vault locked (internally) for the entire multi-second re-encryption operation, stalling any other in-flight credential use. Fixed to only hold the lock briefly at each end; a security review of that fix caught and closed a race where an explicit vault lock during the change could have been silently undone.
-- ✅ **Scheduled tasks no longer block on one dead host** — due tasks used to run strictly one at a time, so a single unreachable host could delay every other scheduled task behind its full timeout. Tasks now run concurrently (bounded).
-- ✅ **Error messages cleaned up app-wide** — completed a partial refactor so ~20 error-handling call sites across 12 components use a helper that reliably extracts a readable message instead of risking a raw `[object Object]` being shown to the user.
-- ✅ **Verification** — `tsc --noEmit`, `npm test` (257/257), `cargo clippy -- -D warnings`, and `cargo test` (114/114) all clean; see `AGENTS.md` for the full technical writeup of all fixes.
-
-### August 21, 2026 - SSH Connection Diagnostics, Credential Save Fix & Host Protocol Parity
-- ✅ **Phase-aware SSH connection errors** — New `ssh_connect.rs` module replaces the old one-shot "Connection timed out" with per-phase diagnostics: DNS lookup, TCP connect (tried per resolved address, so a dead IPv6 record no longer starves a working IPv4 one), and SSH handshake, each reporting the specific address and reason (refused / no response / handshake failure). Shared by the interactive terminal, SFTP, one-shot exec, the scheduled-task connection pool, and SSH tunnels. Terminal's connect timeout raised from an outlier 5s to the 10s used everywhere else.
-- ✅ **Credential save bug fixed** — `CredentialManager.tsx` was sending `credential_type`/`key_path`/`private_key`/`key_passphrase` (snake_case) in `update_credential`/`add_credential` payloads. Tauri matches `invoke()` args against camelCased Rust parameter names with no "unknown key" error, so these fields silently never saved — editing a credential's type or SSH key material appeared to succeed but was discarded. Fixed to camelCase; regression test asserts no payload key contains `_`.
-- ✅ **Second credential-edit bug fixed** — even after the camelCase fix, editing an SSH-key credential whose key was originally pasted as PEM (no `key_path`) was still blocked by a "provide a key" validation error on every save, because `get_credential` never returns decrypted key material (by design) and the form's empty `private_key` field was misread as "no key stored." Validation now checks `has_private_key`/`key_path` instead.
-- ✅ **Host protocol options expanded** — `AddHostDialog` now offers all 5 protocols also available in the credential vault (SSH, RDP, Database, API, Other), previously only SSH/RDP. Port becomes required for protocols without a backend default port; Connect button only shows for protocols with an actual client (SSH/RDP); other protocols are inventory/monitoring-only entries with their own badge color.
-- ✅ **Dependency updates** — russh 0.62.5 → 0.62.7, russh-sftp 2.3.0 → 2.4.0, rusqlite, thiserror, uuid, futures, and 60+ other Rust crates; vite, vitest, lucide-react, and 5 other npm packages. Full clippy/cargo test/npm test/tsc verification after update.
-
-### March 6, 2026 - Comprehensive Test Coverage Expansion
-- ✅ **12 new test files** — Added tests for all previously untested components: ErrorBoundary, TopBar, VaultInitDialog, VaultUnlockDialog, CredentialSelector, CredentialManager, KnownHostsManager, AuditLogViewer, SshHostKeyPrompt, VaultSettings, AlertFeed, QuickConnectWidget
-- ✅ **Extended existing tests** — HostManagement gains onConnect/onSftp callbacks, remove-with-confirm, duplicate detection, empty state, and filter no-match; NetworkScanner gains CIDR validation error path, invocation failure, and initialResults prop
-- ✅ **208 tests passing** across 32 test files (up from ~120 across 20 files)
-- ✅ **CLAUDE.md and AGENTS.md updated** with full test inventory table and key testing patterns
-
-### February 20, 2026 - Light Theme & Terminal
-- ✅ **Light theme app UI** — Selecting Light in Settings → Appearance now uses dark text on light backgrounds (sidebar, settings, headers, labels) so the app is readable. Implemented via `[data-theme="light"]` overrides in `App.css` for Tailwind text classes.
-- ✅ **Terminal** — Removed automatic terminal-theme sync with app theme; terminal uses its `theme` prop only. Solarized Light theme: foreground `#586e75` (base01), cursor `#073642` (base02) for visibility. In-place theme/font updates preserved so SSH stays connected when appearance or terminal settings change.
-
-### February 18, 2026 - Comprehensive Code Audit & Documentation
-- ✅ **Code audit (AUD-01–07)** — All 7 findings fixed: DB export/import safety (`VACUUM INTO`, atomic import), discovery singleton guard, SFTP credential filter (password-only; SSH key hidden in SFTP UI), scheduler persistence logging + in-memory cooldown, monitoring network units and mutex poison recovery, credential ID type (`string`). See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md`.
-- ✅ **Documentation** — AGENTS.md, CODEBASE_AUDIT_REPORT.md, MVP_COMPLETION_ROADMAP.md, README, and CORE_WORKFLOWS.md updated; merge conflicts resolved in roadmap; SQLite journal/temp files added to `.gitignore` (`**/*.db-journal`, `*.db-wal`, `*.db-shm`).
-- ✅ **tauri-dev.js** — Verifies `npx` before spawn; improved error messages
-- ✅ **Vault unlock form** — Hidden username field for Chromium accessibility; `autoComplete="off"` to avoid password manager association
-
-### February 18, 2026 - Workflow Scheduling & Task Results
-- ✅ **Scheduled tasks (cron)** — Automation view: create/edit/delete tasks; **task types**: SSH command, SFTP upload, SFTP download (with local/remote paths); background scheduler runs due tasks every 60s; supports password and SSH key auth
-- ✅ **Last run result** — Each task stores and displays last run time, status (Success / Failed), error message, and truncated output (migrations 010/011)
-- ✅ **Run now** — Manual run from UI with result panel (success/failure, output/error)
-- ✅ **Cron format** — UI uses 6-field (sec min hour day month dow), e.g. `0 0 9 * * *` for 9:00 daily; see `docs/CORE_WORKFLOWS.md`
-- ✅ **Scheduler tests** — Integration tests for CRUD, set_run_result, load_enabled_tasks, load_task_by_id, output truncation (`cargo test scheduler::`)
-- ✅ **Documentation** — `docs/CORE_WORKFLOWS.md` covers vault, SSH, scheduled tasks (including SFTP types), SFTP, monitoring, discovery
-
-### February 18, 2026 - SSH Terminal & Dashboard Fixes
-- ✅ **SSH terminal hang fixed** — Refactored to use `Channel::wait()` for receiving data so russh’s internal buffer is drained and window adjustments keep data flowing; consecutive/simultaneous commands no longer stall
-- ✅ **Output batching** — Flush on `\r`/`\n` and 4 ms interval for responsive apt progress and line output
-- ✅ **SSH packet size** — Set to 32 KB (≤ TCP max); removed russh packet-size errors
-- ✅ **Dashboard System Health** — Hosts Online count from remote health; Vault Auto-lock from settings; removed non-functional three-dots menus
-- ✅ **Real-time Metrics** — All attached disks shown (per-disk usage from backend)
-- ✅ **Password inputs** — `autoComplete` on all password fields (console warning resolved)
-- ✅ **tauri-dev.js** — Use shell on Windows to avoid spawn EINVAL
-
-### February 16, 2026 - Credential Edit & Type-Switch Fixes
-- ✅ **update_credential** supports SSH key credentials: `key_path`, `private_key`, `key_passphrase` sent and persisted; empty string clears fields
-- ✅ **credential_type** column updated on edit so DB stays in sync with UI
-- ✅ Clearing key fields when editing works (send empty string; backend clears to NULL)
-- ✅ Switching type clears opposite auth: password→ssh_key clears password columns; ssh_key→password clears key columns
-- ✅ **Migration 009:** `encrypted_password`, `nonce`, `tag` nullable; empty password now clears to NULL (no stale encrypted data)
-- ✅ All vault credential tests passing
-
-### February 12, 2026 - UI Refactor
-- ✅ Complete visual overhaul to dark navy/cyan aesthetic
-- ✅ Custom Quasar SVG logo and sidebar restyle with vault status badge
-- ✅ Dashboard restructured: hero topology card + 4-card bottom row
-- ✅ SystemHealthWidget supports metrics and summary variants
-- ✅ Topology view restyled with new device color palette
-- ✅ Status bar footer with connection indicator
-
-### February 3, 2026 - Critical Bug Fixes
-- ✅ Fixed React duplicate key warnings in NetworkScanner component
-- ✅ Fixed database migration system for fresh installations
-- ✅ Created initial schema migration (001) for base tables
-- ✅ Re-enabled migration 005 for proper credentials consolidation
-- ✅ Cleaned up unused imports to reduce compiler warnings
-
-### February 2, 2026 - Network Scanner Enhancement
-- ✅ Comprehensive network discovery with 13-port scanning
-- ✅ Device type detection and service identification
-- ✅ Interactive network topology visualization
-- ✅ Persistent host tracking with history
 
 ## Documentation
 
-- **README.md** (this file) — Overview, features, getting started, usage
-- **AGENTS.md** — AI agent context, implementation history, and bug-fix log
-- **docs/CORE_WORKFLOWS.md** — Core user workflows (vault, SSH, scheduled tasks including SFTP types, SFTP, monitoring, discovery, Tailscale)
-- **docs/SCHEMA.md** — Database schema and migration notes
-- **MVP_COMPLETION_ROADMAP.md** — Development roadmap and success criteria
-- **CODEBASE_AUDIT_REPORT.md** — Audit findings and applied fixes
-- **conductor/** — Product guidelines and feature tracks
-- **MONITORING_COMPLETE.md** — Monitoring system documentation
+| Doc | What's in it |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | Contributor and agent guide: commands, conventions, security invariants (AGENTS.md points here) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | IPC commands and events, vault concurrency, security decisions, background work |
+| [`docs/SCHEMA.md`](docs/SCHEMA.md) | Database tables, columns and migration rules |
+| [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) | Threat model for the vault |
+| [`docs/CORE_WORKFLOWS.md`](docs/CORE_WORKFLOWS.md) | User workflows, step by step |
+| [`docs/style/`](docs/style/) | Code style guides |
+| [`SECURITY.md`](SECURITY.md) | Reporting vulnerabilities; accepted dependency risks |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed, by date |
+| [`AUDIT.md`](AUDIT.md) | The September 2026 full audit |
+| [`docs/archive/`](docs/archive/) | Historical reports and plans |
 
-## Tech Stack
+## Contributing
 
-**Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui, xterm.js  
-**Backend**: Rust, Tauri, russh, russh-sftp, rusqlite, Tailscale CLI integration  
-**Security**: AES-256-GCM, Argon2id, zeroize  
-**Database**: SQLite
+Branch from `master`, follow [`CLAUDE.md`](CLAUDE.md) and the style guides, add tests with your change, and open a pull request. CI runs typecheck, tests with coverage, clippy, cargo test, dependency audits and a build on all three platforms.
 
 ## License
 
-Quasar is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/)
-- [Tauri Extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
-- [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+MIT. See [LICENSE](LICENSE).
