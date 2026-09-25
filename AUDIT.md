@@ -449,7 +449,7 @@ Phase 7 rules (EDW-26): one agent, sequential, one logical change per commit, wi
 
 ## 10. Changes made (Phase 7, EDW-26)
 
-Approval: Edward approved **P7-0 and P7-1** on 2026-09-24 (recorded on EDW-25). Nothing beyond those two batches was changed. Branch `claude/stoic-einstein-j4ajfe`. Raw outputs are in `audit/raw/phase7/`.
+Approval: Edward approved **P7-0 and P7-1** on 2026-09-24 (recorded on EDW-25). P7-2 to P7-7 followed in the same work, reported batch by batch on EDW-26, and on 2026-09-25 he approved all of P7-8 ("Approve all"). P7-9 (optional refactors) hasn't started. The table below details P7-0/P7-1; "Later batches" lists the rest. Branch `claude/stoic-einstein-j4ajfe`. Raw outputs are in `audit/raw/phase7/`.
 
 ### Commits
 
@@ -460,6 +460,22 @@ Approval: Edward approved **P7-0 and P7-1** on 2026-09-24 (recorded on EDW-25). 
 | `12a7355` | P7-1 | RSEC-001, TEST-005 | New `vault/kdf.rs`: Argon2id → HKDF-SHA256 into the encryption key (memory only) and a verifier (stored). v1 vaults migrate on unlock under a fresh salt, followed by VACUUM and a checkpoint. `unlock_vault` takes the credential gate. Password change writes v2 and refuses when the key doesn't match the DB. KATs pin the KDF. |
 | `d2d2eff` | P7-1 | RSEC-009 | `secure_delete = ON` on every connection. The DB, WAL and SHM files are 0600, the app data dir 0700, and exports 0600 (Unix). |
 | `57e109a` | P7-1 | RSEC-001 follow-up (security review) | Post-commit steps are best-effort, so the vault can't fall back to a stale key. Only AEAD-failing rows are skipped, and `legacy_salt` is kept for them. Malformed key blobs are an error rather than being silently wiped. The busy result of the WAL checkpoint is honoured, with `kdf_scrub_pending` retry. `.bak` loses the legacy hash. Stored hex parsing is strict. |
+
+### Later batches
+
+Each commit message carries the finding ids and what was verified.
+
+| Batch | Commits (oldest → newest) |
+|---|---|
+| P7-2 vault state | `6f84c2a`, review follow-up `93a6517` |
+| P7-3 IPC hardening | `6b2a1f5` `5e6fc25` `127cd93` `b4a3b5f` `39fe520` `6687871` `3498f10` `d8d9ad5` |
+| P7-4 SSH & scheduler | `1b8da8d` `6a9b813` `15ce19d` `c1bb824` `91dc471` `6f687a4` `a7df035`, review follow-ups `f03ce5e` `21a3794` `79dde75` `95bba5d` `906597c` `279de83` `fb533d7` |
+| P7-5 broken features | `44b1321` `904f1d2` `046fc05` `41f2c21` `75f4b4d` `be6e962` `6cbbd56` `ccd9f45` `05ad847` `61a0901` `06191ec` |
+| P7-6 CI & supply chain | `3c99613` `45a35c1` `56398de` `9b7a82a` `272670c` `81a313c` `22409b8` |
+| P7-7 dependencies | D1 `773368b`, D2 `35bbd74`, D3 `4bdd56e`, D4 `e6fa0ff`, D5 `1ed3032`, D6 `628449d`, D7 `58a3596` |
+| P7-8 docs & cleanup | `150b8bc` (archive/moves, CLEAN-008/010/016/017, FE-029), `3733af4` (CLEAN-005), `c36207d` (SCHEMA/workflows/threat model, RUST-018, CLEAN-014), `5a0da03` (CLAUDE.md, ARCHITECTURE, AGENTS stub, CHANGELOG, README; CLEAN-002/003/004/006/007) |
+
+**Not done in P7-8:** deleting the superseded files (GEMINI.md, `conductor/` remainder, `_archived/`, `.codex/`, `.windsurf/`, the three MONITORING_PHASE reports, `test-workflow-*.json`, `public/tauri.svg`, `public/vite.svg`, `src/assets/react.svg`, `src-tauri/test_salt_api.rs`: CLEAN-009, CLEAN-011, CLEAN-012, the rest of CLEAN-016). The session's permission policy blocked the `git rm`; it needs a human-run or explicitly allowed commit. Remote branch cleanup (CLEAN-019) is also left.
 
 ### Verification
 
