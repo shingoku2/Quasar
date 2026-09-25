@@ -35,7 +35,7 @@ argon2 = "0.5.3"
 aes-gcm = "0.11.0"
 rand = "0.10.2"
 getrandom = "0.4.3"
-mdns-sd = "0.20.3"
+mdns-sd = "0.21.4"
 ollama-rs = { version = "0.3.6", features = ["stream"] }
 tokio-stream = "0.1.19"
 russh = { version = "0.62.5", default-features = false, features = ["flate2", "rsa", "ring"] }
@@ -64,3 +64,7 @@ cron = "0.17.0"
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
+
+[dev-dependencies]
+# Same flume mdns-sd uses (it re-exports `flume::Receiver`); tests build channels with it.
+flume = { version = "0.12", default-features = false }

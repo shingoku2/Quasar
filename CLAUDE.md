@@ -172,7 +172,7 @@ Quasar/
 | SSH/SFTP | russh 0.62 (host key + auth bundled in), russh-sftp 2.4 |
 | Encryption | aes-gcm 0.11 (AES-256-GCM), argon2 0.5 (Argon2id) + hkdf 0.13 / sha2 0.11 (HKDF-SHA256 key/verifier split, `vault/kdf.rs`) |
 | Secure memory | zeroize 1.8, secrecy 0.8 |
-| Network scan | surge-ping, cidr-utils, dns-lookup, mdns-sd |
+| Network scan | surge-ping, cidr-utils, dns-lookup, mdns-sd 0.21 |
 | System info | sysinfo 0.33 |
 | Cron | cron 0.12 |
 | AI (optional) | ollama-rs 0.3 |
@@ -445,7 +445,7 @@ Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guid
 - Use `secrecy::Secret<String>` for in-memory secrets
 - Validate all external inputs through `validation.rs` before processing
 - Database work should use transactions for multi-step operations
-- `discovery.rs` uses a singleton pattern (`Arc<AtomicBool>`) — do not bypass it
+- `discovery.rs` uses a singleton pattern (`Arc<AtomicBool>`) — do not bypass it. Its loop drops mDNS receivers that report `Disconnected` and ends when none remain (`poll_receivers`), so a dead daemon frees the singleton instead of spinning (mdns-sd 0.21, which also fixed a LAN-triggerable HINFO parsing panic, DEP-001)
 - `tailscale.rs` only shells out to the local `tailscale` CLI with fixed arguments (`status --json`) — never pass user input into that command, and never call the Tailscale control-plane API directly
 
 ### Component Patterns

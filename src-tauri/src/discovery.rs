@@ -1,5 +1,5 @@
 use log::{error, info};
-use mdns_sd::{ServiceDaemon, ServiceEvent};
+use mdns_sd::{RecvTimeoutError, ServiceDaemon, ServiceEvent};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -82,30 +82,52 @@ pub fn start_mdns_discovery(
                 break;
             }
 
-            for receiver in &receivers {
-                if let Ok(ServiceEvent::ServiceResolved(info)) =
-                    receiver.recv_timeout(Duration::from_millis(100))
-                {
-                    let addresses = info.get_addresses();
-                    let port = info.get_port();
-                    let name = info.get_fullname();
-
-                    if let Some(addr) = addresses.iter().next() {
-                        let host = DiscoveredHost {
-                            name: name.to_string(),
-                            address: addr.to_string(),
-                            port,
-                            service_type: "discovered".to_string(),
-                        };
-
-                        // Emit event to frontend
-                        let _ = app.emit("host-discovered", host);
-                    }
-                }
+            // A browse whose daemon has gone away reports Disconnected forever; drop it.
+            // When none are left, end the thread (the DropGuard frees the singleton so
+            // discovery can be started again) instead of spinning on dead channels.
+            poll_receivers(&mut receivers, Duration::from_millis(100), |host| {
+                let _ = app.emit("host-discovered", host);
+            });
+            if receivers.is_empty() {
+                error!("[discovery] mDNS daemon stopped; ending discovery");
+                break;
             }
             thread::sleep(Duration::from_millis(100));
         }
     });
+}
+
+/// Waits up to `wait` on each receiver, passes resolved hosts to `on_host`, and drops
+/// receivers whose sender (the mDNS daemon) is gone.
+fn poll_receivers(
+    receivers: &mut Vec<mdns_sd::Receiver<ServiceEvent>>,
+    wait: Duration,
+    mut on_host: impl FnMut(DiscoveredHost),
+) {
+    receivers.retain(|receiver| match receiver.recv_timeout(wait) {
+        Ok(event) => {
+            if let Some(host) = discovered_host(event) {
+                on_host(host);
+            }
+            true
+        }
+        Err(RecvTimeoutError::Timeout) => true,
+        Err(RecvTimeoutError::Disconnected) => false,
+    });
+}
+
+/// The host a resolved service event announces, if it has an address.
+fn discovered_host(event: ServiceEvent) -> Option<DiscoveredHost> {
+    let ServiceEvent::ServiceResolved(info) = event else {
+        return None;
+    };
+    let addr = info.get_addresses().iter().next()?.to_string();
+    Some(DiscoveredHost {
+        name: info.get_fullname().to_string(),
+        address: addr,
+        port: info.get_port(),
+        service_type: "discovered".to_string(),
+    })
 }
 
 struct DropGuard(Arc<AtomicBool>);
@@ -113,5 +135,27 @@ struct DropGuard(Arc<AtomicBool>);
 impl Drop for DropGuard {
     fn drop(&mut self) {
         self.0.store(false, Ordering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+mod poll_tests {
+    use super::*;
+
+    /// D3 / DEP-001 follow-up: a dead daemon's receivers are dropped, so the discovery
+    /// loop can end instead of spinning on Disconnected forever.
+    #[test]
+    fn disconnected_receivers_are_dropped_and_live_ones_kept() {
+        let (live_tx, live_rx) = flume::bounded::<ServiceEvent>(1);
+        let (dead_tx, dead_rx) = flume::bounded::<ServiceEvent>(1);
+        drop(dead_tx);
+        let mut receivers = vec![live_rx, dead_rx];
+        let mut hosts = 0;
+        poll_receivers(&mut receivers, Duration::from_millis(10), |_| hosts += 1);
+        assert_eq!(receivers.len(), 1, "only the live receiver remains");
+        assert_eq!(hosts, 0);
+        drop(live_tx);
+        poll_receivers(&mut receivers, Duration::from_millis(10), |_| hosts += 1);
+        assert!(receivers.is_empty());
     }
 }
