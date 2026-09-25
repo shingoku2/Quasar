@@ -164,12 +164,12 @@ impl SshKeyManager {
                 .map_err(|e| format!("Failed to look up known host key: {}", e))?
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| format!("Failed to look up known host key: {}", e))?;
-            // The same key on another port (one server, several ports) is fine.
-            if keys.iter().any(|(fp, _)| bool::from(fp.as_bytes().ct_eq(fingerprint.as_bytes()))) {
-                None
-            } else {
-                keys.into_iter().next()
-            }
+            // Any trusted key for this host that differs from the presented one makes it
+            // Changed. The same key on every other trusted port (one server, several ports) is
+            // a plain first use. Matching just *one* of them isn't enough: with key A on 22 and
+            // B on 2222, a new port presenting A differs from B (PR #68 review).
+            keys.into_iter()
+                .find(|(fp, _)| !bool::from(fp.as_bytes().ct_eq(fingerprint.as_bytes())))
         } else {
             None
         };
@@ -512,6 +512,13 @@ mod tests {
         let same_key = manager.verify_host_key_by_fingerprint("db1", 2222, "SHA256:a", "ssh-key").await.unwrap();
         assert!(matches!(same_key.status, TrustStatus::Unknown));
         assert_eq!(same_key.old_fingerprint, None);
+        // PR #68 review: with different keys trusted on two ports, a new port presenting one
+        // of them still differs from the other, so it's Changed, not a first use.
+        manager.trust_host_key("db1", 2222, "SHA256:b", "ssh-key", vec![2], TrustStatus::Trusted).await.unwrap();
+        let matches_one = manager.verify_host_key_by_fingerprint("db1", 3333, "SHA256:a", "ssh-key").await.unwrap();
+        assert!(!matches_one.allowed);
+        assert!(matches!(matches_one.status, TrustStatus::Changed));
+        assert_eq!(matches_one.old_fingerprint.as_deref(), Some("SHA256:b"));
         let _ = std::fs::remove_file(&db_path);
     }
 
