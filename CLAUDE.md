@@ -167,7 +167,7 @@ Quasar/
 | Charts | Recharts |
 | Terminal | xterm.js 6 (`@xterm/xterm`, `@xterm/addon-fit`) |
 | Network graph | vis-network + vis-data |
-| Backend language | Rust (edition 2021), async via Tokio 1 |
+| Backend language | Rust (edition 2021), async via Tokio 1. Toolchain pinned in `rust-toolchain.toml` (1.98.1); MSRV `rust-version = "1.95"`, checked by CI's `msrv` job |
 | Database | SQLite (rusqlite bundled, migrations via rusqlite_migration) |
 | SSH/SFTP | russh 0.62 (host key + auth bundled in), russh-sftp 2.4 |
 | Encryption | aes-gcm 0.11 (AES-256-GCM), argon2 0.5 (Argon2id) + hkdf 0.13 / sha2 0.11 (HKDF-SHA256 key/verifier split, `vault/kdf.rs`) |
@@ -496,8 +496,9 @@ actually run on GitHub before that fix; see `AGENTS.md`):
 
 1. **Workflow lint** (Ubuntu): `actionlint` (checksum-pinned 1.7.7) over `.github/workflows/*.yml`. GitHub silently rejects an invalid workflow file (it never runs, it just shows a 0-job failure), so this is the only thing that turns that red. **Never put the `secrets` context in a step `if:`**: evaluate it into a job-level `env` and test the env instead (see `release.yml` `HAS_WINDOWS_CERTIFICATE`). That mistake made `release.yml` invalid from Aug 26 to Sep 24, 2026 (CI-001): no release or updater artifact was ever built in that time.
 2. **Frontend** (Ubuntu): `tsc --noEmit` + `npm run coverage` (the tests, failing below the coverage floor in `vite.config.ts`: statements 72 / branches 66 / functions 67 / lines 74; raise it as coverage grows) + `npm audit --audit-level=high`
-3. **Backend** (Ubuntu): `cargo clippy --all-targets -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
-4. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
+3. **MSRV** (Ubuntu): `cargo +1.95 check --locked`, so Cargo.toml's `rust-version` stays true.
+4. **Backend** (Ubuntu): `cargo clippy --all-targets -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
+5. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
 **Workflow hardening (CI-002/003):** both workflows default to a read-only `GITHUB_TOKEN` (`permissions: contents: read`; only the release job gets `contents: write`), check out with `persist-credentials: false`, and pin every action to a full commit SHA with the version in a trailing comment. When bumping an action, resolve the new tag's commit (`git ls-remote --tags https://github.com/<owner>/<repo>`; use the `^{}` line for annotated tags) and keep the comment in sync. Apple signing secrets are passed only on the macOS runner.
 

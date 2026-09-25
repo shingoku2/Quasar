@@ -78,10 +78,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
+      # Installs the toolchain pinned in rust-toolchain.toml (CI-005).
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable branch, 2026-09
-        with:
-          components: clippy
+        run: rustup toolchain install
 
       - name: Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -101,6 +100,27 @@ jobs:
         run: |
           cargo install cargo-audit --quiet
           cargo audit
+
+  msrv:
+    # Cargo.toml's rust-version is a promise; build it so it stays true (CI-005).
+    name: MSRV (Rust 1.95)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - name: Install Rust 1.95
+        run: rustup toolchain install 1.95 --profile minimal
+
+      - name: cargo check on the MSRV
+        working-directory: src-tauri
+        run: cargo +1.95 check --locked
 
   build:
     name: Build (${{ matrix.os }})
@@ -131,8 +151,9 @@ jobs:
       - name: Use npm 12
         run: npm install -g npm@12.0.2
 
+      # Installs the toolchain pinned in rust-toolchain.toml (CI-005).
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable branch, 2026-09
+        run: rustup toolchain install
 
       - name: Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
