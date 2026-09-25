@@ -12,6 +12,12 @@ required unconditionally: `bundle.createUpdaterArtifacts` in `tauri.conf.json` i
 for every platform, so a release build with that secret missing will fail at the signing
 step on all three OSes, not just fall back to unsigned.
 
+Release tags must be `vMAJOR.MINOR.PATCH` with an optional `-prerelease` suffix (e.g.
+`v1.4.0`, `v1.4.0-rc.1`): the tag becomes the app version the updater compares, and the
+workflow fails fast on anything else. The release gate runs the same checks as CI plus
+`npm audit` and `cargo audit`, and release builds don't restore Rust caches written by other
+workflows, so a poisoned cache can't reach a signed build.
+
 ## 1. Updater signing key (required for every platform)
 
 The public half is already committed in `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
@@ -61,9 +67,10 @@ certificate, and an app-specific password for notarization.
 | `APPLE_PASSWORD` | An [app-specific password](https://support.apple.com/en-us/102654) for that Apple ID — not the account password |
 | `APPLE_TEAM_ID` | Apple Developer Team ID (found at [developer.apple.com/account](https://developer.apple.com/account) under Membership) |
 
-These are read directly by the Tauri bundler; unlike Windows, no `tauri.conf.json` field or
-extra workflow step is needed. They're passed to every matrix job but are simply unused on
-the Windows/Linux runners.
+These are read directly by the Tauri bundler; unlike Windows, no `tauri.conf.json` field is
+needed. The workflow exports them only on the macOS runner and only the ones that are set
+(an unset secret would otherwise arrive as an empty string, and whether the bundler treats
+`APPLE_CERTIFICATE=""` as absent is unverified).
 
 ## 4. Linux
 

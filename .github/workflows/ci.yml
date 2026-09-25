@@ -98,7 +98,7 @@ jobs:
       - name: cargo audit
         working-directory: src-tauri
         run: |
-          cargo install cargo-audit --quiet
+          cargo install cargo-audit --locked --version 0.22.2
           cargo audit
 
   msrv:
