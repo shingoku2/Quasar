@@ -67,6 +67,19 @@ pub struct SshKeyManager {
     conn: Arc<Mutex<Connection>>,
 }
 
+/// Wire encoding of the host key a server presented, which its fingerprint is taken over.
+/// A host certificate is pinned by the key it certifies: Quasar doesn't trust host CAs, and
+/// that key is the one the handshake proved possession of, so the pin means the same thing
+/// either way (russh 0.63 started passing certificates here).
+pub fn presented_key_bytes(presented: &russh::keys::PublicKeyOrCertificate) -> Vec<u8> {
+    use russh::keys::ssh_encoding::Encode;
+    use russh::keys::{PublicKeyBase64, PublicKeyOrCertificate};
+    match presented {
+        PublicKeyOrCertificate::PublicKey { key, .. } => key.public_key_bytes(),
+        PublicKeyOrCertificate::Certificate(cert) => cert.public_key().encode_vec().unwrap_or_default(),
+    }
+}
+
 impl SshKeyManager {
     /// Host-key decision for connections that can't prompt the user (one-shot exec, the
     /// pooled sessions behind monitoring and scheduled tasks, SFTP): only a key already
@@ -76,10 +89,9 @@ impl SshKeyManager {
         &self,
         host: &str,
         port: u16,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, russh::Error> {
-        use russh::keys::PublicKeyBase64;
-        let fingerprint = crate::crypto::ssh_host_key_fingerprint(&server_public_key.public_key_bytes());
+        let fingerprint = crate::crypto::ssh_host_key_fingerprint(&presented_key_bytes(server_public_key));
         match self
             .verify_host_key_by_fingerprint(host, port, &fingerprint, "ssh-key")
             .await
@@ -503,6 +515,26 @@ mod tests {
         let _ = std::fs::remove_file(&db_path);
     }
 
+    /// D7 (russh 0.63): a plain key must fingerprint exactly as before the upgrade, or every
+    /// stored pin would read as a changed key; a host certificate pins to the key it carries.
+    #[test]
+    fn presented_key_bytes_are_stable_and_certificates_pin_their_key() {
+        use russh::keys::ssh_key::certificate::{Builder, CertType};
+        use russh::keys::{PublicKeyBase64, PublicKeyOrCertificate};
+        let host = russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519).unwrap();
+        let ca = russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519).unwrap();
+        let plain: PublicKeyOrCertificate = host.public_key().clone().into();
+        assert_eq!(presented_key_bytes(&plain), host.public_key().public_key_bytes());
+
+        let mut builder = Builder::new([7u8; 16], host.public_key().key_data().clone(), 0, u64::MAX).unwrap();
+        builder.cert_type(CertType::Host).unwrap();
+        builder.key_id("test-host").unwrap();
+        builder.all_principals_valid().unwrap();
+        let cert = builder.sign(&ca).unwrap();
+        let certified: PublicKeyOrCertificate = cert.into();
+        assert_eq!(presented_key_bytes(&certified), host.public_key().public_key_bytes());
+    }
+
     /// TEST-003: table test of the non-interactive decision (exec, pool, SFTP).
     #[tokio::test]
     async fn test_non_interactive_accepts_only_a_trusted_key_for_that_port() {
@@ -527,11 +559,11 @@ mod tests {
             ("r", 22, &rejected, false),   // explicitly rejected
         ];
         for (host, port, k, allowed) in cases {
-            let decision = manager.check_non_interactive(host, port, k).await;
+            let decision = manager.check_non_interactive(host, port, &k.clone().into()).await;
             assert_eq!(decision.is_ok(), allowed, "{}:{}", host, port);
         }
         manager.conn.lock().unwrap().execute_batch("DROP TABLE ssh_known_hosts;").unwrap();
-        assert!(manager.check_non_interactive("h", 22, &trusted).await.is_err(), "lookup error fails closed");
+        assert!(manager.check_non_interactive("h", 22, &trusted.clone().into()).await.is_err(), "lookup error fails closed");
         let _ = std::fs::remove_file(&db_path);
     }
 

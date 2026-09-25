@@ -2,7 +2,6 @@ use crate::crypto;
 use crate::validation;
 use crate::vault::SshKeyManager;
 use log::error;
-use russh::keys::PublicKeyBase64;
 use russh::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -152,11 +151,11 @@ impl client::Handler for Client {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
 
-        let key_bytes = server_public_key.public_key_bytes();
+        let key_bytes = crate::vault::ssh_keys::presented_key_bytes(server_public_key);
         let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key";
 

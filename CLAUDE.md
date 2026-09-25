@@ -169,7 +169,7 @@ Quasar/
 | Network graph | vis-network + vis-data |
 | Backend language | Rust (edition 2021), async via Tokio 1. Toolchain pinned in `rust-toolchain.toml` (1.98.1); MSRV `rust-version = "1.95"`, checked by CI's `msrv` job |
 | Database | SQLite (rusqlite bundled, migrations via rusqlite_migration) |
-| SSH/SFTP | russh 0.62 (host key + auth bundled in), russh-sftp 2.4 |
+| SSH/SFTP | russh 0.63, russh-sftp 3. `check_server_key` receives `PublicKeyOrCertificate`: always fingerprint via `vault::ssh_keys::presented_key_bytes` (a host certificate is pinned by the key it certifies; host CAs aren't supported) |
 | Encryption | aes-gcm 0.11 (AES-256-GCM), argon2 0.6 (Argon2id; salts via `password_hash::phc`) + hkdf 0.13 / sha2 0.11 (HKDF-SHA256 key/verifier split, `vault/kdf.rs`) |
 | Secure memory | zeroize 1.8, secrecy 0.8 |
 | Network scan | surge-ping, cidr-utils, dns-lookup, mdns-sd 0.21 |

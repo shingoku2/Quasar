@@ -31,7 +31,7 @@ impl client::Handler for SftpClient {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         // Non-interactive: only an already-trusted key is accepted.
         self.app_handle

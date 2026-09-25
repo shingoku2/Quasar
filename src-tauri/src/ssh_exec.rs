@@ -27,7 +27,7 @@ impl client::Handler for ExecClient {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         // Non-interactive: only an already-trusted key is accepted.
         self.app_handle
@@ -477,7 +477,7 @@ mod tests {
 
         async fn check_server_key(
             &mut self,
-            _server_public_key: &russh::keys::PublicKey,
+            _server_public_key: &russh::keys::PublicKeyOrCertificate,
         ) -> Result<bool, Self::Error> {
             Ok(true)
         }

@@ -38,8 +38,8 @@ getrandom = "0.4.3"
 mdns-sd = "0.21.4"
 ollama-rs = { version = "0.3.6", features = ["stream"] }
 tokio-stream = "0.1.19"
-russh = { version = "0.62.5", default-features = false, features = ["flate2", "rsa", "ring"] }
-russh-sftp = { version = "2.3.0" }
+russh = { version = "0.63", default-features = false, features = ["flate2", "rsa", "ring"] }
+russh-sftp = { version = "3" }
 tokio = { version = "1.53.1", features = ["full"] }
 surge-ping = "0.9.0"
 cidr-utils = "0.7.1"
