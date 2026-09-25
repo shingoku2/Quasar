@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
 import AlertRules from './dashboard/AlertRules';
 import { useVisiblePolling, useOnViewShown } from '../hooks/useViewVisibility';
+import { SSH_CREDENTIAL_TYPES } from '../lib/utils';
 
 interface ProcessInfo {
   pid: number;
@@ -180,7 +181,7 @@ const RemoteHostsList = React.memo(({ remoteHosts, savedHosts, credentials, setH
                     className="w-full bg-bg-root border border-border rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent"
                   >
                     <option value="">None</option>
-                    {(credentials ?? []).map((c) => (
+                    {(credentials ?? []).filter((c) => SSH_CREDENTIAL_TYPES.includes(c.credential_type)).map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>

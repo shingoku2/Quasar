@@ -115,6 +115,53 @@ pub fn host_allowed(credential_host: Option<&str>, target_host: &str) -> bool {
     }
 }
 
+/// What a credential is about to be used for. Only SSH-type credentials may authenticate an
+/// SSH connection: an API, database, RDP or other credential's password must never be sent
+/// to an SSH server (PR #68 review). SFTP is password-only, so it excludes `ssh_key`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialUse {
+    /// Terminal, tunnel, monitoring poll, scheduled SSH command: password or key.
+    Ssh,
+    /// SFTP browse/transfer and scheduled SFTP tasks: password only.
+    Sftp,
+}
+
+impl CredentialUse {
+    /// The use a scheduled task of this type makes of its credential.
+    pub fn for_task_type(task_type: &str) -> Self {
+        match task_type {
+            "sftp_upload" | "sftp_download" => CredentialUse::Sftp,
+            _ => CredentialUse::Ssh,
+        }
+    }
+}
+
+/// Whether a credential of `credential_type` may be used for `usage`. `password` is the
+/// pre-typed column default (migrations 001-009) and means an SSH password credential.
+pub fn type_allowed(credential_type: &str, usage: CredentialUse) -> bool {
+    match usage {
+        CredentialUse::Ssh => matches!(credential_type, "ssh" | "ssh_key" | "password"),
+        CredentialUse::Sftp => matches!(credential_type, "ssh" | "password"),
+    }
+}
+
+/// `Ok` when a credential of this name/type may be used for `usage`.
+pub fn check_type(name: &str, credential_type: &str, usage: CredentialUse) -> Result<(), String> {
+    if type_allowed(credential_type, usage) {
+        return Ok(());
+    }
+    Err(match usage {
+        CredentialUse::Ssh => format!(
+            "Credential '{}' is a {} credential; SSH needs an SSH password or SSH key credential.",
+            name, credential_type
+        ),
+        CredentialUse::Sftp => format!(
+            "Credential '{}' is a {} credential; SFTP needs an SSH password credential.",
+            name, credential_type
+        ),
+    })
+}
+
 pub fn host_mismatch_error(name: &str, bound: Option<&str>) -> String {
     format!(
         "Credential '{}' is restricted to host '{}'. Use it with that host, or clear its Host field.",

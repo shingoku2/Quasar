@@ -239,6 +239,7 @@ async fn connect_ssh(
             if !vault::credentials::host_allowed(cred.host.as_deref(), &host) {
                 return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
             }
+            vault::credentials::check_type(&cred.name, &cred.credential_type, vault::credentials::CredentialUse::Ssh)?;
             (
                 cred.username,
                 if cred.password.is_empty() {
@@ -307,6 +308,7 @@ async fn start_ssh_tunnel(
             if !vault::credentials::host_allowed(cred.host.as_deref(), &ssh_host) {
                 return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
             }
+            vault::credentials::check_type(&cred.name, &cred.credential_type, vault::credentials::CredentialUse::Ssh)?;
             (
                 cred.username,
                 if cred.password.is_empty() {
@@ -805,6 +807,7 @@ fn check_credential_binding(
     conn: &rusqlite::Connection,
     host_id: &str,
     credential_id: &str,
+    usage: vault::credentials::CredentialUse,
 ) -> Result<(), String> {
     use rusqlite::OptionalExtension;
     let address: String = conn
@@ -812,11 +815,11 @@ fn check_credential_binding(
         .optional()
         .map_err(|e| sanitize_error(e.to_string(), "database"))?
         .ok_or_else(|| "Host not found".to_string())?;
-    let (name, bound_host): (String, Option<String>) = conn
+    let (name, bound_host, credential_type): (String, Option<String>, String) = conn
         .query_row(
-            "SELECT name, host FROM credentials WHERE id = ?1",
+            "SELECT name, host, credential_type FROM credentials WHERE id = ?1",
             [credential_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()
         .map_err(|e| sanitize_error(e.to_string(), "database"))?
@@ -824,7 +827,7 @@ fn check_credential_binding(
     if !vault::credentials::host_allowed(bound_host.as_deref(), &address) {
         return Err(vault::credentials::host_mismatch_error(&name, bound_host.as_deref()));
     }
-    Ok(())
+    vault::credentials::check_type(&name, &credential_type, usage)
 }
 
 const MAX_TASK_NAME_LEN: usize = 200;
@@ -872,7 +875,7 @@ fn validate_scheduled_task<'a>(
     }
     // Reject a host-bound credential for another host when saving, not at the first run.
     if let Some(cid) = credential_id {
-        check_credential_binding(conn, host_id, cid)?;
+        check_credential_binding(conn, host_id, cid, vault::credentials::CredentialUse::for_task_type(task_type))?;
     }
     Ok(task_type)
 }
@@ -1136,7 +1139,11 @@ async fn get_remote_hosts_health(
                     .get_credential(access.key(), cred_id)
                     .ok()
                     // A credential bound to another host is never sent to this one (IPC-003).
-                    .filter(|c| vault::credentials::host_allowed(c.host.as_deref(), &h.address)),
+                    .filter(|c| vault::credentials::host_allowed(c.host.as_deref(), &h.address))
+                    // Only an SSH credential is ever sent to the SSH metrics probe.
+                    .filter(|c| {
+                        vault::credentials::type_allowed(&c.credential_type, vault::credentials::CredentialUse::Ssh)
+                    }),
                 _ => None,
             };
             (h, credential)
@@ -1174,7 +1181,7 @@ async fn set_host_monitoring_credential(
     let conn = db::open_connection(db_path_str)?;
     match credential_id.as_deref() {
         Some(id) if !id.is_empty() => {
-            check_credential_binding(&conn, &host_id, id)?;
+            check_credential_binding(&conn, &host_id, id, vault::credentials::CredentialUse::Ssh)?;
             conn.execute(
                 "INSERT OR REPLACE INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, ?2)",
                 rusqlite::params![host_id, id],
@@ -1841,6 +1848,7 @@ async fn resolve_sftp_auth(
             if !vault::credentials::host_allowed(cred.host.as_deref(), host) {
                 return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
             }
+            vault::credentials::check_type(&cred.name, &cred.credential_type, vault::credentials::CredentialUse::Sftp)?;
             if cred.password.is_empty() {
                 return Err("SFTP needs a password credential".to_string());
             }
@@ -2730,6 +2738,50 @@ mod saved_host_tests {
             .contains("restricted"));
     }
 
+    /// PR #68 review: only SSH-type credentials authenticate SSH, and SFTP takes SSH
+    /// passwords only. An API/database/RDP/other credential's secret is never sent to an SSH
+    /// server; the check runs when a task or monitoring binding is saved and again at use.
+    #[test]
+    fn credential_type_must_match_its_use() {
+        use vault::credentials::{type_allowed, CredentialUse::{Sftp, Ssh}};
+        for t in ["ssh", "password"] {
+            assert!(type_allowed(t, Ssh) && type_allowed(t, Sftp), "{}", t);
+        }
+        assert!(type_allowed("ssh_key", Ssh) && !type_allowed("ssh_key", Sftp));
+        for t in ["api", "database", "rdp", "other", ""] {
+            assert!(!type_allowed(t, Ssh) && !type_allowed(t, Sftp), "{}", t);
+        }
+
+        let mut conn = migrated_memory_db();
+        let host = upsert_saved_host_in_conn(&mut conn, "srv", "10.0.0.5", "ssh", None, Some("root")).unwrap();
+        for (id, ty) in [("api", "api"), ("key", "ssh_key"), ("pw", "ssh")] {
+            conn.execute(
+                "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, created_at, updated_at)
+                 VALUES (?1, ?1, 'u', X'00', zeroblob(12), zeroblob(16), ?2, 0, 0)",
+                rusqlite::params![id, ty],
+            )
+            .unwrap();
+        }
+        let (up, down) = (Some("sftp_upload"), Some("sftp_download"));
+        let paths = (Some("/tmp/a"), Some("/tmp/b"));
+        // SSH command task: password or key, never an API credential.
+        assert!(validate_scheduled_task(&conn, "t", &host.id, "uptime", None, None, None, Some("pw")).is_ok());
+        assert!(validate_scheduled_task(&conn, "t", &host.id, "uptime", None, None, None, Some("key")).is_ok());
+        assert!(validate_scheduled_task(&conn, "t", &host.id, "uptime", None, None, None, Some("api"))
+            .unwrap_err()
+            .contains("SSH needs"));
+        // SFTP task: SSH password only.
+        assert!(validate_scheduled_task(&conn, "t", &host.id, "", up, paths.0, paths.1, Some("pw")).is_ok());
+        for bad in ["key", "api"] {
+            assert!(validate_scheduled_task(&conn, "t", &host.id, "", down, paths.0, paths.1, Some(bad))
+                .unwrap_err()
+                .contains("SFTP needs"));
+        }
+        // Monitoring binding.
+        assert!(check_credential_binding(&conn, &host.id, "key", vault::credentials::CredentialUse::Ssh).is_ok());
+        assert!(check_credential_binding(&conn, &host.id, "api", vault::credentials::CredentialUse::Ssh).is_err());
+    }
+
     /// IPC-003: a monitoring binding needs an existing host and credential, and a credential
     /// restricted to another host can't be bound.
     #[test]
@@ -2747,11 +2799,11 @@ mod saved_host_tests {
         insert("free", None);
         insert("bound-here", Some("10.0.0.5"));
         insert("bound-elsewhere", Some("evil.example"));
-        assert!(check_credential_binding(&conn, &host.id, "free").is_ok());
-        assert!(check_credential_binding(&conn, &host.id, "bound-here").is_ok());
-        assert!(check_credential_binding(&conn, &host.id, "bound-elsewhere").unwrap_err().contains("restricted"));
-        assert!(check_credential_binding(&conn, &host.id, "missing").is_err());
-        assert!(check_credential_binding(&conn, "no-host", "free").is_err());
+        assert!(check_credential_binding(&conn, &host.id, "free", vault::credentials::CredentialUse::Ssh).is_ok());
+        assert!(check_credential_binding(&conn, &host.id, "bound-here", vault::credentials::CredentialUse::Ssh).is_ok());
+        assert!(check_credential_binding(&conn, &host.id, "bound-elsewhere", vault::credentials::CredentialUse::Ssh).unwrap_err().contains("restricted"));
+        assert!(check_credential_binding(&conn, &host.id, "missing", vault::credentials::CredentialUse::Ssh).is_err());
+        assert!(check_credential_binding(&conn, "no-host", "free", vault::credentials::CredentialUse::Ssh).is_err());
     }
 
     /// IPC-007 / IPC-008: the shipped capability and CSP stay least-privilege.

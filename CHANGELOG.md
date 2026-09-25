@@ -2,6 +2,11 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-25: PR #68 review fixes
+
+- Only SSH-type credentials authenticate SSH connections, and SFTP takes SSH passwords only. Before, an API, database, RDP or other credential could be picked for an SFTP or SSH task (or a monitoring binding) and its secret sent to the SSH server. Checked at save and at use; pickers filter to matching types.
+- Queued host-key prompts no longer inherit the previous prompt's "I verified" and permanent-trust choices.
+
 ## 2026-09-24 – 2026-09-25: Full audit and fixes (EDW-17 to EDW-26)
 
 - **Vault key separation (Critical, RSEC-001).** The vault stored an Argon2 hash of the master password that was byte-for-byte the encryption key. KDF v2 derives the key and a stored verifier separately (Argon2id → HKDF-SHA256). v1 vaults migrate on their next unlock, and the old hash is scrubbed from the file. `secure_delete` is on and the database files are owner-only.

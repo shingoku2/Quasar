@@ -156,7 +156,7 @@ Generated from the `#[tauri::command]` signatures. `invoke()` payload keys must 
 | `ssh_stats_{id}` | `{ bandwidth, latency }` | `ssh.rs` |
 | `ssh_closed_{id}` | — | `ssh.rs` (server closed the session) |
 | `ssh_timeout_{id}` | — | `ssh.rs` (30 min idle) |
-| `ssh-host-key-verification` | pending host-key request (id, host, port, fingerprint, old fingerprint for a changed key) | `ssh.rs`; shown once, app-wide, by `vault/HostKeyPromptHost` |
+| `ssh-host-key-verification` | pending host-key request (id, host, port, fingerprint, old fingerprint for a changed key) | `ssh.rs`; shown once, app-wide, by `vault/HostKeyPromptHost` (queued; keyed by request id so confirmation state never carries over) |
 | `system-metrics` | `SystemMetrics` | monitoring loop |
 | `alerts-triggered` / `alerts-recovered` | alerts / recoveries | `monitoring.rs` |
 | `vault-auto-locked` | — | auto-lock ticker, and `import_database` (the imported vault needs its own password) |
@@ -184,6 +184,7 @@ Registered with `app.manage` in `lib.rs` setup: `SshState` (interactive sessions
 - **Host keys**: an interactive connect emits `ssh-host-key-verification` and waits (up to 120 s; the handshake budget is 135 s). The frontend answers with the request id only: `trust_ssh_host_key(requestId)` stores the key that handshake presented, so the webview can't pin arbitrary keys. Changed keys also need a native confirmation. Non-interactive paths (exec, pool, SFTP) never prompt: `SshKeyManager::check_non_interactive` accepts only a key already trusted for that host and port. Fingerprints are taken over `vault::ssh_keys::presented_key_bytes` (a host certificate pins the key it certifies).
 - **Local files**: `pick_local_file` / `pick_save_location` open the dialog in Rust and record a single-use grant (read for open, write for save). SFTP, export, import and scheduled SFTP tasks accept only granted paths.
 - **Credential binding**: a credential with a stored `host` works only against that host (`vault::credentials::host_allowed`), on every path. Unbound credentials work anywhere, by design.
+- **Credential type**: only SSH-type credentials (`ssh`, `ssh_key`, and the legacy column default `password`) ever authenticate an SSH connection, and SFTP takes SSH passwords only (`vault::credentials::check_type`). An API, database, RDP or other secret is never sent to an SSH server. Checked when a scheduled task or monitoring binding is saved, and again at use (the type can change later).
 - **Native confirmations** (`native_confirm.rs`): changed host key, removing a pin, marking a key trusted, moving/clearing a credential's host, revealing a password. One dialog at a time, a 3 s refusal window after a decline, and an answer within 800 ms counts as a decline.
 
 ## Background work

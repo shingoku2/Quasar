@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Clock, Plus, Pencil, Trash2, Play } from 'lucide-react';
-import { getErrorMessage } from '../lib/utils';
+import { getErrorMessage, SFTP_CREDENTIAL_TYPES, SSH_CREDENTIAL_TYPES } from '../lib/utils';
 import { useOnViewShown } from '../hooks/useViewVisibility';
 
 export interface ScheduledTask {
@@ -341,9 +341,10 @@ const ScheduledTasksView: React.FC = () => {
                   <option value="">None</option>
                   {credentials
                     .filter((c) =>
-                      form.task_type === 'sftp_upload' || form.task_type === 'sftp_download'
-                        ? c.credential_type !== 'ssh_key'
-                        : true
+                      (form.task_type === 'sftp_upload' || form.task_type === 'sftp_download'
+                        ? SFTP_CREDENTIAL_TYPES
+                        : SSH_CREDENTIAL_TYPES
+                      ).includes(c.credential_type)
                     )
                     .map((c) => (
                       <option key={c.id} value={c.id}>
@@ -361,7 +362,8 @@ const ScheduledTasksView: React.FC = () => {
                     setForm((f) => {
                       const isSftp = newType === 'sftp_upload' || newType === 'sftp_download';
                       const selectedCred = credentials.find((c) => c.id === f.credential_id);
-                      const clearCred = isSftp && selectedCred?.credential_type === 'ssh_key';
+                      const allowed = isSftp ? SFTP_CREDENTIAL_TYPES : SSH_CREDENTIAL_TYPES;
+                      const clearCred = !!selectedCred && !allowed.includes(selectedCred.credential_type);
                       return {
                         ...f,
                         task_type: newType,

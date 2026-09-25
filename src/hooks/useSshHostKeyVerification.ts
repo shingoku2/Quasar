@@ -40,10 +40,20 @@ const isDismissiblePromptError = (err: unknown) => {
     || message === 'Cancelled';
 };
 
-export const useSshHostKeyVerification = () => {
+/** The first queued prompt (null when none), its request id, and the answer handlers. */
+export interface SshHostKeyVerification {
+  promptData: HostKeyPromptData | null;
+  promptRequestId: string | null;
+  handleTrust: (permanent: boolean) => void;
+  handleReject: () => void;
+}
+
+export const useSshHostKeyVerification = (): SshHostKeyVerification => {
   const [pendingPrompts, setPendingPrompts] = useState<PendingPromptEntry[]>([]);
   const actionInFlightRequestIdRef = useRef<string | null>(null);
   const promptData = pendingPrompts[0]?.prompt ?? null;
+  /** Id of the request `promptData` belongs to; changes when the next queued prompt shows. */
+  const promptRequestId = pendingPrompts[0]?.requestId ?? null;
 
   // Listen for host key verification events from backend
   useEffect(() => {
@@ -136,6 +146,7 @@ export const useSshHostKeyVerification = () => {
 
   return {
     promptData,
+    promptRequestId,
     handleTrust,
     handleReject,
   };

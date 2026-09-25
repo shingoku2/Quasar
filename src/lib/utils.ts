@@ -21,3 +21,10 @@ export function getErrorMessage(err: unknown, fallback: string = 'An unknown err
 export function isUserCancelled(err: unknown): boolean {
   return getErrorMessage(err, '') === 'Cancelled';
 }
+
+/**
+ * Credential types each use accepts. They mirror `vault::credentials::type_allowed` in Rust,
+ * which enforces them: `password` is the legacy (pre-typed) SSH password type.
+ */
+export const SSH_CREDENTIAL_TYPES: readonly string[] = ['ssh', 'ssh_key', 'password'];
+export const SFTP_CREDENTIAL_TYPES: readonly string[] = ['ssh', 'password'];

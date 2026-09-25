@@ -401,6 +401,7 @@ async fn resolve_cred_for_task(
     app: &AppHandle,
     credential_id: Option<&str>,
     target_host: &str,
+    task_type: &str,
     user_initiated: bool,
 ) -> Result<(String, Option<String>, Option<String>, Option<String>), String> {
     let (password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
@@ -424,6 +425,12 @@ async fn resolve_cred_for_task(
         if !crate::vault::credentials::host_allowed(cred.host.as_deref(), target_host) {
             return Err(crate::vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
         }
+        // Checked again at run time: the credential's type can change after the task was saved.
+        crate::vault::credentials::check_type(
+            &cred.name,
+            &cred.credential_type,
+            crate::vault::credentials::CredentialUse::for_task_type(task_type),
+        )?;
         (
             cred.password,
             cred.key_path.clone(),
@@ -578,7 +585,7 @@ pub async fn run_scheduled_task_now(
     let cred_id = task.credential_id.clone();
     drop(conn);
 
-    let cred = resolve_cred_for_task(app, cred_id.as_deref(), &address, true).await?;
+    let cred = resolve_cred_for_task(app, cred_id.as_deref(), &address, &task_type, true).await?;
     let result = run_one_task(
         app,
         &address,
@@ -756,7 +763,7 @@ async fn run_and_record_task(
     let task_name = task.name.clone();
     drop(conn);
 
-    let result = match resolve_cred_for_task(app, task.credential_id.as_deref(), &address, false).await {
+    let result = match resolve_cred_for_task(app, task.credential_id.as_deref(), &address, &task.task_type, false).await {
         Ok(cred) => {
             run_one_task(
                 app,
