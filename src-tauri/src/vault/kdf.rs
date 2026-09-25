@@ -15,7 +15,8 @@
 //! argon2 0.5 those are the same bytes, so the stored "hash" *was* the key (audit RSEC-001).
 //! v1 vaults are migrated to v2 on their next successful unlock (see `VaultState::unlock_vault`).
 
-use argon2::password_hash::{PasswordHash, PasswordVerifier, Salt};
+use argon2::password_hash::phc::{PasswordHash, Salt};
+use argon2::password_hash::PasswordVerifier;
 use argon2::{Argon2, Params, Version};
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -45,14 +46,12 @@ pub fn argon2() -> Result<Argon2<'static>, String> {
 /// `vault_settings.salt`; it's decoded to raw bytes exactly as the v1 code did, so this is
 /// also the v1 (legacy) encryption key.
 pub fn derive_ikm(password: &[u8], salt_b64: &str) -> Result<Zeroizing<[u8; KEY_LEN]>, String> {
+    // `Salt::from_b64` decodes to raw bytes (argon2 0.6 / phc); in 0.5 this was
+    // `Salt::from_b64` + `decode_b64`. The KAT tests pin that both give the same key.
     let salt = Salt::from_b64(salt_b64).map_err(|e| format!("Failed to parse salt: {}", e))?;
-    let mut salt_buf = [0u8; 64];
-    let salt_raw = salt
-        .decode_b64(&mut salt_buf)
-        .map_err(|e| format!("Failed to decode salt bytes: {}", e))?;
     let mut out = Zeroizing::new([0u8; KEY_LEN]);
     argon2()?
-        .hash_password_into(password, salt_raw, &mut *out)
+        .hash_password_into(password, &salt, &mut *out)
         .map_err(|e| format!("Failed to derive key: {}", e))?;
     Ok(out)
 }
@@ -127,6 +126,17 @@ mod tests {
             encode_hex(&*ikm),
             "48665cef14ee7cbc51baa7f45f987c3040b9000a49bcc31c59061104dfe80d21"
         );
+    }
+
+    /// A v1 vault's stored hash was written by argon2 0.5.3. After the 0.6 upgrade (D6) it
+    /// must still verify, or legacy vaults could never unlock and migrate. This PHC string
+    /// was produced by 0.5.3 in the audit's scratch crate (same fixture as above).
+    #[test]
+    fn legacy_phc_from_argon2_0_5_still_verifies() {
+        let phc = "$argon2id$v=19$m=47104,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$SGZc7xTufLxRuqf0X5h8MEC5AApJvMMcWQYRBN/oDSE";
+        assert!(verify_legacy(PW, phc).unwrap());
+        assert!(!verify_legacy(b"wrong password", phc).unwrap());
+        assert!(verify_legacy(PW, "not a phc string").is_err());
     }
 
     #[test]

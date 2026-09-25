@@ -1,7 +1,8 @@
 // Integration test for Issue #1: Salt encoding bug fix
 // Verifies that binary salt data is correctly handled without UTF-8 corruption
 
-use argon2::password_hash::{Salt, SaltString};
+// argon2 0.6: `Salt` (phc) holds the decoded bytes; `Salt::from_b64` decodes.
+use argon2::password_hash::phc::Salt;
 use argon2::{Argon2, Params, Version};
 
 #[test]
@@ -14,10 +15,7 @@ fn test_salt_with_binary_bytes() {
     let salt = Salt::from_b64(salt_b64).expect("Failed to parse salt");
 
     // Decode to raw bytes
-    let mut salt_bytes = [0u8; 64];
-    let salt_decoded = salt
-        .decode_b64(&mut salt_bytes)
-        .expect("Failed to decode salt bytes");
+    let salt_decoded: &[u8] = &salt;
 
     // Verify we got binary data
     assert!(
@@ -46,8 +44,8 @@ fn test_key_derivation_consistency() {
     // Test Case: Same password + salt should produce identical keys
     // This verifies the fix doesn't break deterministic key derivation
 
-    let salt_string = SaltString::encode_b64(&[0x42; 16]).unwrap();
-    let salt = Salt::from_b64(salt_string.as_str()).unwrap();
+    let salt_string = Salt::new(&[0x42; 16]).unwrap().to_salt_string();
+    let salt = Salt::from_b64(&salt_string).unwrap();
 
     let params = Params::new(65536, 3, 4, Some(32)).unwrap();
     let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
@@ -55,16 +53,14 @@ fn test_key_derivation_consistency() {
     let password = b"consistent_password";
 
     // Derive key first time
-    let mut salt_bytes1 = [0u8; 64];
-    let salt_decoded1 = salt.decode_b64(&mut salt_bytes1).unwrap();
+    let salt_decoded1: &[u8] = &salt;
     let mut key1 = [0u8; 32];
     argon2
         .hash_password_into(password, salt_decoded1, &mut key1)
         .unwrap();
 
     // Derive key second time with same salt
-    let mut salt_bytes2 = [0u8; 64];
-    let salt_decoded2 = salt.decode_b64(&mut salt_bytes2).unwrap();
+    let salt_decoded2: &[u8] = &salt;
     let mut key2 = [0u8; 32];
     argon2
         .hash_password_into(password, salt_decoded2, &mut key2)
@@ -85,10 +81,7 @@ fn test_salt_with_null_bytes() {
     let salt_b64 = "AAAAAAAAAAAAAAAA"; // Decodes to null bytes
     let salt = Salt::from_b64(salt_b64).expect("Failed to parse salt");
 
-    let mut salt_bytes = [0u8; 64];
-    let salt_decoded = salt
-        .decode_b64(&mut salt_bytes)
-        .expect("Failed to decode salt with null bytes");
+    let salt_decoded: &[u8] = &salt;
 
     // Verify we got null bytes
     assert!(
@@ -117,10 +110,7 @@ fn test_salt_with_high_bytes() {
     let salt_b64 = "gICAgICAgICAgICA"; // Decodes to 0x80 bytes
     let salt = Salt::from_b64(salt_b64).expect("Failed to parse salt");
 
-    let mut salt_bytes = [0u8; 64];
-    let salt_decoded = salt
-        .decode_b64(&mut salt_bytes)
-        .expect("Failed to decode salt with high bytes");
+    let salt_decoded: &[u8] = &salt;
 
     // Verify we got 0x80 bytes
     assert!(

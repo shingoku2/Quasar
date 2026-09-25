@@ -1024,7 +1024,7 @@ impl VaultState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use argon2::password_hash::PasswordHash;
+    use argon2::password_hash::phc::PasswordHash;
 
     fn setup_test_db() -> String {
         use std::sync::atomic::{AtomicU64, Ordering};
@@ -1155,11 +1155,11 @@ mod tests {
     /// Builds a v1 (pre-RSEC-001-fix) vault exactly as the old `initialize_vault` did:
     /// PHC hash + salt, no `kdf_version`. Returns (legacy key, stored PHC string).
     fn write_legacy_vault(db_path: &str, password: &str) -> ([u8; 32], String) {
-        use argon2::password_hash::PasswordHasher;
+        use argon2::password_hash::{phc::Salt, PasswordHasher};
         let salt = crate::crypto::generate_salt().unwrap();
         let phc = kdf::argon2()
             .unwrap()
-            .hash_password(password.as_bytes(), &salt)
+            .hash_password_with_salt(password.as_bytes(), &Salt::from_b64(&salt).unwrap())
             .unwrap()
             .to_string();
         let legacy_key = *kdf::derive_ikm(password.as_bytes(), salt.as_str()).unwrap();
