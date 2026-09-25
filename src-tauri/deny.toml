@@ -1,0 +1,65 @@
+# cargo-deny policy (audit DEP-003): licenses, banned/duplicate crates, sources and
+# advisories, checked in CI (`cargo deny check`). Keep advisory ignores in sync with
+# .cargo/audit.toml and SECURITY.md.
+
+[graph]
+all-features = false
+
+[advisories]
+# Unmaintained advisories are reported only for crates we depend on directly;
+# the transitive ones all come through Tauri's GTK stack (DEP-006) and can't be fixed
+# from here.
+unmaintained = "workspace"
+yanked = "deny"
+# Fetch the advisory DB with the git CLI (honours proxy/CA settings).
+git-fetch-with-cli = true
+ignore = [
+    # rsa "Marvin Attack" timing side channel. Reached only through russh for SSH client
+    # auth, which signs rather than decrypting attacker ciphertext; no patched release.
+    # Accepted risk, documented in SECURITY.md and .cargo/audit.toml (DEP-005, EDW-16).
+    { id = "RUSTSEC-2023-0071", reason = "rsa via russh: signing only, no decryption oracle; no fix upstream" },
+    # glib 0.18 VariantStrIter unsoundness, via Tauri's gtk-rs 0.18 stack. No crate in the
+    # tree (wry, tao, webkit2gtk, gtk, gio, muda, tauri) calls the affected iterator and
+    # Quasar has no direct glib use (DEP-006). Goes away with Tauri's GTK4 migration.
+    { id = "RUSTSEC-2024-0429", reason = "glib VariantStrIter: no users in the dependency tree (DEP-006)" },
+]
+
+[licenses]
+# Permissive licenses compatible with shipping an MIT binary. MPL-2.0 is file-level
+# copyleft and fine to distribute unmodified. No GPL/AGPL in the tree (checked Sept 2026).
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-1-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unlicense",
+    "0BSD",
+    "CC0-1.0",
+    "BSL-1.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.9
+
+# ollama-rs publishes no license field; its repository (pepperoni21/ollama-rs) is MIT.
+[[licenses.clarify]]
+crate = "ollama-rs"
+expression = "MIT"
+license-files = []
+
+[bans]
+# Tauri pulls several majors of the same crates (windows-*, bitflags, …); report,
+# don't fail.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

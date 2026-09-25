@@ -109,6 +109,13 @@ jobs:
           cargo install cargo-audit --locked --version 0.22.2
           cargo audit
 
+      # Licenses, sources, yanked crates and advisories (src-tauri/deny.toml, DEP-003).
+      - name: cargo deny
+        working-directory: src-tauri
+        run: |
+          cargo install cargo-deny --locked --version 0.18.9
+          cargo deny check
+
   msrv:
     # Cargo.toml's rust-version is a promise; build it so it stays true (CI-005).
     name: MSRV (Rust 1.95)
