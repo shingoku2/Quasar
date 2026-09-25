@@ -159,7 +159,7 @@ Quasar/
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop runtime | Tauri 2.x |
+| Desktop runtime | Tauri 2.11 (`tauri` crate and `@tauri-apps/*` packages move in lockstep: bump a plugin's JS and Rust sides to the same minor in one change; Dependabot groups them) |
 | Frontend framework | React 19 + TypeScript 5.8 |
 | Build tool | Vite 7 |
 | Styling | Tailwind CSS 4 (dark navy/cyan theme) |
