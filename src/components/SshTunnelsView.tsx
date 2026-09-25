@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Trash2, Plus, Network } from 'lucide-react';
 import { useVisiblePolling, useOnViewShown } from '../hooks/useViewVisibility';
-import { getErrorMessage } from '../lib/utils';
+import { getErrorMessage, SSH_CREDENTIAL_TYPES } from '../lib/utils';
 
 interface CredentialSummary {
   id: string;
@@ -48,7 +48,7 @@ const SshTunnelsView: React.FC = () => {
 
   useOnViewShown(() => {
     invoke<CredentialSummary[]>('list_credentials')
-      .then((creds) => setCredentials(creds.filter((c) => c.credential_type === 'ssh' || c.credential_type === 'ssh_key')))
+      .then((creds) => setCredentials(creds.filter((c) => SSH_CREDENTIAL_TYPES.includes(c.credential_type))))
       .catch((err) => setError(getErrorMessage(err)));
   });
 

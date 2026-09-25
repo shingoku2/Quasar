@@ -99,7 +99,7 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 ## Conventions
 
 - TypeScript: `docs/style/typescript.md`. `const` by default, no `any`, no unexplained type assertions, `===`, single quotes, semicolons. `cn()` for conditional classes.
-- React: function components and hooks. Every view stays mounted (hidden with CSS): load lists other views can change with `useOnViewShown`, poll with `useVisiblePolling`. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
+- React: function components and hooks. Every view stays mounted (hidden with CSS): load lists other views can change (or an import can replace, e.g. alert rules) with `useOnViewShown`, poll with `useVisiblePolling`. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
 - Rust: no `unwrap`/`expect` outside tests. `SecretString` for passwords, `Zeroizing`/`zeroize` for key bytes. Validate network inputs with `validation.rs`. Multi-step DB writes in a transaction.
 - `tailscale.rs` only runs `tailscale status --json` with fixed args: never pass user input, never call the control-plane API.
 
@@ -131,7 +131,7 @@ Each rule has regression tests; don't weaken one without replacing its test. Rat
 
 ## Constraints
 
-- SFTP supports password credentials only (`CredentialSelector allowedTypes={['ssh']}`). Add key auth in `sftp.rs` before exposing `ssh_key` credentials there.
+- SFTP supports password credentials only (`ssh` and legacy `password`: `SFTP_CREDENTIAL_TYPES`, which `RemoteManager` passes to `CredentialSelector`). Add key auth in `sftp.rs` before exposing `ssh_key` credentials there. Credential pickers use `SSH_CREDENTIAL_TYPES` / `SFTP_CREDENTIAL_TYPES`, never a hand-written list.
 - The Vite port is fixed at 1420 (Tauri config and CSP depend on it).
 - `discovery.rs` is a singleton; don't bypass it.
 - Only `ssh` and `rdp` hosts have an in-app client; other protocols are inventory-only. Scheduled tasks run against `ssh` hosts only, checked when saved and at each run (`scheduler::host_protocol_runs_tasks`; tests `scheduled_task_validation`, `tasks_only_run_against_ssh_hosts`).

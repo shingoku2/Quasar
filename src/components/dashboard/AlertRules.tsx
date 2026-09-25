@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bell, Plus, Trash2, Check } from 'lucide-react';
 import { cn, getErrorMessage } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 
 /**
  * Alert rule as it crosses Tauri IPC. `metric`/`operator`/`severity` are fieldless
@@ -57,9 +58,9 @@ const AlertRules: React.FC = () => {
     cooldown_seconds: 300
   });
 
-  useEffect(() => {
-    loadRules();
-  }, []);
+  // The view stays mounted while hidden, and an import can replace the rules in between:
+  // reload whenever it's shown, so an edit never overwrites the imported set with stale rules.
+  useOnViewShown(() => loadRules());
 
   const loadRules = async () => {
     try {

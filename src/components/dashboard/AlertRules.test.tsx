@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AlertRules from './AlertRules';
+import { ViewVisibilityProvider } from '../../hooks/useViewVisibility';
 import '@testing-library/jest-dom';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -100,5 +101,20 @@ describe('AlertRules', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('percentage between 0 and 100');
+  });
+
+  // PR #68 review: the Monitoring view stays mounted while hidden, and an import can replace
+  // the rules meanwhile, so the editor reloads them each time it's shown.
+  it('reloads the rules when its view is shown again', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const { rerender } = render(
+      <ViewVisibilityProvider visible={true}><AlertRules /></ViewVisibilityProvider>
+    );
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('get_alert_rules'));
+    const loads = () => vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === 'get_alert_rules').length;
+    const before = loads();
+    rerender(<ViewVisibilityProvider visible={false}><AlertRules /></ViewVisibilityProvider>);
+    rerender(<ViewVisibilityProvider visible={true}><AlertRules /></ViewVisibilityProvider>);
+    await waitFor(() => expect(loads()).toBe(before + 1));
   });
 });

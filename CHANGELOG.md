@@ -4,6 +4,8 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 
 ## 2026-09-25: PR #68 review fixes
 
+- Legacy `password`-type SSH credentials show up again in the terminal, SFTP and tunnel credential pickers. They had been filtered out, though the backend accepts them.
+- The alert-rule editor reloads its rules each time the Monitoring view is shown, so after an import, editing a rule can't overwrite the imported rules with stale ones.
 - Scheduled tasks can only target SSH hosts. Database, API, RDP and "other" hosts are no longer offered, and are refused when a task is saved and when it runs.
 - A host key marked Rejected can no longer be quietly moved back to "unknown" or "changed" (which turned the refusal into an ordinary prompt): any change out of Rejected asks through a native dialog.
 - A saved SFTP task can no longer be pointed at another host or remote path without picking its local file again, and moving a host that scheduled transfers use asks through a native dialog.

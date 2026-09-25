@@ -12,6 +12,7 @@ import SshTunnelsView from './SshTunnelsView';
 import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
+import { SSH_CREDENTIAL_TYPES, SFTP_CREDENTIAL_TYPES } from '../lib/utils';
 
 interface Credential {
   id: string;
@@ -352,7 +353,7 @@ const RemoteManager: React.FC = () => {
       {showCredentialSelector && pendingHost && (
         <CredentialSelector
           hostAddress={pendingHost.address}
-          allowedTypes={pendingMode === 'sftp' ? ['ssh'] : undefined}
+          allowedTypes={pendingMode === 'sftp' ? SFTP_CREDENTIAL_TYPES : SSH_CREDENTIAL_TYPES}
           onSelect={handleCredentialSelected}
           onCancel={() => {
             setShowCredentialSelector(false);
