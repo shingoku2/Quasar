@@ -46,8 +46,9 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
-      - name: Run frontend tests
-        run: npm test
+      # Runs the tests with coverage and fails below the thresholds in vite.config.ts.
+      - name: Run frontend tests (with coverage floor)
+        run: npm run coverage
 
       - name: npm audit (high and critical)
         run: npm audit --audit-level=high

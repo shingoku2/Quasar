@@ -197,6 +197,9 @@ npm run build
 # Run frontend tests
 npm test
 
+# Frontend tests with coverage (fails below the floor in vite.config.ts)
+npm run coverage
+
 # Rust: lint
 cd src-tauri && cargo clippy -- -D warnings
 
@@ -492,7 +495,7 @@ targeted `main`/`develop` until Aug 26, 2026, neither of which exist here, so CI
 actually run on GitHub before that fix; see `AGENTS.md`):
 
 1. **Workflow lint** (Ubuntu): `actionlint` (checksum-pinned 1.7.7) over `.github/workflows/*.yml`. GitHub silently rejects an invalid workflow file (it never runs, it just shows a 0-job failure), so this is the only thing that turns that red. **Never put the `secrets` context in a step `if:`**: evaluate it into a job-level `env` and test the env instead (see `release.yml` `HAS_WINDOWS_CERTIFICATE`). That mistake made `release.yml` invalid from Aug 26 to Sep 24, 2026 (CI-001): no release or updater artifact was ever built in that time.
-2. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test` + `npm audit --audit-level=high`
+2. **Frontend** (Ubuntu): `tsc --noEmit` + `npm run coverage` (the tests, failing below the coverage floor in `vite.config.ts`: statements 72 / branches 66 / functions 67 / lines 74; raise it as coverage grows) + `npm audit --audit-level=high`
 3. **Backend** (Ubuntu): `cargo clippy --all-targets -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
 4. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
 
