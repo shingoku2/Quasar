@@ -939,25 +939,41 @@ impl VaultState {
         }
     }
 
-    /// `import_database` leaves a full copy of the previous database at `<db>.bak`. If that
-    /// copy is a v1 vault, its `master_password_hash` *is* its key; remove it (best effort).
-    /// The copy's credentials stay encrypted under that key, now only recoverable with the
-    /// password.
-    fn strip_legacy_hash_from_backup(db_path: &str) {
+    /// `import_database` leaves a full copy of the previous database at `<db>.bak`: the vault
+    /// that was replaced, which may be a different vault from this one. If it's a v1 vault,
+    /// its `master_password_hash` *is* its key. Best effort, never fails the caller:
+    /// - same password (the same vault): migrate the copy to v2 too, so it stays unlockable
+    ///   and stops exposing its key;
+    /// - a different password: leave it untouched. Deleting the hash (what this used to do)
+    ///   made the recovery copy impossible to unlock after an import (PR #68 review). It's a
+    ///   pre-migration copy, which CLAUDE.md invariant 17 says to treat as plaintext; it
+    ///   migrates itself when imported and unlocked with its own password.
+    fn migrate_backup_if_same_vault(db_path: &str, password: &[u8]) {
         let backup_path = format!("{}.bak", db_path);
         if !std::path::Path::new(&backup_path).exists() {
             return;
         }
-        let result = db::open_connection(&backup_path).and_then(|conn| {
-            conn.execute("DELETE FROM vault_settings WHERE key = 'master_password_hash'", [])
-                .map_err(|e| e.to_string())?;
-            if !Self::scrub_database(&conn) {
-                return Err("scrub incomplete".to_string());
+        let stored = match db::open_connection(&backup_path).and_then(|conn| Self::load_stored_kdf(&conn)) {
+            Ok(stored) => stored,
+            Err(e) => {
+                log::warn!("Could not read vault settings from {}: {}", backup_path, e);
+                return;
             }
-            Ok(())
-        });
-        if let Err(e) = result {
-            log::warn!("Could not remove the legacy key hash from {}: {}", backup_path, e);
+        };
+        let StoredKdf::Legacy { salt_b64, .. } = &stored else {
+            return; // already v2: nothing key-equivalent is stored
+        };
+        match Self::check_password(&stored, password) {
+            Ok(Some(legacy_key)) => {
+                if let Err(e) = Self::migrate_legacy_vault_at(&backup_path, password, &legacy_key, salt_b64, false) {
+                    log::warn!("Could not migrate the legacy backup {}: {}", backup_path, e);
+                }
+            }
+            Ok(None) => log::warn!(
+                "{} is a legacy vault with a different password; left as is (treat it as plaintext)",
+                backup_path
+            ),
+            Err(e) => log::warn!("Could not check the legacy backup {}: {}", backup_path, e),
         }
     }
 
@@ -971,6 +987,18 @@ impl VaultState {
         password: &[u8],
         legacy_key: &[u8; 32],
         legacy_salt_b64: &str,
+    ) -> Result<Zeroizing<[u8; 32]>, String> {
+        Self::migrate_legacy_vault_at(db_path, password, legacy_key, legacy_salt_b64, true)
+    }
+
+    /// `migrate_legacy_vault`, optionally also handling `<db_path>.bak` (off when migrating
+    /// the backup itself).
+    fn migrate_legacy_vault_at(
+        db_path: &str,
+        password: &[u8],
+        legacy_key: &[u8; 32],
+        legacy_salt_b64: &str,
+        migrate_backup: bool,
     ) -> Result<Zeroizing<[u8; 32]>, String> {
         let new_salt = crate::crypto::generate_salt()?;
         let new_keys = kdf::derive_v2(password, new_salt.as_str())?;
@@ -1008,7 +1036,9 @@ impl VaultState {
         }
         // The deleted legacy hash (== the old key) can survive in free pages and the WAL.
         Self::scrub_or_mark_pending(&conn);
-        Self::strip_legacy_hash_from_backup(db_path);
+        if migrate_backup {
+            Self::migrate_backup_if_same_vault(db_path, password);
+        }
 
         Ok(new_keys.enc_key)
     }
@@ -1403,9 +1433,46 @@ mod tests {
         assert_eq!(vault_setting(&db_path, "legacy_salt"), Some(legacy_salt));
         assert_eq!(vault_setting(&backup, "master_password_hash"), None);
         assert!(!file_contains(&backup, hash_field.as_bytes()));
-        let _ = std::fs::remove_file(&backup);
-        let _ = std::fs::remove_file(format!("{}-wal", backup));
-        let _ = std::fs::remove_file(format!("{}-shm", backup));
+        // PR #68 review: the same-vault copy is migrated, not just stripped, so it still
+        // unlocks with the password.
+        assert_eq!(vault_setting(&backup, "kdf_version").as_deref(), Some(kdf::KDF_VERSION_V2));
+        let restored = VaultState::new(backup.clone());
+        restored.unlock_vault(SecretString::from(password)).await.unwrap();
+        remove_backup(&backup);
+        cleanup_test_db(&db_path);
+    }
+
+    fn remove_backup(backup: &str) {
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{}", backup, suffix));
+        }
+    }
+
+    /// PR #68 review: `.bak` is the vault an import replaced, possibly with another password.
+    /// Migrating this vault must leave that copy unlockable with its own password instead of
+    /// deleting the only thing its unlock can verify against.
+    #[tokio::test]
+    async fn test_migration_leaves_a_different_vaults_backup_unlockable() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        write_legacy_vault(&db_path, password);
+
+        let other_path = setup_test_db();
+        let other_password = "OtherVaultPassword456!";
+        write_legacy_vault(&other_path, other_password);
+        let backup = format!("{}.bak", db_path);
+        std::fs::copy(&other_path, &backup).unwrap();
+        let other_phc = vault_setting(&backup, "master_password_hash").unwrap();
+
+        let vault = VaultState::new(db_path.clone());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+        assert_eq!(vault_setting(&db_path, "kdf_version").as_deref(), Some(kdf::KDF_VERSION_V2));
+        assert_eq!(vault_setting(&backup, "master_password_hash"), Some(other_phc), "left untouched");
+
+        let restored = VaultState::new(backup.clone());
+        restored.unlock_vault(SecretString::from(other_password)).await.unwrap();
+        remove_backup(&backup);
+        cleanup_test_db(&other_path);
         cleanup_test_db(&db_path);
     }
 
