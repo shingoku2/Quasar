@@ -852,27 +852,51 @@ impl VaultState {
         Ok(skipped)
     }
 
-    /// `Ok(false)` only when the stored password ciphertext fails AES-GCM authentication
-    /// under `key`; malformed rows are an `Err`.
+    /// Whether a credential row's secrets were encrypted under `key`. Judged on the first
+    /// encrypted field the row has: the password, else the private key, else the key
+    /// passphrase. A key-only credential has a NULL password triple (migration 009; switching
+    /// a credential to `ssh_key` clears it), so reading only the password made one such row
+    /// block every password change and every v1→v2 migration (PR #68 review). A row with no
+    /// encrypted field has nothing to carry over, so it counts as decryptable. `Ok(false)`
+    /// only when that field fails AES-GCM authentication; a partial or mis-sized triple is an
+    /// `Err`, never "absent".
     fn password_blob_decrypts(
         conn: &rusqlite::Connection,
         credential_id: &str,
         key: &[u8; 32],
     ) -> Result<bool, String> {
-        let (ciphertext, nonce, tag): (Vec<u8>, Vec<u8>, Vec<u8>) = conn
+        type Blob = Option<Vec<u8>>;
+        let triples: [(Blob, Blob, Blob); 3] = conn
             .query_row(
-                "SELECT encrypted_password, nonce, tag FROM credentials WHERE id = ?1",
+                "SELECT encrypted_password, nonce, tag,
+                        encrypted_private_key, private_key_nonce, private_key_tag,
+                        encrypted_key_passphrase, key_passphrase_nonce, key_passphrase_tag
+                 FROM credentials WHERE id = ?1",
                 [credential_id],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| {
+                    Ok([
+                        (r.get(0)?, r.get(1)?, r.get(2)?),
+                        (r.get(3)?, r.get(4)?, r.get(5)?),
+                        (r.get(6)?, r.get(7)?, r.get(8)?),
+                    ])
+                },
             )
             .map_err(|e| format!("Failed to read credential {}: {}", credential_id, e))?;
-        let nonce: [u8; 12] = nonce
-            .try_into()
-            .map_err(|_| format!("Credential {} has a malformed nonce", credential_id))?;
-        let tag: [u8; 16] = tag
-            .try_into()
-            .map_err(|_| format!("Credential {} has a malformed auth tag", credential_id))?;
-        Ok(crypto::decrypt(&ciphertext, key, &nonce, &tag).is_ok())
+        for triple in triples {
+            let (ciphertext, nonce, tag) = match triple {
+                (None, None, None) => continue,
+                (Some(c), Some(n), Some(t)) => (c, n, t),
+                _ => return Err(format!("Credential {} has an incomplete encrypted field", credential_id)),
+            };
+            let nonce: [u8; 12] = nonce
+                .try_into()
+                .map_err(|_| format!("Credential {} has a malformed nonce", credential_id))?;
+            let tag: [u8; 16] = tag
+                .try_into()
+                .map_err(|_| format!("Credential {} has a malformed auth tag", credential_id))?;
+            return Ok(crypto::decrypt(&ciphertext, key, &nonce, &tag).is_ok());
+        }
+        Ok(true)
     }
 
     /// VACUUM (drops free pages, where superseded hashes linger) and a truncating WAL
@@ -1073,15 +1097,17 @@ mod tests {
 
         // Create credentials table so change_master_password's re-encryption pass
         // (which lists/reads/rewrites every credential) has somewhere to operate,
-        // even when a test doesn't add any credentials itself.
+        // even when a test doesn't add any credentials itself. The password columns are
+        // nullable, as since migration 009: a NOT NULL fixture hid that key-only credentials
+        // broke password changes and the v1→v2 migration.
         conn.execute(
             "CREATE TABLE credentials (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 username TEXT NOT NULL,
-                encrypted_password BLOB NOT NULL,
-                nonce BLOB NOT NULL,
-                tag BLOB NOT NULL,
+                encrypted_password BLOB,
+                nonce BLOB,
+                tag BLOB,
                 credential_type TEXT NOT NULL DEFAULT 'password',
                 host TEXT,
                 port INTEGER,
@@ -1380,6 +1406,64 @@ mod tests {
         let _ = std::fs::remove_file(&backup);
         let _ = std::fs::remove_file(format!("{}-wal", backup));
         let _ = std::fs::remove_file(format!("{}-shm", backup));
+        cleanup_test_db(&db_path);
+    }
+
+    /// Stores a credential and then clears its password triple, as `update_credential` does
+    /// when a credential is switched to `ssh_key` (migration 009 made the columns nullable).
+    fn add_key_only_credential(db_path: &str, key: &[u8; 32], name: &str) -> String {
+        let id = credentials::CredentialManager::new(db_path.to_string())
+            .add_credential(key, name.into(), "u".into(), String::new(), "ssh_key".into(),
+                None, None, None, None, Some("PRIVATE KEY".into()), None)
+            .unwrap();
+        rusqlite::Connection::open(db_path).unwrap()
+            .execute(
+                "UPDATE credentials SET encrypted_password = NULL, nonce = NULL, tag = NULL WHERE id = ?1",
+                [&id],
+            )
+            .unwrap();
+        id
+    }
+
+    /// PR #68 review (P1): a key-only credential (NULL password triple) must not block a
+    /// master-password change; its private key is carried over to the new key.
+    #[tokio::test]
+    async fn test_password_change_carries_key_only_credentials() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let old_key = vault.get_master_key().await.unwrap();
+        let id = add_key_only_credential(&db_path, &old_key, "deploy-key");
+
+        vault
+            .change_master_password(SecretString::from("TestPassword123!"), SecretString::from("AnotherPassword456!"))
+            .await
+            .unwrap();
+        let new_key = vault.get_master_key().await.unwrap();
+        let cred = credentials::CredentialManager::new(db_path.clone()).get_credential(&new_key, &id).unwrap();
+        assert_eq!(cred.private_key.as_deref(), Some("PRIVATE KEY"));
+        cleanup_test_db(&db_path);
+    }
+
+    /// PR #68 review (P1): a legacy vault holding a key-only credential still migrates to v2,
+    /// and a key-only credential under some other key is still treated as an orphan (it is
+    /// judged by its private key, not waved through for lacking a password).
+    #[tokio::test]
+    async fn test_legacy_migration_handles_key_only_credentials() {
+        let db_path = setup_test_db();
+        let password = "LegacyPassword123!";
+        let (legacy_key, _) = write_legacy_vault(&db_path, password);
+        let good = add_key_only_credential(&db_path, &legacy_key, "good-key");
+        let orphan = add_key_only_credential(&db_path, &[7u8; 32], "orphan-key");
+
+        let vault = VaultState::new(db_path.clone());
+        vault.unlock_vault(SecretString::from(password)).await.unwrap();
+        assert_eq!(vault_setting(&db_path, "kdf_version").as_deref(), Some(kdf::KDF_VERSION_V2));
+        let new_key = vault.get_master_key().await.unwrap();
+        let cm = credentials::CredentialManager::new(db_path.clone());
+        assert_eq!(cm.get_credential(&new_key, &good).unwrap().private_key.as_deref(), Some("PRIVATE KEY"));
+        assert!(cm.get_credential(&new_key, &orphan).is_err(), "orphan left as is");
+        assert!(vault_setting(&db_path, "legacy_salt").is_some(), "orphan keeps the old salt");
         cleanup_test_db(&db_path);
     }
 
