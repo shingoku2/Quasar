@@ -210,15 +210,22 @@ impl<H: Handler> SshConnectionPool<H> {
         })
     }
 
-    /// Drop a cached session, e.g. after discovering it is no longer usable.
-    pub async fn invalidate(&self, params: &ConnectParams<'_>) {
-        let slot = self.slot(&params.pool_key());
+    /// Drop the cached session that `failed` belongs to, after a command on it failed.
+    /// Only that session: another task may already have replaced it with a fresh one, which
+    /// stays. It's retired, not disconnected, so commands other leases are still running on
+    /// it (e.g. when one hit the server's MaxSessions limit) aren't killed; it closes once
+    /// the last lease drops it (PR #68 review; RUST-007).
+    pub async fn invalidate(&self, params: &ConnectParams<'_>, failed: &Arc<Handle<H>>) {
+        self.invalidate_key(&params.pool_key(), failed).await;
+    }
+
+    async fn invalidate_key(&self, key: &PoolKey, failed: &Arc<Handle<H>>) {
+        let slot = self.slot(key);
         let mut guard = slot.lock().await;
-        if let Some(session) = guard.take() {
-            let _ = session
-                .handle
-                .disconnect(russh::Disconnect::ByApplication, "", "en")
-                .await;
+        if guard.as_ref().is_some_and(|s| Arc::ptr_eq(&s.handle, failed)) {
+            if let Some(session) = guard.take() {
+                session.retire().await;
+            }
         }
     }
 
@@ -460,6 +467,32 @@ mod tests {
 
         pool.expire_sessions().await;
         assert_eq!(pool.sweep_idle().await, 1, "unleased expired session is closed");
+    }
+
+    /// PR #68 review: a failed command invalidates only its own session, and never closes
+    /// it under other leases still running commands on it; a replacement another task
+    /// already made is kept.
+    #[tokio::test]
+    async fn invalidate_keeps_other_leases_and_newer_sessions() {
+        let policy = crate::ssh_test_server::Policy { accept_none: true, ..Default::default() };
+        let (port, _) = crate::ssh_test_server::spawn(policy).await;
+        let pool: SshConnectionPool<AcceptAnyKey> = SshConnectionPool::empty();
+        let key = params("127.0.0.1", "u", None).pool_key();
+
+        let first = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        let second = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(second.reused && Arc::ptr_eq(&first.handle, &second.handle));
+
+        pool.invalidate_key(&key, &first.handle).await;
+        assert!(!second.handle.is_closed(), "the other lease's session must stay open");
+        assert!(second.handle.channel_open_session().await.is_ok());
+
+        let replacement = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(!replacement.reused, "the invalidated session left the pool");
+        // A late invalidate for the old session must not evict the replacement.
+        pool.invalidate_key(&key, &first.handle).await;
+        let again = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(again.reused && Arc::ptr_eq(&again.handle, &replacement.handle));
     }
 
     /// Test-only handler. Accepts any host key because this benchmark targets a

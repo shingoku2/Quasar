@@ -193,7 +193,7 @@ Registered with `app.manage` in `lib.rs` setup: `SshState` (interactive sessions
 - **Scheduler**: a 60 s tick starts due runs detached (a `Semaphore` that outlives ticks bounds concurrency). `InFlightGuard` is claimed before spawning, by cron runs and "Run now" alike, so a task never overlaps itself.
 - **SSH connect** (`ssh_connect.rs`): DNS, TCP and handshake are separate phases with their own timeouts, and errors name the phase that failed. The interactive terminal returns these diagnostics raw by design; other paths sanitize.
 - **One-shot exec** (`ssh_exec.rs`): reads until the channel closes (OpenSSH sends exit-status after EOF), then waits at most 2 s for the close; output capped at 1 MiB.
-- **Pool** (`ssh_pool.rs`): never disconnects a session a lease still holds. **Tunnels** (`ssh_tunnel.rs`) end when their SSH session dies (checked every 5 s, keepalives).
+- **Pool** (`ssh_pool.rs`): never disconnects a session a lease still holds, whether it is swept for age or invalidated after a failed command; `invalidate` only drops the session the failing lease used, not a replacement another task already made. **Tunnels** (`ssh_tunnel.rs`) end when their SSH session dies (checked every 5 s, keepalives).
 - **Discovery** (`discovery.rs`): a singleton mDNS thread; it drops receivers that report `Disconnected` and ends when none remain.
 
 ## Process notes

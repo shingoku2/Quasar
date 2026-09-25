@@ -250,7 +250,8 @@ async fn execute_pooled(
         Err(failure) if failure.is_retryable(lease.reused) => {
             // A cached session can die between the liveness check and use.
             log::debug!("Pooled SSH session for {host}:{port} was unusable; reconnecting");
-            pool.invalidate(&params).await;
+            pool.invalidate(&params, &lease.handle).await;
+            drop(lease);
             let lease = pool.acquire(&app_handle, &params).await?;
             run_command(&lease.handle, command, timeout_secs)
                 .await
