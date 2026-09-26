@@ -2,6 +2,11 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-26: Test gap fill
+
+- New frontend tests for the weakest-covered views: Dashboard host handlers (connect, save, delete), RemoteManager connect flows (credential selector, manual entry, saving a credential, RDP, split view, quick connect), TerminalComponent sessions (connect payload, event channels, resize, cleanup, in-place theme changes), ScheduledTasksView (add, edit, SFTP pickers, credential filtering, delete, run now), SshTunnelsView (start payload, port clamping, errors) and SessionContainer tab interactions. Frontend coverage rose from 73.6/68.2/68.6/75.9 to 83.5/78.2/80.0/85.3 (statements/branches/functions/lines), and the CI floor is raised to 82/76/78/84.
+- New Rust tests: the audit log's `record` and `get_audit_logs` (every filter, search, paging, newest-first order, the default 100-row cap, parameter binding), tunnel state (stop signal, listing, shared clones) and `copy_bidirectional`, and the SFTP password requirement (which had only an empty placeholder test).
+
 ## 2026-09-25: PR #68 review fixes
 
 - Legacy `password`-type SSH credentials show up again in the terminal, SFTP and tunnel credential pickers. They had been filtered out, though the backend accepts them.

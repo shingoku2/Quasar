@@ -197,3 +197,290 @@ describe('ScheduledTasksView', () => {
     });
   });
 });
+
+describe('ScheduledTasksView flows', () => {
+  type Handler = () => unknown;
+  const sshKeyCred = { id: 'k1', name: 'Deploy key', username: 'deploy', credential_type: 'ssh_key' };
+  const pwCred = { id: 'p1', name: 'Root pw', username: 'root', credential_type: 'ssh' };
+
+  async function mockCommands(handlers: Record<string, Handler>) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const defaults: Record<string, Handler> = {
+      list_scheduled_tasks: () => [mockTask],
+      get_saved_hosts: () => [mockHost],
+      list_credentials: () => [sshKeyCred, pwCred],
+    };
+    const all = { ...defaults, ...handlers };
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      const h = all[cmd];
+      if (!h) return Promise.resolve(undefined);
+      try {
+        return Promise.resolve(h());
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    });
+    return vi.mocked(invoke);
+  }
+
+  // Selects in the form, in DOM order: host, credential, task type.
+  const selects = () => screen.getAllByRole('combobox') as HTMLSelectElement[];
+
+  async function openNewForm() {
+    render(<ScheduledTasksView />);
+    await screen.findByText('Daily Backup');
+    fireEvent.click(screen.getByText('Add task'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Daily backup'), { target: { value: '  Nightly  ' } });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('adds an SSH task with a trimmed lowerCamelCase payload and closes the form', async () => {
+    const invoke = await mockCommands({});
+    await openNewForm();
+    // The first SSH host is preselected.
+    expect(selects()[0].value).toBe('host-1');
+    fireEvent.change(selects()[1], { target: { value: 'k1' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. /opt/scripts/backup.sh'), { target: { value: ' uptime ' } });
+    fireEvent.click(screen.getByText('Add'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('add_scheduled_task', {
+        name: 'Nightly',
+        cronExpression: '0 0 9 * * *',
+        hostId: 'host-1',
+        command: 'uptime',
+        credentialId: 'k1',
+        enabled: true,
+        taskType: 'ssh',
+        localPath: null,
+        remotePath: null,
+      })
+    );
+    await waitFor(() => expect(screen.queryByText('New task')).not.toBeInTheDocument());
+  });
+
+  it('an SSH task needs a command', async () => {
+    const invoke = await mockCommands({});
+    await openNewForm();
+    fireEvent.click(screen.getByText('Add'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Command is required for SSH tasks.');
+    expect(invoke).not.toHaveBeenCalledWith('add_scheduled_task', expect.anything());
+  });
+
+  it('a file transfer task needs both paths', async () => {
+    await mockCommands({});
+    await openNewForm();
+    fireEvent.change(selects()[2], { target: { value: 'sftp_upload' } });
+    fireEvent.change(screen.getByPlaceholderText('/home/user/file.zip'), { target: { value: '/tmp/x' } });
+    fireEvent.click(screen.getByText('Add'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Local path and remote path are required');
+  });
+
+  it('an upload task picks its local file through the backend dialog', async () => {
+    const invoke = await mockCommands({ pick_local_file: () => '/home/me/backup.tar' });
+    await openNewForm();
+    fireEvent.change(selects()[2], { target: { value: 'sftp_upload' } });
+    // The local path is never typed.
+    expect(screen.getByLabelText('Local path')).toHaveAttribute('readonly');
+    fireEvent.click(screen.getByText('Browse…'));
+    await waitFor(() => expect(screen.getByLabelText('Local path')).toHaveValue('/home/me/backup.tar'));
+    expect(invoke).toHaveBeenCalledWith('pick_local_file', { title: 'File to upload' });
+    fireEvent.change(screen.getByPlaceholderText('/home/user/file.zip'), { target: { value: ' /srv/backup.tar ' } });
+    fireEvent.click(screen.getByText('Add'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'add_scheduled_task',
+        expect.objectContaining({ taskType: 'sftp_upload', command: '', localPath: '/home/me/backup.tar', remotePath: '/srv/backup.tar' })
+      )
+    );
+  });
+
+  it('a download task picks a save location, and a cancelled pick changes nothing', async () => {
+    const invoke = await mockCommands({ pick_save_location: () => null });
+    await openNewForm();
+    fireEvent.change(selects()[2], { target: { value: 'sftp_download' } });
+    fireEvent.click(screen.getByText('Browse…'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('pick_save_location', { defaultName: null }));
+    expect(screen.getByLabelText('Local path')).toHaveValue('');
+  });
+
+  it('shows an error when the file dialog fails', async () => {
+    await mockCommands({
+      pick_local_file: () => {
+        throw new Error('dialog broke');
+      },
+    });
+    await openNewForm();
+    fireEvent.change(selects()[2], { target: { value: 'sftp_upload' } });
+    fireEvent.click(screen.getByText('Browse…'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('dialog broke');
+  });
+
+  it('switching to SFTP drops a key credential and offers only password credentials', async () => {
+    await mockCommands({});
+    await openNewForm();
+    expect(screen.getByRole('option', { name: /Deploy key/ })).toBeInTheDocument();
+    fireEvent.change(selects()[1], { target: { value: 'k1' } });
+    fireEvent.change(selects()[2], { target: { value: 'sftp_download' } });
+    expect(selects()[1].value).toBe('');
+    expect(screen.queryByRole('option', { name: /Deploy key/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Root pw/ })).toBeInTheDocument();
+  });
+
+  it('switching to SFTP keeps a password credential', async () => {
+    await mockCommands({});
+    await openNewForm();
+    fireEvent.change(selects()[1], { target: { value: 'p1' } });
+    fireEvent.change(selects()[2], { target: { value: 'sftp_upload' } });
+    expect(selects()[1].value).toBe('p1');
+  });
+
+  it('editing a task prefills the form and sends update_scheduled_task with its id', async () => {
+    const task = { ...mockTask, credential_id: 'p1', enabled: false };
+    const invoke = await mockCommands({ list_scheduled_tasks: () => [task] });
+    render(<ScheduledTasksView />);
+    await screen.findByText('Daily Backup');
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getByText(/Credential: Root pw/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Edit'));
+    expect(screen.getByText('Edit task')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('e.g. Daily backup')).toHaveValue('Daily Backup');
+    expect(selects()[1].value).toBe('p1');
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Update'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'update_scheduled_task',
+        expect.objectContaining({ id: 'task-1', name: 'Daily Backup', credentialId: 'p1', enabled: true })
+      )
+    );
+    expect(invoke).not.toHaveBeenCalledWith('add_scheduled_task', expect.anything());
+  });
+
+  it('editing an SFTP task keeps its type and paths', async () => {
+    const task = { ...mockTask, task_type: 'sftp_download', command: '', local_path: '/l', remote_path: '/r' };
+    await mockCommands({ list_scheduled_tasks: () => [task] });
+    render(<ScheduledTasksView />);
+    await screen.findByText('Daily Backup');
+    expect(screen.getByText('Download')).toBeInTheDocument();
+    expect(screen.getByText('/l → /r')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Edit'));
+    expect(selects()[2].value).toBe('sftp_download');
+    expect(screen.getByLabelText('Local path')).toHaveValue('/l');
+    expect(screen.getByPlaceholderText('/home/user/file.zip')).toHaveValue('/r');
+  });
+
+  it('shows the backend error when saving fails and keeps the form open', async () => {
+    await mockCommands({
+      add_scheduled_task: () => {
+        throw new Error('Invalid cron: bad field');
+      },
+    });
+    await openNewForm();
+    fireEvent.change(screen.getByPlaceholderText('e.g. /opt/scripts/backup.sh'), { target: { value: 'ls' } });
+    fireEvent.click(screen.getByText('Add'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid cron: bad field');
+    expect(screen.getByText('New task')).toBeInTheDocument();
+  });
+
+  it('Cancel closes the form', async () => {
+    await mockCommands({});
+    await openNewForm();
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(screen.queryByText('New task')).not.toBeInTheDocument();
+  });
+
+  it('deleting asks first and does nothing when declined', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    try {
+      const invoke = await mockCommands({});
+      render(<ScheduledTasksView />);
+      fireEvent.click(await screen.findByTitle('Delete'));
+      expect(confirmSpy).toHaveBeenCalledWith('Remove this scheduled task?');
+      expect(invoke).not.toHaveBeenCalledWith('remove_scheduled_task', expect.anything());
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('deleting the task being edited removes it and closes the form', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      const invoke = await mockCommands({});
+      render(<ScheduledTasksView />);
+      fireEvent.click(await screen.findByTitle('Edit'));
+      expect(screen.getByText('Edit task')).toBeInTheDocument();
+      fireEvent.click(screen.getByTitle('Delete'));
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('remove_scheduled_task', { id: 'task-1' }));
+      await waitFor(() => expect(screen.queryByText('Edit task')).not.toBeInTheDocument());
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('shows the backend error when deleting fails', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      await mockCommands({
+        remove_scheduled_task: () => {
+          throw new Error('locked');
+        },
+      });
+      render(<ScheduledTasksView />);
+      fireEvent.click(await screen.findByTitle('Delete'));
+      expect(await screen.findByRole('alert')).toHaveTextContent('locked');
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('Run now shows a successful result with output, and Dismiss hides it', async () => {
+    const invoke = await mockCommands({ run_scheduled_task_now: () => ({ success: true, output: 'up 3 days', error: null }) });
+    render(<ScheduledTasksView />);
+    fireEvent.click(await screen.findByTitle('Run now'));
+    expect(await screen.findByText(/Run result: Daily Backup/)).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('run_scheduled_task_now', { id: 'task-1' });
+    expect(screen.getByText('Success')).toBeInTheDocument();
+    expect(screen.getByText('up 3 days')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+    expect(screen.queryByText(/Run result/)).not.toBeInTheDocument();
+  });
+
+  it('Run now shows a failed result with its error', async () => {
+    await mockCommands({ run_scheduled_task_now: () => ({ success: false, output: '', error: 'exit 1' }) });
+    render(<ScheduledTasksView />);
+    fireEvent.click(await screen.findByTitle('Run now'));
+    expect(await screen.findByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText('exit 1')).toBeInTheDocument();
+  });
+
+  it('Run now shows an error when the backend refuses', async () => {
+    await mockCommands({
+      run_scheduled_task_now: () => {
+        throw new Error('already running');
+      },
+    });
+    render(<ScheduledTasksView />);
+    fireEvent.click(await screen.findByTitle('Run now'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('already running');
+    expect(screen.getByTitle('Run now')).not.toBeDisabled();
+  });
+
+  it('shows the last run status, error and output of each task', async () => {
+    await mockCommands({
+      list_scheduled_tasks: () => [
+        { ...mockTask, last_run_at: 1700000000, last_run_status: 'failure', last_run_error: 'timeout', last_run_output: 'partial' },
+        { ...mockTask, id: 't2', name: 'Other', host_id: 'gone', credential_id: 'missing', last_run_at: 1700000000, last_run_status: 'success' },
+      ],
+    });
+    render(<ScheduledTasksView />);
+    expect(await screen.findByText('Failed: timeout')).toBeInTheDocument();
+    expect(screen.getByText('Output: partial')).toBeInTheDocument();
+    expect(screen.getAllByText(/Last run:/)).toHaveLength(2);
+    // Unknown host and credential ids fall back to the raw id.
+    expect(screen.getByText(/Host: gone · Credential: missing/)).toBeInTheDocument();
+  });
+});

@@ -310,6 +310,93 @@ mod tests {
         assert!(!state.in_use("t1"));
     }
 
+    fn tunnel_info(id: &str, local_port: u16) -> TunnelInfo {
+        TunnelInfo {
+            id: id.to_string(),
+            ssh_host: "h".into(),
+            ssh_port: 22,
+            local_port,
+            remote_host: "r".into(),
+            remote_port: 80,
+        }
+    }
+
+    #[test]
+    fn removing_a_tunnel_signals_its_loop_to_stop() {
+        let state = TunnelState::new();
+        let (tx, mut rx) = mpsc::channel(1);
+        state.register("t1", tx, tunnel_info("t1", 1080)).unwrap();
+        assert!(state.remove("t1"));
+        assert!(rx.try_recv().is_ok(), "the tunnel loop must get a stop signal");
+        // Removing it again, or an id that never existed, reports false.
+        assert!(!state.remove("t1"));
+        assert!(!state.remove("nope"));
+    }
+
+    #[test]
+    fn list_reports_every_active_tunnel() {
+        let state = TunnelState::new();
+        assert!(state.list().is_empty());
+        let (tx1, _rx1) = mpsc::channel(1);
+        let (tx2, _rx2) = mpsc::channel(1);
+        state.register("a", tx1, tunnel_info("a", 1080)).unwrap();
+        state.register("b", tx2, tunnel_info("b", 1081)).unwrap();
+        let mut ports: Vec<u16> = state.list().iter().map(|t| t.local_port).collect();
+        ports.sort_unstable();
+        assert_eq!(ports, vec![1080, 1081]);
+        state.remove("a");
+        let listed = state.list();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "b");
+    }
+
+    #[test]
+    fn clones_share_the_same_tunnel_table() {
+        let state = TunnelState::new();
+        let clone = state.clone();
+        let (tx, _rx) = mpsc::channel(1);
+        state.register("t", tx, tunnel_info("t", 2000)).unwrap();
+        assert!(clone.in_use("t"));
+        assert!(clone.remove("t"));
+        assert!(!state.in_use("t"));
+    }
+
+    #[test]
+    fn remove_does_not_block_when_the_stop_signal_is_already_queued() {
+        let state = TunnelState::new();
+        let (tx, _rx) = mpsc::channel(1);
+        // Fill the channel so try_send has nowhere to put the signal.
+        tx.try_send(()).unwrap();
+        state.register("t", tx, tunnel_info("t", 3000)).unwrap();
+        assert!(state.remove("t"));
+        assert!(!state.in_use("t"));
+    }
+
+    #[tokio::test]
+    async fn copy_bidirectional_forwards_both_ways_until_both_sides_close() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (local, mut local_peer) = tokio::io::duplex(64);
+        let (remote, mut remote_peer) = tokio::io::duplex(64);
+        let pump = tokio::spawn(copy_bidirectional(local, remote));
+
+        local_peer.write_all(b"ping").await.unwrap();
+        let mut buf = [0u8; 4];
+        remote_peer.read_exact(&mut buf).await.unwrap();
+        assert_eq!(&buf, b"ping");
+
+        remote_peer.write_all(b"pong").await.unwrap();
+        local_peer.read_exact(&mut buf).await.unwrap();
+        assert_eq!(&buf, b"pong");
+
+        drop(local_peer);
+        drop(remote_peer);
+        tokio::time::timeout(Duration::from_secs(5), pump)
+            .await
+            .expect("the copy must end once both sides close")
+            .unwrap()
+            .unwrap();
+    }
+
     /// RUST-008: when the SSH session dies, the loop ends and frees the local port.
     #[tokio::test]
     async fn tunnel_loop_ends_when_the_session_dies() {
