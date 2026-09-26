@@ -24,7 +24,8 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
   onReject,
 }) => {
   const titleId = useId();
-  const dialogRef = useModalDialog(onReject);
+  // No Escape-to-close: a host-key prompt needs an explicit Trust or Reject.
+  const dialogRef = useModalDialog();
   // A changed key is the MITM case: don't default to replacing the stored key forever, and
   // require an explicit confirmation before it can be accepted at all (RSEC-007).
   const [trustPermanently, setTrustPermanently] = useState(!isChanged);

@@ -144,4 +144,18 @@ describe('SshFileManager keyboard entries', () => {
       );
     });
   });
+
+  it('opens a double-clicked folder once, not once per click', async () => {
+    mockInvoke.mockResolvedValue([{ name: 'documents', is_dir: true, size: 4096 }]);
+    render(<SshFileManager {...defaultProps} />);
+    const folder = await screen.findByRole('button', { name: 'Open folder documents' });
+    fireEvent.click(folder);
+    fireEvent.click(folder);
+    fireEvent.doubleClick(folder);
+    await waitFor(() => expect(screen.getByText('/documents')).toBeInTheDocument());
+    const listings = mockInvoke.mock.calls.filter(
+      ([cmd, args]) => cmd === 'sftp_list_directory' && (args as { remotePath: string }).remotePath === '/documents',
+    );
+    expect(listings).toHaveLength(1);
+  });
 });

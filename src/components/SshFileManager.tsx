@@ -102,11 +102,20 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
     fetchFiles('/');
   }, [fetchFiles]);
 
-  const handleNavigate = (fileName: string) => {
-    const newPath = currentPath === '/' 
-      ? `/${fileName}` 
+  // One navigation at a time: a double-click fires the name button twice and the row's
+  // dblclick once, which would open three SFTP connections for the same folder.
+  const navigating = useRef(false);
+  const handleNavigate = async (fileName: string) => {
+    if (navigating.current) return;
+    navigating.current = true;
+    const newPath = currentPath === '/'
+      ? `/${fileName}`
       : `${currentPath}/${fileName}`;
-    fetchFiles(newPath);
+    try {
+      await fetchFiles(newPath);
+    } finally {
+      navigating.current = false;
+    }
   };
 
   const handleBack = () => {
