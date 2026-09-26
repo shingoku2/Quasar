@@ -54,7 +54,8 @@ src/                      React frontend
   components/             views and dialogs (vault/ = vault UI, vault/credentials/ = credential list, form, view and
                           buildCredentialPayload; settings/ = Settings panels + appearanceStore;
                           scheduled/ = task form/list + pure taskForm.ts;
-                          monitoring/ = Monitoring view cards + useRemoteHostsHealth; dashboard/ = widgets); tests co-located
+                          monitoring/ = Monitoring view cards + useRemoteHostsHealth;
+                          remote/ = RemoteManager's inventory panel, session descriptors, useConnectFlow; dashboard/ = widgets); tests co-located
   hooks/                  useViewVisibility (useOnViewShown, useVisiblePolling), useModalDialog, useSystemMetrics,
                           useSshHostKeyVerification,
                           useTailscaleStatus, useUpdater
@@ -113,7 +114,7 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 ## Conventions
 
 - TypeScript: `docs/style/typescript.md`. `const` by default, no `any`, no unexplained type assertions, `===`, single quotes, semicolons. `cn()` for conditional classes.
-- React: function components and hooks. Every `role="dialog"` element takes `ref={useModalDialog(onClose)}`, `tabIndex={-1}` and an accessible name (`aria-labelledby` on its heading, or `aria-label`); leave `onClose` out only for prompts that need an explicit answer. Anything clickable is a `<button>` (or gets `role`, `tabIndex={0}` and an Enter/Space handler); every input has a `<label htmlFor>`. Every view stays mounted (hidden with CSS): load lists other views can change (or an import can replace, e.g. alert rules) with `useOnViewShown`, poll with `useVisiblePolling`. System metrics come from `useSystemMetrics`/`subscribeSystemMetrics` (one shared `system-metrics` listener); don't `listen` to it directly. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
+- React: function components and hooks. Every `role="dialog"` element takes `ref={useModalDialog(onClose)}`, `tabIndex={-1}` and an accessible name (`aria-labelledby` on its heading, or `aria-label`); leave `onClose` out only for prompts that need an explicit answer. Anything clickable is a `<button>` (or gets `role`, `tabIndex={0}` and an Enter/Space handler); every input has a `<label htmlFor>`. Every view stays mounted (hidden with CSS): load lists other views can change (or an import can replace, e.g. alert rules) with `useOnViewShown`, poll with `useVisiblePolling`. System metrics come from `useSystemMetrics`/`subscribeSystemMetrics` (one shared `system-metrics` listener); don't `listen` to it directly. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. Keep data in state, not JSX: session tabs are `SessionDescriptor`s rendered at render time (JSX in state froze its handlers, FE-018). The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
 - Rust: no `unwrap`/`expect` outside tests. `SecretString` for passwords, `Zeroizing`/`zeroize` for key bytes. Validate network inputs with `validation.rs`. Multi-step DB writes in a transaction.
 - `tailscale.rs` only runs `tailscale status --json` with fixed args: never pass user input, never call the control-plane API.
 

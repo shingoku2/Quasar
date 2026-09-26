@@ -306,6 +306,19 @@ describe('RemoteManager connect flows', () => {
     expect(screen.getByTestId('sftp').parentElement).not.toHaveClass('hidden');
   });
 
+  // FE-018: the inventory's connect handler used to be captured once in tab state, so an
+  // RDP tab opened during split view read the split as empty and stayed hidden.
+  it('an RDP session opened from the inventory during split view joins the split', async () => {
+    mockVault(false);
+    render(<RemoteManager />);
+    await act(async () => { hostListProps?.onConnect(sshHost); });
+    await act(async () => { selectorProps?.onSelect({ id: 'c1', name: 'k', username: 'u', credential_type: 'ssh' }); });
+    fireEvent.click(screen.getAllByLabelText('Toggle Split View')[0]);
+    await act(async () => { hostListProps?.onConnect({ ...sshHost, id: 'r1', name: 'desk', protocol: 'rdp' }); });
+    expect(screen.getByTestId('terminal').parentElement).not.toHaveClass('hidden');
+    expect(screen.getByText('RDP Session Launched').closest('.hidden')).toBeNull();
+  });
+
   it('a quick-connect host stored before mount is connected once and cleared', async () => {
     vi.useFakeTimers();
     mockVault(false);

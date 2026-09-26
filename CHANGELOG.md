@@ -20,6 +20,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 - ScheduledTasksView is split into `scheduled/` (form, list, run-result banner, and a pure `taskForm.ts` for validation, payload, host and credential filtering, now unit-tested) (FE-027).
 - MonitoringView is split into `monitoring/` (system info bar, disk card, process cards, remote hosts list, `useRemoteHostsHealth`, format helpers) (FE-027).
 - The Dashboard widgets and the Monitoring view share one `system-metrics` listener and one initial fetch (`useSystemMetrics`), instead of one each (FE-024).
+- An RDP session opened from the Inventory while split view is on now joins the split; it opened hidden, because the Inventory's handlers were frozen into tab state when the tab was built (FE-018). RemoteManager now keeps open sessions as data (`remote/SessionContent`), and is split into `remote/` (`InventoryPanel`, `useConnectFlow`) (FE-027).
 
 ## 2026-09-26: Repo cleanup
 

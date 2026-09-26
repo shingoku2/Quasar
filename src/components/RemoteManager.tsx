@@ -1,150 +1,76 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-import HostList, { Host } from './HostList';
+import React, { useState, useEffect, useRef } from 'react';
+import type { Host } from './HostList';
 import AddHostDialog, { AddHostInitialValues } from './AddHostDialog';
-// xterm.js is ~333 kB of the bundle and is only needed once a user actually opens
-// an SSH session, so it is split into its own chunk and loaded on demand.
-const TerminalComponent = React.lazy(() => import('./TerminalComponent'));
-import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
 import CredentialSelector from './vault/CredentialSelector';
 import SshTunnelsView from './SshTunnelsView';
-import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
+import InventoryPanel from './remote/InventoryPanel';
+import SessionContent, { SessionDescriptor } from './remote/SessionContent';
+import { useConnectFlow, type OpenSession } from './remote/useConnectFlow';
 import { invoke } from "@tauri-apps/api/core";
-import { Plus } from 'lucide-react';
 import { SSH_CREDENTIAL_TYPES, SFTP_CREDENTIAL_TYPES } from '../lib/utils';
-
-interface Credential {
-  id: string;
-  name: string;
-  username: string;
-  credential_type: string;
-  host?: string;
-  port?: number;
-}
 
 const RemoteManager: React.FC = () => {
   const [showAddHost, setShowAddHost] = useState(false);
   const [addHostInitialValues, setAddHostInitialValues] = useState<AddHostInitialValues | undefined>(undefined);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [tabs, setTabs] = useState<SessionTab[]>([]);
+  // Open sessions as data; tab content is rendered from them below (FE-018).
+  const [sessions, setSessions] = useState<SessionDescriptor[]>([]);
   const [activeTabId, setActiveTabId] = useState('inventory');
   const [splitViewIds, setSplitViewIds] = useState<string[]>([]);
-  
-  // State for credential prompt and selector
-  const [pendingHost, setPendingHost] = useState<Host | null>(null);
-  const [pendingMode, setPendingMode] = useState<'ssh' | 'sftp'>('ssh');
-  const [showCredentialSelector, setShowCredentialSelector] = useState(false);
-  const [useManualEntry, setUseManualEntry] = useState(false);
-  const [allowCredentialSave, setAllowCredentialSave] = useState(false);
-  
+
   // Track processed quick connect host IDs to prevent duplicate executions
   const processedQuickConnects = useRef(new Set<string>());
-  
-  // SSH host key verification
 
-  // Tailscale SSH peers can authenticate by tailnet identity alone, so the
-  // manual credential prompt should not require a password for them.
-  const { status: tailscaleStatus } = useTailscaleStatus();
-  const pendingHostIsTailscaleSsh = pendingHost
-    ? !!findTailscalePeer(tailscaleStatus, pendingHost.address)?.tailscale_ssh
-    : false;
-
-  const addTab = (id: string, title: string, content: React.ReactNode) => {
-    setTabs(prev => [...prev, { id, title, content, closable: true }]);
-    setActiveTabId(id);
-    if (splitViewIds.length > 0) {
-      setSplitViewIds(prev => [...prev, id]);
-    }
+  const addSession = (session: SessionDescriptor) => {
+    setSessions(prev => [...prev, session]);
+    setActiveTabId(session.id);
+    // A new session joins an active split view.
+    setSplitViewIds(prev => (prev.length > 0 ? [...prev, session.id] : prev));
   };
+
+  const openSession: OpenSession = (mode, host, password, usernameOverride, credentialId) => {
+    const username = usernameOverride ?? host.username;
+    if (!username) {
+      alert(`Username is required to start an ${mode === 'sftp' ? 'SFTP' : 'SSH'} session.`);
+      return;
+    }
+    const uuid = crypto.randomUUID();
+    addSession({
+      kind: mode,
+      id: mode === 'sftp' ? `sftp-${uuid}` : uuid,
+      title: `${mode === 'sftp' ? 'SFTP' : 'SSH'}: ${host.name}`,
+      address: host.address,
+      port: host.port || 22,
+      username,
+      password,
+      credentialId,
+    });
+  };
+
+  const connectFlow = useConnectFlow(openSession);
 
   const handleToggleSplit = (id: string) => {
     setSplitViewIds(prev => {
       if (prev.includes(id)) {
         const newSplit = prev.filter(sid => sid !== id);
         return newSplit.length < 2 ? [] : newSplit;
-      } else {
-        if (prev.length === 0) {
-           const ids = new Set([activeTabId, id]);
-           return Array.from(ids);
-        }
-        return [...prev, id];
       }
+      if (prev.length === 0) {
+        return Array.from(new Set([activeTabId, id]));
+      }
+      return [...prev, id];
     });
-  };
-  
-  const handleTabChange = (id: string) => {
-    setActiveTabId(id);
-  };
-
-  const startSession = (host: Host, password?: string, usernameOverride?: string, credentialId?: string) => {
-    const sessionUsername = usernameOverride ?? host.username;
-    if (!sessionUsername) {
-      alert('Username is required to start an SSH session.');
-      return;
-    }
-
-    const sessionId = crypto.randomUUID();
-    addTab(
-      sessionId, 
-      `SSH: ${host.name}`, 
-      <Suspense fallback={<div className="p-4 text-gray-400 text-sm">Loading terminal…</div>}>
-        <TerminalComponent
-          sessionId={sessionId}
-          host={host.address}
-          port={host.port || 22}
-          username={sessionUsername}
-          password={password}
-          credentialId={credentialId}
-        />
-      </Suspense>
-    );
-  };
-
-  const startSftpSession = (host: Host, password?: string, usernameOverride?: string, credentialId?: string) => {
-    const sessionUsername = usernameOverride ?? host.username;
-    if (!sessionUsername) {
-      alert('Username is required to start an SFTP session.');
-      return;
-    }
-
-    const sessionId = `sftp-${crypto.randomUUID()}`;
-    addTab(
-      sessionId, 
-      `SFTP: ${host.name}`, 
-      <SshFileManager 
-        host={host.address}
-        port={host.port || 22}
-        username={sessionUsername}
-        password={password}
-        credentialId={credentialId}
-      />
-    );
   };
 
   const handleConnect = async (host: Host) => {
     try {
       if (host.protocol === 'ssh') {
-        setPendingHost(host);
-        setPendingMode('ssh');
-        setUseManualEntry(false);
-        
-        try {
-          const isLocked = await invoke<boolean>('is_vault_locked');
-          if (isLocked) {
-            setAllowCredentialSave(false);
-            setUseManualEntry(true);
-          } else {
-            setShowCredentialSelector(true);
-          }
-        } catch {
-          setAllowCredentialSave(false);
-          setUseManualEntry(true);
-        }
+        await connectFlow.begin(host, 'ssh');
       } else if (host.protocol === 'rdp') {
         await invoke('connect_rdp', { address: host.address });
-        const sessionId = crypto.randomUUID();
-        addTab(sessionId, `RDP: ${host.name}`, <div className="p-10 text-center"><h2 className="text-xl text-blue-400 mb-2">RDP Session Launched</h2><p className="text-gray-400">Launched RDP client for {host.address}</p></div>);
+        addSession({ kind: 'rdp', id: crypto.randomUUID(), title: `RDP: ${host.name}`, address: host.address });
       } else {
         // database / api / other hosts are inventory + monitoring entries; there is
         // no built-in client to launch for them.
@@ -156,58 +82,16 @@ const RemoteManager: React.FC = () => {
     }
   };
 
-  const handleSftp = async (host: Host) => {
-    try {
-      setPendingHost(host);
-      setPendingMode('sftp');
-      setUseManualEntry(false);
-      
-      try {
-        const isLocked = await invoke<boolean>('is_vault_locked');
-        if (isLocked) {
-          setAllowCredentialSave(false);
-          setUseManualEntry(true);
-        } else {
-          setShowCredentialSelector(true);
-        }
-      } catch {
-        setAllowCredentialSave(false);
-        setUseManualEntry(true);
-      }
-    } catch (error) {
-      console.error('Failed to launch SFTP:', error);
-      alert(`Failed to launch SFTP: ${error}`);
-    }
+  const handleSftp = (host: Host) => connectFlow.begin(host, 'sftp');
+
+  const openAddHost = (values?: AddHostInitialValues) => {
+    setAddHostInitialValues(values);
+    setShowAddHost(true);
   };
 
-  const handleCredentialSelected = async (credential: Credential) => {
-    if (pendingHost) {
-      const selectedUsername = credential.username || pendingHost.username;
-      if (!selectedUsername) {
-        setShowCredentialSelector(false);
-        setUseManualEntry(true);
-        return;
-      }
-
-      if (pendingMode === 'sftp') {
-        // Like SSH, SFTP gets the credential by id: the backend decrypts it, so the vault
-        // password never enters the webview (FE-001 / RSEC-013).
-        startSftpSession(pendingHost, undefined, selectedUsername, credential.id);
-      } else {
-        // Pass credentialId only — the backend fetches the credential from the vault
-        // by ID, so the password never needs to cross the IPC boundary for SSH sessions.
-        startSession(pendingHost, undefined, selectedUsername, credential.id);
-      }
-      setShowCredentialSelector(false);
-      setPendingHost(null);
-    }
-  };
-
-  const handleManualEntry = () => {
-    setShowCredentialSelector(false);
-    setAllowCredentialSave(true);
-    setUseManualEntry(true);
-  };
+  // The quick-connect listener is registered once; it calls the current handler.
+  const handleConnectRef = useRef(handleConnect);
+  handleConnectRef.current = handleConnect;
 
   // Check for quick connect via event-driven approach (no polling)
   useEffect(() => {
@@ -236,7 +120,7 @@ const RemoteManager: React.FC = () => {
 
         // Trigger connection after a short delay to ensure tabs are set
         setTimeout(() => {
-          handleConnect(hostToConnect);
+          void handleConnectRef.current(hostToConnect);
           // Allow re-connecting to the same host after processing
           processedQuickConnects.current.delete(host.id);
         }, 200);
@@ -264,89 +148,66 @@ const RemoteManager: React.FC = () => {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('quickConnectTriggered', onQuickConnect);
     };
-  }, [])
+  }, []);
 
-  useEffect(() => {
-    const inventoryTab: SessionTab = {
+  const tabs: SessionTab[] = [
+    {
       id: 'inventory',
       title: 'Inventory',
       content: (
-        <div className="flex flex-col h-full bg-bg-root">
-          <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-            <h1 className="text-xl font-bold text-white">Remote Hosts</h1>
-            <button
-              onClick={() => {
-                setAddHostInitialValues(undefined);
-                setShowAddHost(true);
-              }}
-              className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center shadow-lg shadow-accent/10"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Host
-            </button>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <HostList
-              key={refreshTrigger}
-              onConnect={handleConnect}
-              onSftp={handleSftp}
-              onAddHost={(values) => {
-                setAddHostInitialValues(values);
-                setShowAddHost(true);
-              }}
-            />
-          </div>
-        </div>
+        <InventoryPanel
+          refreshKey={refreshTrigger}
+          onConnect={handleConnect}
+          onSftp={handleSftp}
+          onAddHost={openAddHost}
+        />
       ),
-      closable: false
-    };
-    const tunnelsTab: SessionTab = {
-      id: 'tunnels',
-      title: 'Tunnels',
-      content: <SshTunnelsView />,
-      closable: false
-    };
-    // Merge, don't replace — this effect reruns on every refreshTrigger bump
-    // (e.g. adding a host), and replacing the whole array would unmount every
-    // open SSH/SFTP session tab, disconnecting live sessions.
-    setTabs(prev => {
-      const dynamicTabs = prev.filter(tab => tab.id !== 'inventory' && tab.id !== 'tunnels');
-      return [inventoryTab, tunnelsTab, ...dynamicTabs];
-    });
-  }, [refreshTrigger]);
+      closable: false,
+    },
+    { id: 'tunnels', title: 'Tunnels', content: <SshTunnelsView />, closable: false },
+    ...sessions.map((session) => ({
+      id: session.id,
+      title: session.title,
+      content: <SessionContent session={session} />,
+      closable: true,
+    })),
+  ];
 
   const handleTabClose = (id: string) => {
-    if (tabs.length === 1) return;
-    const newTabs = tabs.filter(tab => tab.id !== id);
-    setTabs(newTabs);
+    const remaining = tabs.filter(tab => tab.id !== id);
+    setSessions(prev => prev.filter(s => s.id !== id));
     setSplitViewIds(prev => prev.filter(sid => sid !== id));
     if (activeTabId === id) {
-      setActiveTabId(newTabs[newTabs.length - 1].id);
+      setActiveTabId(remaining[remaining.length - 1].id);
     }
   };
 
+  const {
+    pendingHost, pendingMode, showCredentialSelector, useManualEntry, allowCredentialSave, pendingHostIsTailscaleSsh,
+  } = connectFlow;
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <SessionContainer 
+      <SessionContainer
         tabs={tabs}
         activeTabId={activeTabId}
         splitViewIds={splitViewIds}
-        onTabChange={handleTabChange}
+        onTabChange={setActiveTabId}
         onTabClose={handleTabClose}
         onToggleSplit={handleToggleSplit}
       />
 
       {showAddHost && (
-        <AddHostDialog 
+        <AddHostDialog
           initialValues={addHostInitialValues}
           onClose={() => {
             setShowAddHost(false);
             setAddHostInitialValues(undefined);
-          }} 
+          }}
           onAdded={() => {
             setRefreshTrigger(prev => prev + 1);
             setAddHostInitialValues(undefined);
-          }} 
+          }}
         />
       )}
 
@@ -354,58 +215,22 @@ const RemoteManager: React.FC = () => {
         <CredentialSelector
           hostAddress={pendingHost.address}
           allowedTypes={pendingMode === 'sftp' ? SFTP_CREDENTIAL_TYPES : SSH_CREDENTIAL_TYPES}
-          onSelect={handleCredentialSelected}
-          onCancel={() => {
-            setShowCredentialSelector(false);
-            setPendingHost(null);
-          }}
-          onManualEntry={handleManualEntry}
+          onSelect={connectFlow.selectCredential}
+          onCancel={connectFlow.cancelSelector}
+          onManualEntry={connectFlow.chooseManualEntry}
         />
       )}
 
       {useManualEntry && pendingHost && (
-        <CredentialPrompt 
+        <CredentialPrompt
           hostName={pendingHost.name}
           initialUsername={pendingHost.username}
           allowSaveCredential={allowCredentialSave}
           allowNoPassword={pendingMode === 'ssh' && pendingHostIsTailscaleSsh}
-          onSubmit={async (enteredUsername, password, options) => {
-            if (pendingMode === 'sftp') {
-              startSftpSession(pendingHost, password, enteredUsername);
-            } else {
-              startSession(pendingHost, password, enteredUsername);
-            }
-
-            if (options?.saveCredential) {
-              const credentialName = options.credentialName || `${pendingHost.name} (${enteredUsername})`;
-              try {
-                await invoke('add_credential', {
-                  name: credentialName,
-                  username: enteredUsername,
-                  password,
-                  credentialType: 'ssh',
-                  host: pendingHost.address,
-                  port: pendingHost.port || 22,
-                  metadata: null,
-                });
-              } catch (error) {
-                console.error('Failed to save credential to vault:', error);
-                alert(`Connected, but failed to save credential: ${error}`);
-              }
-            }
-
-            setPendingHost(null);
-            setUseManualEntry(false);
-            setAllowCredentialSave(false);
-          }}
-          onCancel={() => {
-            setPendingHost(null);
-            setUseManualEntry(false);
-            setAllowCredentialSave(false);
-          }}
+          onSubmit={connectFlow.submitManual}
+          onCancel={connectFlow.cancelManual}
         />
       )}
-
     </div>
   );
 };
