@@ -4,7 +4,7 @@ import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { VaultProvider } from "./components/vault/VaultProvider";
 import { getErrorMessage } from "./lib/utils";
-import { applyStoredAppearance } from "./components/SettingsView";
+import { applyStoredAppearance } from "./components/settings/appearanceStore";
 
 const rootElement = document.getElementById("root");
 

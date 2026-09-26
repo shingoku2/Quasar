@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import SettingsView, { applyStoredAppearance } from './SettingsView';
+import SettingsView from './SettingsView';
+import { applyStoredAppearance } from './settings/appearanceStore';
 import '@testing-library/jest-dom';
 
 // Mock Tauri API
