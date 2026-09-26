@@ -69,7 +69,8 @@ src-tauri/src/
   saved_hosts.rs          the hosts table (read/write, host-move detection) and health probes
   background.rs           app-lifetime loops started in setup (auto-lock, SSH idle reaper)
   monitoring/             collector.rs (metrics), alerts.rs (AlertEngine), store.rs (history), task.rs (loop)
-  scheduler.rs  scanner.rs  discovery.rs  host_tracker.rs  health.rs  tailscale.rs
+  scheduler/              mod.rs (cron tick), store.rs (task rows + CRUD), runner.rs (one run, InFlightGuard)
+  scanner.rs  discovery.rs  host_tracker.rs  health.rs  tailscale.rs
   launcher.rs  ai.rs  local_paths.rs  native_confirm.rs  crypto.rs  validation.rs  errors.rs
   ssh_test_server.rs      cfg(test) in-process russh server for connect/auth/exec/pool/tunnel tests
 src-tauri/migrations/     001, 003–015 (no 002, on purpose)
