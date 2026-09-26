@@ -89,6 +89,8 @@ describe('RemoteManager connect flows', () => {
 
   afterEach(() => {
     alertSpy.mockRestore();
+    // Tests that silence console.error spy on it; put the real one back.
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
