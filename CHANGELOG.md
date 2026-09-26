@@ -9,6 +9,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 
 ## 2026-09-26: Refactors (P7-9)
 
+- The Qodana workflow (#74) runs: its checkout is pinned (actionlint rejected `@v3`), it scans `src-tauri/` where the Cargo project is, and the Rust configuration stage gets 45 minutes instead of 10.
 - A credential whose stored password is only partly present (a corrupt row) now fails to load instead of loading with an empty password, the same rule the key fields already followed. An empty password with no key would have made SSH fall back to `none` auth.
 - Dialogs close with Escape, keep keyboard focus inside while open, return it to where it was on close, and are announced by their title (FE-020). The SSH host-key prompt is the exception to Escape: it needs an explicit Trust or Reject.
 - Form labels are tied to their inputs in the task, credential, vault-settings, audit-log and monitoring forms, so screen readers name each field and clicking a label focuses it (FE-021).
