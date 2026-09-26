@@ -18,6 +18,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 - CredentialManager is split into `vault/credentials/` (card, form dialog, view dialog, `buildCredentialPayload`, `useRevealedPassword`, `useCredentials`) (FE-027).
 - SettingsView is split into `settings/` (one file per panel, plus `appearanceStore` for the saved theme). The theme is applied once at startup from `main.tsx`; the duplicate apply at module import is gone (FE-027).
 - ScheduledTasksView is split into `scheduled/` (form, list, run-result banner, and a pure `taskForm.ts` for validation, payload, host and credential filtering, now unit-tested) (FE-027).
+- MonitoringView is split into `monitoring/` (system info bar, disk card, process cards, remote hosts list, `useRemoteHostsHealth`, format helpers) (FE-027).
 
 ## 2026-09-26: Repo cleanup
 

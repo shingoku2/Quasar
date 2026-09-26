@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import MonitoringView, { formatMetricTime, formatRateMb } from './MonitoringView';
+import MonitoringView from './MonitoringView';
+import { formatMetricTime, formatRateMb } from './monitoring/format';
 import '@testing-library/jest-dom';
 
 vi.mock('@tauri-apps/api/core', () => ({
