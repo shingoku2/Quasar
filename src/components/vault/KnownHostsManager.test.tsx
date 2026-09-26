@@ -8,32 +8,34 @@ const mockInvoke = vi.mocked(invoke);
 
 const mockHosts = [
   {
-    id: 1,
+    id: 'k1',
     host: 'prod-server.example.com',
     port: 22,
     key_type: 'ed25519',
     fingerprint: 'SHA256:abcdefg1234567',
     trust_status: 'trusted',
-    first_seen: '2024-01-01T00:00:00Z',
-    last_seen: '2024-06-01T00:00:00Z',
+    first_seen_at: 1704067200,
+    last_seen_at: 1717200000,
   },
   {
-    id: 2,
+    id: 'k2',
     host: 'dev-box.local',
     port: 2222,
     key_type: 'rsa',
     fingerprint: 'SHA256:xyz9876543',
     trust_status: 'rejected',
-    first_seen: '2024-02-01T00:00:00Z',
+    first_seen_at: 1706745600,
+    last_seen_at: 1706745600,
   },
   {
-    id: 3,
+    id: 'k3',
     host: 'staging.example.com',
     port: 22,
     key_type: 'ecdsa',
     fingerprint: 'SHA256:changed123',
     trust_status: 'changed',
-    first_seen: '2024-03-01T00:00:00Z',
+    first_seen_at: 1709251200,
+    last_seen_at: 1709251200,
   },
 ];
 
@@ -115,8 +117,17 @@ describe('KnownHostsManager', () => {
     expect(screen.getByText(/No matching hosts found/i)).toBeInTheDocument();
   });
 
-  it('calls remove_ssh_host_key after confirmation', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  // The confirmation is a backend-owned native dialog; the webview must not gate it itself.
+  // FE-006: dates come from first_seen_at/last_seen_at (Unix seconds).
+  it('renders real dates, not "Invalid Date"', async () => {
+    render(<KnownHostsManager />);
+    await waitFor(() => expect(screen.getByText(/prod-server.example.com/)).toBeInTheDocument());
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
+    expect(screen.getByText(new Date(1704067200 * 1000).toLocaleString())).toBeInTheDocument();
+  });
+
+  it('calls remove_ssh_host_key without a webview confirm', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     mockInvoke
       .mockResolvedValueOnce(mockHosts as any)
       .mockResolvedValueOnce(undefined) // remove
@@ -134,19 +145,24 @@ describe('KnownHostsManager', () => {
         port: 22,
       });
     });
+    expect(confirmSpy).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
 
-  it('does not remove host when confirmation is cancelled', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('shows no error when the native confirmation is declined', async () => {
+    mockInvoke
+      .mockResolvedValueOnce(mockHosts as any)
+      .mockRejectedValueOnce('Cancelled');
     render(<KnownHostsManager />);
     await waitFor(() => expect(screen.getByText(/prod-server.example.com/)).toBeInTheDocument());
 
-    const removeButtons = screen.getAllByTitle('Remove host key');
-    fireEvent.click(removeButtons[0]);
+    fireEvent.click(screen.getAllByTitle('Remove host key')[0]);
 
-    expect(mockInvoke).not.toHaveBeenCalledWith('remove_ssh_host_key', expect.anything());
-    confirmSpy.mockRestore();
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('remove_ssh_host_key', expect.anything());
+    });
+    expect(screen.queryByText(/Cancelled|Failed to remove/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/prod-server.example.com/)).toBeInTheDocument();
   });
 
   it('shows Mark as Trusted button for non-trusted hosts', async () => {

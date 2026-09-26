@@ -84,3 +84,22 @@ export const useVisiblePolling = (
     // instead of showing stale data until the next tick.
   }, [visible, intervalMs, ...deps]);
 };
+
+/**
+ * Runs `callback` on mount and again each time the surrounding view becomes visible.
+ * Every view stays mounted, so a list fetched once on mount went stale when another view
+ * changed it (a host added on the Dashboard never appeared in Automation; FE-004).
+ * `callback` is held in a ref, so an inline function doesn't re-trigger it.
+ */
+export const useOnViewShown = (callback: () => void | Promise<void>): void => {
+  const visible = useIsViewVisible();
+  const savedCallback = useRef(callback);
+
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  useEffect(() => {
+    if (visible) void savedCallback.current();
+  }, [visible]);
+};

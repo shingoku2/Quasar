@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, renderHook, act } from '@testing-library/react';
-import { ViewVisibilityProvider, useIsViewVisible, useVisiblePolling } from './useViewVisibility';
+import { ViewVisibilityProvider, useIsViewVisible, useVisiblePolling, useOnViewShown } from './useViewVisibility';
 
 /** Renders nothing; exists so the polling hook can be mounted under a provider. */
 const PollProbe: React.FC<{ callback: () => void; intervalMs?: number }> = ({
@@ -177,5 +177,31 @@ describe('useViewVisibility', () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
     expect(spy).toHaveBeenCalledTimes(2);
+  });
+});
+
+// FE-004: always-mounted views refetch their lists whenever they are shown again.
+describe('useOnViewShown', () => {
+  const ShownProbe: React.FC<{ callback: () => void }> = ({ callback }) => {
+    useOnViewShown(callback);
+    return null;
+  };
+
+  it('runs on mount, not while hidden, and again each time the view is shown', () => {
+    const callback = vi.fn();
+    const { rerender } = render(
+      <ViewVisibilityProvider visible={true}><ShownProbe callback={callback} /></ViewVisibilityProvider>
+    );
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    rerender(<ViewVisibilityProvider visible={false}><ShownProbe callback={callback} /></ViewVisibilityProvider>);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    rerender(<ViewVisibilityProvider visible={true}><ShownProbe callback={callback} /></ViewVisibilityProvider>);
+    expect(callback).toHaveBeenCalledTimes(2);
+
+    // A re-render while visible (new inline callback) doesn't refetch.
+    rerender(<ViewVisibilityProvider visible={true}><ShownProbe callback={() => callback()} /></ViewVisibilityProvider>);
+    expect(callback).toHaveBeenCalledTimes(2);
   });
 });

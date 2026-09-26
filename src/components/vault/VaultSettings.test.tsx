@@ -8,7 +8,6 @@ const mockInvoke = vi.mocked(invoke);
 
 const mockSettings = {
   auto_lock_timeout_minutes: 15,
-  require_password_on_credential_use: false,
   vault_initialized: true,
 };
 
@@ -53,6 +52,15 @@ describe('VaultSettings', () => {
     await waitFor(() => {
       expect(screen.getByText(/Initialized/)).toBeInTheDocument();
     });
+  });
+
+  // IPC-004 / RSEC-003: the "require master password for credential access" toggle was
+  // shown but never enforced by the backend, so it's gone rather than misleading users.
+  it('does not offer the unenforced require-password toggle', async () => {
+    render(<VaultSettings />);
+    await waitFor(() => expect(screen.getByText('Auto-lock Timeout')).toBeInTheDocument());
+    expect(screen.queryByText(/Require master password for credential access/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('calls update_vault_settings on Save', async () => {

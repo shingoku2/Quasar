@@ -151,6 +151,45 @@ describe('useSshHostKeyVerification', () => {
     consoleError.mockRestore();
   });
 
+  // The backend rejects the handshake when the user declines its native changed-key dialog.
+  it('dequeues the prompt when the native changed-key confirmation is declined', async () => {
+    let verificationListener: ((event: { payload: Record<string, unknown> }) => void) | undefined;
+    vi.mocked(listen).mockImplementation(async (_eventName, callback) => {
+      verificationListener = callback as typeof verificationListener;
+      return () => {};
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'respond_ssh_host_key_verification') throw 'Cancelled';
+      return undefined;
+    });
+
+    const { result } = renderHook(() => useSshHostKeyVerification());
+    act(() => {
+      verificationListener?.({
+        payload: {
+          requestId: 'req-changed',
+          host: 'host-1',
+          port: 22,
+          fingerprint: 'fp-new',
+          keyType: 'ssh-ed25519',
+          keyBytes: [1],
+          status: 'Changed',
+          message: 'changed',
+          oldFingerprint: 'fp-old',
+        },
+      });
+    });
+    await waitFor(() => expect(result.current.promptData?.host).toBe('host-1'));
+
+    await act(async () => {
+      await result.current.handleTrust(false);
+    });
+
+    await waitFor(() => expect(result.current.promptData).toBeNull());
+    consoleError.mockRestore();
+  });
+
   it('dequeues the current prompt when handleTrust fails with a dismissible error', async () => {
     let verificationListener: ((event: { payload: {
       requestId: string;
@@ -411,5 +450,99 @@ describe('useSshHostKeyVerification', () => {
     await waitFor(() => {
       expect(result.current.promptData).toBeNull();
     });
+  });
+
+  type HostKeyPayload = {
+    requestId: string;
+    host: string;
+    port: number;
+    fingerprint: string;
+    keyType: string;
+    keyBytes: number[];
+    status: string;
+    message: string;
+    oldFingerprint?: string | null;
+  };
+
+  const captureListener = () => {
+    const holder: { fire?: (event: { payload: HostKeyPayload }) => void } = {};
+    vi.mocked(listen).mockImplementation(async (_eventName, callback) => {
+      holder.fire = callback as typeof holder.fire;
+      return () => {};
+    });
+    return holder;
+  };
+
+  const payload = (overrides: Partial<HostKeyPayload> = {}): HostKeyPayload => ({
+    requestId: 'req-x',
+    host: 'host-x',
+    port: 22,
+    fingerprint: 'fp-new',
+    keyType: 'ssh-key',
+    keyBytes: [9, 9, 9],
+    status: 'Unknown',
+    message: 'prose',
+    ...overrides,
+  });
+
+  // IPC-002: the webview names the pending request only; the backend persists the key the
+  // handshake actually presented.
+  it('trusts permanently by request id alone, sending no key material', async () => {
+    const listener = captureListener();
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useSshHostKeyVerification());
+    act(() => listener.fire?.({ payload: payload() }));
+
+    await act(async () => {
+      result.current.handleTrust(true);
+    });
+
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith('trust_ssh_host_key', { requestId: 'req-x' });
+  });
+
+  // TEST-012: the live trust-once branch answers the pending request and persists nothing.
+  it('trusts once via respond_ssh_host_key_verification without persisting', async () => {
+    const listener = captureListener();
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useSshHostKeyVerification());
+    act(() => listener.fire?.({ payload: payload() }));
+
+    await act(async () => {
+      result.current.handleTrust(false);
+    });
+
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith('respond_ssh_host_key_verification', {
+      requestId: 'req-x',
+      accepted: true,
+    });
+    expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('trust_ssh_host_key', expect.anything());
+  });
+
+  // FE-010: the "previous fingerprint" is the stored one, not the prose message.
+  it('uses the backend oldFingerprint for a changed key', () => {
+    const listener = captureListener();
+    const { result } = renderHook(() => useSshHostKeyVerification());
+    act(() =>
+      listener.fire?.({
+        payload: payload({ status: 'Changed', message: 'WARNING ... New: fp-new', oldFingerprint: 'fp-old' }),
+      })
+    );
+    expect(result.current.promptData?.isChanged).toBe(true);
+    expect(result.current.promptData?.oldFingerprint).toBe('fp-old');
+  });
+
+  // FE-007: unmounting before listen() resolves must still unlisten.
+  it('unlistens even when unmounted before listen resolves', async () => {
+    const unlisten = vi.fn();
+    let resolveListen: (fn: () => void) => void = () => {};
+    vi.mocked(listen).mockImplementation(
+      () => new Promise((resolve) => { resolveListen = resolve; })
+    );
+    const { unmount } = renderHook(() => useSshHostKeyVerification());
+    unmount();
+    await act(async () => {
+      resolveListen(unlisten);
+    });
+    expect(unlisten).toHaveBeenCalledTimes(1);
   });
 });

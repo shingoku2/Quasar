@@ -9,7 +9,9 @@ import SecurityView from './vault/SecurityView';
 import ScheduledTasksView from './ScheduledTasksView';
 import SettingsView from './SettingsView';
 import UpdateBanner from './UpdateBanner';
+import { HostKeyPromptHost } from './vault/HostKeyPromptHost';
 import { ViewVisibilityProvider } from '../hooks/useViewVisibility';
+import ErrorBoundary from './ErrorBoundary';
 
 const Layout: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewId>('dashboard');
@@ -32,40 +34,57 @@ const Layout: React.FC = () => {
         <main className="flex-1 overflow-hidden relative">
           <div className={`absolute inset-0 ${activeView === 'dashboard' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'dashboard'}>
-              <DashboardView onNavigate={setActiveView} />
+              <ErrorBoundary scope="Dashboard">
+                <DashboardView onNavigate={setActiveView} />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'remote' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'remote'}>
-              <RemoteManager />
+              <ErrorBoundary scope="Remote">
+                <RemoteManager />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'ai' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'ai'}>
-              <AIAssistant />
+              <ErrorBoundary scope="AI Assistant">
+                <AIAssistant />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'monitoring' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'monitoring'}>
-              <MonitoringView />
+              <ErrorBoundary scope="Monitoring">
+                <MonitoringView />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'automation' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'automation'}>
-              <ScheduledTasksView />
+              <ErrorBoundary scope="Automation">
+                <ScheduledTasksView />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'security' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'security'}>
-              <SecurityView />
+              <ErrorBoundary scope="Security">
+                <SecurityView />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
           <div className={`absolute inset-0 ${activeView === 'settings' ? 'block' : 'hidden'}`}>
             <ViewVisibilityProvider visible={activeView === 'settings'}>
-              <SettingsView />
+              <ErrorBoundary scope="Settings">
+                <SettingsView />
+              </ErrorBoundary>
             </ViewVisibilityProvider>
           </div>
         </main>
+
+        {/* Above every view, so a prompt raised from any view is visible (FE-011). */}
+        <HostKeyPromptHost />
 
         {/* Status Bar */}
         <footer className="h-7 bg-bg-sidebar border-t border-border flex items-center justify-between px-4 text-[11px] text-gray-500 shrink-0">

@@ -4,47 +4,15 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
 };
-use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Algorithm, Argon2, Params, Version,
-};
+use argon2::password_hash::phc::Salt;
 
-pub(crate) fn generate_salt() -> Result<SaltString, String> {
+/// A fresh random 16-byte salt, "B64"-encoded (the form `vault_settings.salt` stores).
+pub(crate) fn generate_salt() -> Result<String, String> {
     let mut salt_bytes = [0u8; 16];
     getrandom::fill(&mut salt_bytes).map_err(|e| format!("Failed to generate salt: {}", e))?;
-    SaltString::encode_b64(&salt_bytes).map_err(|e| format!("Failed to encode salt: {}", e))
+    let salt = Salt::new(&salt_bytes).map_err(|e| format!("Failed to encode salt: {}", e))?;
+    Ok(salt.to_salt_string().to_string())
 }
-#[allow(dead_code)]
-pub fn hash_password(password: &str) -> Result<String, String> {
-    let salt = generate_salt()?;
-
-    // OWASP-recommended Argon2id parameters: 47 MiB memory, 2 iterations, 1 parallelism
-    let params = Params::new(47104, 2, 1, Some(32))
-        .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| format!("Failed to hash password: {}", e))?
-        .to_string();
-    Ok(password_hash)
-}
-
-#[allow(dead_code)]
-pub fn verify_password(password: &str, hashed_password: &str) -> Result<bool, String> {
-    let parsed_hash = PasswordHash::new(hashed_password)
-        .map_err(|e| format!("Failed to parse password hash: {}", e))?;
-
-    // Use same params for verification (though Argon2 will use params from hash)
-    let params = Params::new(47104, 2, 1, Some(32))
-        .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-
-    Ok(argon2
-        .verify_password(password.as_bytes(), &parsed_hash)
-        .is_ok())
-}
-
 pub fn encrypt(data: &[u8], key: &[u8; 32]) -> Result<(Vec<u8>, [u8; 12], [u8; 16]), String> {
     let cipher = Aes256Gcm::new(key.into());
     let mut nonce_bytes = [0u8; 12];
@@ -108,13 +76,13 @@ pub fn ssh_host_key_fingerprint(public_key_bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
+    /// The stored salt is 16 random bytes in "B64"; kdf::derive_ikm decodes it back.
     #[test]
-    fn test_password_hashing() {
-        let password = "my_super_secret_password";
-        let hashed = hash_password(password).unwrap();
-
-        assert!(verify_password(password, &hashed).unwrap());
-        assert!(!verify_password("wrong_password", &hashed).unwrap());
+    fn generated_salt_is_16_bytes_of_b64() {
+        let a = generate_salt().unwrap();
+        let b = generate_salt().unwrap();
+        assert_ne!(a, b);
+        assert_eq!(Salt::from_b64(&a).unwrap().len(), 16);
     }
 
     #[test]

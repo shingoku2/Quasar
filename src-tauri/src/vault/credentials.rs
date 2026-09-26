@@ -104,8 +104,81 @@ impl From<Credential> for CredentialSummary {
     }
 }
 
+/// A credential with a stored `host` may only be used against that host (case-insensitive,
+/// surrounding whitespace ignored). One without a host is unrestricted. Before this, any
+/// credential could be pointed at any host, so a compromised webview could bind a vault
+/// password to an attacker's server and let the monitoring poll send it there (IPC-003).
+pub fn host_allowed(credential_host: Option<&str>, target_host: &str) -> bool {
+    match credential_host.map(str::trim).filter(|h| !h.is_empty()) {
+        None => true,
+        Some(bound) => bound.eq_ignore_ascii_case(target_host.trim()),
+    }
+}
+
+/// What a credential is about to be used for. Only SSH-type credentials may authenticate an
+/// SSH connection: an API, database, RDP or other credential's password must never be sent
+/// to an SSH server (PR #68 review). SFTP is password-only, so it excludes `ssh_key`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialUse {
+    /// Terminal, tunnel, monitoring poll, scheduled SSH command: password or key.
+    Ssh,
+    /// SFTP browse/transfer and scheduled SFTP tasks: password only.
+    Sftp,
+}
+
+impl CredentialUse {
+    /// The use a scheduled task of this type makes of its credential.
+    pub fn for_task_type(task_type: &str) -> Self {
+        match task_type {
+            "sftp_upload" | "sftp_download" => CredentialUse::Sftp,
+            _ => CredentialUse::Ssh,
+        }
+    }
+}
+
+/// Whether a credential of `credential_type` may be used for `usage`. `password` is the
+/// pre-typed column default (migrations 001-009) and means an SSH password credential.
+pub fn type_allowed(credential_type: &str, usage: CredentialUse) -> bool {
+    match usage {
+        CredentialUse::Ssh => matches!(credential_type, "ssh" | "ssh_key" | "password"),
+        CredentialUse::Sftp => matches!(credential_type, "ssh" | "password"),
+    }
+}
+
+/// `Ok` when a credential of this name/type may be used for `usage`.
+pub fn check_type(name: &str, credential_type: &str, usage: CredentialUse) -> Result<(), String> {
+    if type_allowed(credential_type, usage) {
+        return Ok(());
+    }
+    Err(match usage {
+        CredentialUse::Ssh => format!(
+            "Credential '{}' is a {} credential; SSH needs an SSH password or SSH key credential.",
+            name, credential_type
+        ),
+        CredentialUse::Sftp => format!(
+            "Credential '{}' is a {} credential; SFTP needs an SSH password credential.",
+            name, credential_type
+        ),
+    })
+}
+
+pub fn host_mismatch_error(name: &str, bound: Option<&str>) -> String {
+    format!(
+        "Credential '{}' is restricted to host '{}'. Use it with that host, or clear its Host field.",
+        name,
+        bound.unwrap_or_default()
+    )
+}
+
 pub struct CredentialManager {
     db_path: String,
+}
+
+fn corrupt_blob(msg: &str) -> rusqlite::Error {
+    rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        msg.to_string(),
+    )))
 }
 
 fn decrypt_optional_blob(
@@ -114,12 +187,16 @@ fn decrypt_optional_blob(
     nonce_vec: Option<Vec<u8>>,
     tag_vec: Option<Vec<u8>>,
 ) -> Result<Option<String>, rusqlite::Error> {
-    let (Some(ciphertext), Some(nonce_vec), Some(tag_vec)) = (ciphertext, nonce_vec, tag_vec)
-    else {
-        return Ok(None);
+    // All three absent: no value stored. Anything else incomplete or mis-sized is corrupt,
+    // and must be an error rather than "absent": callers that re-encrypt (password change,
+    // the v1→v2 vault migration) would otherwise overwrite the stored blob with NULL.
+    let (ciphertext, nonce_vec, tag_vec) = match (ciphertext, nonce_vec, tag_vec) {
+        (None, None, None) => return Ok(None),
+        (Some(c), Some(n), Some(t)) => (c, n, t),
+        _ => return Err(corrupt_blob("incomplete encrypted field (ciphertext/nonce/tag)")),
     };
     if nonce_vec.len() != 12 || tag_vec.len() != 16 {
-        return Ok(None);
+        return Err(corrupt_blob("invalid nonce or auth tag length"));
     }
     let mut nonce = [0u8; 12];
     let mut tag = [0u8; 16];
@@ -334,6 +411,29 @@ impl CredentialManager {
         )?;
 
         Ok(credential)
+    }
+
+    /// Audits an explicit plaintext reveal to the UI as its own event type, so it can be told
+    /// apart from background decrypts (audit RSEC-011 / IPC-005). Best effort.
+    pub fn record_reveal(&self, credential_id: &str) {
+        self.audit_reveal(credential_id, "success");
+    }
+
+    /// A reveal the user declined (or that was refused) in the native dialog. Repeated
+    /// declines can indicate a compromised webview probing for passwords.
+    pub fn record_reveal_declined(&self, credential_id: &str) {
+        self.audit_reveal(credential_id, "declined");
+    }
+
+    fn audit_reveal(&self, credential_id: &str, result: &str) {
+        let outcome = db::open_connection(&self.db_path).and_then(|conn| {
+            Self::log_audit_event(
+                &conn, "credential_reveal", Some(credential_id), Some("credential"), "reveal", result, None,
+            )
+        });
+        if let Err(e) = outcome {
+            log::warn!("Failed to audit credential reveal: {}", e);
+        }
     }
 
     pub fn list_credentials(&self) -> Result<Vec<CredentialSummary>, String> {
@@ -1081,6 +1181,35 @@ mod tests {
         );
 
         cleanup_test_db(&db_path);
+    }
+
+    /// A present-but-malformed private key must be an error, not "no key": password change and
+    /// the vault migration re-encrypt what get_credential returns, and would write NULL over it.
+    #[test]
+    fn test_malformed_private_key_blob_is_an_error_not_absent() {
+        let (db_path, master_key) = setup_test_db();
+        let manager = CredentialManager::new(db_path.clone());
+        let id = manager
+            .add_credential(&master_key, "k".into(), "u".into(), String::new(), "ssh_key".into(),
+                None, None, None, None, Some("PEM".into()), None)
+            .unwrap();
+        let conn = Connection::open(&db_path).unwrap();
+
+        conn.execute("UPDATE credentials SET private_key_nonce = X'0102' WHERE id = ?1", [&id]).unwrap();
+        assert!(manager.get_credential(&master_key, &id).is_err(), "bad nonce length");
+
+        conn.execute("UPDATE credentials SET private_key_nonce = zeroblob(12), private_key_tag = NULL WHERE id = ?1", [&id]).unwrap();
+        assert!(manager.get_credential(&master_key, &id).is_err(), "partially NULL triple");
+
+        cleanup_test_db(&db_path);
+    }
+
+    #[test]
+    fn test_host_allowed_binding_rules() {
+        assert!(host_allowed(None, "anything"));
+        assert!(host_allowed(Some(""), "anything"));
+        assert!(host_allowed(Some(" Server.LAN "), "server.lan"));
+        assert!(!host_allowed(Some("server.lan"), "evil.example"));
     }
 
     #[test]

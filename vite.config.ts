@@ -35,5 +35,17 @@ export default defineConfig(async () => ({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "html"],
+      // A floor just under the September 2026 baseline (73.5/68.2/68.7/75.9), so coverage
+      // can't quietly slide. Raise these as tests are added (CI-007).
+      thresholds: {
+        statements: 72,
+        branches: 66,
+        functions: 67,
+        lines: 74,
+      },
+    },
   },
 }));

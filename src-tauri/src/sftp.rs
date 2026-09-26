@@ -1,6 +1,4 @@
-use crate::crypto;
 use crate::vault::SshKeyManager;
-use russh::keys::PublicKeyBase64;
 use russh::*;
 use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
@@ -33,31 +31,13 @@ impl client::Handler for SftpClient {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
-        // Get SSH key manager from app state
-        let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
-
-        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
-        let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
-        let key_type = "ssh-key";
-
-        // Verify host key
-        match ssh_key_manager
-            .verify_host_key_by_fingerprint(&self.host, self.port, &fingerprint, key_type)
+        // Non-interactive: only an already-trusted key is accepted.
+        self.app_handle
+            .state::<SshKeyManager>()
+            .check_non_interactive(&self.host, self.port, server_public_key)
             .await
-        {
-            Ok(result) => {
-                if result.allowed {
-                    Ok(true)
-                } else {
-                    // Reject connection for SFTP operations if not already trusted
-                    Err(russh::Error::Disconnect)
-                }
-            }
-            Err(_) => Err(russh::Error::Disconnect),
-        }
     }
 }
 
@@ -422,74 +402,6 @@ pub async fn list_directory(
     result
 }
 
-/// Check if a remote file or directory exists
-pub async fn remote_exists(
-    app_handle: AppHandle,
-    host: &str,
-    port: u16,
-    username: &str,
-    password: &str,
-    remote_path: &str,
-) -> Result<bool, String> {
-    require_password_auth(password)?;
-
-    let config = russh::client::Config::default();
-    let config = Arc::new(config);
-    let sh = SftpClient {
-        app_handle,
-        host: host.to_string(),
-        port,
-    };
-
-    let mut session =
-        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
-            .await?;
-
-    let result = async {
-        // Authenticate
-        let auth_res = session
-            .authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication error: {}", e))?;
-
-        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-        if !is_success {
-            return Err("Authentication failed".to_string());
-        }
-
-        // Open SFTP channel
-        let channel = session
-            .channel_open_session()
-            .await
-            .map_err(|e| format!("Failed to open channel: {}", e))?;
-
-        channel
-            .request_subsystem(true, "sftp")
-            .await
-            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
-
-        let sftp = SftpSession::new(channel.into_stream())
-            .await
-            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
-
-        // Try to get metadata
-        let exists = sftp.metadata(remote_path).await.is_ok();
-
-        sftp.close()
-            .await
-            .map_err(|e| format!("Failed to close SFTP session: {}", e))?;
-
-        Ok(exists)
-    }
-    .await;
-
-    // Explicitly disconnect SSH session
-    let _ = session
-        .disconnect(russh::Disconnect::ByApplication, "", "en")
-        .await;
-
-    result
-}
 
 #[cfg(test)]
 mod tests {

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bell, Plus, Trash2, Check } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, getErrorMessage } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 
 /**
  * Alert rule as it crosses Tauri IPC. `metric`/`operator`/`severity` are fieldless
@@ -47,6 +48,7 @@ const METRIC_LABELS: Record<string, string> = {
 const AlertRules: React.FC = () => {
   const [rules, setRules] = useState<SimpleAlertRule[]>([]);
   const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [newRule, setNewRule] = useState<Partial<SimpleAlertRule>>({
     metric: 'CpuUsage',
     operator: 'GreaterThan',
@@ -56,14 +58,14 @@ const AlertRules: React.FC = () => {
     cooldown_seconds: 300
   });
 
-  useEffect(() => {
-    loadRules();
-  }, []);
+  // The view stays mounted while hidden, and an import can replace the rules in between:
+  // reload whenever it's shown, so an edit never overwrites the imported set with stale rules.
+  useOnViewShown(() => loadRules());
 
   const loadRules = async () => {
     try {
       const backendRules = await invoke<AlertRule[]>('get_alert_rules');
-      const simpleRules = backendRules.map(convertToSimpleRule);
+      const simpleRules = (Array.isArray(backendRules) ? backendRules : []).map(convertToSimpleRule);
       setRules(simpleRules);
     } catch (err) {
       console.error('Failed to load alert rules:', err);
@@ -97,6 +99,7 @@ const AlertRules: React.FC = () => {
     const updatedRule = { ...rule, enabled: !rule.enabled };
     setRules(prev => prev.map(r => r.id === id ? updatedRule : r));
 
+    setError(null);
     try {
       // add_alert_rule upserts by id (retain(id != new.id) then push) on the backend,
       // so a single call is an atomic replace. Doing remove-then-add here left a window
@@ -104,16 +107,19 @@ const AlertRules: React.FC = () => {
       await invoke('add_alert_rule', { rule: convertToBackendRule(updatedRule) });
     } catch (err) {
       console.error('Failed to toggle rule:', err);
+      setError(getErrorMessage(err, 'Failed to update rule'));
       setRules(prev => prev.map(r => r.id === id ? rule : r)); // Revert on error
     }
   };
 
   const deleteRule = async (id: string) => {
     setRules(prev => prev.filter(rule => rule.id !== id));
+    setError(null);
     try {
       await invoke('remove_alert_rule', { ruleId: id });
     } catch (err) {
       console.error('Failed to delete rule:', err);
+      setError(getErrorMessage(err, 'Failed to delete rule'));
       loadRules(); // Reload on error
     }
   };
@@ -132,11 +138,14 @@ const AlertRules: React.FC = () => {
     };
     
     setRules(prev => [...prev, rule]);
-    
+    setError(null);
+
     try {
       await invoke('add_alert_rule', { rule: convertToBackendRule(rule) });
     } catch (err) {
       console.error('Failed to add rule:', err);
+      // The backend validates rules (threshold 0-100, cooldown up to a day); show why.
+      setError(getErrorMessage(err, 'Failed to add rule'));
       setRules(prev => prev.filter(r => r.id !== rule.id)); // Remove on error
     }
     
@@ -166,6 +175,12 @@ const AlertRules: React.FC = () => {
           <span>Add Rule</span>
         </button>
       </div>
+
+      {error && (
+        <div role="alert" className="px-4 py-2 text-xs text-red-400 bg-red-500/10 border-b border-gray-800">
+          {error}
+        </div>
+      )}
 
       <div className="divide-y divide-gray-800/50">
         {rules.map((rule) => (

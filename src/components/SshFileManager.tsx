@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { invoke } from "@tauri-apps/api/core";
-import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   Folder,
   ArrowLeft,
@@ -27,15 +26,23 @@ interface SshFileManagerProps {
   host: string;
   port: number;
   username: string;
+  /** Manually entered password. Vault credentials are passed by id instead (never decrypted into the webview). */
   password?: string;
+  credentialId?: string;
 }
 
 const SshFileManager: React.FC<SshFileManagerProps> = ({
-  host, 
-  port, 
-  username, 
-  password 
+  host,
+  port,
+  username,
+  password,
+  credentialId,
 }) => {
+  const hasAuth = Boolean(password || credentialId);
+  const auth = useMemo(
+    () => ({ password: password ?? null, credentialId: credentialId ?? null }),
+    [password, credentialId],
+  );
   const [currentPath, setCurrentPath] = useState('/');
   const [files, setFiles] = useState<RemoteFile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,7 +59,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
   }, []);
 
   const fetchFiles = useCallback(async (path: string) => {
-    if (!password) return;
+    if (!hasAuth) return;
     
     if (isMounted.current) {
       setLoading(true);
@@ -64,7 +71,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
         host,
         port,
         username,
-        password,
+        ...auth,
         remotePath: path
       });
       
@@ -89,7 +96,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
         setLoading(false);
       }
     }
-  }, [host, port, username, password]);
+  }, [host, port, username, auth]);
 
   useEffect(() => {
     fetchFiles('/');
@@ -111,16 +118,14 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
   };
 
   const handleUpload = async () => {
-    if (!password) return;
+    if (!hasAuth) return;
     
     try {
-      const selected = await open({
-        multiple: false,
-        directory: false,
-      });
-      
+      // The backend opens the dialog and only accepts paths chosen there (IPC-001).
+      const selected = await invoke<string | null>('pick_local_file', { title: 'Choose a file to upload' });
+
       if (selected) {
-        const localPath = selected as string;
+        const localPath = selected;
         const fileName = localPath.split(/[\\/]/).pop();
         const remotePath = currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`;
         
@@ -132,7 +137,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
           host,
           port,
           username,
-          password,
+          ...auth,
           localPath,
           remotePath
         });
@@ -152,12 +157,10 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
   };
 
   const handleDownload = async (file: RemoteFile) => {
-    if (!password) return;
+    if (!hasAuth) return;
     
     try {
-      const localPath = await save({
-        defaultPath: file.name,
-      });
+      const localPath = await invoke<string | null>('pick_save_location', { defaultName: file.name });
       
       if (localPath) {
         const remotePath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
@@ -170,7 +173,7 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
           host,
           port,
           username,
-          password,
+          ...auth,
           remotePath,
           localPath
         });

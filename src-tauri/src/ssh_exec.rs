@@ -1,6 +1,4 @@
-use crate::crypto;
 use crate::vault::SshKeyManager;
-use russh::keys::PublicKeyBase64;
 use russh::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,33 +27,13 @@ impl client::Handler for ExecClient {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
-        // Get SSH key manager from app state
-        let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
-
-        // Compute SHA256 fingerprint using shared utility (RFC 4253 §6.6)
-        let key_bytes = server_public_key.public_key_bytes();
-        let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
-        let key_type = "ssh-key";
-
-        // Verify host key
-        match ssh_key_manager
-            .verify_host_key_by_fingerprint(&self.host, self.port, &fingerprint, key_type)
+        // Non-interactive: only an already-trusted key is accepted.
+        self.app_handle
+            .state::<SshKeyManager>()
+            .check_non_interactive(&self.host, self.port, server_public_key)
             .await
-        {
-            Ok(result) => {
-                if result.allowed {
-                    Ok(true)
-                } else {
-                    // Reject connection for non-interactive execution if not already trusted
-                    // Note: In non-interactive mode we can't easily prompt the user,
-                    // so we only allow already trusted hosts.
-                    Err(russh::Error::Disconnect)
-                }
-            }
-            Err(_) => Err(russh::Error::Disconnect),
-        }
     }
 }
 
@@ -86,9 +64,19 @@ impl RunFailure {
     }
 }
 
+/// Cap on the output kept from one command. A hostile or runaway host could otherwise
+/// stream until memory runs out (audit RSEC-015); scheduled-task history keeps far less.
+const MAX_EXEC_OUTPUT: usize = 1024 * 1024;
+const TRUNCATION_NOTICE: &str = "\n[output truncated]";
+
+/// Once EOF and the exit status have both arrived, how long to wait for the server to close
+/// the channel. Some servers (network gear, some Dropbear builds) wait for the client to
+/// close first; without this every command against them hit the full timeout.
+const CLOSE_GRACE: Duration = Duration::from_secs(2);
+
 /// Run one command over an already-authenticated session.
-async fn run_command(
-    session: &russh::client::Handle<ExecClient>,
+async fn run_command<H: client::Handler>(
+    session: &russh::client::Handle<H>,
     command: &str,
     timeout_secs: u64,
 ) -> Result<String, RunFailure> {
@@ -102,21 +90,40 @@ async fn run_command(
     })?;
 
     let mut output = Vec::new();
+    let mut truncated = false;
     let mut exit_code: Option<u32> = None;
+    let mut exit_signal: Option<String> = None;
     let wait_result = tokio::time::timeout(Duration::from_secs(timeout_secs), async {
+        // Read until the channel closes, not just until EOF: servers (OpenSSH included)
+        // send exit-status *after* EOF, and stopping at EOF recorded failed commands as
+        // successes (audit RUST-009).
+        let mut eof = false;
         loop {
-            match channel.wait().await {
-                Some(russh::ChannelMsg::Data { ref data }) => {
-                    output.extend_from_slice(data);
+            let msg = if eof && (exit_code.is_some() || exit_signal.is_some()) {
+                match tokio::time::timeout(CLOSE_GRACE, channel.wait()).await {
+                    Ok(msg) => msg,
+                    Err(_) => break, // complete result; the server is waiting for us to close
                 }
-                Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
-                    output.extend_from_slice(data);
+            } else {
+                channel.wait().await
+            };
+            match msg {
+                Some(russh::ChannelMsg::Data { ref data })
+                | Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => {
+                    let room = MAX_EXEC_OUTPUT.saturating_sub(output.len());
+                    if data.len() > room {
+                        truncated = true;
+                    }
+                    output.extend_from_slice(&data[..data.len().min(room)]);
                 }
                 Some(russh::ChannelMsg::ExitStatus { exit_status }) => {
                     exit_code = Some(exit_status);
                 }
-                Some(russh::ChannelMsg::Eof) => break,
-                None => break,
+                Some(russh::ChannelMsg::ExitSignal { signal_name, .. }) => {
+                    exit_signal = Some(format!("{:?}", signal_name));
+                }
+                Some(russh::ChannelMsg::Eof) => eof = true,
+                Some(russh::ChannelMsg::Close) | None => break,
                 _ => {}
             }
         }
@@ -129,6 +136,12 @@ async fn run_command(
         ));
     }
 
+    if let Some(signal) = exit_signal {
+        return Err(RunFailure::AfterDelivery(format!(
+            "Command terminated by signal {}",
+            signal
+        )));
+    }
     if let Some(code) = exit_code {
         if code != 0 {
             return Err(RunFailure::AfterDelivery(format!(
@@ -138,6 +151,12 @@ async fn run_command(
         }
     }
 
+    if truncated {
+        // The cut may split a UTF-8 sequence, so don't treat that as invalid output.
+        let mut text = String::from_utf8_lossy(&output).into_owned();
+        text.push_str(TRUNCATION_NOTICE);
+        return Ok(text);
+    }
     String::from_utf8(output)
         .map_err(|e| RunFailure::AfterDelivery(format!("Invalid UTF-8 in output: {}", e)))
 }
@@ -231,7 +250,8 @@ async fn execute_pooled(
         Err(failure) if failure.is_retryable(lease.reused) => {
             // A cached session can die between the liveness check and use.
             log::debug!("Pooled SSH session for {host}:{port} was unusable; reconnecting");
-            pool.invalidate(&params).await;
+            pool.invalidate(&params, &lease.handle).await;
+            drop(lease);
             let lease = pool.acquire(&app_handle, &params).await?;
             run_command(&lease.handle, command, timeout_secs)
                 .await
@@ -449,6 +469,86 @@ mod tests {
         // task would otherwise run its side effects twice.
         assert!(!after_delivery.is_retryable(true));
         assert!(!after_delivery.is_retryable(false));
+    }
+
+    struct AcceptAnyKey;
+
+    impl client::Handler for AcceptAnyKey {
+        type Error = russh::Error;
+
+        async fn check_server_key(
+            &mut self,
+            _server_public_key: &russh::keys::PublicKeyOrCertificate,
+        ) -> Result<bool, Self::Error> {
+            Ok(true)
+        }
+    }
+
+    /// Runs `command` against the in-process server replying with `output`/`exit_status`.
+    async fn run_against(output: Vec<u8>, exit_status: u32) -> Result<String, String> {
+        use crate::ssh_test_server::{spawn, ExecReply, Policy};
+        let policy = Policy {
+            accept_none: true,
+            exec: Some(ExecReply { output, exit_status, hold_open: false }),
+            ..Default::default()
+        };
+        let (port, _) = spawn(policy).await;
+        let mut session = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        crate::ssh_auth::authenticate(&mut session, "u", None, None, None, None)
+            .await
+            .unwrap();
+        run_command(&session, "true", 10).await.map_err(RunFailure::into_message)
+    }
+
+    /// RUST-009: the exit status arrives after EOF; a failure must not read as success.
+    #[tokio::test]
+    async fn exit_status_after_eof_is_not_lost() {
+        assert_eq!(run_against(b"ok\n".to_vec(), 0).await.unwrap(), "ok\n");
+        let err = run_against(b"boom\n".to_vec(), 3).await.unwrap_err();
+        assert_eq!(err, "Command exited with status 3");
+    }
+
+    /// P7-4 review: a server that sends EOF and the exit status but waits for the client to
+    /// close must not run the command into the timeout.
+    #[tokio::test]
+    async fn server_that_never_closes_does_not_hit_the_timeout() {
+        use crate::ssh_test_server::{spawn, ExecReply, Policy};
+        let policy = Policy {
+            accept_none: true,
+            exec: Some(ExecReply { output: b"ok".to_vec(), exit_status: 0, hold_open: true }),
+            ..Default::default()
+        };
+        let (port, _) = spawn(policy).await;
+        let mut session = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        crate::ssh_auth::authenticate(&mut session, "u", None, None, None, None).await.unwrap();
+        let started = std::time::Instant::now();
+        let out = run_command(&session, "true", 30).await.map_err(RunFailure::into_message);
+        assert_eq!(out.unwrap(), "ok");
+        assert!(started.elapsed() < Duration::from_secs(10), "took {:?}", started.elapsed());
+    }
+
+    /// RSEC-015: a host that streams without end can't grow the buffer past the cap.
+    #[tokio::test]
+    async fn output_is_capped() {
+        let out = run_against(vec![b'x'; MAX_EXEC_OUTPUT + 100_000], 0).await.unwrap();
+        assert!(out.ends_with(TRUNCATION_NOTICE));
+        assert_eq!(out.len(), MAX_EXEC_OUTPUT + TRUNCATION_NOTICE.len());
     }
 
     /// Builds a probe response the way the remote shell would emit it.

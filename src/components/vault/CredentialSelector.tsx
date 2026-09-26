@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, X, Search } from 'lucide-react';
-import { getErrorMessage } from '../../lib/utils';
+import { getErrorMessage, SSH_CREDENTIAL_TYPES } from '../../lib/utils';
 
 interface CredentialSummary {
   id: string;
@@ -20,7 +20,7 @@ interface Credential extends CredentialSummary {
 
 interface CredentialSelectorProps {
   hostAddress?: string;
-  allowedTypes?: string[];
+  allowedTypes?: readonly string[];
   onSelect: (credential: Credential) => void;
   onCancel: () => void;
   onManualEntry: () => void;
@@ -49,7 +49,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       let creds = await invoke<CredentialSummary[]>('list_credentials');
       
       if (hostAddress) {
-        const types = allowedTypes ?? ['ssh', 'ssh_key'];
+        const types = allowedTypes ?? SSH_CREDENTIAL_TYPES;
         creds = creds.filter(c => 
           types.includes(c.credential_type) && 
           (!c.host || c.host === hostAddress)

@@ -47,6 +47,22 @@ impl TunnelState {
         guard.values().map(|(_, info)| info.clone()).collect()
     }
 
+    fn in_use(&self, id: &str) -> bool {
+        self.tunnels.lock().unwrap_or_else(|e| e.into_inner()).contains_key(id)
+    }
+
+    /// Registers a tunnel under `id` unless the id is taken. Replacing an entry dropped the
+    /// old tunnel's cancel sender, which ended its loop, whose cleanup then removed the new
+    /// tunnel's entry by the same id (P7-4 review).
+    fn register(&self, id: &str, cancel_tx: mpsc::Sender<()>, info: TunnelInfo) -> Result<(), String> {
+        let mut guard = self.tunnels.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.contains_key(id) {
+            return Err(format!("Tunnel id {} is already in use", id));
+        }
+        guard.insert(id.to_string(), (cancel_tx, info));
+        Ok(())
+    }
+
     pub fn remove(&self, id: &str) -> bool {
         let mut guard = self.tunnels.lock().unwrap_or_else(|e| e.into_inner());
         if let Some((tx, _)) = guard.remove(id) {
@@ -68,20 +84,38 @@ where
     Ok(())
 }
 
+/// How often an idle tunnel checks whether its SSH session is still alive.
+const SESSION_CHECK_INTERVAL: Duration = Duration::from_secs(5);
+
+/// SSH keepalives, so a dead network path is noticed even when no data flows
+/// (russh closes the session after `keepalive_max` unanswered keepalives).
+const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
+const KEEPALIVE_MAX: usize = 3;
+
 /// Run the tunnel loop: accept local connections and forward each via SSH direct-tcpip.
-async fn run_tunnel_loop(
+/// Ends when the user stops the tunnel or the SSH session dies; either way the local
+/// port is released and the tunnel leaves the active list. It used to run forever on a
+/// dead session, still listed as active, failing every connection (audit RUST-008).
+async fn run_tunnel_loop<H: russh::client::Handler>(
     tunnel_id: String,
     mut cancel_rx: mpsc::Receiver<()>,
     listener: TcpListener,
-    handle: Handle<Client>,
+    handle: Handle<H>,
     remote_host: String,
     remote_port: u16,
 ) {
+    let mut session_check = tokio::time::interval(SESSION_CHECK_INTERVAL);
     loop {
         tokio::select! {
             _ = cancel_rx.recv() => {
                 info!("Tunnel {} stopped by user", tunnel_id);
                 break;
+            }
+            _ = session_check.tick() => {
+                if handle.is_closed() {
+                    error!("Tunnel {} closed: SSH session ended", tunnel_id);
+                    break;
+                }
             }
             accepted = listener.accept() => {
                 let (stream, peer) = match accepted {
@@ -107,6 +141,10 @@ async fn run_tunnel_loop(
                     Err(e) => {
                         error!("Tunnel {} channel_open_direct_tcpip error: {}", tunnel_id, e);
                         drop(stream);
+                        if handle.is_closed() {
+                            error!("Tunnel {} closed: SSH session ended", tunnel_id);
+                            break;
+                        }
                         continue;
                     }
                 };
@@ -141,6 +179,9 @@ pub async fn start_tunnel(
     remote_host: String,
     remote_port: u16,
 ) -> Result<TunnelInfo, String> {
+    if tunnel_state.in_use(&tunnel_id) {
+        return Err(format!("Tunnel id {} is already in use", tunnel_id));
+    }
     validation::validate_port(ssh_port)?;
     validation::validate_port(local_port)?;
     validation::validate_port(remote_port)?;
@@ -154,6 +195,8 @@ pub async fn start_tunnel(
     let config = Arc::new(russh::client::Config {
         window_size: 4 * 1024 * 1024,
         maximum_packet_size: 32 * 1024,
+        keepalive_interval: Some(KEEPALIVE_INTERVAL),
+        keepalive_max: KEEPALIVE_MAX,
         ..Default::default()
     });
 
@@ -163,12 +206,13 @@ pub async fn start_tunnel(
         port: ssh_port,
     };
 
-    let mut handle = crate::ssh_connect::connect_with_diagnostics(
+    let mut handle = crate::ssh_connect::connect_with_timeouts(
         config,
         &ssh_host,
         ssh_port,
         client,
         Duration::from_secs(10),
+        crate::ssh::INTERACTIVE_HANDSHAKE_TIMEOUT,
     )
     .await?;
 
@@ -201,12 +245,9 @@ pub async fn start_tunnel(
         remote_port,
     };
 
-    {
-        let mut guard = tunnel_state
-            .tunnels
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        guard.insert(tunnel_id.clone(), (cancel_tx, info.clone()));
+    if let Err(e) = tunnel_state.register(&tunnel_id, cancel_tx, info.clone()) {
+        let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
+        return Err(e);
     }
 
     let state_for_cleanup = (*tunnel_state).clone();
@@ -229,4 +270,80 @@ pub async fn start_tunnel(
     });
 
     Ok(info)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct AcceptAnyKey;
+
+    impl russh::client::Handler for AcceptAnyKey {
+        type Error = russh::Error;
+        async fn check_server_key(
+            &mut self,
+            _key: &russh::keys::PublicKeyOrCertificate,
+        ) -> Result<bool, Self::Error> {
+            Ok(true)
+        }
+    }
+
+    #[test]
+    fn a_tunnel_id_can_not_be_reused_while_active() {
+        let state = TunnelState::new();
+        let info = |id: &str| TunnelInfo {
+            id: id.to_string(),
+            ssh_host: "h".into(),
+            ssh_port: 22,
+            local_port: 1080,
+            remote_host: "r".into(),
+            remote_port: 80,
+        };
+        let (tx1, _rx1) = mpsc::channel(1);
+        state.register("t1", tx1, info("t1")).unwrap();
+        let (tx2, mut rx2) = mpsc::channel(1);
+        assert!(state.register("t1", tx2, info("t1")).is_err());
+        // The rejected tunnel's sender was dropped, not stored under the old id.
+        assert!(rx2.try_recv().is_err());
+        assert!(state.in_use("t1"));
+        assert!(state.remove("t1"));
+        assert!(!state.in_use("t1"));
+    }
+
+    /// RUST-008: when the SSH session dies, the loop ends and frees the local port.
+    #[tokio::test]
+    async fn tunnel_loop_ends_when_the_session_dies() {
+        let policy = crate::ssh_test_server::Policy { accept_none: true, ..Default::default() };
+        let (port, _, killer) = crate::ssh_test_server::spawn_killable(policy).await;
+        let mut handle = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(russh::client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        ssh_auth::authenticate(&mut handle, "u", None, None, None, None).await.unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let local = listener.local_addr().unwrap();
+        let (_cancel_tx, cancel_rx) = mpsc::channel(1);
+        let tunnel = tokio::spawn(run_tunnel_loop(
+            "t".to_string(),
+            cancel_rx,
+            listener,
+            handle,
+            "127.0.0.1".to_string(),
+            9,
+        ));
+
+        killer.kill_connections().await;
+        tokio::time::timeout(SESSION_CHECK_INTERVAL * 3, tunnel)
+            .await
+            .expect("tunnel loop must end after the session dies")
+            .unwrap();
+        // The listener was dropped with the loop, so the port can be bound again.
+        assert!(TcpListener::bind(local).await.is_ok());
+    }
 }

@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Shield, Trash2, Search, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
-import { getErrorMessage } from '../../lib/utils';
+import { getErrorMessage, isUserCancelled } from '../../lib/utils';
 
+/**
+ * `SshHostKey` as the backend serializes it (vault/ssh_keys.rs). Timestamps are Unix
+ * seconds; this used to read `first_seen`/`last_seen` ISO strings, which don't exist, so
+ * every date rendered as "Invalid Date" (FE-006).
+ */
 interface KnownHost {
-  id: number;
+  id: string;
   host: string;
   port: number;
   key_type: string;
   fingerprint: string;
   trust_status: string;
-  first_seen: string;
-  last_seen?: string;
+  first_seen_at: number;
+  last_seen_at: number;
 }
+
+const formatUnixSeconds = (secs: number): string => new Date(secs * 1000).toLocaleString();
 
 const KnownHostsManager: React.FC = () => {
   const [hosts, setHosts] = useState<KnownHost[]>([]);
@@ -37,16 +44,14 @@ const KnownHostsManager: React.FC = () => {
     loadHosts();
   }, []);
 
+  // The backend asks for confirmation in a native dialog (a webview prompt could be
+  // bypassed by a compromised webview), so there's no confirm() here.
   const handleRemove = async (host: string, port: number) => {
-    if (!confirm(`Remove host key for ${host}:${port}?\n\nYou will be prompted to trust this host again on the next connection.`)) {
-      return;
-    }
-
     try {
       await invoke('remove_ssh_host_key', { host, port });
       await loadHosts();
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to remove host key'));
+      if (!isUserCancelled(err)) setError(getErrorMessage(err, 'Failed to remove host key'));
     }
   };
 
@@ -55,7 +60,7 @@ const KnownHostsManager: React.FC = () => {
       await invoke('update_ssh_host_trust', { host, port, trustStatus });
       await loadHosts();
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to update trust status'));
+      if (!isUserCancelled(err)) setError(getErrorMessage(err, 'Failed to update trust status'));
     }
   };
 
@@ -177,12 +182,12 @@ const KnownHostsManager: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
                       <label className="block text-gray-500 mb-1">First Seen</label>
-                      <p className="text-gray-300">{new Date(host.first_seen).toLocaleString()}</p>
+                      <p className="text-gray-300">{formatUnixSeconds(host.first_seen_at)}</p>
                     </div>
-                    {host.last_seen && (
+                    {host.last_seen_at > 0 && (
                       <div>
                         <label className="block text-gray-500 mb-1">Last Seen</label>
-                        <p className="text-gray-300">{new Date(host.last_seen).toLocaleString()}</p>
+                        <p className="text-gray-300">{formatUnixSeconds(host.last_seen_at)}</p>
                       </div>
                     )}
                   </div>

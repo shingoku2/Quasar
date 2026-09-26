@@ -12,3 +12,6 @@ test_*.db
 *.db-wal
 *.db-shm
 test_*.db-journal
+# Vault tests also create <db>.bak (and its WAL/SHM); a failing test can leave them behind
+test_*.db.bak
+test_*.db.bak-*

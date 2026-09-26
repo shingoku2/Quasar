@@ -1,0 +1,8 @@
+# Pins the Rust toolchain for local builds and CI (audit CI-005). With `-D warnings`, a
+# floating "stable" turned CI red whenever a new Rust release added a lint. Bump this
+# deliberately, fix any new clippy lints in the same change, and keep Cargo.toml's
+# rust-version (the MSRV, checked by CI's msrv job) at or below it.
+[toolchain]
+channel = "1.98.1"
+components = ["clippy"]
+profile = "minimal"

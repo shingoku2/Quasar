@@ -8,13 +8,11 @@ import SshFileManager from './SshFileManager';
 import SessionContainer, { SessionTab } from './SessionContainer';
 import CredentialPrompt from './CredentialPrompt';
 import CredentialSelector from './vault/CredentialSelector';
-import SshHostKeyPrompt from './vault/SshHostKeyPrompt';
 import SshTunnelsView from './SshTunnelsView';
-import { useSshHostKeyVerification } from '../hooks/useSshHostKeyVerification';
-import { getErrorMessage } from '../lib/utils';
 import { useTailscaleStatus, findTailscalePeer } from '../hooks/useTailscaleStatus';
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from 'lucide-react';
+import { SSH_CREDENTIAL_TYPES, SFTP_CREDENTIAL_TYPES } from '../lib/utils';
 
 interface Credential {
   id: string;
@@ -44,7 +42,6 @@ const RemoteManager: React.FC = () => {
   const processedQuickConnects = useRef(new Set<string>());
   
   // SSH host key verification
-  const { promptData, handleTrust, handleReject } = useSshHostKeyVerification();
 
   // Tailscale SSH peers can authenticate by tailnet identity alone, so the
   // manual credential prompt should not require a password for them.
@@ -104,7 +101,7 @@ const RemoteManager: React.FC = () => {
     );
   };
 
-  const startSftpSession = (host: Host, password?: string, usernameOverride?: string) => {
+  const startSftpSession = (host: Host, password?: string, usernameOverride?: string, credentialId?: string) => {
     const sessionUsername = usernameOverride ?? host.username;
     if (!sessionUsername) {
       alert('Username is required to start an SFTP session.');
@@ -119,7 +116,8 @@ const RemoteManager: React.FC = () => {
         host={host.address}
         port={host.port || 22}
         username={sessionUsername}
-        password={password} 
+        password={password}
+        credentialId={credentialId}
       />
     );
   };
@@ -192,18 +190,9 @@ const RemoteManager: React.FC = () => {
       }
 
       if (pendingMode === 'sftp') {
-        // SFTP commands take the password directly (no credential-ID lookup in the
-        // backend), so fetch it on demand here instead of carrying it in the
-        // general get_credential view.
-        let password: string;
-        try {
-          password = await invoke<string>('reveal_credential_password', { credentialId: credential.id });
-        } catch (err) {
-          console.error('Failed to retrieve credential password for SFTP:', err);
-          alert(getErrorMessage(err, 'Failed to retrieve credential password'));
-          return;
-        }
-        startSftpSession(pendingHost, password, selectedUsername);
+        // Like SSH, SFTP gets the credential by id: the backend decrypts it, so the vault
+        // password never enters the webview (FE-001 / RSEC-013).
+        startSftpSession(pendingHost, undefined, selectedUsername, credential.id);
       } else {
         // Pass credentialId only — the backend fetches the credential from the vault
         // by ID, so the password never needs to cross the IPC boundary for SSH sessions.
@@ -364,7 +353,7 @@ const RemoteManager: React.FC = () => {
       {showCredentialSelector && pendingHost && (
         <CredentialSelector
           hostAddress={pendingHost.address}
-          allowedTypes={pendingMode === 'sftp' ? ['ssh'] : undefined}
+          allowedTypes={pendingMode === 'sftp' ? SFTP_CREDENTIAL_TYPES : SSH_CREDENTIAL_TYPES}
           onSelect={handleCredentialSelected}
           onCancel={() => {
             setShowCredentialSelector(false);
@@ -417,18 +406,6 @@ const RemoteManager: React.FC = () => {
         />
       )}
 
-      {promptData && (
-        <SshHostKeyPrompt
-          host={promptData.host}
-          port={promptData.port}
-          fingerprint={promptData.fingerprint}
-          keyType={promptData.keyType}
-          isChanged={promptData.isChanged}
-          oldFingerprint={promptData.oldFingerprint}
-          onTrust={handleTrust}
-          onReject={handleReject}
-        />
-      )}
     </div>
   );
 };

@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Settings, Lock, Clock, Shield, Save, AlertTriangle } from 'lucide-react';
 import { getErrorMessage } from '../../lib/utils';
+import { useOptionalVault } from './VaultProvider';
 
 interface VaultSettings {
   auto_lock_timeout_minutes: number;
-  require_password_on_credential_use: boolean;
   vault_initialized: boolean;
 }
 
 const VaultSettings: React.FC = () => {
+  const vault = useOptionalVault();
   const [settings, setSettings] = useState<VaultSettings>({
     auto_lock_timeout_minutes: 15,
-    require_password_on_credential_use: false,
     vault_initialized: false,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +60,13 @@ const VaultSettings: React.FC = () => {
 
   const handleLockVault = async () => {
     try {
-      await invoke('lock_vault');
+      // Through the context when there is one, so the sidebar and unlock dialog follow.
+      // Calling the command directly left the rest of the UI showing "Unlocked" (FE-008).
+      if (vault) {
+        await vault.lockVault();
+      } else {
+        await invoke('lock_vault');
+      }
       setSuccessMessage('Vault locked successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
@@ -169,43 +175,6 @@ const VaultSettings: React.FC = () => {
                   <AlertTriangle className="h-4 w-4 text-warning" />
                   <span>Shorter timeouts provide better security but require more frequent unlocking</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Security Options */}
-            <div className="bg-bg-sidebar border border-gray-700 rounded-lg p-6">
-              <div className="flex items-start space-x-3 mb-4">
-                <Shield className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="text-white font-bold mb-1">Security Options</h3>
-                  <p className="text-sm text-gray-400">
-                    Additional security measures for credential access
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.require_password_on_credential_use}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        require_password_on_credential_use: e.target.checked,
-                      })
-                    }
-                    className="mt-1 h-4 w-4 rounded border-gray-600 bg-bg-root text-accent focus:ring-accent focus:ring-offset-0"
-                  />
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium">
-                      Require master password for credential access
-                    </p>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Prompt for master password each time a credential is accessed (not recommended for frequent use)
-                    </p>
-                  </div>
-                </label>
               </div>
             </div>
 

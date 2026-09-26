@@ -40,15 +40,6 @@ vi.mock('@tauri-apps/api/event', () => ({
   once: vi.fn(() => Promise.resolve(() => {})),
 }));
 
-// Global mock for @tauri-apps/plugin-dialog
-vi.mock('@tauri-apps/plugin-dialog', () => ({
-  open: vi.fn(() => Promise.resolve(null)),
-  save: vi.fn(() => Promise.resolve(null)),
-  message: vi.fn(() => Promise.resolve()),
-  ask: vi.fn(() => Promise.resolve(false)),
-  confirm: vi.fn(() => Promise.resolve(false)),
-}));
-
 // Global mock for @tauri-apps/api/path
 vi.mock('@tauri-apps/api/path', () => ({
   appDataDir: vi.fn(() => Promise.resolve('/mock/app/data')),

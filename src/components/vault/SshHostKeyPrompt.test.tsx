@@ -126,10 +126,20 @@ describe('SshHostKeyPrompt', () => {
       expect(screen.getByText('Previous Fingerprint')).toBeInTheDocument();
     });
 
-    it('calls onTrust when Accept New Key is clicked', () => {
+    // RSEC-007: a changed key (the MITM case) can't be accepted with one habitual click.
+    it('keeps Accept disabled until the new fingerprint is confirmed as verified', () => {
       render(<SshHostKeyPrompt {...changedProps} />);
+      const accept = screen.getByRole('button', { name: /Accept New Key & Connect/i });
+      expect(accept).toBeDisabled();
+      fireEvent.click(accept);
+      expect(changedProps.onTrust).not.toHaveBeenCalled();
+    });
+
+    it('defaults a changed key to one-time trust once verified', () => {
+      render(<SshHostKeyPrompt {...changedProps} />);
+      fireEvent.click(screen.getByRole('checkbox', { name: /I verified the new fingerprint/i }));
       fireEvent.click(screen.getByRole('button', { name: /Accept New Key & Connect/i }));
-      expect(changedProps.onTrust).toHaveBeenCalledWith(true);
+      expect(changedProps.onTrust).toHaveBeenCalledWith(false);
     });
   });
 });

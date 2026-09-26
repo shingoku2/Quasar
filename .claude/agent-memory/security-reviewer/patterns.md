@@ -65,7 +65,9 @@ been asked to stop never attempts the privileged socket open at all.
 
 ---
 
-# Detailed Security Findings — 2026-03-02 Broad Audit
+# Detailed Security Findings — 2026-03-02 Broad Audit (historical)
+
+_Most of these were fixed by 2026-09-25 (see MEMORY.md). Treat every item as unverified and re-check the current code before citing it._
 
 ## crypto.rs
 - Line 45: `rand::rng()` instead of OsRng. rand::rng() returns a thread-local CSPRNG seeded from OsRng on first use. This is likely fine but is not as explicit/auditable as using OsRng directly.

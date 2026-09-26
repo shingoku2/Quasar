@@ -4,9 +4,9 @@
 use chrono::{DateTime, Utc};
 use cron::Schedule;
 use log::{error, info};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Semaphore;
@@ -23,6 +23,40 @@ const SSH_TIMEOUT_SECS: u64 = 120;
 /// same tick ran strictly sequentially, so one unreachable host could delay
 /// every other due task behind its full SSH_TIMEOUT_SECS timeout.
 const MAX_CONCURRENT_TASKS: usize = 5;
+/// Upper bound on one scheduled SFTP transfer. Transfers had no limit, and a stalled one
+/// held its concurrency slot (and, before runs were detached, the whole tick) forever
+/// (audit RUST-006).
+const SFTP_TASK_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+
+/// Ids of tasks with a run in progress, from the scheduler or "Run now". A task never runs
+/// twice at once: a double click or a cron tick during a manual run used to start a
+/// second concurrent run (audit RUST-005).
+fn in_flight() -> &'static Mutex<HashSet<String>> {
+    static IN_FLIGHT: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    IN_FLIGHT.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// "Run now" error for a task with a run in progress. Shown to the user verbatim.
+pub const ALREADY_RUNNING: &str = "This task is already running or waiting to run";
+
+/// Marks a task as running until dropped.
+struct InFlightGuard(String);
+
+impl InFlightGuard {
+    fn claim(task_id: &str) -> Option<Self> {
+        let mut running = in_flight().lock().unwrap_or_else(|e| e.into_inner());
+        running.insert(task_id.to_string()).then(|| Self(task_id.to_string()))
+    }
+}
+
+impl Drop for InFlightGuard {
+    fn drop(&mut self) {
+        in_flight()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.0);
+    }
+}
 
 /// Result of a single task run (scheduled or manual).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -103,12 +137,20 @@ fn load_enabled_tasks(conn: &rusqlite::Connection) -> Result<Vec<TaskRow>, Strin
     rows.map(|r| r.map_err(|e| e.to_string())).collect()
 }
 
+/// Whether a saved host's protocol lets scheduled tasks (SSH exec and SFTP) run against it.
+/// Other protocols are inventory-only (PR #68 review).
+pub fn host_protocol_runs_tasks(protocol: &str) -> bool {
+    protocol.trim().eq_ignore_ascii_case("ssh")
+}
+
+/// Address, port and username of the task's host. An error if the host has since been
+/// changed to a protocol tasks don't run against.
 fn get_host_credentials(
     conn: &rusqlite::Connection,
     host_id: &str,
 ) -> Result<Option<(String, i64, String)>, String> {
     let mut stmt = conn
-        .prepare("SELECT address, port, username FROM hosts WHERE id = ?1")
+        .prepare("SELECT address, port, username, protocol FROM hosts WHERE id = ?1")
         .map_err(|e| e.to_string())?;
     let mut rows = stmt
         .query_map(rusqlite::params![host_id], |row| {
@@ -117,11 +159,21 @@ fn get_host_credentials(
                 row.get::<_, i64>(1)?,
                 row.get::<_, Option<String>>(2)?
                     .unwrap_or_else(|| "root".to_string()),
+                row.get::<_, String>(3)?,
             ))
         })
         .map_err(|e| e.to_string())?;
-    rows.next().transpose().map_err(|e| e.to_string())
+    match rows.next().transpose().map_err(|e| e.to_string())? {
+        Some((_, _, _, protocol)) if !host_protocol_runs_tasks(&protocol) => {
+            Err(format!("Host {} is not an SSH host; scheduled tasks only run over SSH", host_id))
+        }
+        Some((address, port, username, _)) => Ok(Some((address, port, username))),
+        None => Ok(None),
+    }
 }
+
+/// Task types a scheduled task may have.
+pub const TASK_TYPES: [&str; 3] = ["ssh", "sftp_upload", "sftp_download"];
 
 const MAX_OUTPUT_LEN: usize = 4096;
 
@@ -187,6 +239,7 @@ pub fn list_scheduled_tasks(conn: &rusqlite::Connection) -> Result<Vec<Scheduled
 }
 
 /// Fetch a single task by id.
+#[cfg(test)]
 pub fn get_scheduled_task(
     conn: &rusqlite::Connection,
     id: &str,
@@ -362,6 +415,9 @@ fn is_due(cron_expression: &str, last_run_at: Option<i64>, now: DateTime<Utc>) -
 async fn resolve_cred_for_task(
     app: &AppHandle,
     credential_id: Option<&str>,
+    target_host: &str,
+    task_type: &str,
+    user_initiated: bool,
 ) -> Result<(String, Option<String>, Option<String>, Option<String>), String> {
     let (password, key_path, private_key, key_passphrase) = if let Some(cid) = credential_id {
         let vault_state = app
@@ -370,12 +426,26 @@ async fn resolve_cred_for_task(
         let credential_manager = app
             .try_state::<crate::vault::CredentialManager>()
             .ok_or_else(|| "Credential manager not available".to_string())?;
-        let access = vault_state.credential_access().await.map_err(|_| {
-            "Vault is locked — unlock the vault for scheduled tasks to run".to_string()
-        })?;
+        // Scheduled runs are background work: they must not reset the auto-lock timer
+        // (RSEC-002). "Run now" is the user acting, so it counts as activity.
+        let access = if user_initiated {
+            vault_state.credential_access().await
+        } else {
+            vault_state.credential_access_background().await
+        }
+        .map_err(|_| "Vault is locked — unlock the vault for scheduled tasks to run".to_string())?;
         let cred = credential_manager
             .get_credential(access.key(), cid)
             .map_err(|e| format!("Credential error: {}", e))?;
+        if !crate::vault::credentials::host_allowed(cred.host.as_deref(), target_host) {
+            return Err(crate::vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
+        }
+        // Checked again at run time: the credential's type can change after the task was saved.
+        crate::vault::credentials::check_type(
+            &cred.name,
+            &cred.credential_type,
+            crate::vault::credentials::CredentialUse::for_task_type(task_type),
+        )?;
         (
             cred.password,
             cred.key_path.clone(),
@@ -386,6 +456,15 @@ async fn resolve_cred_for_task(
         (String::new(), None, None, None)
     };
     Ok((password, key_path, private_key, key_passphrase))
+}
+
+async fn bounded_sftp<F>(transfer: F) -> Result<(), String>
+where
+    F: std::future::Future<Output = Result<(), String>>,
+{
+    tokio::time::timeout(SFTP_TASK_TIMEOUT, transfer)
+        .await
+        .unwrap_or_else(|_| Err("SFTP transfer timed out".to_string()))
 }
 
 /// Execute SSH command with pre-resolved host and credential. No DB reference (Send-safe).
@@ -409,7 +488,7 @@ async fn run_one_task(
                 (Some(l), Some(r)) => (l, r),
                 _ => return Err("SFTP upload requires local_path and remote_path".to_string()),
             };
-            match crate::sftp::upload_file(
+            match bounded_sftp(crate::sftp::upload_file(
                 app.clone(),
                 address,
                 port_u16,
@@ -418,7 +497,7 @@ async fn run_one_task(
                 local,
                 remote,
                 None,
-            )
+            ))
             .await
             {
                 Ok(()) => Ok(TaskRunResult {
@@ -438,7 +517,7 @@ async fn run_one_task(
                 (Some(r), Some(l)) => (r, l),
                 _ => return Err("SFTP download requires remote_path and local_path".to_string()),
             };
-            match crate::sftp::download_file(
+            match bounded_sftp(crate::sftp::download_file(
                 app.clone(),
                 address,
                 port_u16,
@@ -447,7 +526,7 @@ async fn run_one_task(
                 remote,
                 local,
                 None,
-            )
+            ))
             .await
             {
                 Ok(()) => Ok(TaskRunResult {
@@ -462,7 +541,7 @@ async fn run_one_task(
                 }),
             }
         }
-        _ => {
+        "ssh" => {
             match ssh_exec::execute_ssh_command(
                 app.clone(),
                 address,
@@ -489,6 +568,9 @@ async fn run_one_task(
                 }),
             }
         }
+        // Only the three types the commands accept. Unknown values used to fall through
+        // to SSH exec (running `command`, possibly empty) instead of failing (IPC-011).
+        other => Err(format!("Unknown task type: {}", other)),
     }
 }
 
@@ -505,6 +587,7 @@ pub async fn run_scheduled_task_now(
     let conn = db::open_connection(&db_path_str)?;
 
     let task = load_task_by_id(&conn, task_id)?.ok_or_else(|| "Task not found".to_string())?;
+    let _running = InFlightGuard::claim(task_id).ok_or_else(|| ALREADY_RUNNING.to_string())?;
     let host_info = get_host_credentials(&conn, &task.host_id)?
         .ok_or_else(|| format!("Host not found: {}", task.host_id))?;
 
@@ -517,7 +600,7 @@ pub async fn run_scheduled_task_now(
     let cred_id = task.credential_id.clone();
     drop(conn);
 
-    let cred = resolve_cred_for_task(app, cred_id.as_deref()).await?;
+    let cred = resolve_cred_for_task(app, cred_id.as_deref(), &address, &task_type, true).await?;
     let result = run_one_task(
         app,
         &address,
@@ -548,7 +631,25 @@ pub async fn run_scheduled_task_now(
     Ok(result)
 }
 
-async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, DateTime<Utc>>) {
+/// Scheduler state that outlives a single tick.
+struct SchedulerState {
+    /// Shared across ticks so the concurrency bound holds for detached runs.
+    semaphore: Arc<Semaphore>,
+    /// When each task last started, by task id; guards against re-running a task whose
+    /// `last_run_at` couldn't be persisted.
+    last_executed: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
+}
+
+impl SchedulerState {
+    fn new() -> Self {
+        Self {
+            semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS)),
+            last_executed: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+async fn run_due_tasks(app: &AppHandle, state: &SchedulerState) {
     let db_path = match get_db_path(app) {
         Ok(p) => p,
         Err(e) => {
@@ -557,10 +658,10 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
         }
     };
     let db_path_str = match db_path.to_str() {
-        Some(s) => s,
+        Some(s) => s.to_string(),
         None => return,
     };
-    let conn = match db::open_connection(db_path_str) {
+    let conn = match db::open_connection(&db_path_str) {
         Ok(c) => c,
         Err(e) => {
             error!("scheduler: failed to open db: {}", e);
@@ -575,57 +676,65 @@ async fn run_due_tasks(app: &AppHandle, last_executed: &mut HashMap<String, Date
             return;
         }
     };
+    drop(conn);
 
     let now = Utc::now();
-    let now_ts = now.timestamp();
-    let guard_duration = chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64);
-
-    // Guard against repeated execution when DB persistence of last_run_at failed.
-    let due_tasks: Vec<TaskRow> = tasks
-        .into_iter()
-        .filter(|task| {
-            if !is_due(&task.cron_expression, task.last_run_at, now) {
-                return false;
-            }
-            if let Some(last) = last_executed.get(&task.id) {
-                if now.signed_duration_since(*last) < guard_duration {
-                    return false;
-                }
-            }
-            true
-        })
-        .collect();
-
-    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS));
-    let mut handles = Vec::with_capacity(due_tasks.len());
-
-    for task in due_tasks {
-        let semaphore = semaphore.clone();
+    let app = app.clone();
+    spawn_due_runs(tasks, now, state, move |task, now| {
         let app = app.clone();
-        let db_path_str = db_path_str.to_string();
-        handles.push(tokio::spawn(async move {
-            // Held for the duration of this task's run so at most
-            // MAX_CONCURRENT_TASKS execute at once; released on drop. The semaphore
-            // is never closed, so acquire_owned only errors if that ever changes.
+        let db_path_str = db_path_str.clone();
+        async move { run_and_record_task(&app, &db_path_str, task, now, now.timestamp()).await }
+    });
+}
+
+/// Starts every due task that isn't already running, without waiting for any of them:
+/// a slow or stalled run used to hold up the tick, so no other task's schedule advanced
+/// until it finished (audit RUST-006). Each run holds its in-flight claim (RUST-005) and a
+/// concurrency permit until it ends.
+fn spawn_due_runs<R, Fut>(tasks: Vec<TaskRow>, now: DateTime<Utc>, state: &SchedulerState, run: R)
+where
+    R: Fn(TaskRow, DateTime<Utc>) -> Fut,
+    Fut: std::future::Future<Output = Option<(String, DateTime<Utc>)>> + Send + 'static,
+{
+    let guard_duration = chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64);
+    for task in tasks {
+        if !is_due(&task.cron_expression, task.last_run_at, now) {
+            continue;
+        }
+        let recently_started = state
+            .last_executed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&task.id)
+            .is_some_and(|last| now.signed_duration_since(*last) < guard_duration);
+        if recently_started {
+            continue;
+        }
+        // Claimed here, synchronously, so the next tick can't start it a second time.
+        let Some(running) = InFlightGuard::claim(&task.id) else {
+            info!("scheduler: task '{}' is still running; skipping this tick", task.name);
+            continue;
+        };
+        let semaphore = state.semaphore.clone();
+        let last_executed = state.last_executed.clone();
+        let fut = run(task, now);
+        tokio::spawn(async move {
+            let _running = running;
+            // The semaphore is never closed, so acquire_owned only errors if that changes.
             let _permit = match semaphore.acquire_owned().await {
                 Ok(p) => p,
                 Err(e) => {
                     error!("scheduler: semaphore closed unexpectedly: {}", e);
-                    return None;
+                    return;
                 }
             };
-            run_and_record_task(&app, &db_path_str, task, now, now_ts).await
-        }));
-    }
-
-    for handle in handles {
-        match handle.await {
-            Ok(Some((task_id, ran_at))) => {
-                last_executed.insert(task_id, ran_at);
+            if let Some((task_id, ran_at)) = fut.await {
+                last_executed
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(task_id, ran_at);
             }
-            Ok(None) => {}
-            Err(e) => error!("scheduler: task join failed: {}", e),
-        }
+        });
     }
 }
 
@@ -669,7 +778,7 @@ async fn run_and_record_task(
     let task_name = task.name.clone();
     drop(conn);
 
-    let result = match resolve_cred_for_task(app, task.credential_id.as_deref()).await {
+    let result = match resolve_cred_for_task(app, task.credential_id.as_deref(), &address, &task.task_type, false).await {
         Ok(cred) => {
             run_one_task(
                 app,
@@ -748,11 +857,11 @@ async fn run_and_record_task(
 pub fn start_scheduler(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_secs(CHECK_INTERVAL_SECS));
-        let mut last_executed: HashMap<String, DateTime<Utc>> = HashMap::new();
+        let state = SchedulerState::new();
         ticker.tick().await; // first tick fires immediately; skip so we wait CHECK_INTERVAL_SECS first
         loop {
             ticker.tick().await;
-            run_due_tasks(&app, &mut last_executed).await;
+            run_due_tasks(&app, &state).await;
         }
     });
 }
@@ -765,7 +874,7 @@ mod tests {
     fn test_conn() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         conn.execute(
-            "CREATE TABLE hosts (id TEXT PRIMARY KEY, address TEXT, port INTEGER, username TEXT)",
+            "CREATE TABLE hosts (id TEXT PRIMARY KEY, address TEXT, port INTEGER, username TEXT, protocol TEXT NOT NULL DEFAULT 'ssh')",
             [],
         )
         .unwrap();
@@ -776,6 +885,115 @@ mod tests {
         conn.execute_batch(include_str!("../migrations/010_scheduled_tasks.sql"))
             .unwrap();
         conn
+    }
+
+    /// PR #68 review: a host changed to an inventory-only protocol after its task was saved
+    /// doesn't run the task.
+    #[test]
+    fn tasks_only_run_against_ssh_hosts() {
+        let conn = test_conn();
+        assert_eq!(get_host_credentials(&conn, "host-1").unwrap().unwrap().0, "127.0.0.1");
+        assert!(get_host_credentials(&conn, "missing").unwrap().is_none());
+        conn.execute("UPDATE hosts SET protocol = 'database' WHERE id = 'host-1'", []).unwrap();
+        assert!(get_host_credentials(&conn, "host-1").unwrap_err().contains("not an SSH host"));
+        assert!(host_protocol_runs_tasks(" SSH "));
+        assert!(!host_protocol_runs_tasks("rdp"));
+    }
+
+    fn every_second_task(id: &str) -> TaskRow {
+        TaskRow {
+            id: id.to_string(),
+            name: id.to_string(),
+            cron_expression: "* * * * * *".to_string(),
+            host_id: "host-1".to_string(),
+            command: "true".to_string(),
+            credential_id: None,
+            enabled: 1,
+            last_run_at: None,
+            created_at: 0,
+            updated_at: 0,
+            task_type: "ssh".to_string(),
+            local_path: None,
+            remote_path: None,
+        }
+    }
+
+    /// RUST-005 / RUST-006: the tick doesn't wait for runs, a stalled run doesn't hold up
+    /// other tasks, and a task that is still running isn't started again.
+    #[tokio::test]
+    async fn due_runs_are_detached_and_never_overlap() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let state = SchedulerState::new();
+        let starts: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let release_slow = Arc::new(tokio::sync::Notify::new());
+        let fast_done = Arc::new(AtomicUsize::new(0));
+        let runner = {
+            let starts = starts.clone();
+            let release_slow = release_slow.clone();
+            let fast_done = fast_done.clone();
+            move |task: TaskRow, now: DateTime<Utc>| {
+                starts.lock().unwrap().push(task.id.clone());
+                let release_slow = release_slow.clone();
+                let fast_done = fast_done.clone();
+                async move {
+                    if task.id == "sched-test-slow" {
+                        release_slow.notified().await;
+                    } else {
+                        fast_done.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Some((task.id, now))
+                }
+            }
+        };
+        let tasks = || vec![every_second_task("sched-test-slow"), every_second_task("sched-test-fast")];
+
+        let t0 = Utc::now();
+        spawn_due_runs(tasks(), t0, &state, runner.clone());
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while fast_done.load(Ordering::SeqCst) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the fast task must finish while the slow one is still running");
+
+        // Next tick: the fast task runs again, the stalled one is skipped.
+        let t1 = t0 + chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64 + 1);
+        spawn_due_runs(tasks(), t1, &state, runner.clone());
+        let slow_starts = starts.lock().unwrap().iter().filter(|id| *id == "sched-test-slow").count();
+        assert_eq!(slow_starts, 1, "a running task must not start again");
+        assert!(InFlightGuard::claim("sched-test-slow").is_none(), "Run now is refused too");
+
+        // Once it finishes, it can run again.
+        release_slow.notify_one();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while InFlightGuard::claim("sched-test-slow").is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the claim is released when the run ends");
+    }
+
+    #[test]
+    fn in_flight_claims_are_exclusive_until_dropped() {
+        let first = InFlightGuard::claim("sched-test-claim").unwrap();
+        assert!(InFlightGuard::claim("sched-test-claim").is_none());
+        assert!(InFlightGuard::claim("sched-test-other").is_some());
+        drop(first);
+        assert!(InFlightGuard::claim("sched-test-claim").is_some());
+    }
+
+    /// FE-005: the grammar the Scheduled Tasks help text promises. The frontend only checks
+    /// the field count and shows this parser's error, so this is the contract.
+    #[test]
+    fn cron_grammar_contract() {
+        for ok in ["0 0 9 * * *", "0 */5 * * * *", "0 0 9 * * Mon-Fri", "0 30 2 1 * *", "0 0 9 * * * 2030"] {
+            assert!(Schedule::from_str(ok).is_ok(), "should accept {}", ok);
+        }
+        for bad in ["*/5 * * * *", "0 60 * * * *", "0 0 24 * * *", "not cron"] {
+            assert!(Schedule::from_str(bad).is_err(), "should reject {}", bad);
+        }
     }
 
     #[test]

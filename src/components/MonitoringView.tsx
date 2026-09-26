@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import MetricChartCard from './dashboard/MetricChartCard';
-import { useVisiblePolling } from '../hooks/useViewVisibility';
+import AlertRules from './dashboard/AlertRules';
+import { useVisiblePolling, useOnViewShown } from '../hooks/useViewVisibility';
+import { SSH_CREDENTIAL_TYPES } from '../lib/utils';
 
 interface ProcessInfo {
   pid: number;
@@ -107,6 +109,11 @@ const timeFormatOptions: Intl.DateTimeFormatOptions = {
  * York -> Lima in winter). Metrics arrive at most about once a second, so the
  * per-call formatter cost is negligible.
  */
+/** MB/s with enough precision that sub-MB/s rates don't read as 0 (FE-017). */
+export function formatRateMb(mb: number): string {
+  return mb >= 10 ? mb.toFixed(0) : mb.toFixed(2);
+}
+
 export const formatMetricTime = (date: Date): string =>
   date.toLocaleTimeString('en-US', timeFormatOptions);
 
@@ -174,7 +181,7 @@ const RemoteHostsList = React.memo(({ remoteHosts, savedHosts, credentials, setH
                     className="w-full bg-bg-root border border-border rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent"
                   >
                     <option value="">None</option>
-                    {(credentials ?? []).map((c) => (
+                    {(credentials ?? []).filter((c) => SSH_CREDENTIAL_TYPES.includes(c.credential_type)).map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -255,10 +262,10 @@ const MonitoringView: React.FC = () => {
   // get_remote_hosts_health pings and SSHes into every saved host, so it must not
   // run while the Monitoring view is hidden.
   useVisiblePolling(fetchRemoteHealth, 30000);
-  useEffect(() => {
+  useOnViewShown(() => {
     invoke<SavedHost[]>('get_saved_hosts').then((data) => setSavedHosts(Array.isArray(data) ? data : [])).catch(() => setSavedHosts([]));
     invoke<CredentialSummary[]>('list_credentials').then((data) => setCredentials(Array.isArray(data) ? data : [])).catch(() => setCredentials([]));
-  }, []);
+  });
 
   const setHostCredential = useCallback(async (hostId: string, credentialId: string | null) => {
     try {
@@ -331,13 +338,13 @@ const MonitoringView: React.FC = () => {
         />
         <MetricChartCard 
           title="Disk I/O Traffic" 
-          value={metrics?.disk_read_mb !== undefined && metrics?.disk_write_mb !== undefined ? `${(metrics.disk_read_mb + metrics.disk_write_mb).toFixed(0)} MB/s` : '-- MB/s'} 
+          value={metrics?.disk_read_mb !== undefined && metrics?.disk_write_mb !== undefined ? `${formatRateMb(metrics.disk_read_mb + metrics.disk_write_mb)} MB/s` : '-- MB/s'} 
           data={diskData} 
           color="#f59e0b" 
         />
         <MetricChartCard 
           title="Network Traffic" 
-          value={metrics?.network_rx_mb !== undefined && metrics?.network_tx_mb !== undefined ? `${(metrics.network_rx_mb + metrics.network_tx_mb).toFixed(2)} MB/s` : '-- MB/s'} 
+          value={metrics?.network_rx_mb !== undefined && metrics?.network_tx_mb !== undefined ? `${formatRateMb(metrics.network_rx_mb + metrics.network_tx_mb)} MB/s` : '-- MB/s'} 
           data={netData} 
           color="#8b5cf6" 
         />
@@ -378,6 +385,10 @@ const MonitoringView: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Alert rules (FE-003: the editor existed but was never mounted, so no rule could
+          be created). Rules evaluate this machine's CPU/memory/disk metrics. */}
+      <AlertRules />
 
       {/* Top Processes */}
       {metrics && (metrics.top_cpu_processes.length > 0 || metrics.top_memory_processes.length > 0) && (

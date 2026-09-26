@@ -25,10 +25,11 @@ You review **recently changed code**, not the entire codebase. Focus on diffs an
 ### Vault & Crypto (`vault/`, `crypto.rs`)
 - [ ] **Nonce reuse**: Every AES-256-GCM encryption call generates a fresh random nonce via `OsRng` or equivalent CSPRNG. Nonces must never be reused with the same key. Counters or predictable nonces are a critical failure.
 - [ ] **Key material zeroization**: Sensitive structs (`MasterKey`, plaintext credential buffers, intermediate key bytes) must implement or invoke `Zeroize`/`ZeroizeOnDrop`. Check that temporaries holding key bytes are zeroized before drop.
-- [ ] **Argon2id parameters**: Memory cost ≥ 47 MiB (47 * 1024 KiB), iterations ≥ 2, parallelism ≥ 1. Any reduction is a HIGH finding. Hardcoded weakened params are CRITICAL.
+- [ ] **Argon2id parameters**: the vault uses m = 47104 KiB (46 MiB, OWASP's "47104 KiB" baseline), t = 2, p = 1, 32-byte output (`vault/kdf.rs`). Anything below that floor is a HIGH finding; hardcoded weakened params are CRITICAL. Changing them at all (even upward) orphans existing vaults unless it comes with a migration: `vault::kdf::tests::kdf_known_answer_*` must keep passing.
+- [ ] **KDF v2 invariant**: the database stores a salt and an HKDF-derived verifier, never an Argon2 hash of the master password and never anything the AES key can be computed from (v1 stored a PHC hash that *was* the key, RSEC-001). The verifier is compared in constant time.
 - [ ] **Timing-safe comparisons**: HMAC tags, password hashes, and secrets must be compared with `subtle::ConstantTimeEq` or equivalent — never `==` on secret byte slices.
 - [ ] **Re-encryption transactions**: Password changes must re-encrypt all credentials atomically. Partial re-encryption leaving old ciphertext accessible is CRITICAL.
-- [ ] **Rekey/credential-operation serialization**: A credential operation must not obtain one master key and commit encrypted data after `change_master_password` has rotated the database to another key. The planned project pattern is a fair credential-access gate: shared leases cover key retrieval through completion of each key-bound DB operation, and password rotation holds the exclusive lease through transaction commit and the in-memory key swap. Until `docs/DEFERRED_AUDIT_FIX_PLAN.md` is implemented and tested, treat this as an open finding rather than an established safe pattern.
+- [ ] **Rekey/credential-operation serialization** (established pattern, EDW-15): credential code gets the key only through `VaultState::credential_access()` / `credential_access_background()`, which hold `credential_gate` shared; `change_master_password`, the v1→v2 migration in `unlock_vault` and database import hold it exclusively. Lock order is gate → `inner`. Flag any new use of `get_master_key()` outside tests and rotation internals, and any credential access held across a network phase (drop it after decrypting).
 - [ ] **Frontend views must not leak decrypted key material**: `get_credential`'s `CredentialFrontendView` (`vault/credentials.rs`) intentionally omits decrypted `private_key`/`key_passphrase`, exposing only `has_private_key`/`has_key_passphrase` booleans — this is the established correct pattern; do not "fix" a frontend consumer by having the backend return the plaintext instead. When reviewing frontend code that consumes this view, check it doesn't misinterpret the always-blank form field as "no key stored" (confirmed real bug, not hypothetical: blocked all edits to any SSH-key credential whose key wasn't a `key_path` — fixed by checking `has_private_key`/`key_path` instead of the form field).
 - [ ] **Dropping the vault write lock across expensive work must not create a state-overwrite race**: `VaultState.changing_password` (in `vault.rs`) only gates `check_auto_lock()` — it is NOT checked by `lock_vault()` or any other state mutator. Any function that briefly drops the write lock during a long operation (e.g. `change_master_password`'s Argon2id + re-encryption pass in `spawn_blocking`) and then reacquires it to install a result must re-check the current state before overwriting it, not blindly apply the result. Confirmed real bug, not hypothetical: an early version of the `change_master_password` lock-drop refactor unconditionally reinstalled the new master key on reacquire, which would have silently reverted an explicit `lock_vault()` call made during the window — caught in review, fixed by checking `inner.master_key.is_some()` before installing. See `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full writeup. Apply the same scrutiny to any other future "drop the lock, do slow work, reacquire and apply" pattern in this file.
 
@@ -96,7 +97,7 @@ Examples of what to record:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `G:\GitHub\Quasar\.claude\agent-memory\security-reviewer\`. Its contents persist across conversations.
+You have a persistent agent memory directory at `.claude/agent-memory/security-reviewer/` (relative to the repository root). Its contents persist across conversations.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
@@ -126,4 +127,4 @@ Explicit user requests:
 
 ## MEMORY.md
 
-Your MEMORY.md is currently empty. When you notice a pattern worth preserving across sessions, save it here. Anything in MEMORY.md will be included in your system prompt next time.
+`MEMORY.md` in that directory is loaded into your system prompt. Keep it current: when a finding it lists is fixed, move it to the fixed list with the date and commit.

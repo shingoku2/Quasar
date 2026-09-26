@@ -1,6 +1,6 @@
-# CLAUDE.md — Quasar Codebase Guide
+# CLAUDE.md — Quasar
 
-Quasar is a Tauri 2.x desktop application for remote infrastructure management: SSH sessions, SFTP, system monitoring, network discovery, cron-scheduled automation, and a security vault. React + TypeScript frontend, Rust backend, SQLite database.
+Quasar is a Tauri 2 desktop app for remote infrastructure management: SSH terminals, SFTP, tunnels, monitoring and alerts, network discovery, cron-scheduled tasks, and an encrypted credential vault. React + TypeScript frontend, Rust backend, one SQLite database. This file is current-state only: history is in `CHANGELOG.md`, rationale in `docs/ARCHITECTURE.md`.
 
 ## Session Start (agents: do this first)
 
@@ -31,494 +31,108 @@ Quasar is a Tauri 2.x desktop application for remote infrastructure management: 
      tracker changes made under the rules above. Never mark a phase done that Linear doesn't
      show as Done.
    - If an update fails or is skipped, report which one and why.
-
-## Recent Work: Linear Backlog EDW-15 / EDW-16 (September 24, 2026)
-
-- **EDW-15: credential writes are now serialized with master-password rekeying.** This was
-  the last open deferred audit finding, and all five September 2 findings are now fixed.
-  `VaultState::credential_gate` (tokio `RwLock<()>`) is held shared by every credential
-  operation via `credential_access()` / `credential_gate()` and exclusively by
-  `change_master_password` from its first line (before it sets `changing_password`, so a
-  rotation dropped while queued can't leave the flag stuck) until the new key is installed. A write that arrives mid-rotation now waits and is encrypted under the new key.
-  Before, it was encrypted with the old key and orphaned. See Security Notes item 14 and
-  `AGENTS.md`.
-- **EDW-16: Dependabot alert #1 is almost certainly `rsa` / RUSTSEC-2023-0071**
-  (GHSA-c38w-74pg-36hr, CVSS 5.9, no upstream patch). It was identified by elimination
-  (`npm audit` clean, `cargo audit`'s only vulnerability is that one) because the session
-  couldn't read the Dependabot API (403). It's the already-documented accepted risk in
-  `SECURITY.md`, which now carries the GHSA aliases. Dismissing the alert as "tolerable risk"
-  has to be done in the GitHub UI.
-
----
-
-## Recent Work: PR Triage (September 24, 2026)
-
-Nine open bot-authored PRs (#54–#62) were reviewed against their Codex/Sourcery feedback.
-Three had real, verified defects that were fixed before merging:
-
-- **#60 "Fix plaintext password exposure" didn't fix it.** It added `reveal_credential_password`
-  but left `password` in `CredentialFrontendView`, so `get_credential` still put the plaintext
-  into React state on every view/edit/select. Now the view carries only `has_password`; the
-  edit form no longer prefills the password (blank = keep); SFTP fetches it on demand (see
-  Security Notes item 13). Its type allowlist also hid password controls for
-  rdp/database/api/other credentials. That's now gated on `has_password`.
-- **#58 (which folded in #54–56):** the `Intl.DateTimeFormat` cache in `MonitoringView` was
-  keyed on UTC offset, which misses zone switches between zones sharing an offset (New York →
-  Lima in winter). The cache was removed; metrics arrive every ~5s, so it saved nothing.
-  `formatMetricTime` is now per-call; the test covers the same-offset switch.
-- **#62's IPC audit note recorded "None found"** while the credential-write/rekey race was
-  still open. It now records that race as an exception (fixed later the same day, EDW-15).
-
-#54/#55/#56 were closed as superseded by #58. #57 (AuditLogViewer `useMemo`), #59 (host-key
-hook error-path tests, which were mutation-checked and do catch a regression) and #61
-(`React.memo`'d `RemoteHostsList`) were clean. #57, #61 and #62 had never had CI run on them.
-
----
-
-## Previous Work: PR Backlog Cleanup (September 17, 2026)
-
-26 open PRs (bot-authored: perf micro-optimizations, dead-code/comment removal, and test
-coverage additions) were triaged and merged. 17 were clean as-authored. 9 had real,
-verified problems and were fixed before merging — mostly test-quality issues (weak
-assertions that couldn't actually catch a regression, mock state leaking across tests) but
-one was a genuine concurrency bug: **PR #39's own "TOCTOU fix" for `scan_network` was
-itself a no-op** (it only reordered two lock acquisitions already inside the same critical
-section). The real race — a `stop_scan()` call landing in the window between
-`tokio::spawn(...)` and the spawned task actually starting could be silently discarded —
-is fixed by `scanner::claim_scan()`, called synchronously in the `scan_network` command
-*before* `tokio::spawn`, not from inside the spawned task. See Security Notes item 11
-below and `AGENTS.md` for the full writeup, including an incident where an automated bot
-reverted this fix mid-review and it had to be reapplied.
-
----
-
-## Repository Layout
-
-```
-Quasar/
-├── src/                        # React/TypeScript frontend
-│   ├── components/             # 55+ React components (views, dialogs, widgets)
-│   │   ├── dashboard/          # Dashboard widgets (metrics, charts, maps)
-│   │   └── vault/              # Vault/credential UI
-│   ├── hooks/                  # Custom React hooks
-│   ├── lib/utils.ts            # cn() helper (clsx + tailwind-merge)
-│   ├── db.ts                   # Tauri SQL plugin interface
-│   ├── test-setup.ts           # Vitest global mocks
-│   ├── App.tsx                 # Root component + routing
-│   └── *.test.ts*              # 49 test files / 351 tests (co-located with sources)
-├── src-tauri/                  # Rust/Tauri backend
-│   ├── src/
-│   │   ├── lib.rs              # App setup, migrations, ALL Tauri commands
-│   │   ├── vault.rs            # Vault state + auto-lock
-│   │   ├── vault/
-│   │   │   ├── credentials.rs  # AES-256-GCM encryption, CRUD
-│   │   │   ├── ssh_keys.rs     # SSH host key trust management
-│   │   │   └── audit.rs        # Security event logging
-│   │   ├── ssh.rs              # Interactive SSH sessions (Channel::wait())
-│   │   ├── ssh_auth.rs         # Shared password/key authentication
-│   │   ├── ssh_connect.rs      # Phase-aware connect (DNS/TCP/handshake), used by all SSH/SFTP paths
-│   │   ├── ssh_exec.rs         # One-shot SSH command execution
-│   │   ├── ssh_pool.rs         # Pooled/reused SSH sessions for scheduled tasks
-│   │   ├── ssh_tunnel.rs       # SSH port forwarding
-│   │   ├── sftp.rs             # SFTP file transfer (password-auth only)
-│   │   ├── tailscale.rs        # `tailscale status --json` CLI integration (no API key)
-│   │   ├── launcher.rs         # External SSH/RDP client launch (OS terminal, mstsc)
-│   │   ├── scheduler.rs        # Cron task runner
-│   │   ├── monitoring.rs       # System metrics + alert rules
-│   │   ├── scanner.rs          # Network port scanning
-│   │   ├── discovery.rs        # mDNS network discovery (singleton)
-│   │   ├── host_tracker.rs     # Discovered host persistence
-│   │   ├── health.rs           # Ping + SSH pre-flight checks
-│   │   ├── crypto.rs           # AES-256-GCM, Argon2id utilities
-│   │   ├── validation.rs       # Input validation (IP, hostname, port, CIDR)
-│   │   ├── errors.rs           # Error types + frontend sanitization
-│   │   ├── ai.rs               # Ollama LLM integration
-│   │   ├── db.rs               # DB connection helpers
-│   │   └── main.rs             # Binary entry point
-│   ├── migrations/             # 12 numbered SQL migration files
-│   ├── tests/                  # Rust integration tests
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-├── conductor/                  # Internal docs & style guides
-│   └── code_styleguides/       # typescript.md, html-css.md, general.md
-├── docs/
-│   ├── SCHEMA.md               # Database schema reference
-│   └── CORE_WORKFLOWS.md       # End-to-end user workflows
-├── scripts/tauri-dev.js        # Tauri dev wrapper (sets CARGO_TARGET_DIR)
-├── .github/workflows/
-│   ├── ci.yml                  # PR checks (TypeScript, Vitest, Clippy, Cargo test)
-│   └── release.yml             # Multi-platform build + GitHub release
-├── AGENTS.md                   # Detailed bug-fix log and architectural decisions
-├── CODEBASE_AUDIT_REPORT.md    # Security audit findings + resolutions
-└── package.json
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Desktop runtime | Tauri 2.x |
-| Frontend framework | React 19 + TypeScript 5.8 |
-| Build tool | Vite 7 |
-| Styling | Tailwind CSS 4 (dark navy/cyan theme) |
-| Icons | Lucide React |
-| Charts | Recharts |
-| Terminal | xterm.js 6 (`@xterm/xterm`, `@xterm/addon-fit`) |
-| Network graph | vis-network + vis-data |
-| Backend language | Rust (edition 2021), async via Tokio 1 |
-| Database | SQLite (rusqlite bundled, migrations via rusqlite_migration) |
-| SSH/SFTP | russh 0.62 (host key + auth bundled in), russh-sftp 2.4 |
-| Encryption | aes-gcm 0.10 (AES-256-GCM), argon2 0.5 (Argon2id) |
-| Secure memory | zeroize 1.8, secrecy 0.8 |
-| Network scan | surge-ping, cidr-utils, dns-lookup, mdns-sd |
-| System info | sysinfo 0.33 |
-| Cron | cron 0.12 |
-| AI (optional) | ollama-rs 0.3 |
-| Auto-update | tauri-plugin-updater / `@tauri-apps/plugin-updater` 2.x (signed artifacts, verified against an embedded pubkey) |
-| Tailscale | local `tailscale` CLI only — no API key, no control-plane calls (`src-tauri/src/tailscale.rs`) |
-| Testing | Vitest 4, React Testing Library 16, jsdom |
-
----
-
-## Development Commands
+## Commands
 
 ```bash
-# Frontend dev server only
-npm run dev
-
-# Full Tauri dev (frontend + Rust backend) — use this for normal development
-npm run tauri
-
-# TypeScript type-check + Vite production build
-npm run build
-
-# Run frontend tests
-npm test
-
-# Rust: lint
-cd src-tauri && cargo clippy -- -D warnings
-
-# Rust: unit + integration tests
+npm run tauri            # full app (Vite on :1420 + Rust); wraps `tauri dev` with CARGO_TARGET_DIR=src-tauri/target
+npm run dev              # frontend only
+npm run build            # tsc && vite build
+npm test                 # vitest run
+npm run coverage         # tests + coverage floor (vite.config.ts); what CI runs
+npx tsc --noEmit
+cd src-tauri && cargo clippy --all-targets -- -D warnings
 cd src-tauri && cargo test
+cd src-tauri && cargo deny check   # and `cargo audit`; both run in CI
 ```
 
-`npm run tauri` calls `scripts/tauri-dev.js`, which sets `CARGO_TARGET_DIR=src-tauri/target` and runs `npx tauri dev`. On Windows it uses `npx.cmd`.
+Node 24.15.0 (`.nvmrc`), npm 12. Rust toolchain pinned in `rust-toolchain.toml` (1.98.1); MSRV 1.95 (`rust-version`, checked by CI). Linux needs the WebKitGTK/libsoup/GTK dev packages listed in `README.md`.
 
-The Vite dev server is fixed to port **1420** (required by Tauri).
+## Repository map
 
----
+```
+src/                      React frontend
+  components/             views and dialogs (vault/ = vault UI, dashboard/ = widgets); tests co-located
+  hooks/                  useViewVisibility (useOnViewShown, useVisiblePolling), useSshHostKeyVerification,
+                          useTailscaleStatus, useUpdater
+  lib/utils.ts            cn(), getErrorMessage(), isUserCancelled()
+  test-setup.ts           global Tauri mocks
+  jest-dom-vitest.d.ts    jest-dom matcher types for vitest 5 (drop once jest-dom ships them)
+src-tauri/src/
+  lib.rs                  setup, migrations list, every #[tauri::command] wrapper, generate_handler!
+  vault.rs, vault/        VaultState (lock, gate, auto-lock); kdf.rs, credentials.rs, ssh_keys.rs, audit.rs
+  ssh.rs                  interactive sessions + host-key prompts; ssh_connect.rs (phased connect),
+                          ssh_auth.rs, ssh_exec.rs (one-shot), ssh_pool.rs, ssh_tunnel.rs, sftp.rs
+  scheduler.rs  monitoring.rs  scanner.rs  discovery.rs  host_tracker.rs  health.rs  tailscale.rs
+  launcher.rs  ai.rs  local_paths.rs  native_confirm.rs  crypto.rs  validation.rs  errors.rs  db.rs
+  ssh_test_server.rs      cfg(test) in-process russh server for connect/auth/exec/pool/tunnel tests
+src-tauri/migrations/     001, 003–015 (no 002, on purpose)
+docs/                     ARCHITECTURE, SCHEMA, SECURITY_MODEL, CORE_WORKFLOWS, RELEASE_SIGNING, style/, archive/
+audit/, AUDIT.md          September 2026 audit (findings, plan, verification)
+```
 
-## Architecture: Frontend ↔ Backend IPC
+## Stack
 
-All communication goes through Tauri's IPC layer — no HTTP server.
+Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides of a plugin to the same minor together; Dependabot groups them). React 19, TypeScript 7, Vite 8, Tailwind 4, xterm.js 6, Recharts 3, vis-network 10, lucide-react. Rust 2021 on Tokio; rusqlite 0.40 (bundled) + rusqlite_migration; russh 0.63 / russh-sftp 3; aes-gcm 0.11, argon2 0.6, hkdf 0.13, sha2 0.11, subtle, zeroize 1.9, secrecy 0.10 (`SecretString`); sysinfo 0.39, cron 0.17, mdns-sd 0.21, surge-ping, dns-lookup 4, ollama-rs 0.3. Tests: Vitest 5, React Testing Library 16, jest-dom 7, jsdom.
 
-### Commands (Frontend → Backend)
+## IPC
 
-All Tauri `#[command]` functions are registered in `src-tauri/src/lib.rs`. Key groups:
-
-**Vault**
-- `initialize_vault(password)` / `unlock_vault(password)` / `lock_vault()`
-- `change_master_password(old_password, new_password)`
-- `get_vault_settings()` / `update_vault_settings(...)`
-- `export_vault(path)` / `import_vault(path)`
-
-**Credentials**
-- `add_credential(name, credential_type, username, password?, private_key?, ...)`
-- `update_credential(id, ...)` / `remove_credential(id)`
-- `list_credentials()` / `get_credential(id)` — `get_credential` returns **no secrets** (only `has_password` / `has_private_key` / `has_key_passphrase` flags)
-- `reveal_credential_password(credential_id)` — the only command that returns a decrypted password to the frontend; call it only at the moment of explicit reveal/copy or SFTP session start
-
-**Hosts**
-- `add_host(hostname, port, username, protocol)` / `update_host(...)` / `remove_host(id)`
-- `list_hosts()` / `get_saved_hosts()`
-- `upsert_saved_host(name, address, protocol, port?, username?)` — `protocol` is a free-form string (`AddHostDialog` offers `ssh` / `rdp` / `database` / `api` / `other`); only `ssh` and `rdp` have an in-app client (Connect button, port default). Other protocols are inventory/monitoring-only entries.
-
-**SSH**
-- `start_ssh_session(host_id, credential_id?, password?)` → returns `session_id`
-- `write_ssh(session_id, data)` / `resize_ssh(session_id, rows, cols)` / `close_ssh_session(session_id)`
-- `execute_ssh_command(host_id, command, credential_id?, password?)`
-- `get_ssh_known_hosts()` / `verify_ssh_host_key(...)` / `remove_known_host(hostname)`
-
-**SFTP** — password auth only (no SSH key support in backend). These take the plaintext password directly; there is no `credential_id` lookup (unlike SSH sessions).
-- `sftp_upload_file(host, port, username, password, local_path, remote_path)`
-- `sftp_download_file(host, port, username, password, remote_path, local_path)`
-- `sftp_list_directory(host, port, username, password, remote_path)`
-- `sftp_remote_exists(host, port, username, password, remote_path)`
-
-**Monitoring & Alerts**
-- `get_system_metrics()` / `get_remote_hosts_health()`
-- `add_alert_rule(host_id, metric, threshold, ...)` / `update_alert_rule(id, ...)` / `remove_alert_rule(id)`
-- `list_alert_rules()` / `get_alert_history()`
-- `get_metrics_history(host?, limit?)` — returns stored `metrics_history` rows
-
-**Network Discovery & Scanning**
-- `start_network_scan(cidr, timeout?)` / `get_discovered_hosts()`
-- `save_discovered_host(ip, hostname, port, username)` / `remove_discovered_host(ip)`
-
-**Scheduled Tasks**
-- `list_scheduled_tasks()` / `get_scheduled_task(id)`
-- `add_scheduled_task(name, cron_expression, host_id, task_type, command?, ..., credential_id?, enabled)`
-- `update_scheduled_task(id, ...)` / `remove_scheduled_task(id)`
-- `run_scheduled_task_now(task_id)`
-
-**SSH Tunnels**
-- `create_tunnel(host_id, local_port, remote_addr, remote_port, ...)` / `close_tunnel(tunnel_id)` / `list_tunnels()`
-
-**Tailscale**
-- `get_tailscale_status()` — runs `tailscale status --json` locally and returns tailnet peers; `installed: false` (not an error) when the CLI isn't found
-
-**AI**
-- `send_ai_message(message, context?)`
-
-### Events (Backend → Frontend)
-
-Listen with `listen()` from `@tauri-apps/api/event`:
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `ssh_data_{id}` | `string` | Terminal output chunk for session `id` |
-| `ssh_closed_{id}` | `{}` | SSH session `id` terminated by server |
-| `ssh_timeout_{id}` | `{}` | SSH session `id` closed after 30 min idle |
-| `ssh_stats_{id}` | `{ bandwidth: string, latency: number }` | Per-session SSH stats |
-| `ssh-host-key-verification` | host key object | Prompt user to trust/reject a new host key |
-| `system-metrics` | `SystemMetrics` | Periodic local system metrics (CPU, mem, disk, …) |
-| `alerts-triggered` | `Alert[]` | One or more alert thresholds exceeded |
-| `alerts-recovered` | `AlertRecovery[]` | Alerts cleared (metric back below threshold) |
-| `vault-auto-locked` | `{}` | Vault locked due to inactivity timeout |
-| `host-discovered` | `DiscoveredHost` | mDNS host discovered during network scan |
-| `scan_progress` | `{ scanned, total }` | Network scan progress update |
-| `scan_result` | `ScanResult` | Individual host scan result |
-| `scan_complete` | `{ total }` | Network scan finished |
-| `scan_error` | `string` | Network scan failed with error |
-| `ai-chat-response` | `string` | AI assistant streaming token |
-
----
+- 66 commands, all registered in `generate_handler!` in `lib.rs`. The full list with args and return types is in `docs/ARCHITECTURE.md` (a test keeps it complete); events are listed there too. Add a command there when you add one.
+- **`invoke()` payload keys are lowerCamelCase.** A snake_case key for an `Option<T>` param silently arrives as `None` (no error). `CredentialManager.test.tsx` asserts no payload key contains `_`.
+- Commands return `Result<T, String>`. Sanitize errors with `errors::sanitize_error`; only messages the user must read go through `errors::user_facing_vault_error`. The interactive terminal connect returns raw `ssh_connect` diagnostics by design.
+- A `Cancelled` error means the user declined a native confirmation: treat it as a no-op (`isUserCancelled()`).
 
 ## Database
 
-SQLite database stored in the platform app-data directory as `quasar.db`.
-
-Migrations run automatically on startup via `rusqlite_migration`. Migration files are in `src-tauri/migrations/` numbered `001` through `012`.
-
-### Key Tables
-
-| Table | Purpose |
-|-------|---------|
-| `hosts` | Saved remote servers |
-| `credentials` | Encrypted passwords/SSH keys (AES-256-GCM) |
-| `vault_settings` | Master password hash (Argon2id), auto-lock config |
-| `ssh_known_hosts` | SSH host key fingerprints |
-| `security_audit_log` | Vault and credential access events |
-| `discovered_hosts`, `host_services` | Network scan results |
-| `scheduled_tasks` | Cron automation tasks |
-| `scheduled_task_runs` | Task execution history |
-| `system_metrics_history` | Historical monitoring data |
-| `alert_rules`, `alert_history` | Alert configuration and log |
-
-See `docs/SCHEMA.md` for full column definitions.
-
-### Adding Migrations
-
-1. Create `src-tauri/migrations/013_description.sql`
-2. Register it in `lib.rs` where migrations are initialized
-3. Use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for additive changes
-
----
+- Schema: `docs/SCHEMA.md` (column tables checked by `schema_doc_lists_every_table_and_column`: after a schema change, run it and paste its output). Tables: hosts, credentials, vault_settings, ssh_known_hosts, security_audit_log, discovered_hosts, host_services, scheduled_tasks, metrics_history, alert_history, alert_rules, monitoring_host_credential.
+- Every connection goes through `db::open_connection()`. Never `Connection::open` elsewhere.
+- New migration: `src-tauri/migrations/016_*.sql` (highest + 1), appended to `MIGRATIONS` in `lib.rs`, with `LATEST_SCHEMA_VERSION` bumped (a test checks they match). Append-only; never edit a shipped migration or create a `002`. SQLite has **no** `ADD COLUMN IF NOT EXISTS`: use an `M::up_with_hook` that checks `PRAGMA table_info` (see 011/012).
 
 ## Testing
 
-### Frontend Tests
+- Frontend tests mock all Tauri APIs (`test-setup.ts` mocks `invoke`, `listen`, dialog, path). Set results with `vi.mocked(invoke).mockResolvedValue(...)`. Because every test mocks `invoke`, a wrong command name or arg key passes tests and fails at runtime: check names against `docs/ARCHITECTURE.md`.
+- Components are default exports (`import VaultSettings from './VaultSettings'`); hooks and utils are named exports.
+- Stub `window.confirm` with `vi.spyOn(window, 'confirm')` per test and restore it; never at module scope (it leaked across files once). Restore anything global you replace (e.g. `navigator.clipboard`) in `finally`/`afterEach`.
+- Mocks must forward the props a test asserts on (a Recharts mock that dropped props once hid a broken color).
+- `useTailscaleStatus` shares a module-level poll: call `resetTailscaleStatusCache()` in `beforeEach`.
+- Rust: unit tests in `#[cfg(test)]` modules, integration tests in `src-tauri/tests/`. Use `ssh_test_server` for anything that connects over SSH.
 
-```bash
-npm test          # run all tests once
-npm test -- --watch   # watch mode
-```
+## Conventions
 
-Tests live alongside source files as `*.test.tsx`. The setup file `src/test-setup.ts` globally mocks:
-- `window.__TAURI_INTERNALS__`
-- `@tauri-apps/api/core` (`invoke`)
-- `@tauri-apps/api/event` (`listen`, `emit`)
-- `@tauri-apps/plugin-dialog`
-- `@tauri-apps/api/path`
+- TypeScript: `docs/style/typescript.md`. `const` by default, no `any`, no unexplained type assertions, `===`, single quotes, semicolons. `cn()` for conditional classes.
+- React: function components and hooks. Every view stays mounted (hidden with CSS): load lists other views can change (or an import can replace, e.g. alert rules) with `useOnViewShown`, poll with `useVisiblePolling`. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
+- Rust: no `unwrap`/`expect` outside tests. `SecretString` for passwords, `Zeroizing`/`zeroize` for key bytes. Validate network inputs with `validation.rs`. Multi-step DB writes in a transaction.
+- `tailscale.rs` only runs `tailscale status --json` with fixed args: never pass user input, never call the control-plane API.
 
-**All Tauri API calls must be mocked in tests.** Use `vi.mocked(invoke).mockResolvedValue(...)` to set return values.
+## Security invariants
 
-#### Test file inventory (49 files / 351 tests as of September 24, 2026)
+Each rule has regression tests; don't weaken one without replacing its test. Rationale: `docs/ARCHITECTURE.md`, `docs/SECURITY_MODEL.md`.
 
-Not exhaustive — a curated subset covering the components with the most notable test
-patterns or regression history. Run `find src -name "*.test.ts*"` for the full list.
+1. **KDF v2** (`vault/kdf.rs`): Argon2id (47104 KiB, t=2, p=1) → HKDF → AES key (memory only) + stored verifier. Never store a password hash. Changing params, labels or salt decoding orphans every vault. Tests: `kdf_known_answer_*`, `legacy_phc_from_argon2_0_5_still_verifies`, `test_stored_vault_settings_never_contain_master_key`, `test_legacy_vault_is_migrated_to_v2_on_unlock`.
+2. **After a key-changing commit nothing may fail the operation** (v1 migration, password change): audit, scrub and `.bak` handling are best-effort. Tests: `test_migration_post_commit_failure_still_installs_new_key`, `test_password_change_post_commit_failure_still_installs_new_key`, `test_cancelled_password_change_clears_rotation_flag`.
+3. **Credential code gets the key only via `credential_access()` / `credential_access_background()`** (shared `credential_gate`). Rotation, migration and import hold it exclusively. Lock order gate → `inner`. Drop the access before any network phase. Background work uses `_background` (doesn't reset auto-lock). Tests: `test_credential_write_waits_for_master_password_change`, `test_gate_held_until_new_key_installed`, `test_background_access_does_not_count_as_activity`.
+4. **A lock during a password change is respected** (re-check `master_key.is_some()` before installing). Test: `test_lock_vault_during_password_change_stays_locked`.
+5. **Unlock lockout is persisted** (5/10/15 → 5/15/60 min). Tests: `test_lockout_persists_across_vault_state_restart`, `test_successful_unlock_clears_persisted_lockout`.
+6. **No decrypted secret in `get_credential`** (only `has_*` flags). Passwords cross IPC only via `reveal_credential_password` (native confirm, audited); SFTP and SSH take a `credentialId`. Forms treat an empty secret field as "not shown", not "not stored", and never prefill passwords. Test: `test_frontend_view_carries_no_secret_material`.
+7. **A present-but-malformed encrypted field is an error, never "absent"; a fully NULL triple is absent** (key-only credentials have no password triple). Rekey and migration judge each row by its first present encrypted field. Tests: `test_malformed_private_key_blob_is_an_error_not_absent`, `test_password_change_carries_key_only_credentials`, `test_legacy_migration_handles_key_only_credentials`.
+8. **Host keys**: interactive trust by pending request id only (`trust_ssh_host_key(requestId)`); changed keys need a native confirm; Rejected keys are refused without a prompt; matching is case-insensitive, and a key differing from *any* other port's trusted key counts as Changed (matching one of several isn't enough). Non-interactive paths accept only a key trusted for that host+port (`check_non_interactive`). Fingerprint via `presented_key_bytes`. Tests: `host_key_approval_tests::*`, `test_case_and_port_changes_keep_the_pin`, `test_non_interactive_accepts_only_a_trusted_key_for_that_port`, `test_lookup_error_fails_closed`, `presented_key_bytes_are_stable_and_certificates_pin_their_key`.
+9. **Local paths only from backend dialogs** (`pick_local_file` / `pick_save_location` → single-use, intent-bound `LocalPathGrants`). A grant is used up even when the command fails; only the pickers grant. Editing a saved SFTP task keeps its grant only if file, type, host and remote path are all unchanged (`task_transfer_unchanged`); moving a host those tasks use needs a native confirm. Tests: `only_picked_paths_are_accepted`, `grants_are_single_use_and_bound_to_their_intent`, `only_the_pickers_grant_local_paths`, `scheduled_task_path_exemption_requires_same_type`, `moving_a_host_with_scheduled_transfers_is_detected`.
+10. **Host-bound credentials only work against their host**, on every path. **Only SSH-type credentials authenticate SSH** (`ssh`, `ssh_key`, legacy `password`); SFTP takes `ssh`/`password` only (`vault::credentials::check_type`, checked when a task or monitoring binding is saved and again at use; the frontend mirrors it with `SSH_CREDENTIAL_TYPES`/`SFTP_CREDENTIAL_TYPES`). Tests: `monitoring_binding_respects_credential_host`, `scheduled_task_validation`, `credential_type_must_match_its_use`.
+11. **Native confirmations** (`native_confirm.rs`) guard changed host keys, pin removal, marking trusted, any change out of Rejected (reads the stored status first), moving/clearing a credential's host, moving a host that scheduled transfers use, and reveals. Never put a webview `confirm()` in front of these. Tests: `native_confirm::tests::*`, `trust_status_reports_the_stored_status`, `moving_a_host_with_scheduled_transfers_is_detected`.
+12. **Least-privilege webview**: no `core:event` emit, no dialog permission, opener limited to ollama.com, production CSP without `localhost:*`. Test: `capability_and_csp_stay_least_privilege`.
+13. **Import locks the vault**, refuses newer schemas, migrates older ones to the current schema before returning (restoring the previous DB if that fails, and saying so if the restore fails too), and resets in-memory state loaded from the DB: the vault forgets the old lockout (while the gate is held), and `AlertEngine` is suspended for the swap (a tick's alerts persist only if its rule generation is still current, under a lock the import holds) and reloaded whatever the outcome; if the new rules can't be read, the engine has none and the import returns an error. Tests: `import_locks_the_vault`, `import_rejects_newer_schema_and_leaves_vault_alone`, `import_migrates_an_older_backup`, `import_restores_the_previous_database_when_migration_fails`, `restore_previous_database_reports_failure`, `import_reloads_alert_rules`, `import_reports_unreadable_alert_rules_and_drops_the_old_ones`, `failed_import_keeps_the_previous_alert_rules`, `reload_forgets_the_previous_triggered_state`, `alerts_from_before_a_suspend_are_not_persisted`, `import_forgets_the_previous_vaults_lockout`.
+14. **Scan claim happens before `tokio::spawn`** (`scanner::claim_scan()`); same rule for any command that spawns work and returns. Tests: `test_claim_scan_rejects_concurrent_claim`, `test_stop_request_after_claim_is_not_lost`.
+15. **`ssh_auth` falls back to `none` auth only when no password and no key were supplied** (Tailscale SSH). Tests: `ssh_auth::tests::*`.
+16. **SSH reliability**: the handshake budget (135 s) exceeds the host-key prompt (120 s); exec reads until close; the pool never closes a leased session (sweep and `invalidate` alike; `invalidate` drops only the failed lease's own session); tunnels end with their session; scheduled runs never overlap (`InFlightGuard`). Tests: `slow_host_key_approval_fits_the_handshake_budget`, `exit_status_after_eof_is_not_lost`, `expired_sessions_are_not_closed_under_an_active_lease`, `invalidate_keeps_other_leases_and_newer_sessions`, `tunnel_loop_ends_when_the_session_dies`, `due_runs_are_detached_and_never_overlap`.
+17. **Exports and `.bak` files made before the v2 migration expose credentials**: treat them as plaintext. The v1 migration also migrates `quasar.db.bak` when the same password unlocks it, and never destroys a `.bak` it can't migrate (it's the vault an import replaced, possibly with another password). Tests: `test_migration_keeps_legacy_salt_for_orphans_and_strips_backup_hash`, `test_migration_leaves_a_different_vaults_backup_unlockable`.
 
-| Test file | Component tested | Key scenarios |
-|-----------|-----------------|---------------|
-| `App.test.tsx` | App root | Routing, sidebar navigation |
-| `Layout.test.tsx` | Layout | Render, vault integration |
-| `ErrorBoundary.test.tsx` | ErrorBoundary | Error catching, crash UI, reload |
-| `TopBar.test.tsx` | TopBar | View label mapping for all 7 views |
-| `HostManagement.test.tsx` | HostList, AddHostDialog | List, filter, connect/SFTP callbacks, remove, duplicates, empty state, full protocol option list (ssh/rdp/database/api/other), required-port toggle for protocols without a backend default |
-| `HostList.test.tsx` | HostList | Loading/empty states, filtering, duplicate detection/removal, single removal (both verify the row disappears after the post-removal refresh, not just that the `invoke` call happened), protocol-gated action buttons (database host has neither Connect nor SFTP). `window.confirm` is spied per-test with `afterEach` restore — a module-scope spy here previously leaked into other test files. |
-| `NetworkScanner.test.tsx` | NetworkScanner | CIDR input, scan start/stop, CIDR validation error, scan failure, initialResults |
-| `NetworkTopologyView.test.tsx` | NetworkTopologyView | Empty/populated states, physics/fit/zoom controls, search, click/double-click callbacks. The zoom test models the mocked network's actual scale statefully across clicks (asserting the compounded value) rather than a fixed mock return, and the topology-population assertion checks specific node/edge ids and call count. |
-| `SshFileManager.test.tsx` | SshFileManager | Path bar, loading, error, file listing |
-| `HealthCheckBadge.test.tsx` | HealthCheckBadge | Online/offline/checking states |
-| `HostDetailDialog.test.tsx` | HostDetailDialog | Tabs, connect/close callbacks, clipboard-copy-failure logging (saves and restores `navigator.clipboard` in a `finally` — it used to overwrite the global permanently and leak into later tests) |
-| `PreflightDialog.test.tsx` | PreflightDialog | Health check flow |
-| `AIAssistant.test.tsx` | AIAssistant | Chat, streaming, error |
-| `CredentialPrompt.test.tsx` | CredentialPrompt | Render, submit, cancel, save-credential toggle, empty-field validation (includes a whitespace-only username case, which satisfies the native `required` attribute but must still fail the component's own `.trim()` guard — a plain empty-field case never reaches the component's `handleSubmit` because jsdom blocks the native-invalid form submit first) |
-| `ScheduledTasksView.test.tsx` | ScheduledTasksView | Form validation: save without a host, invalid cron expression |
-| `UpdateBanner.test.tsx` | UpdateBanner | No update / available / install-and-relaunch / dismiss / check-failure |
-| `vault/VaultProvider.test.tsx` | VaultProvider | Loading, init, unlock, error states |
-| `vault/VaultInitDialog.test.tsx` | VaultInitDialog | Password validation (all rules), strength indicator, invoke, error |
-| `vault/VaultUnlockDialog.test.tsx` | VaultUnlockDialog | Empty password, success, error, cancel, password toggle |
-| `vault/CredentialSelector.test.tsx` | CredentialSelector | Loading, type/host filter (incl. SFTP ssh_key exclusion), search, select, manual entry, error |
-| `vault/CredentialManager.test.tsx` | CredentialManager | List, empty, loading, add/view/edit/delete dialogs, search, confirm flows, error, camelCase `invoke` payload keys on update (regression guard), editing an SSH-key credential with no `key_path` (`has_private_key`-gated validation, regression guard), password never rendered/fetched until the reveal toggle calls `reveal_credential_password`, password controls shown for every password-backed type (e.g. rdp), edit leaves password blank and sends `password: null` (keep) |
-| `vault/KnownHostsManager.test.tsx` | KnownHostsManager | List, search by host/fingerprint, remove with confirm, trust updates, error |
-| `vault/AuditLogViewer.test.tsx` | AuditLogViewer | List, search, event type filter, result filter, resource info, error |
-| `vault/SshHostKeyPrompt.test.tsx` | SshHostKeyPrompt | New vs changed key, trust/reject, permanent toggle, copy fingerprint, MITM warning |
-| `vault/VaultSettings.test.tsx` | VaultSettings | Load/save/error, auto-lock, lock vault, change password validation |
-| `dashboard/AlertFeed.test.tsx` | AlertFeed | Empty state, alert render, dismiss, acknowledge, clear all, metrics summary |
-| `dashboard/QuickConnectWidget.test.tsx` | QuickConnectWidget | Loading, host list, search, connect callback, overflow indicator |
-| `dashboard/AlertRules.test.tsx` | AlertRules | Rule CRUD |
-| `dashboard/MetricChartCard.test.tsx` | MetricChartCard | Rendering, custom color forwarded to the chart's stroke/gradient (the Recharts `Area` mock must forward its props — a mock that discards them lets a broken color prop pass silently) |
-| `dashboard/SystemHealthWidget.test.tsx` | SystemHealthWidget | Metrics display, CPU/memory/disk/alerts/hosts-online/vault-timeout, event-driven updates |
-| `hooks/useUpdater.test.ts` | useUpdater | State transitions (idle/checking/available/upToDate/error/downloading), auto-check, install+relaunch (awaits the `installUpdate()` promise itself rather than polling for the intermediate `downloadAndInstall` call, which is invoked synchronously and can't be used to infer that the later `relaunch()` call has actually run), unmount cleanup |
-| `lib/utils.test.ts` | `cn()`, `getErrorMessage()` | Class merging/conditionals/arrays/falsy values/Tailwind conflicts; error extraction from `Error`/string/object/non-string `.message`/null/undefined with fallback |
-| `TailscalePeers.test.tsx` | TailscalePeers | Not-installed hint, needs-login hint, peer list with SSH chip/online dot, Add payload uses `preferred_address`, "Saved" state for a peer matching an existing host, empty state |
-| `hooks/useTailscaleStatus.test.ts` | useTailscaleStatus, `findTailscalePeer` | Fetch on mount, error surfaced with status left `null`, `refresh()` re-fetches, concurrently mounted consumers coalesce onto one backend call, matcher matches by MagicDNS name/IPv4/hostname case-insensitively and returns `undefined` for no match/no status/no address. The poll is module-scoped and shared, so tests touching it must call `resetTailscaleStatusCache()` in `beforeEach`. |
+## CI
 
-#### Key testing patterns
+`.github/workflows/ci.yml` (push/PR to `master`): actionlint; frontend (`tsc`, `npm run coverage`, `npm audit`); MSRV check; backend (clippy `--all-targets`, `cargo test`, `cargo audit`, `cargo deny`); build matrix. `release.yml` (`v*` semver tags; its gate runs the same checks as `ci.yml`, including the coverage floor and `cargo deny`) builds signed bundles as a **draft** release (publish it by hand; see `docs/RELEASE_SIGNING.md`). `audit.yml` runs audits weekly. Rules: actions pinned to a commit SHA with the version in a comment; read-only `GITHUB_TOKEN` by default; **never use the `secrets` context in a step `if:`** (map it to a job-level env; that bug made `release.yml` invalid for a month). Accepted advisories: `src-tauri/.cargo/audit.toml` and `deny.toml` `ignore` (keep them in sync), documented in `SECURITY.md`.
 
-- Components with `export default` (most vault components, ErrorBoundary, TopBar, AlertFeed, QuickConnectWidget) are imported with default import syntax: `import VaultSettings from './VaultSettings'`
-- `window.confirm` must be stubbed via `vi.spyOn(window, 'confirm').mockReturnValue(true/false)` (not `vi.stubGlobal`) — restore with `spy.mockRestore()` after each test
-- Selects without `aria-label`/`id` (e.g. AuditLogViewer filters) are queried by index: `screen.getAllByRole('combobox')[0]`
-- When multiple elements match the same text (heading + button both say "Unlock Vault"), use `getAllByText(...)` or role-scoped queries like `getByRole('button', { name: ... })`
-- Saved-host components mock `invoke` commands such as `get_saved_hosts`, `upsert_saved_host`, and `remove_saved_hosts`; frontend tests never open SQLite directly
-- **`invoke()` payload keys must be lowerCamelCase.** Tauri's command macro matches JSON keys against the camelCased Rust parameter name and silently treats a missing key as `None` for `Option<T>` params — there is no "unknown key" error. A snake_case key (e.g. `key_path` instead of `keyPath`) doesn't fail, it just never updates that field. This bit `CredentialManager.tsx`'s update/add payloads once; `CredentialManager.test.tsx` now asserts no payload key contains `_`.
-- **`get_credential` never returns any decrypted secret — password, private key, or passphrase** — only `has_password`/`has_private_key`/`has_key_passphrase` booleans (see `CredentialFrontendView` in `vault/credentials.rs`). Any form/validation built on the result of `get_credential` must treat an empty `private_key` field as "not shown", not "not stored" — check the `has_*` flag (or `key_path`, which *is* returned in cleartext) before concluding no key exists. Got this backwards once in `CredentialManager.tsx`'s edit-submit validation, which blocked saving any change to a credential whose key was originally pasted as PEM rather than a file path. Same for the password: don't prefill it in forms, and never re-add it to `CredentialFrontendView`; fetch it via `reveal_credential_password` only when the user explicitly asks or SFTP needs it (`RemoteManager.test.tsx` covers the SFTP path).
+## Constraints
 
-### Rust Tests
-
-```bash
-cd src-tauri && cargo test
-```
-
-Integration tests are in `src-tauri/tests/`. Unit tests use `#[cfg(test)]` modules within source files.
-
----
-
-## Code Conventions
-
-### TypeScript / React
-
-Source: `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guide).
-
-- **`const` by default**, `let` if needed, never `var`
-- **Named exports only** — no default exports
-- **No `any`** — use `unknown` or a specific type
-- **No type assertions** (`as SomeType`, `x!`) without a clear comment justifying it
-- **No `#private` fields** — use TypeScript `private` keyword
-- **No `public` modifier** (it's the default)
-- **Single quotes** for strings; template literals for interpolation
-- **Strict equality** — always `===` / `!==`
-- **Explicit semicolons** — never rely on ASI
-- **No `const enum`** — use plain `enum`
-- **No `eval()`**
-- **No `{}` type** — prefer `unknown`, `Record<string, unknown>`, or `object`
-
-**Naming**:
-- `UpperCamelCase` — classes, interfaces, types, enums
-- `lowerCamelCase` — variables, functions, methods, properties
-- `CONSTANT_CASE` — global constants and enum values
-- No `_` prefix/suffix on identifiers
-
-**Comments**: JSDoc `/** */` for documentation, `//` for inline notes. Don't restate the code.
-
-**CSS utility**: Use the `cn()` helper from `src/lib/utils.ts` (wraps `clsx` + `tailwind-merge`) for conditional class composition.
-
-### Rust
-
-- Tauri commands return `Result<T, String>` — convert errors with `.map_err(|e| e.to_string())` or the error sanitization in `errors.rs`
-- No `.unwrap()` or `.expect()` in non-test code
-- Zeroize sensitive data (passwords, keys) when done — use `zeroize` crate
-- Use `secrecy::Secret<String>` for in-memory secrets
-- Validate all external inputs through `validation.rs` before processing
-- Database work should use transactions for multi-step operations
-- `discovery.rs` uses a singleton pattern (`Arc<AtomicBool>`) — do not bypass it
-- `tailscale.rs` only shells out to the local `tailscale` CLI with fixed arguments (`status --json`) — never pass user input into that command, and never call the Tailscale control-plane API directly
-
-### Component Patterns
-
-- Functional components with hooks only (no class components)
-- Global vault state via `VaultProvider` context (`src/components/vault/VaultProvider.tsx`)
-- Wrap the app (or risky subtrees) in `ErrorBoundary`
-- SSH credential selectors must filter out `ssh_key` type when the target is SFTP (backend only supports password auth for SFTP)
-
----
-
-## Security Notes
-
-1. **Vault must be unlocked** before any credential operations. The vault state is in-memory only — the master password hash is stored (Argon2id) but the derived key is not persisted.
-2. **Credentials are encrypted** with AES-256-GCM. The key is derived from the master password per session.
-3. **SFTP only supports password credentials.** The `CredentialSelector` component filters `ssh_key` type out when `filterType="password_only"` is set — always use this prop for SFTP contexts.
-4. **Discovery is a singleton.** Calling `start_network_scan` when already running returns early; there is no duplicate-thread risk.
-5. **Database export** uses `VACUUM INTO` (not file copy) to get a consistent snapshot while connections are live.
-6. **Input validation** (`validation.rs`) must be called on all user-supplied network values before use in commands.
-7. **Interactive SSH connect errors bypass `sanitize_error()` by design.** `connect_ssh` (the terminal path in `ssh.rs`) returns `ssh_connect::connect_with_diagnostics()` errors verbatim to the frontend — including the resolved IP/port and the phase that failed (DNS/TCP/handshake) — so users can self-diagnose (wrong port, firewalled host, dead DNS record). SFTP and pooled/scheduled-task SSH paths still route through `sanitize_error(e, "sftp"/"ssh")` at the `lib.rs` command boundary.
-8. **All SQLite connections must go through `db::open_connection()`.** It sets the 5s busy-timeout, WAL journal mode, and the foreign-keys pragma. `HostTracker` and `MetricsStore` used to open raw `rusqlite::Connection`s directly and got none of these — under normal write contention (scheduler + monitoring + a network scan writing concurrently) they'd fail fast with `SQLITE_BUSY` instead of waiting, and the caller only logged it, so scanned hosts and monitoring samples were silently dropped. Fixed Aug 22, 2026 by routing both through `db::open_connection()`; don't reintroduce a raw `Connection::open()` call outside `db.rs`.
-9. **`VaultState.changing_password` only gates `check_auto_lock()`, not `lock_vault()`.** (A second concurrent rotation queues on `credential_gate`, then fails current-password verification against the hash the first one wrote.) Credential operations are gated separately by `credential_gate` (item 14). `change_master_password` drops its write lock during the multi-second Argon2id + credential re-encryption pass (so other vault reads, e.g. an in-flight SSH credential lookup, aren't stalled for the whole operation) and only reacquires it briefly at the start and end. Because of that window, an explicit `lock_vault()` call can land mid-change — the reacquire-and-install step at the end checks `inner.master_key.is_some()` before installing the new key, so an explicit lock is respected instead of silently reverted. If you touch `change_master_password` again, preserve that check; see `.claude/agent-memory/security-reviewer/vault_rs_patterns.md` for the full locking model and a regression test at `vault::tests::test_lock_vault_during_password_change_stays_locked`.
-10. **`unlock_vault`'s failed-attempt lockout (5 → 5 min, 10 → 15 min, 15 → 60 min) is persisted to `vault_settings`** (`lockout_failed_attempts` / `lockout_until_unix`), not just tracked in-memory. `VaultStateInner` is rebuilt fresh on every app launch, so an in-memory-only counter would let an attacker with local file access bypass the lockout by relaunching the app every 4 guesses. `load_persisted_lockout()` folds the persisted state into `inner` at the top of every `unlock_vault` call (only ever raising it, never lowering) and `persist_lockout()` writes it back on every failure and on success (clearing it). Regression tests: `vault::tests::test_lockout_persists_across_vault_state_restart`, `test_successful_unlock_clears_persisted_lockout`.
-11. **`scan_network`'s claim (`is_scanning` check-and-set + `stop_signal` reset) must happen synchronously in the `scan_network` Tauri command, before `tokio::spawn`, via `scanner::claim_scan()` — never inside the spawned task.** The command spawns the actual scan and returns immediately; if the claim happened inside the spawned task instead, a `stop_scan()` call landing in the window between `tokio::spawn(...)` and the task actually starting would set `stop_signal = true`, only for the still-starting scan to unconditionally reset it back to `false` when its own claim ran — silently discarding the user's stop request. `scan_network()` itself now assumes the caller already claimed it: it installs `ScanRunningGuard` as its first action (before any fallible work, so the claim is always released even on early return) and checks `stop_signal` before opening the raw ICMP socket (so an already-stopped scan doesn't pay for, or need privileges for, a socket it won't use). Fixed Sep 17, 2026; regression tests: `scanner::tests::test_claim_scan_rejects_concurrent_claim`, `test_stop_request_after_claim_is_not_lost`. See `AGENTS.md` for the incident where a bot-pushed commit reverted this fix mid-review and it had to be reapplied on top of a master merge.
-12. **`ssh_auth::authenticate` falls back to `none` authentication only when no password and no key material were supplied at all** — a present-but-wrong password or key still fails normally; this path exists specifically for identity-aware servers like Tailscale SSH, which authenticate the tailnet connection out-of-band and accept a bare `authenticate_none` request. Tailscale SSH "check mode" (browser re-verification over keyboard-interactive) is not implemented — it surfaces as a connection error in the terminal, same as any other rejected `none` auth attempt.
-13. **Decrypted passwords only cross IPC through `reveal_credential_password`.** `get_credential`'s `CredentialFrontendView` has `has_password` instead of a `password` field (Rust regression test `vault::credentials::tests::test_frontend_view_carries_no_secret_material`). The frontend calls `reveal_credential_password` only on an explicit reveal/copy in the view dialog, or when starting an SFTP session (SFTP commands take the password directly). SSH sessions pass the credential ID and never need it. Until September 24, 2026 the view carried the plaintext, so opening any credential put it into React state.
-14. **Credential code must get the master key through `VaultState::credential_access()`, never `get_master_key()`.** `credential_access()` returns the key plus a shared hold on `credential_gate`. `change_master_password` takes that gate exclusively for the whole rotation, before it sets `changing_password` or reads the old key, so a credential encrypt/decrypt can't use a key that's about to be replaced. (`get_master_key()` bypasses the gate; it's kept for tests and the rotation internals.) Drop the `CredentialAccess` as soon as decryption is done (`connect_ssh`, `start_ssh_tunnel` and `get_remote_hosts_health` drop it before their network phase) so a slow connect doesn't stall a password change. `delete_credential` takes `credential_gate()` (no key needed). Lock order is gate → `inner`. Regression test: `vault::tests::test_credential_write_waits_for_master_password_change`. Fixed September 24, 2026 (EDW-15).
-
-See `CODEBASE_AUDIT_REPORT.md` and `AGENTS.md` for the full audit findings and their fixes.
-
----
-
-## CI/CD
-
-`.github/workflows/ci.yml` runs on every push/PR to `master` (the repo's only branch — it
-targeted `main`/`develop` until Aug 26, 2026, neither of which exist here, so CI had never
-actually run on GitHub before that fix; see `AGENTS.md`):
-
-1. **Frontend** (Ubuntu): `tsc --noEmit` + `npm test` + `npm audit --audit-level=high`
-2. **Backend** (Ubuntu): `cargo clippy -- -D warnings` + `cargo test` + `cargo audit` (accepted-risk advisories suppressed in `src-tauri/.cargo/audit.toml`, documented in `SECURITY.md`)
-3. **Build matrix** (Windows, Ubuntu, macOS): `tauri build` with artifact upload
-
-`.github/workflows/release.yml` triggers on `v*` tags, builds all platforms, code-signs Windows/macOS installers and notarizes the macOS build, produces signed auto-updater artifacts (`latest.json` + `.sig` files), and creates a GitHub release with bundles attached. Signing/notarization/updater secrets are documented in `docs/RELEASE_SIGNING.md` — without them the build still succeeds but produces unsigned installers.
-
----
-
-## Key Files for Common Tasks
-
-| Task | File(s) |
-|------|---------|
-| Add a new Tauri command | `src-tauri/src/lib.rs` (register in `tauri::generate_handler!`) |
-| Add credential/host logic | `src-tauri/src/vault/credentials.rs` or `lib.rs` |
-| Add a new React view | `src/components/` + register in `App.tsx` sidebar |
-| Add a database table/column | New migration in `src-tauri/migrations/` + register in `lib.rs` |
-| Change alert/monitoring logic | `src-tauri/src/monitoring.rs` |
-| Change SSH session handling | `src-tauri/src/ssh.rs` (interactive) or `ssh_exec.rs` (one-shot) |
-| Change SSH connect/timeout/error-reporting | `src-tauri/src/ssh_connect.rs` — shared by `ssh.rs`, `sftp.rs`, `ssh_exec.rs`, `ssh_pool.rs`, `ssh_tunnel.rs`; reports which phase (DNS/TCP/handshake) failed instead of one opaque timeout |
-| Change cron/scheduler logic | `src-tauri/src/scheduler.rs` |
-| Change Tailscale peer listing/matching | `src-tauri/src/tailscale.rs` (backend), `src/hooks/useTailscaleStatus.ts` + `src/components/TailscalePeers.tsx` (frontend) |
-| Change encryption | `src-tauri/src/crypto.rs` |
-| Change input validation | `src-tauri/src/validation.rs` |
-| Understand DB schema | `docs/SCHEMA.md` + `src-tauri/migrations/` |
-| Understand user workflows | `docs/CORE_WORKFLOWS.md` |
-| Configure release code signing / auto-updater secrets | `docs/RELEASE_SIGNING.md` |
-| Report a vulnerability / see security scope | `SECURITY.md` |
-| Review past bug fixes | `AGENTS.md` |
-
----
-
-## Important Constraints
-
-- **SFTP backend does not support SSH key auth** — only password credentials. Do not add `ssh_key` credential support to SFTP paths without implementing it in `src-tauri/src/sftp.rs` first.
-- **Tauri API cannot be called in tests** — always mock via `vi.mocked(invoke)` in test files or `test-setup.ts`.
-- **Do not use `unwrap()`/`expect()` in Rust production code** — return `Result` and propagate errors.
-- **Migrations are append-only** — never modify existing migration files. Add a new numbered file instead.
-- **All Tauri commands must be registered** in `tauri::generate_handler!([...])` inside `lib.rs` to be callable from the frontend.
-- **The Vite port is fixed at 1420** — do not change it; Tauri's CSP and dev config depend on it.
+- SFTP supports password credentials only (`ssh` and legacy `password`: `SFTP_CREDENTIAL_TYPES`, which `RemoteManager` passes to `CredentialSelector`). Add key auth in `sftp.rs` before exposing `ssh_key` credentials there. Credential pickers use `SSH_CREDENTIAL_TYPES` / `SFTP_CREDENTIAL_TYPES`, never a hand-written list.
+- The Vite port is fixed at 1420 (Tauri config and CSP depend on it).
+- `discovery.rs` is a singleton; don't bypass it.
+- Only `ssh` and `rdp` hosts have an in-app client; other protocols are inventory-only. Scheduled tasks run against `ssh` hosts only, checked when saved and at each run (`scheduler::host_protocol_runs_tasks`; tests `scheduled_task_validation`, `tasks_only_run_against_ssh_hosts`).
+- Updater keys live outside the repo (`~/.tauri/`); `*.key` is gitignored.

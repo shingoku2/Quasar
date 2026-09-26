@@ -16,7 +16,7 @@
 //!   secret. Only the hash is retained, never the secret itself.
 
 use crate::ssh_exec::ExecClient;
-use russh::client::Handle;
+use russh::client::{Handle, Handler};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -87,25 +87,45 @@ impl ConnectParams<'_> {
     }
 }
 
-struct PooledSession {
-    handle: Arc<Handle<ExecClient>>,
-    established: Instant,
+struct PooledSession<H: Handler> {
+    handle: Arc<Handle<H>>,
+    /// `MAX_LIFETIME` after the session was established.
+    expires_at: Instant,
     last_used: Instant,
 }
 
-impl PooledSession {
+impl<H: Handler> PooledSession<H> {
     /// A session is only handed out if it is still connected and within both
     /// the idle and absolute lifetime bounds.
     fn is_usable(&self) -> bool {
         !self.handle.is_closed()
             && self.last_used.elapsed() < IDLE_TIMEOUT
-            && self.established.elapsed() < MAX_LIFETIME
+            && Instant::now() < self.expires_at
+    }
+
+    /// True while a `Lease` still holds the handle, i.e. a command may be running on it.
+    fn is_leased(&self) -> bool {
+        Arc::strong_count(&self.handle) > 1
+    }
+
+    /// Takes a retired session out of service. A leased one is only dropped from the pool,
+    /// not disconnected: its command finishes and the connection closes when the lease
+    /// drops the last handle. Disconnecting it killed commands mid-run (audit RUST-007).
+    async fn retire(self) -> bool {
+        if self.is_leased() {
+            return false;
+        }
+        let _ = self
+            .handle
+            .disconnect(russh::Disconnect::ByApplication, "", "en")
+            .await;
+        true
     }
 }
 
 /// A session borrowed from the pool.
-pub struct Lease {
-    pub handle: Arc<Handle<ExecClient>>,
+pub struct Lease<H: Handler = ExecClient> {
+    pub handle: Arc<Handle<H>>,
     /// True when this came from the cache. Only a reused session may be
     /// silently retried, because a freshly built one failing is a real error.
     pub reused: bool,
@@ -113,25 +133,15 @@ pub struct Lease {
 
 /// One slot per endpoint. The async mutex serialises connection setup for a
 /// single host without blocking other hosts.
-type Slot = Arc<AsyncMutex<Option<PooledSession>>>;
+type Slot<H> = Arc<AsyncMutex<Option<PooledSession<H>>>>;
 
-#[derive(Default)]
-pub struct SshConnectionPool {
-    slots: Mutex<HashMap<PoolKey, Slot>>,
+pub struct SshConnectionPool<H: Handler = ExecClient> {
+    slots: Mutex<HashMap<PoolKey, Slot<H>>>,
 }
 
-impl SshConnectionPool {
+impl SshConnectionPool<ExecClient> {
     pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// The map lock is held only long enough to clone the slot handle.
-    fn slot(&self, key: &PoolKey) -> Slot {
-        let mut slots = self
-            .slots
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        slots.entry(key.clone()).or_default().clone()
+        Self::empty()
     }
 
     /// Return a usable session, establishing one only if necessary.
@@ -140,7 +150,33 @@ impl SshConnectionPool {
         app_handle: &AppHandle,
         params: &ConnectParams<'_>,
     ) -> Result<Lease, String> {
-        let key = params.pool_key();
+        self.acquire_with(params.pool_key(), || connect_and_authenticate(app_handle, params))
+            .await
+    }
+}
+
+impl<H: Handler> SshConnectionPool<H> {
+    fn empty() -> Self {
+        Self {
+            slots: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// The map lock is held only long enough to clone the slot handle.
+    fn slot(&self, key: &PoolKey) -> Slot<H> {
+        let mut slots = self
+            .slots
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        slots.entry(key.clone()).or_default().clone()
+    }
+
+    /// Return a usable session for `key`, calling `connect` only if necessary.
+    async fn acquire_with<F, Fut>(&self, key: PoolKey, connect: F) -> Result<Lease<H>, String>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<Handle<H>, String>>,
+    {
         let slot = self.slot(&key);
         let mut guard = slot.lock().await;
 
@@ -157,17 +193,14 @@ impl SshConnectionPool {
             }
             // Stale or dead: drop it before building a replacement.
             if let Some(session) = guard.take() {
-                let _ = session
-                    .handle
-                    .disconnect(russh::Disconnect::ByApplication, "", "en")
-                    .await;
+                session.retire().await;
             }
         }
 
-        let handle = Arc::new(connect_and_authenticate(app_handle, params).await?);
+        let handle = Arc::new(connect().await?);
         *guard = Some(PooledSession {
             handle: handle.clone(),
-            established: Instant::now(),
+            expires_at: Instant::now() + MAX_LIFETIME,
             last_used: Instant::now(),
         });
 
@@ -177,15 +210,22 @@ impl SshConnectionPool {
         })
     }
 
-    /// Drop a cached session, e.g. after discovering it is no longer usable.
-    pub async fn invalidate(&self, params: &ConnectParams<'_>) {
-        let slot = self.slot(&params.pool_key());
+    /// Drop the cached session that `failed` belongs to, after a command on it failed.
+    /// Only that session: another task may already have replaced it with a fresh one, which
+    /// stays. It's retired, not disconnected, so commands other leases are still running on
+    /// it (e.g. when one hit the server's MaxSessions limit) aren't killed; it closes once
+    /// the last lease drops it (PR #68 review; RUST-007).
+    pub async fn invalidate(&self, params: &ConnectParams<'_>, failed: &Arc<Handle<H>>) {
+        self.invalidate_key(&params.pool_key(), failed).await;
+    }
+
+    async fn invalidate_key(&self, key: &PoolKey, failed: &Arc<Handle<H>>) {
+        let slot = self.slot(key);
         let mut guard = slot.lock().await;
-        if let Some(session) = guard.take() {
-            let _ = session
-                .handle
-                .disconnect(russh::Disconnect::ByApplication, "", "en")
-                .await;
+        if guard.as_ref().is_some_and(|s| Arc::ptr_eq(&s.handle, failed)) {
+            if let Some(session) = guard.take() {
+                session.retire().await;
+            }
         }
     }
 
@@ -194,7 +234,7 @@ impl SshConnectionPool {
     /// Slots currently in use are skipped rather than waited on; they will be
     /// caught by a later sweep.
     pub async fn sweep_idle(&self) -> usize {
-        let slots: Vec<(PoolKey, Slot)> = {
+        let slots: Vec<(PoolKey, Slot<H>)> = {
             let slots = self
                 .slots
                 .lock()
@@ -210,13 +250,13 @@ impl SshConnectionPool {
                 continue; // busy: leave it for the next sweep
             };
             match guard.as_ref() {
-                Some(session) if !session.is_usable() => {
+                // A leased session past its lifetime is still running a command: leave it
+                // for a later sweep (acquire won't hand it out, since it isn't usable).
+                Some(session) if !session.is_usable() && !session.is_leased() => {
                     if let Some(session) = guard.take() {
-                        let _ = session
-                            .handle
-                            .disconnect(russh::Disconnect::ByApplication, "", "en")
-                            .await;
-                        closed += 1;
+                        if session.retire().await {
+                            closed += 1;
+                        }
                     }
                     empty_keys.push(key);
                 }
@@ -243,6 +283,23 @@ impl SshConnectionPool {
         }
 
         closed
+    }
+
+    /// Expires every cached session now. Test helper for lifetime expiry.
+    #[cfg(test)]
+    async fn expire_sessions(&self) {
+        let slots: Vec<Slot<H>> = self
+            .slots
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .values()
+            .cloned()
+            .collect();
+        for slot in slots {
+            if let Some(session) = slot.lock().await.as_mut() {
+                session.expires_at = Instant::now();
+            }
+        }
     }
 
     /// Number of cached slots. Test/diagnostic helper.
@@ -362,6 +419,82 @@ mod tests {
         );
     }
 
+    struct AcceptAnyKey;
+
+    impl russh::client::Handler for AcceptAnyKey {
+        type Error = russh::Error;
+        async fn check_server_key(
+            &mut self,
+            _key: &russh::keys::PublicKeyOrCertificate,
+        ) -> Result<bool, Self::Error> {
+            Ok(true)
+        }
+    }
+
+    async fn connect_test(port: u16) -> Result<Handle<AcceptAnyKey>, String> {
+        let mut session = crate::ssh_connect::connect_with_diagnostics(
+            Arc::new(russh::client::Config::default()),
+            "127.0.0.1",
+            port,
+            AcceptAnyKey,
+            Duration::from_secs(10),
+        )
+        .await?;
+        crate::ssh_auth::authenticate(&mut session, "u", None, None, None, None).await?;
+        Ok(session)
+    }
+
+    /// RUST-007: a session past its lifetime must not be disconnected while a lease is
+    /// still using it; it's closed once the lease is gone.
+    #[tokio::test]
+    async fn expired_sessions_are_not_closed_under_an_active_lease() {
+        let policy = crate::ssh_test_server::Policy { accept_none: true, ..Default::default() };
+        let (port, _) = crate::ssh_test_server::spawn(policy).await;
+        let pool: SshConnectionPool<AcceptAnyKey> = SshConnectionPool::empty();
+        let key = params("127.0.0.1", "u", None).pool_key();
+
+        let lease = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        pool.expire_sessions().await;
+
+        assert_eq!(pool.sweep_idle().await, 0, "leased session must survive the sweep");
+        // A new acquire replaces the expired session without killing the leased one.
+        let fresh = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(!fresh.reused);
+        assert!(!lease.handle.is_closed());
+        assert!(lease.handle.channel_open_session().await.is_ok(), "leased session still works");
+        drop(lease);
+        drop(fresh);
+
+        pool.expire_sessions().await;
+        assert_eq!(pool.sweep_idle().await, 1, "unleased expired session is closed");
+    }
+
+    /// PR #68 review: a failed command invalidates only its own session, and never closes
+    /// it under other leases still running commands on it; a replacement another task
+    /// already made is kept.
+    #[tokio::test]
+    async fn invalidate_keeps_other_leases_and_newer_sessions() {
+        let policy = crate::ssh_test_server::Policy { accept_none: true, ..Default::default() };
+        let (port, _) = crate::ssh_test_server::spawn(policy).await;
+        let pool: SshConnectionPool<AcceptAnyKey> = SshConnectionPool::empty();
+        let key = params("127.0.0.1", "u", None).pool_key();
+
+        let first = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        let second = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(second.reused && Arc::ptr_eq(&first.handle, &second.handle));
+
+        pool.invalidate_key(&key, &first.handle).await;
+        assert!(!second.handle.is_closed(), "the other lease's session must stay open");
+        assert!(second.handle.channel_open_session().await.is_ok());
+
+        let replacement = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(!replacement.reused, "the invalidated session left the pool");
+        // A late invalidate for the old session must not evict the replacement.
+        pool.invalidate_key(&key, &first.handle).await;
+        let again = pool.acquire_with(key.clone(), || connect_test(port)).await.unwrap();
+        assert!(again.reused && Arc::ptr_eq(&again.handle, &replacement.handle));
+    }
+
     /// Test-only handler. Accepts any host key because this benchmark targets a
     /// host the operator names explicitly; the production path verifies keys via
     /// `ExecClient`.
@@ -371,7 +504,7 @@ mod tests {
         type Error = russh::Error;
         async fn check_server_key(
             &mut self,
-            _key: &russh::keys::PublicKey,
+            _key: &russh::keys::PublicKeyOrCertificate,
         ) -> Result<bool, Self::Error> {
             Ok(true)
         }

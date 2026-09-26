@@ -1,0 +1,19 @@
+npm-ci exit=0
+tsc exit=0
+vitest-coverage exit=1
+vitest-coverage-provider-install exit=0
+vitest-coverage-retry exit=0
+npm-build exit=0
+npm-audit exit=0
+npm-outdated exit=1
+cargo-build exit=0
+cargo-clippy exit=0
+cargo-test exit=0
+cargo-install-tools exit=0
+cargo-audit exit=0
+cargo-audit-human exit=0
+cargo-outdated exit=0
+cargo-tree-dups exit=0
+cargo-llvm-cov exit=0
+cargo-deny exit=0
+DONE

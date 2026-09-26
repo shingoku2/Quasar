@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import CredentialSelector from './CredentialSelector';
+import { SFTP_CREDENTIAL_TYPES } from '../../lib/utils';
 import '@testing-library/jest-dom';
 
 const mockInvoke = vi.mocked(invoke);
@@ -171,5 +172,29 @@ describe('CredentialSelector', () => {
     await waitFor(() => {
       expect(screen.getByText('my-server.local')).toBeInTheDocument();
     });
+  });
+
+  // PR #68 review: legacy `password` credentials authenticate SSH and SFTP, so the pickers
+  // offer them; SFTP never offers key credentials. Same lists as the backend's check_type.
+  it('offers legacy password credentials for SSH and SFTP, keys only for SSH', async () => {
+    const creds = [
+      { id: 'k', name: 'Key cred', username: 'u', credential_type: 'ssh_key', host: null },
+      { id: 'p', name: 'Legacy pw', username: 'u', credential_type: 'password', host: null },
+      { id: 'a', name: 'API cred', username: 'u', credential_type: 'api', host: null },
+    ];
+    mockInvoke.mockResolvedValue(creds as never);
+    const { unmount } = render(
+      <CredentialSelector hostAddress="10.0.0.1" onSelect={onSelect} onCancel={onCancel} onManualEntry={onManualEntry} />
+    );
+    await waitFor(() => expect(screen.getByText('Legacy pw')).toBeInTheDocument());
+    expect(screen.getByText('Key cred')).toBeInTheDocument();
+    expect(screen.queryByText('API cred')).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <CredentialSelector hostAddress="10.0.0.1" allowedTypes={SFTP_CREDENTIAL_TYPES} onSelect={onSelect} onCancel={onCancel} onManualEntry={onManualEntry} />
+    );
+    await waitFor(() => expect(screen.getByText('Legacy pw')).toBeInTheDocument());
+    expect(screen.queryByText('Key cred')).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,12 @@ required unconditionally: `bundle.createUpdaterArtifacts` in `tauri.conf.json` i
 for every platform, so a release build with that secret missing will fail at the signing
 step on all three OSes, not just fall back to unsigned.
 
+Release tags must be `vMAJOR.MINOR.PATCH` with an optional `-prerelease` suffix (e.g.
+`v1.4.0`, `v1.4.0-rc.1`): the tag becomes the app version the updater compares, and the
+workflow fails fast on anything else. The release gate runs the same checks as CI (tests with the
+coverage floor, clippy, `npm audit`, `cargo audit` and `cargo deny check`), and release builds don't restore Rust caches written by other
+workflows, so a poisoned cache can't reach a signed build.
+
 ## 1. Updater signing key (required for every platform)
 
 The public half is already committed in `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`).
@@ -24,8 +30,9 @@ you securely (it isn't recoverable from the public key).
 | `TAURI_SIGNING_PRIVATE_KEY` | Contents of the private key file |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | The password chosen when the key was generated |
 
-To rotate the key (e.g. if it's ever exposed): run `npx tauri signer generate -w quasar-updater.key`
-locally, replace `pubkey` in `tauri.conf.json` with the new `quasar-updater.key.pub` contents,
+To rotate the key (e.g. if it's ever exposed): run `npx tauri signer generate -w ~/.tauri/quasar-updater.key`
+locally (outside the repo, never commit it; `*.key` is gitignored as a backstop), replace `pubkey`
+in `tauri.conf.json` with the new `~/.tauri/quasar-updater.key.pub` contents,
 update both secrets above, and ship the next release — older installs can no longer verify
 future updates signed with a different key, so this is a breaking change for anyone who
 hasn't updated past the last release signed with the old key.
@@ -60,12 +67,21 @@ certificate, and an app-specific password for notarization.
 | `APPLE_PASSWORD` | An [app-specific password](https://support.apple.com/en-us/102654) for that Apple ID — not the account password |
 | `APPLE_TEAM_ID` | Apple Developer Team ID (found at [developer.apple.com/account](https://developer.apple.com/account) under Membership) |
 
-These are read directly by the Tauri bundler; unlike Windows, no `tauri.conf.json` field or
-extra workflow step is needed. They're passed to every matrix job but are simply unused on
-the Windows/Linux runners.
+These are read directly by the Tauri bundler; unlike Windows, no `tauri.conf.json` field is
+needed. The workflow exports them only on the macOS runner and only the ones that are set
+(an unset secret would otherwise arrive as an empty string, and whether the bundler treats
+`APPLE_CERTIFICATE=""` as absent is unverified).
 
 ## 4. Linux
 
 AppImage/`.deb` builds are not code-signed — Linux has no OS-level equivalent to Authenticode
 or notarization gatekeeping. The updater still works there: `latest.json` and the signed
 `.AppImage.tar.gz` are produced and verified the same way as on Windows/macOS.
+
+## 5. Publishing a release
+
+Releases are created as **drafts** (`releaseDraft: true` in `release.yml`). Until a human
+publishes the draft on GitHub (Releases → the draft → **Publish release**), the updater
+endpoint (`releases/latest/download/latest.json`) serves nothing and no installed copy sees
+the update. Before publishing, check that every platform's bundle and `latest.json` are
+attached, and that the version in `latest.json` matches the tag.

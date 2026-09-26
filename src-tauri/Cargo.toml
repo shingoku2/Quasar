@@ -31,15 +31,15 @@ tauri-plugin-opener = "2.5.4"
 tauri-plugin-dialog = "2.7.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-argon2 = "0.5.3"
+argon2 = "0.6"
 aes-gcm = "0.11.0"
 rand = "0.10.2"
 getrandom = "0.4.3"
-mdns-sd = "0.20.3"
+mdns-sd = "0.21.4"
 ollama-rs = { version = "0.3.6", features = ["stream"] }
 tokio-stream = "0.1.19"
-russh = { version = "0.62.5", default-features = false, features = ["flate2", "rsa", "ring"] }
-russh-sftp = { version = "2.3.0" }
+russh = { version = "0.63", default-features = false, features = ["flate2", "rsa", "ring"] }
+russh-sftp = { version = "3" }
 tokio = { version = "1.53.1", features = ["full"] }
 surge-ping = "0.9.0"
 cidr-utils = "0.7.1"
@@ -57,9 +57,14 @@ env_logger = "0.11.11"
 rusqlite_migration = "2.6.0"
 once_cell = "1.21.4"
 sha2 = "0.11.0"
-dns-lookup = "3.0.1"
+hkdf = "0.13.0"
+dns-lookup = "4"
 cron = "0.17.0"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
+
+[dev-dependencies]
+# Same flume mdns-sd uses (it re-exports `flume::Receiver`); tests build channels with it.
+flume = { version = "0.12", default-features = false }

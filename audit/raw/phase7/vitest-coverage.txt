@@ -1,0 +1,20 @@
+npm notice run quasar@0.1.0 npx
+npm notice run 'vitest' run --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary --coverage.reportsDirectory=/tmp/claude-0/-home-user-Quasar/a5460dae-cf16-53b9-8a53-e05296945d01/scratchpad/metrics/fe
+
+ RUN  v4.1.11 /home/user/Quasar
+      Coverage enabled with v8
+
+
+ Test Files  49 passed (49)
+      Tests  351 passed (351)
+   Start at  21:57:29
+   Duration  28.94s (transform 2.59s, setup 857ms, import 15.73s, tests 18.66s, environment 36.07s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 70.65% ( 1736/2457 )
+Branches     : 66.07% ( 1151/1742 )
+Functions    : 65.73% ( 449/683 )
+Lines        : 72.88% ( 1642/2253 )
+================================================================================

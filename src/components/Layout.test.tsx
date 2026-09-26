@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 
 vi.mock('./vault/VaultProvider', () => ({
   useVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
+  useOptionalVault: () => ({ isVaultLocked: false, lockVault: vi.fn(), unlockVault: vi.fn() }),
   VaultProvider: ({ children }: any) => children,
 }));
 
@@ -23,8 +24,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'list_credentials') return Promise.resolve([]);
     if (cmd === 'get_known_ssh_hosts') return Promise.resolve([]);
     if (cmd === 'get_audit_logs') return Promise.resolve([]);
-    if (cmd === 'get_audit_log_count') return Promise.resolve(0);
-    if (cmd === 'get_vault_settings') return Promise.resolve({ auto_lock_timeout_minutes: 15, require_password_on_credential_use: false, vault_initialized: true });
+    if (cmd === 'get_vault_settings') return Promise.resolve({ auto_lock_timeout_minutes: 15, vault_initialized: true });
     if (cmd === 'list_scheduled_tasks') return Promise.resolve([]);
     if (cmd === 'get_saved_hosts') return Promise.resolve([]);
     if (cmd === 'get_tailscale_status') return Promise.resolve({ installed: false, backend_state: '', magic_dns_enabled: false, magic_dns_suffix: null, self_node: null, peers: [] });
@@ -47,5 +47,25 @@ describe('Layout Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Remote Hosts')).toBeInTheDocument();
     });
+  });
+
+  // FE-011: a host-key prompt must be visible whatever view is active.
+  it('shows a host-key prompt while another view is active', async () => {
+    const { listen } = await import('@tauri-apps/api/event');
+    let emitPrompt: ((e: { payload: unknown }) => void) | undefined;
+    vi.mocked(listen).mockImplementation(async (name: string, cb: unknown) => {
+      if (name === 'ssh-host-key-verification') emitPrompt = cb as typeof emitPrompt;
+      return () => {};
+    });
+    render(<Layout />);
+    await waitFor(() => expect(emitPrompt).toBeDefined());
+    // The dashboard is active, not the Remote view.
+    emitPrompt?.({
+      payload: {
+        requestId: 'r1', host: 'tunnel-host', port: 22, fingerprint: 'SHA256:abc',
+        keyType: 'ssh-ed25519', keyBytes: [1], status: 'Unknown', message: 'new',
+      },
+    });
+    expect((await screen.findAllByText(/tunnel-host/)).length).toBeGreaterThan(0);
   });
 });

@@ -4,12 +4,15 @@ import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { VaultProvider } from "./components/vault/VaultProvider";
 import { getErrorMessage } from "./lib/utils";
+import { applyStoredAppearance } from "./components/SettingsView";
 
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
   console.error("Root element not found!");
 } else {
+  // Saved theme/accent must apply at launch, not only once Settings → Appearance opens.
+  applyStoredAppearance();
   try {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>

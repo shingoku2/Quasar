@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { save, open } from '@tauri-apps/plugin-dialog';
 import { Settings, Shield, Bell, Palette, Database, Info } from 'lucide-react';
 import VaultSettings from './vault/VaultSettings';
 import { getErrorMessage } from '../lib/utils';
@@ -11,11 +10,6 @@ const SETTINGS_STORAGE_KEY = 'quasar_settings';
 export type SettingsCategory = 'security' | 'notifications' | 'appearance' | 'data' | 'about';
 
 export interface StoredSettings {
-  notifications: {
-    desktopNotifications: boolean;
-    emailNotifications: boolean;
-    alertSounds: boolean;
-  };
   appearance: {
     theme: 'dark' | 'light';
     accentColor: string;
@@ -23,11 +17,6 @@ export interface StoredSettings {
 }
 
 const defaultSettings: StoredSettings = {
-  notifications: {
-    desktopNotifications: true,
-    emailNotifications: false,
-    alertSounds: true,
-  },
   appearance: {
     theme: 'dark',
     accentColor: '#00d4ff',
@@ -40,7 +29,6 @@ function loadStoredSettings(): StoredSettings {
     if (!raw) return defaultSettings;
     const parsed = JSON.parse(raw) as Partial<StoredSettings>;
     return {
-      notifications: { ...defaultSettings.notifications, ...parsed.notifications },
       appearance: { ...defaultSettings.appearance, ...parsed.appearance },
     };
   } catch {
@@ -59,6 +47,15 @@ function saveStoredSettings(settings: StoredSettings) {
 function applyAppearance(theme: 'dark' | 'light', accentColor: string) {
   document.documentElement.setAttribute('data-theme', theme);
   document.documentElement.style.setProperty('--color-accent', accentColor);
+}
+
+/**
+ * Applies the saved theme and accent color. Called once at startup: it used to run only
+ * when the Appearance panel was opened, so a saved theme was lost on every launch (FE-013).
+ */
+export function applyStoredAppearance(): void {
+  const { theme, accentColor } = loadStoredSettings().appearance;
+  applyAppearance(theme, accentColor);
 }
 
 const SettingsView: React.FC = () => {
@@ -138,89 +135,29 @@ const SettingsView: React.FC = () => {
   );
 };
 
-const NotificationsSettings: React.FC = () => {
-  const [settings, setSettings] = useState<StoredSettings>(defaultSettings);
-
-  useEffect(() => {
-    setSettings(loadStoredSettings());
-  }, []);
-
-  const updateNotifications = useCallback((patch: Partial<NonNullable<StoredSettings['notifications']>>) => {
-    const next = {
-      ...settings,
-      notifications: { ...defaultSettings.notifications, ...settings.notifications, ...patch },
-    };
-    setSettings(next);
-    saveStoredSettings(next);
-  }, [settings]);
-
-  const n = settings.notifications;
-
-  return (
-    <div className="flex flex-col h-full bg-bg-root">
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center space-x-2">
-          <Bell className="h-5 w-5 text-accent" />
-          <h2 className="text-xl font-bold text-white">Notifications</h2>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-2xl space-y-6">
-          <div className="bg-bg-card border border-border rounded-lg p-6">
-            <h3 className="text-white font-bold mb-4">Alert Notifications</h3>
-            <div className="space-y-4">
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={n.desktopNotifications}
-                  onChange={(e) => updateNotifications({ desktopNotifications: e.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-gray-600 bg-bg-root text-accent focus:ring-accent focus:ring-offset-0"
-                />
-                <div className="flex-1">
-                  <p className="text-white text-sm font-medium">Desktop Notifications</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Show system notifications for critical alerts
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={n.emailNotifications}
-                  onChange={(e) => updateNotifications({ emailNotifications: e.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-gray-600 bg-bg-root text-accent focus:ring-accent focus:ring-offset-0"
-                />
-                <div className="flex-1">
-                  <p className="text-white text-sm font-medium">Email Notifications</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Send email alerts for critical system events (requires SMTP configuration)
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={n.alertSounds}
-                  onChange={(e) => updateNotifications({ alertSounds: e.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-gray-600 bg-bg-root text-accent focus:ring-accent focus:ring-offset-0"
-                />
-                <div className="flex-1">
-                  <p className="text-white text-sm font-medium">Alert Sounds</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Play sound when alerts are triggered
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
+/**
+ * Where alerts go. This panel used to offer desktop, email and sound toggles that nothing
+ * read (FE-013); they were removed rather than left as switches that do nothing.
+ */
+const NotificationsSettings: React.FC = () => (
+  <div className="flex flex-col h-full bg-bg-root">
+    <div className="p-6 border-b border-border">
+      <div className="flex items-center space-x-2">
+        <Bell className="h-5 w-5 text-accent" />
+        <h2 className="text-xl font-bold text-white">Notifications</h2>
       </div>
     </div>
-  );
-};
+    <div className="flex-1 overflow-auto p-6">
+      <div className="max-w-2xl bg-bg-card border border-border rounded-lg p-6 space-y-3 text-sm text-gray-300">
+        <p>
+          Triggered and recovered alerts appear in the <span className="text-white font-medium">Alert Feed</span> on
+          the Dashboard. Configure the rules under <span className="text-white font-medium">Monitoring → Alert Rules</span>.
+        </p>
+        <p className="text-gray-500">Desktop, email and sound notifications aren't available yet.</p>
+      </div>
+    </div>
+  </div>
+);
 
 const AppearanceSettings: React.FC = () => {
   const [settings, setSettings] = useState<StoredSettings>(defaultSettings);
@@ -343,9 +280,10 @@ const DataSettings: React.FC = () => {
   }, [loadInfo]);
 
   const handleExport = async () => {
-    const path = await save({
-      defaultPath: `quasar-backup-${new Date().toISOString().slice(0, 10)}.db`,
-      filters: [{ name: 'Database', extensions: ['db'] }],
+    // The backend opens the dialog and only accepts paths chosen there (IPC-001).
+    const path = await invoke<string | null>('pick_save_location', {
+      defaultName: `quasar-backup-${new Date().toISOString().slice(0, 10)}.db`,
+      extensions: ['db'],
     });
     if (!path) return;
     setExporting(true);
@@ -364,18 +302,17 @@ const DataSettings: React.FC = () => {
   };
 
   const handleImport = async () => {
-    const path = await open({
-      multiple: false,
-      directory: false,
-      filters: [{ name: 'Database', extensions: ['db'] }],
+    const path = await invoke<string | null>('pick_local_file', {
+      title: 'Choose a Quasar backup to import',
+      extensions: ['db'],
     });
-    if (!path || typeof path !== 'string') return;
+    if (!path) return;
     setImporting(true);
     setError('');
     setSuccess('');
     try {
       await invoke('import_database', { sourcePath: path });
-      setSuccess('Database imported. Restart the app for changes to take effect.');
+      setSuccess('Database imported. The vault is locked: unlock it with the imported vault\'s master password, then restart the app.');
       setTimeout(() => setSuccess(''), 5000);
       await loadInfo();
     } catch (err) {

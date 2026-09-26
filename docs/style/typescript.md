@@ -1,11 +1,11 @@
 # Google TypeScript Style Guide Summary
 
-This document summarizes key rules and best practices from the Google TypeScript Style Guide, which is enforced by the `gts` tool.
+This document summarizes key rules and best practices from the Google TypeScript Style Guide, as adapted for Quasar. It isn't enforced by a linter (the project runs `tsc --noEmit` only); reviewers apply it.
 
 ## 1. Language Features
 - **Variable Declarations:** Always use `const` or `let`. **`var` is forbidden.** Use `const` by default.
 - **Modules:** Use ES6 modules (`import`/`export`). **Do not use `namespace`.**
-- **Exports:** Use named exports (`export {MyClass};`). **Do not use default exports.**
+- **Exports (Quasar convention, differs from Google's guide):** React components are default-exported, one per file (`export default function VaultSettings`), as ~40 existing components are; import them with default-import syntax. Hooks, utilities, types and constants use named exports. A component file may also export its props/types by name.
 - **Classes:**
   - **Do not use `#private` fields.** Use TypeScript's `private` visibility modifier.
   - Mark properties never reassigned outside the constructor with `readonly`.

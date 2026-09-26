@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import MonitoringView, { formatMetricTime } from './MonitoringView';
+import MonitoringView, { formatMetricTime, formatRateMb } from './MonitoringView';
 import '@testing-library/jest-dom';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -67,6 +67,19 @@ describe('MonitoringView', () => {
     await waitFor(() => {
       expect(screen.getByText(/42/)).toBeInTheDocument();
     });
+  });
+
+  // FE-003: the alert rules editor is reachable (it used to be mounted nowhere).
+  it('shows the alert rules editor', async () => {
+    render(<MonitoringView />);
+    expect(await screen.findByText('Alert Rules')).toBeInTheDocument();
+  });
+
+  // FE-017: fractional MB/s from the backend must not display as 0.
+  it('formats sub-MB/s rates with decimals', () => {
+    expect(formatRateMb(0.5)).toBe('0.50');
+    expect(formatRateMb(0.01)).toBe('0.01');
+    expect(formatRateMb(42.4)).toBe('42');
   });
 
   it('renders disk space section', async () => {

@@ -2,13 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-interface HostKeyVerificationResult {
-  allowed: boolean;
-  status: string;
-  fingerprint: string;
-  message: string;
-}
-
 interface HostKeyPromptData {
   host: string;
   port: number;
@@ -27,6 +20,8 @@ interface SshHostKeyEvent {
   keyBytes: number[];
   status: string;
   message: string;
+  /** Previously stored fingerprint when the key changed (null otherwise). */
+  oldFingerprint?: string | null;
 }
 
 interface PendingPromptEntry {
@@ -38,152 +33,88 @@ interface PendingPromptEntry {
 
 const isDismissiblePromptError = (err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
+  // 'Cancelled': the user declined the backend's native changed-key confirmation, which
+  // also rejected the pending handshake.
   return message.includes('no longer pending')
-    || message.includes('stopped waiting for host key approval');
+    || message.includes('stopped waiting for host key approval')
+    || message === 'Cancelled';
 };
 
-export const useSshHostKeyVerification = () => {
+/** The first queued prompt (null when none), its request id, and the answer handlers. */
+export interface SshHostKeyVerification {
+  promptData: HostKeyPromptData | null;
+  promptRequestId: string | null;
+  handleTrust: (permanent: boolean) => void;
+  handleReject: () => void;
+}
+
+export const useSshHostKeyVerification = (): SshHostKeyVerification => {
   const [pendingPrompts, setPendingPrompts] = useState<PendingPromptEntry[]>([]);
   const actionInFlightRequestIdRef = useRef<string | null>(null);
   const promptData = pendingPrompts[0]?.prompt ?? null;
+  /** Id of the request `promptData` belongs to; changes when the next queued prompt shows. */
+  const promptRequestId = pendingPrompts[0]?.requestId ?? null;
 
   // Listen for host key verification events from backend
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-
-    const setupListener = async () => {
-      unlisten = await listen<SshHostKeyEvent>('ssh-host-key-verification', (event) => {
-        const { requestId, host, port, fingerprint, keyType, keyBytes, status, message } = event.payload;
-        const isChanged = status.toLowerCase().includes('changed');
-        const prompt: HostKeyPromptData = {
-          host,
-          port,
-          fingerprint,
-          keyType,
-          isChanged,
-          oldFingerprint: isChanged ? message : undefined,
-        };
-
-        setPendingPrompts(prev => [
-          ...prev,
-          {
-            requestId,
-            prompt,
-            onTrust: async (permanent: boolean) => {
-              try {
-                if (permanent) {
-                  await invoke('trust_ssh_host_key', {
-                    host,
-                    port,
-                    fingerprint,
-                    keyType,
-                    keyBytes,
-                    trustStatus: 'trusted',
-                    requestId,
-                  });
-                } else {
-                  await invoke('respond_ssh_host_key_verification', {
-                    requestId,
-                    accepted: true,
-                  });
-                }
-                return true;
-              } catch (err) {
-                console.error('Failed to approve host key:', err);
-                return isDismissiblePromptError(err);
-              }
-            },
-            onReject: async () => {
-              try {
-                await invoke('respond_ssh_host_key_verification', {
-                  requestId,
-                  accepted: false,
-                });
-                return true;
-              } catch (err) {
-                console.error('Failed to reject host key:', err);
-                return isDismissiblePromptError(err);
-              }
-            },
-          },
-        ]);
-      });
-    };
-
-    setupListener();
-
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, []);
-
-  const verifyHostKey = async (
-    host: string,
-    port: number,
-    fingerprint: string,
-    keyType: string,
-    keyBytes: number[]
-  ): Promise<boolean> => {
-    return new Promise((resolve) => {
-      invoke<HostKeyVerificationResult>('verify_ssh_host_key', {
+    // listen() resolves asynchronously; if cleanup runs first, unlisten as soon as it
+    // resolves instead of leaking a listener (FE-007: StrictMode used to register two,
+    // so every host-key event queued two prompts in dev).
+    const unlistenPromise = listen<SshHostKeyEvent>('ssh-host-key-verification', (event) => {
+      const { requestId, host, port, fingerprint, keyType, status, oldFingerprint } = event.payload;
+      const isChanged = status.toLowerCase().includes('changed');
+      const prompt: HostKeyPromptData = {
         host,
         port,
         fingerprint,
         keyType,
-      })
-        .then((result) => {
-          if (result.allowed) {
-            resolve(true);
-          } else {
-            const isChanged = result.status.toLowerCase() === 'changed';
-            const prompt: HostKeyPromptData = {
-              host,
-              port,
-              fingerprint,
-              keyType,
-              isChanged,
-              oldFingerprint: isChanged ? result.message : undefined,
-            };
-            setPendingPrompts(prev => [
-              ...prev,
-              {
-                requestId: `local-${host}-${port}-${fingerprint}`,
-                prompt,
-                onTrust: async (permanent: boolean) => {
-                  if (permanent) {
-                    try {
-                      await invoke('trust_ssh_host_key', {
-                        host,
-                        port,
-                        fingerprint,
-                        keyType,
-                        keyBytes,
-                        trustStatus: 'trusted',
-                      });
-                    } catch (err) {
-                      console.error('Failed to trust host key:', err);
-                      return false;
-                    }
-                  }
-                  resolve(true);
-                  return true;
-                },
-                onReject: async () => {
-                  resolve(false);
-                  return true;
-                },
-              },
-            ]);
-          }
-        })
-        .catch((err) => {
-          console.error('Host key verification failed:', err);
-          resolve(false);
-        });
+        isChanged,
+        oldFingerprint: isChanged ? oldFingerprint ?? undefined : undefined,
+      };
+
+      setPendingPrompts(prev => [
+        ...prev,
+        {
+          requestId,
+          prompt,
+          onTrust: async (permanent: boolean) => {
+            try {
+              if (permanent) {
+                // The backend persists the key this handshake presented; the webview
+                // only names the pending request (IPC-002).
+                await invoke('trust_ssh_host_key', { requestId });
+              } else {
+                await invoke('respond_ssh_host_key_verification', {
+                  requestId,
+                  accepted: true,
+                });
+              }
+              return true;
+            } catch (err) {
+              console.error('Failed to approve host key:', err);
+              return isDismissiblePromptError(err);
+            }
+          },
+          onReject: async () => {
+            try {
+              await invoke('respond_ssh_host_key_verification', {
+                requestId,
+                accepted: false,
+              });
+              return true;
+            } catch (err) {
+              console.error('Failed to reject host key:', err);
+              return isDismissiblePromptError(err);
+            }
+          },
+        },
+      ]);
     });
-  };
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
 
   const completeCurrentPrompt = async (
     action: (entry: PendingPromptEntry) => Promise<boolean>
@@ -215,7 +146,7 @@ export const useSshHostKeyVerification = () => {
 
   return {
     promptData,
-    verifyHostKey,
+    promptRequestId,
     handleTrust,
     handleReject,
   };

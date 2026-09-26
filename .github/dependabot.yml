@@ -1,0 +1,34 @@
+# Version updates (audit CI-009). Security alerts existed, but nothing proposed bumps.
+# Tauri's JS packages and Rust crates must move in lockstep, so each side groups them
+# into one PR; merge the npm and cargo Tauri PRs together.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      tauri:
+        patterns: ["@tauri-apps/*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["@tauri-apps/*"]
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      tauri:
+        patterns: ["tauri", "tauri-*", "tauri-plugin-*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["tauri", "tauri-*"]
+
+  # Actions are pinned by SHA with a version comment; Dependabot updates both.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

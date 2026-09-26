@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { invoke } from "@tauri-apps/api/core";
+import { isUserCancelled } from '../lib/utils';
 
 export type HostProtocol = 'ssh' | 'rdp' | 'database' | 'api' | 'other';
 
@@ -65,6 +66,8 @@ const AddHostDialog: React.FC<AddHostDialogProps> = ({ onClose, onAdded, initial
       onAdded();
       onClose();
     } catch (err) {
+      // Declining the native "move this host" confirmation is a no-op: keep the dialog open.
+      if (isUserCancelled(err)) return;
       console.error("Failed to add host:", err);
       // Show the actual error to the user for debugging
       alert(`Failed to add host: ${err}`);

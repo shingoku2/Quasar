@@ -33,3 +33,22 @@ src-tauri/src-tauri/
 **/*.db-journal
 **/*.db-wal
 **/*.db-shm
+
+# Personal Claude Code settings (per-machine permission allowlists) — never commit
+.claude/settings.local.json
+
+# Secrets: updater signing keys, env files
+*.key
+*.key.pub
+.env
+.env.*
+
+# Test coverage output
+coverage/
+audit/coverage-fe/*
+!audit/coverage-fe/coverage-summary.json
+audit/coverage-rs/
+
+# OS junk
+Thumbs.db
+desktop.ini

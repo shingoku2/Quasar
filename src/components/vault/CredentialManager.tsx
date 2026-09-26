@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, Plus, Edit2, Trash2, Search, Server, User, Lock, Save, X, Eye, EyeOff } from 'lucide-react';
-import { getErrorMessage } from '../../lib/utils';
+import { getErrorMessage, isUserCancelled } from '../../lib/utils';
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 
 interface CredentialSummary {
   id: string;
@@ -60,9 +61,7 @@ const CredentialManager: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadCredentials();
-  }, []);
+  useOnViewShown(() => loadCredentials());
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -383,7 +382,8 @@ const CredentialDialog: React.FC<{
       }
       onSaved();
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to save credential'));
+      // Declining the native host-change confirmation keeps the form open unchanged.
+      if (!isUserCancelled(err)) setError(getErrorMessage(err, 'Failed to save credential'));
     } finally {
       setIsSaving(false);
     }
@@ -596,10 +596,13 @@ const CredentialViewDialog: React.FC<{
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Copy works only after an explicit reveal. Revealing needs a native confirmation, and
+  // waiting on that dialog would outlive the click's user gesture, which WebKit requires
+  // for clipboard writes, so a reveal-then-copy in one click failed silently.
   const copyPasswordToClipboard = async () => {
+    if (revealedPassword === null) return;
     try {
-      const password = revealedPassword || await invoke<string>('reveal_credential_password', { credentialId: credential.id });
-      await navigator.clipboard.writeText(password);
+      await navigator.clipboard.writeText(revealedPassword);
       setCopiedPassword(true);
       setTimeout(() => setCopiedPassword(false), 2000);
 
@@ -612,7 +615,7 @@ const CredentialViewDialog: React.FC<{
         clipboardClearTimerRef.current = null;
       }, 30000);
     } catch (err) {
-      console.error('Failed to reveal password for copying', err);
+      console.error('Failed to copy password', err);
     }
   };
 
@@ -698,7 +701,10 @@ const CredentialViewDialog: React.FC<{
                   </button>
                   <button
                     onClick={copyPasswordToClipboard}
-                    className="text-gray-400 hover:text-accent transition-colors text-xs"
+                    disabled={revealedPassword === null}
+                    aria-label="Copy password"
+                    title={revealedPassword === null ? 'Reveal the password first' : undefined}
+                    className="text-gray-400 hover:text-accent transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {copiedPassword ? 'Copied!' : 'Copy'}
                   </button>

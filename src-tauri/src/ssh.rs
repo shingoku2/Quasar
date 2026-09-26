@@ -2,7 +2,6 @@ use crate::crypto;
 use crate::validation;
 use crate::vault::SshKeyManager;
 use log::error;
-use russh::keys::PublicKeyBase64;
 use russh::*;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -10,8 +9,32 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
+/// The key a handshake actually presented, kept with its pending approval so that trusting
+/// it persists *these* bytes, not whatever the caller supplies (IPC-002).
+pub struct PresentedHostKey {
+    pub host: String,
+    pub port: u16,
+    pub fingerprint: String,
+    pub key_type: String,
+    pub key_bytes: Vec<u8>,
+    /// Set when the host already had a different stored key (a possible MITM).
+    pub old_fingerprint: Option<String>,
+}
+
+struct PendingApproval {
+    sender: tokio::sync::oneshot::Sender<bool>,
+    key: PresentedHostKey,
+}
+
+/// How long an interactive connection waits for the user to answer the host-key prompt.
+pub const HOST_KEY_APPROVAL_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Handshake budget for interactive connections: the prompt plus time for the key exchange
+/// itself (RUST-001).
+pub const INTERACTIVE_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(135);
+
 pub struct HostKeyApprovalState {
-    pending: Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>,
+    pending: Mutex<HashMap<String, PendingApproval>>,
 }
 
 impl HostKeyApprovalState {
@@ -21,32 +44,98 @@ impl HostKeyApprovalState {
         }
     }
 
-    fn register(&self) -> Result<(String, tokio::sync::oneshot::Receiver<bool>), String> {
+    fn register(
+        &self,
+        key: PresentedHostKey,
+    ) -> Result<(String, tokio::sync::oneshot::Receiver<bool>), String> {
         let request_id = uuid::Uuid::new_v4().to_string();
         let (sender, receiver) = tokio::sync::oneshot::channel();
         self.pending
             .lock()
             .map_err(|_| "Host key approval state is unavailable".to_string())?
-            .insert(request_id.clone(), sender);
+            .insert(request_id.clone(), PendingApproval { sender, key });
         Ok((request_id, receiver))
     }
 
-    pub fn resolve(&self, request_id: &str, accepted: bool) -> Result<(), String> {
-        let sender = self
+    /// For a pending *changed* key, the text of the native confirmation to show before
+    /// accepting it (once or permanently). `None` for a first-seen key.
+    pub fn changed_key_warning(&self, request_id: &str) -> Result<Option<String>, String> {
+        let pending = self
             .pending
+            .lock()
+            .map_err(|_| "Host key approval state is unavailable".to_string())?;
+        let approval = pending
+            .get(request_id)
+            .ok_or_else(|| "Host key approval request is no longer pending".to_string())?;
+        let key = &approval.key;
+        Ok(key.old_fingerprint.as_ref().map(|old| {
+            format!(
+                "The host key for {}:{} has CHANGED.\n\nStored: {}\nPresented: {}\n\nThis can mean someone is intercepting the connection. Only continue if you have verified the new fingerprint with the server's administrator.",
+                key.host, key.port, old, key.fingerprint
+            )
+        }))
+    }
+
+    fn take(&self, request_id: &str) -> Result<PendingApproval, String> {
+        self.pending
             .lock()
             .map_err(|_| "Host key approval state is unavailable".to_string())?
             .remove(request_id)
-            .ok_or_else(|| "Host key approval request is no longer pending".to_string())?;
-        sender
+            .ok_or_else(|| "Host key approval request is no longer pending".to_string())
+    }
+
+    /// Answers a pending prompt without persisting anything (one-time trust or reject).
+    pub fn resolve(&self, request_id: &str, accepted: bool) -> Result<(), String> {
+        self.take(request_id)?
+            .sender
             .send(accepted)
             .map_err(|_| "SSH connection stopped waiting for host key approval".to_string())
+    }
+
+    /// Accepts a pending prompt and hands back the key that handshake presented, for the
+    /// caller to persist. The connection is released only after `persist` succeeds.
+    pub async fn accept_and_persist<F, Fut>(&self, request_id: &str, persist: F) -> Result<(), String>
+    where
+        F: FnOnce(PresentedHostKey) -> Fut,
+        Fut: std::future::Future<Output = Result<(), String>>,
+    {
+        let PendingApproval { sender, key } = self.take(request_id)?;
+        match persist(key).await {
+            Ok(()) => sender
+                .send(true)
+                .map_err(|_| "SSH connection stopped waiting for host key approval".to_string()),
+            Err(e) => {
+                let _ = sender.send(false);
+                Err(e)
+            }
+        }
     }
 
     fn cancel(&self, request_id: &str) {
         if let Ok(mut pending) = self.pending.lock() {
             pending.remove(request_id);
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum InteractiveDecision {
+    Accept,
+    Refuse,
+    Prompt,
+}
+
+/// What an interactive connection does with a verification result. A key the user
+/// rejected is refused without a prompt: a webview prompt could be answered by a
+/// compromised webview, and un-rejecting goes through `update_ssh_host_trust`'s native
+/// confirmation (P7-4 review).
+fn interactive_decision(result: &crate::vault::ssh_keys::HostKeyVerificationResult) -> InteractiveDecision {
+    if result.allowed {
+        InteractiveDecision::Accept
+    } else if matches!(result.status, crate::vault::TrustStatus::Rejected) {
+        InteractiveDecision::Refuse
+    } else {
+        InteractiveDecision::Prompt
     }
 }
 
@@ -62,11 +151,11 @@ impl client::Handler for Client {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         let ssh_key_manager = self.app_handle.state::<SshKeyManager>();
 
-        let key_bytes = server_public_key.public_key_bytes();
+        let key_bytes = crate::vault::ssh_keys::presented_key_bytes(server_public_key);
         let fingerprint = crypto::ssh_host_key_fingerprint(&key_bytes);
         let key_type = "ssh-key";
 
@@ -75,12 +164,23 @@ impl client::Handler for Client {
             .await
         {
             Ok(result) => {
-                if result.allowed {
+                let decision = interactive_decision(&result);
+                if decision == InteractiveDecision::Accept {
                     Ok(true)
+                } else if decision == InteractiveDecision::Refuse {
+                    error!("Refusing rejected host key for {}:{}", self.host, self.port);
+                    Ok(false)
                 } else {
                     let approval_state = self.app_handle.state::<HostKeyApprovalState>();
                     let (request_id, receiver) = approval_state
-                        .register()
+                        .register(PresentedHostKey {
+                            host: self.host.clone(),
+                            port: self.port,
+                            fingerprint: fingerprint.clone(),
+                            key_type: key_type.to_string(),
+                            key_bytes: key_bytes.clone(),
+                            old_fingerprint: result.old_fingerprint.clone(),
+                        })
                         .map_err(|_| russh::Error::Disconnect)?;
 
                     // Keep this handshake pending while the frontend displays the
@@ -99,6 +199,7 @@ impl client::Handler for Client {
                                 "keyBytes": key_bytes,
                                 "status": format!("{:?}", result.status),
                                 "message": result.message,
+                                "oldFingerprint": result.old_fingerprint,
                             }),
                         )
                         .is_err()
@@ -108,7 +209,7 @@ impl client::Handler for Client {
                     }
 
                     let approved =
-                        match tokio::time::timeout(Duration::from_secs(120), receiver).await {
+                        match tokio::time::timeout(HOST_KEY_APPROVAL_TIMEOUT, receiver).await {
                             Ok(Ok(approved)) => approved,
                             _ => false,
                         };
@@ -250,12 +351,13 @@ pub async fn connect_ssh(
         port,
     };
 
-    let mut session = crate::ssh_connect::connect_with_diagnostics(
+    let mut session = crate::ssh_connect::connect_with_timeouts(
         config,
         &host,
         port,
         sh,
         Duration::from_secs(10),
+        INTERACTIVE_HANDSHAKE_TIMEOUT,
     )
     .await?;
 
@@ -605,17 +707,93 @@ pub async fn disconnect_ssh(state: tauri::State<'_, SshState>, id: String) -> Re
 
 #[cfg(test)]
 mod host_key_approval_tests {
-    use super::{HostKeyApprovalState, SshState};
+    use super::{HostKeyApprovalState, PresentedHostKey, SshState};
+
+    fn presented(host: &str) -> PresentedHostKey {
+        PresentedHostKey {
+            host: host.to_string(),
+            port: 22,
+            fingerprint: format!("SHA256:{}", host),
+            key_type: "ssh-key".to_string(),
+            key_bytes: vec![1, 2, 3],
+            old_fingerprint: None,
+        }
+    }
+
+    #[test]
+    fn rejected_keys_are_refused_without_a_prompt() {
+        use super::{interactive_decision, InteractiveDecision};
+        use crate::vault::{ssh_keys::HostKeyVerificationResult, TrustStatus};
+        let result = |allowed, status| HostKeyVerificationResult {
+            allowed,
+            status,
+            fingerprint: "fp".into(),
+            message: String::new(),
+            old_fingerprint: None,
+        };
+        assert_eq!(interactive_decision(&result(true, TrustStatus::Trusted)), InteractiveDecision::Accept);
+        assert_eq!(interactive_decision(&result(false, TrustStatus::Rejected)), InteractiveDecision::Refuse);
+        assert_eq!(interactive_decision(&result(false, TrustStatus::Unknown)), InteractiveDecision::Prompt);
+        assert_eq!(interactive_decision(&result(false, TrustStatus::Changed)), InteractiveDecision::Prompt);
+    }
+
+    /// Accepting a changed key needs a native confirmation; a first-seen key doesn't.
+    #[test]
+    fn only_changed_keys_carry_a_native_warning() {
+        let state = HostKeyApprovalState::new();
+        let (fresh, _rx1) = state.register(presented("a")).unwrap();
+        assert_eq!(state.changed_key_warning(&fresh).unwrap(), None);
+        let mut changed = presented("b");
+        changed.old_fingerprint = Some("SHA256:old".to_string());
+        let (id, _rx2) = state.register(changed).unwrap();
+        let warning = state.changed_key_warning(&id).unwrap().unwrap();
+        assert!(warning.contains("SHA256:old") && warning.contains("SHA256:b"));
+        assert!(state.changed_key_warning("missing").is_err());
+    }
 
     #[tokio::test]
     async fn resolves_the_matching_pending_approval() {
         let state = HostKeyApprovalState::new();
-        let (request_id, receiver) = state.register().unwrap();
+        let (request_id, receiver) = state.register(presented("a")).unwrap();
 
         state.resolve(&request_id, true).unwrap();
 
         assert!(receiver.await.unwrap());
         assert!(state.resolve(&request_id, true).is_err());
+    }
+
+    /// IPC-002: trusting persists the key the handshake presented (not caller data), and
+    /// the connection is only released once that succeeded.
+    #[tokio::test]
+    async fn accept_persists_the_presented_key_then_releases_the_handshake() {
+        let state = HostKeyApprovalState::new();
+        let (request_id, receiver) = state.register(presented("real.host")).unwrap();
+        let mut persisted = None;
+        state
+            .accept_and_persist(&request_id, |key| {
+                persisted = Some((key.host.clone(), key.fingerprint.clone(), key.key_bytes.clone()));
+                async { Ok(()) }
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            persisted,
+            Some(("real.host".to_string(), "SHA256:real.host".to_string(), vec![1, 2, 3]))
+        );
+        assert!(receiver.await.unwrap());
+        assert!(state.accept_and_persist(&request_id, |_| async { Ok(()) }).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn failed_persist_rejects_the_handshake() {
+        let state = HostKeyApprovalState::new();
+        let (request_id, receiver) = state.register(presented("h")).unwrap();
+        let err = state
+            .accept_and_persist(&request_id, |_| async { Err("disk full".to_string()) })
+            .await
+            .unwrap_err();
+        assert_eq!(err, "disk full");
+        assert!(!receiver.await.unwrap());
     }
 
     #[test]

@@ -27,9 +27,48 @@ pub fn sanitize_error(internal_error: String, context: &str) -> String {
     }
 }
 
+/// Vault errors the user needs to see verbatim (wrong password, lockout, a blocked password
+/// change and why). They carry no internals. Everything else is sanitized as usual.
+/// (`unlock_vault` used to map even "Vault is locked out. Try again in N seconds" to a
+/// generic failure, so the lockout policy was invisible: audit IPC-012.)
+pub fn user_facing_vault_error(internal_error: String) -> String {
+    const PASS_THROUGH: &[&str] = &[
+        "Invalid master password",
+        "Too many failed attempts",
+        "Vault is locked",
+        "Invalid current password",
+        "Master password must",
+        "Vault must be unlocked",
+        "Vault key does not match",
+        "Auto-lock timeout must",
+    ];
+    if PASS_THROUGH.iter().any(|p| internal_error.starts_with(p))
+        || internal_error.contains("can't be decrypted with the current key")
+    {
+        internal_error
+    } else {
+        sanitize_error(internal_error, "vault")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn user_facing_vault_errors_pass_through_and_internals_do_not() {
+        let lockout = "Vault is locked out. Try again in 42 seconds".to_string();
+        assert_eq!(user_facing_vault_error(lockout.clone()), lockout);
+        // The SFTP file manager resolves its credential on every call; after an auto-lock the
+        // user must be told to unlock, not "Vault operation failed" (P7-3 review).
+        assert_eq!(user_facing_vault_error("Vault is locked".to_string()), "Vault is locked");
+        let blocked = "2 credential(s) can't be decrypted with the current key and would be lost".to_string();
+        assert_eq!(user_facing_vault_error(blocked.clone()), blocked);
+        assert_eq!(
+            user_facing_vault_error("Failed to open database: /home/x/quasar.db".to_string()),
+            sanitize_error(String::new(), "vault")
+        );
+    }
 
     #[test]
     fn test_sanitize_error_does_not_leak_internal_details() {

@@ -15,10 +15,12 @@ pub struct SystemMetrics {
     pub memory_used_mb: u64,
     pub memory_total_mb: u64,
     pub memory_usage_percent: f32,
-    pub disk_read_mb: u64,
-    pub disk_write_mb: u64,
-    pub network_rx_mb: u64,
-    pub network_tx_mb: u64,
+    /// Rates in MB/s, fractional: integer MB/s read as 0 for anything under 1 MB/s, so the
+    /// disk and network charts were flat on a typical desktop (FE-017).
+    pub disk_read_mb: f64,
+    pub disk_write_mb: f64,
+    pub network_rx_mb: f64,
+    pub network_tx_mb: f64,
     pub timestamp: u64,
 
     // System info
@@ -71,6 +73,11 @@ pub struct DiskInfo {
     pub usage_percent: f32,
 }
 
+/// Bytes per second to MB/s, keeping the fraction.
+fn bytes_to_mb(bytes_per_sec: u64) -> f64 {
+    bytes_per_sec as f64 / (1024.0 * 1024.0)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertRule {
     pub id: String,
@@ -88,7 +95,8 @@ fn default_cooldown() -> u64 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-// Variant names are serialized into alert_rules.metric — renaming would break stored rules.
+// Variant names are serialized into the stored rule JSON (alert_rules.rule) — renaming would
+// break stored rules.
 #[allow(clippy::enum_variant_names)]
 pub enum MetricType {
     CpuUsage,
@@ -262,10 +270,10 @@ impl MetricsCollector {
             memory_used_mb: memory_used / 1024 / 1024,
             memory_total_mb: memory_total / 1024 / 1024,
             memory_usage_percent,
-            disk_read_mb: disk_read_rate / 1024 / 1024,
-            disk_write_mb: disk_write_rate / 1024 / 1024,
-            network_rx_mb: net_rx_rate / 1024 / 1024,
-            network_tx_mb: net_tx_rate / 1024 / 1024,
+            disk_read_mb: bytes_to_mb(disk_read_rate),
+            disk_write_mb: bytes_to_mb(disk_write_rate),
+            network_rx_mb: bytes_to_mb(net_rx_rate),
+            network_tx_mb: bytes_to_mb(net_tx_rate),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -430,24 +438,143 @@ impl MetricsCollector {
 
 use std::collections::HashMap;
 
+/// Longest cooldown a rule may have (one day).
+const MAX_COOLDOWN_SECONDS: u64 = 86_400;
+
+/// Rejects rules the engine can't evaluate meaningfully. The metrics are percentages.
+pub fn validate_rule(rule: &AlertRule) -> Result<(), String> {
+    if rule.id.trim().is_empty() || rule.id.len() > 64 {
+        return Err("Alert rule id must be 1-64 characters".to_string());
+    }
+    if !rule.threshold.is_finite() || !(0.0..=100.0).contains(&rule.threshold) {
+        return Err("Alert threshold must be a percentage between 0 and 100".to_string());
+    }
+    if rule.cooldown_seconds > MAX_COOLDOWN_SECONDS {
+        return Err("Alert cooldown can be at most one day".to_string());
+    }
+    Ok(())
+}
+
 pub struct AlertEngine {
+    /// Database the rules are persisted to, once attached (RUST-002). Unset in unit tests.
+    store: Mutex<Option<String>>,
     rules: Arc<Mutex<Vec<AlertRule>>>,
     active_alerts: Arc<Mutex<Vec<Alert>>>,
     cooldown_tracker: Arc<Mutex<HashMap<String, Instant>>>,
     last_alert_state: Arc<Mutex<HashMap<String, bool>>>,
+    /// Bumped by every `suspend`. A monitoring tick records the generation before it
+    /// evaluates and persists its alerts only if it hasn't changed (`persist_if_current`).
+    generation: std::sync::atomic::AtomicU64,
+    /// Held by an import for the whole database swap, and by a tick while it persists, so no
+    /// alert from before the swap is written into the imported database (PR #68 review).
+    persistence: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl AlertEngine {
     pub fn new() -> Self {
         Self {
+            store: Mutex::new(None),
             rules: Arc::new(Mutex::new(Vec::new())),
             active_alerts: Arc::new(Mutex::new(Vec::new())),
             cooldown_tracker: Arc::new(Mutex::new(HashMap::new())),
             last_alert_state: Arc::new(Mutex::new(HashMap::new())),
+            generation: std::sync::atomic::AtomicU64::new(0),
+            persistence: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
-    pub fn add_rule(&self, rule: AlertRule) {
+    /// The current rule generation; read it before `evaluate`.
+    pub fn generation(&self) -> u64 {
+        self.generation.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Blocks `persist_if_current` until the guard is dropped. An import holds it from
+    /// before `suspend` until after `reload`.
+    pub async fn hold_persistence(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.persistence.clone().lock_owned().await
+    }
+
+    /// Runs `persist` (emit and save a tick's alerts) only if no `suspend` happened since
+    /// `generation` was read. Results of an evaluation from before an import are dropped,
+    /// even if the tick got that far before the import started.
+    pub async fn persist_if_current(&self, generation: u64, persist: impl FnOnce()) -> bool {
+        let _guard = self.persistence.lock().await;
+        if self.generation() != generation {
+            return false;
+        }
+        persist();
+        true
+    }
+
+    /// Loads the persisted rules from `db_path` and persists every later change there.
+    /// Rules used to be in memory only, so every restart silently dropped them (RUST-002).
+    /// A stored rule that no longer parses is skipped (and logged), not fatal.
+    pub fn attach_store(&self, db_path: String) -> Result<usize, String> {
+        let conn = crate::db::open_connection(&db_path)?;
+        let mut stmt = conn
+            .prepare("SELECT id, rule FROM alert_rules ORDER BY rowid")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?;
+        let mut loaded = Vec::new();
+        for row in rows {
+            let (id, json) = row.map_err(|e| e.to_string())?;
+            match serde_json::from_str::<AlertRule>(&json) {
+                Ok(rule) => loaded.push(rule),
+                Err(e) => log::error!("Skipping unreadable alert rule {}: {}", id, e),
+            }
+        }
+        let count = loaded.len();
+        *self.rules.lock().unwrap_or_else(|p| p.into_inner()) = loaded;
+        *self.store.lock().unwrap_or_else(|p| p.into_inner()) = Some(db_path);
+        Ok(count)
+    }
+
+    /// Drops every rule and every piece of alert state (active alerts, cooldowns, last
+    /// triggered state) until the next `reload`. An import calls this before it replaces the
+    /// database, so the monitoring loop can't evaluate the old rules and record their alerts
+    /// into the imported database in between (PR #68 review).
+    pub fn suspend(&self) {
+        self.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.rules.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        self.active_alerts.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        self.cooldown_tracker.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        self.last_alert_state.lock().unwrap_or_else(|p| p.into_inner()).clear();
+    }
+
+    /// Forgets all alert state (`suspend`) and re-reads the rules from the attached database.
+    /// Called after an import: the rules were loaded once at startup, so without this
+    /// monitoring kept evaluating (and recording alerts from) the pre-import rules until
+    /// restart, and a stale triggered state produced a recovery for an alert of the old
+    /// database (PR #68 review). If the rules can't be read the engine has none, never the
+    /// pre-import set. A no-op before `attach_store`.
+    pub fn reload(&self) -> Result<usize, String> {
+        let Some(path) = self.store_path() else {
+            return Ok(0);
+        };
+        self.suspend();
+        self.attach_store(path)
+    }
+
+    fn store_path(&self) -> Option<String> {
+        self.store.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    }
+
+    /// Adds or replaces a rule. It is persisted before the in-memory set changes, so a
+    /// failed write never leaves a rule that would vanish on restart.
+    pub fn add_rule(&self, rule: AlertRule) -> Result<(), String> {
+        validate_rule(&rule)?;
+        if let Some(path) = self.store_path() {
+            let json = serde_json::to_string(&rule).map_err(|e| e.to_string())?;
+            let conn = crate::db::open_connection(&path)?;
+            conn.execute(
+                "INSERT INTO alert_rules (id, rule, updated_at) VALUES (?1, ?2, strftime('%s','now'))
+                 ON CONFLICT(id) DO UPDATE SET rule = excluded.rule, updated_at = excluded.updated_at",
+                rusqlite::params![rule.id, json],
+            )
+            .map_err(|e| format!("Failed to save alert rule: {}", e))?;
+        }
         // Recover from poison so a single panicked holder doesn't cascade.
         let mut rules = self
             .rules
@@ -455,14 +582,21 @@ impl AlertEngine {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         rules.retain(|r| r.id != rule.id);
         rules.push(rule);
+        Ok(())
     }
 
-    pub fn remove_rule(&self, rule_id: &str) {
+    pub fn remove_rule(&self, rule_id: &str) -> Result<(), String> {
+        if let Some(path) = self.store_path() {
+            let conn = crate::db::open_connection(&path)?;
+            conn.execute("DELETE FROM alert_rules WHERE id = ?1", [rule_id])
+                .map_err(|e| format!("Failed to delete alert rule: {}", e))?;
+        }
         let mut rules = self
             .rules
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         rules.retain(|r| r.id != rule_id);
+        Ok(())
     }
 
     pub fn get_rules(&self) -> Vec<AlertRule> {
@@ -678,8 +812,8 @@ impl MetricsStore {
                 metrics.cpu_usage_percent,
                 metrics.memory_usage_percent,
                 metrics.disk_usage_percent,
-                metrics.network_rx_mb as i64,
-                metrics.network_tx_mb as i64,
+                metrics.network_rx_mb,
+                metrics.network_tx_mb,
                 metrics.network_packets_rx as i64,
                 metrics.network_packets_tx as i64,
                 metrics.load_average_1m,
@@ -700,6 +834,7 @@ impl MetricsStore {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn get_metrics_range(
         &self,
         start: u64,
@@ -733,8 +868,8 @@ impl MetricsStore {
                     cpu_usage_percent: row.get(1)?,
                     memory_usage_percent: row.get(2)?,
                     disk_usage_percent: row.get(3)?,
-                    network_rx_mb: row.get::<_, i64>(4)? as u64,
-                    network_tx_mb: row.get::<_, i64>(5)? as u64,
+                    network_rx_mb: row.get::<_, f64>(4)?,
+                    network_tx_mb: row.get::<_, f64>(5)?,
                     network_packets_rx: row.get::<_, i64>(6)? as u64,
                     network_packets_tx: row.get::<_, i64>(7)? as u64,
                     load_average_1m: row.get(8)?,
@@ -745,8 +880,8 @@ impl MetricsStore {
                     // Defaults for fields not stored in main table
                     memory_used_mb: 0,
                     memory_total_mb: 0,
-                    disk_read_mb: 0,
-                    disk_write_mb: 0,
+                    disk_read_mb: 0.0,
+                    disk_write_mb: 0.0,
                     boot_time: metadata["boot_time"].as_u64().unwrap_or(0),
                     cpu_count: metadata["cpu_count"].as_u64().unwrap_or(0) as usize,
                     cpu_per_core: metadata["cpu_per_core"]
@@ -837,45 +972,6 @@ impl MetricsStore {
         Ok(())
     }
 
-    pub fn get_alert_history(&self, start: u64, end: u64) -> Result<Vec<Alert>, String> {
-        let mut conn_guard = self.get_connection()?;
-        let conn = conn_guard
-            .as_mut()
-            .ok_or_else(|| "Database connection not available".to_string())?;
-
-        let mut stmt = conn
-            .prepare(
-                "SELECT alert_id, rule_id, message, severity, triggered_at, acknowledged_at
-             FROM alert_history
-             WHERE triggered_at >= ?1 AND triggered_at <= ?2
-             ORDER BY triggered_at DESC",
-            )
-            .map_err(|e| format!("Failed to prepare alert history query: {}", e))?;
-
-        let alerts_iter = stmt
-            .query_map(rusqlite::params![start as i64, end as i64], |row| {
-                let severity_str: String = row.get(3)?;
-                let severity = match severity_str.as_str() {
-                    "Critical" => AlertSeverity::Critical,
-                    "Warning" => AlertSeverity::Warning,
-                    _ => AlertSeverity::Info,
-                };
-
-                Ok(Alert {
-                    id: row.get(0)?,
-                    rule_id: row.get(1)?,
-                    message: row.get(2)?,
-                    severity,
-                    timestamp: row.get::<_, i64>(4)? as u64,
-                    acknowledged: row.get::<_, Option<i64>>(5)?.is_some(),
-                })
-            })
-            .map_err(|e| format!("Failed to query alerts: {}", e))?;
-
-        alerts_iter
-            .map(|alert| alert.map_err(|e| format!("Failed to parse alert: {}", e)))
-            .collect()
-    }
 }
 
 /// How long security audit entries are kept before the daily cleanup prunes them.
@@ -934,6 +1030,7 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
         ticker.tick().await;
 
         let metrics = collector.collect();
+        let generation = alert_engine.generation();
         let (alerts, recoveries) = alert_engine.evaluate(&metrics);
 
         // Close SSH sessions that have gone idle or aged out. Cheap map scan;
@@ -987,23 +1084,31 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
             }
         }
 
-        // Emit recovery notifications
-        if !recoveries.is_empty() {
-            let _ = app_handle.emit("alerts-recovered", recoveries);
-        }
-
-        // Save alerts to database (if store available)
-        if !alerts.is_empty() {
-            let _ = app_handle.emit("alerts-triggered", alerts.clone());
-            if let Some(ref store) = metrics_store {
-                for alert in &alerts {
-                    if let Err(e) = store.save_alert(alert, "localhost") {
-                        error!(
-                            "[MONITORING] ERROR: Failed to save alert {}: {}",
-                            alert.id, e
-                        );
+        // Emit recoveries and save alerts, unless an import replaced the rules since this
+        // tick evaluated them.
+        if !recoveries.is_empty() || !alerts.is_empty() {
+            let persisted = alert_engine
+                .persist_if_current(generation, || {
+                    if !recoveries.is_empty() {
+                        let _ = app_handle.emit("alerts-recovered", &recoveries);
                     }
-                }
+                    if !alerts.is_empty() {
+                        let _ = app_handle.emit("alerts-triggered", &alerts);
+                        if let Some(ref store) = metrics_store {
+                            for alert in &alerts {
+                                if let Err(e) = store.save_alert(alert, "localhost") {
+                                    error!(
+                                        "[MONITORING] ERROR: Failed to save alert {}: {}",
+                                        alert.id, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                })
+                .await;
+            if !persisted {
+                info!("[MONITORING] INFO: Dropped alerts evaluated before a database import");
             }
         }
     }
@@ -1012,6 +1117,64 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// FE-017: sub-MB/s rates keep their fraction instead of truncating to 0.
+    #[test]
+    fn io_rates_keep_fractions() {
+        assert_eq!(bytes_to_mb(512 * 1024), 0.5);
+        assert!(bytes_to_mb(10_000) > 0.0);
+        assert_eq!(bytes_to_mb(3 * 1024 * 1024), 3.0);
+    }
+
+    fn percent_rule(id: &str, threshold: f64) -> AlertRule {
+        AlertRule {
+            id: id.to_string(),
+            metric: MetricType::CpuUsage,
+            operator: ComparisonOperator::GreaterThan,
+            threshold,
+            severity: AlertSeverity::Warning,
+            enabled: true,
+            cooldown_seconds: 60,
+        }
+    }
+
+    /// RUST-002: rules survive a restart (a fresh engine attached to the same database),
+    /// and removals are persisted too.
+    #[test]
+    fn alert_rules_persist_across_restart() {
+        let path = std::env::temp_dir().join(format!("quasar-alerts-{}.db", uuid::Uuid::new_v4()));
+        let path_str = path.to_str().unwrap().to_string();
+        let mut conn = crate::db::open_connection(&path_str).unwrap();
+        crate::MIGRATIONS.to_latest(&mut conn).unwrap();
+        drop(conn);
+
+        let engine = AlertEngine::new();
+        assert_eq!(engine.attach_store(path_str.clone()).unwrap(), 0);
+        engine.add_rule(percent_rule("cpu-hot", 90.0)).unwrap();
+        engine.add_rule(percent_rule("cpu-warm", 70.0)).unwrap();
+        engine.add_rule(percent_rule("cpu-hot", 95.0)).unwrap(); // update in place
+        engine.remove_rule("cpu-warm").unwrap();
+
+        let restarted = AlertEngine::new();
+        assert_eq!(restarted.attach_store(path_str).unwrap(), 1);
+        let rules = restarted.get_rules();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].id, "cpu-hot");
+        assert_eq!(rules[0].threshold, 95.0);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn invalid_alert_rules_are_rejected() {
+        let engine = AlertEngine::new();
+        assert!(engine.add_rule(percent_rule("", 50.0)).is_err());
+        assert!(engine.add_rule(percent_rule("x", f64::NAN)).is_err());
+        assert!(engine.add_rule(percent_rule("x", 150.0)).is_err());
+        let mut slow = percent_rule("x", 50.0);
+        slow.cooldown_seconds = MAX_COOLDOWN_SECONDS + 1;
+        assert!(engine.add_rule(slow).is_err());
+        assert!(engine.get_rules().is_empty());
+    }
 
     #[test]
     fn test_metrics_collector_creation() {
@@ -1061,10 +1224,10 @@ mod tests {
             memory_used_mb: 3192,
             memory_total_mb: 15909,
             memory_usage_percent: 20.0,
-            disk_read_mb: 1,
-            disk_write_mb: 2,
-            network_rx_mb: 3,
-            network_tx_mb: 4,
+            disk_read_mb: 1.0,
+            disk_write_mb: 2.0,
+            network_rx_mb: 3.0,
+            network_tx_mb: 4.0,
             timestamp: 1_700_000_000,
             uptime_seconds: 944_918,
             load_average_1m: 0.87,
@@ -1158,7 +1321,7 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule.clone());
+        engine.add_rule(rule.clone()).unwrap();
 
         let rules = engine.get_rules();
         assert_eq!(rules.len(), 1);
@@ -1177,17 +1340,17 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule);
+        engine.add_rule(rule).unwrap();
 
         let metrics = SystemMetrics {
             cpu_usage_percent: 75.0,
             memory_used_mb: 0,
             memory_total_mb: 0,
             memory_usage_percent: 0.0,
-            disk_read_mb: 0,
-            disk_write_mb: 0,
-            network_rx_mb: 0,
-            network_tx_mb: 0,
+            disk_read_mb: 0.0,
+            disk_write_mb: 0.0,
+            network_rx_mb: 0.0,
+            network_tx_mb: 0.0,
             timestamp: 1234567890,
             uptime_seconds: 0,
             load_average_1m: 0.0,
@@ -1216,6 +1379,66 @@ mod tests {
         assert!(matches!(alerts[0].severity, AlertSeverity::Critical));
     }
 
+    /// PR #68 review: a tick that evaluated before an import's suspend must not persist its
+    /// alerts, and a tick can't persist at all while the import holds the swap.
+    #[tokio::test]
+    async fn alerts_from_before_a_suspend_are_not_persisted() {
+        let engine = Arc::new(AlertEngine::new());
+        let before = engine.generation();
+        engine.suspend();
+        let mut ran = false;
+        assert!(!engine.persist_if_current(before, || ran = true).await);
+        assert!(!ran, "stale results are dropped");
+
+        let current = engine.generation();
+        let swap = engine.hold_persistence().await;
+        let waiting = {
+            let engine = engine.clone();
+            tokio::spawn(async move { engine.persist_if_current(current, || {}).await })
+        };
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(!waiting.is_finished(), "persisting waits for the swap");
+        engine.suspend(); // the import's reload
+        drop(swap);
+        assert!(!waiting.await.unwrap(), "and then finds its results stale");
+        assert!(engine.persist_if_current(engine.generation(), || {}).await);
+    }
+
+    /// PR #68 review: after a reload (an import), a rule id that was triggered in the old
+    /// database must not produce a recovery for an alert the new database never had.
+    #[test]
+    fn reload_forgets_the_previous_triggered_state() {
+        let path = std::env::temp_dir().join(format!("quasar_alert_reload_{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        rusqlite::Connection::open(&path)
+            .unwrap()
+            .execute_batch("CREATE TABLE alert_rules (id TEXT PRIMARY KEY, rule TEXT NOT NULL, updated_at INTEGER NOT NULL);")
+            .unwrap();
+        let engine = AlertEngine::new();
+        engine.attach_store(path.to_str().unwrap().to_string()).unwrap();
+        engine
+            .add_rule(AlertRule {
+                id: "shared-id".to_string(),
+                metric: MetricType::CpuUsage,
+                operator: ComparisonOperator::GreaterThan,
+                threshold: 50.0,
+                severity: AlertSeverity::Warning,
+                enabled: true,
+                cooldown_seconds: 0,
+            })
+            .unwrap();
+        let mut metrics = sample_metrics();
+        metrics.cpu_usage_percent = 90.0;
+        let (alerts, _) = engine.evaluate(&metrics);
+        assert_eq!(alerts.len(), 1, "fixture: the rule triggers before the reload");
+
+        engine.reload().unwrap();
+        metrics.cpu_usage_percent = 10.0;
+        let (_, recoveries) = engine.evaluate(&metrics);
+        assert!(recoveries.is_empty(), "no recovery for an alert of the previous database");
+        let _ = std::fs::remove_file(&path);
+    }
+
     #[test]
     fn test_alert_engine_no_trigger() {
         let engine = AlertEngine::new();
@@ -1228,17 +1451,17 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule);
+        engine.add_rule(rule).unwrap();
 
         let metrics = SystemMetrics {
             cpu_usage_percent: 50.0,
             memory_used_mb: 0,
             memory_total_mb: 0,
             memory_usage_percent: 0.0,
-            disk_read_mb: 0,
-            disk_write_mb: 0,
-            network_rx_mb: 0,
-            network_tx_mb: 0,
+            disk_read_mb: 0.0,
+            disk_write_mb: 0.0,
+            network_rx_mb: 0.0,
+            network_tx_mb: 0.0,
             timestamp: 1234567890,
             uptime_seconds: 0,
             load_average_1m: 0.0,
@@ -1278,17 +1501,17 @@ mod tests {
             enabled: true,
             cooldown_seconds: 300,
         };
-        engine.add_rule(rule);
+        engine.add_rule(rule).unwrap();
 
         let metrics = SystemMetrics {
             cpu_usage_percent: 0.0,
             memory_used_mb: 100,
             memory_total_mb: 100,
             memory_usage_percent: 100.0,
-            disk_read_mb: 0,
-            disk_write_mb: 0,
-            network_rx_mb: 0,
-            network_tx_mb: 0,
+            disk_read_mb: 0.0,
+            disk_write_mb: 0.0,
+            network_rx_mb: 0.0,
+            network_tx_mb: 0.0,
             timestamp: 1234567890,
             uptime_seconds: 0,
             load_average_1m: 0.0,

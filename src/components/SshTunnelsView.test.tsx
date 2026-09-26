@@ -87,4 +87,21 @@ describe('SshTunnelsView', () => {
       expect(screen.getByText(/Connection refused/i)).toBeInTheDocument();
     });
   });
+
+  // PR #68 review: tunnels take every SSH-type credential, including legacy `password` ones.
+  it('offers legacy password credentials for tunnels', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'list_credentials') {
+        return Promise.resolve([
+          { id: 'p', name: 'Legacy pw', username: 'u', credential_type: 'password' },
+          { id: 'a', name: 'API cred', username: 'u', credential_type: 'api' },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    render(<SshTunnelsView />);
+    await waitFor(() => expect(screen.getByRole('option', { name: /Legacy pw/ })).toBeInTheDocument());
+    expect(screen.queryByRole('option', { name: /API cred/ })).not.toBeInTheDocument();
+  });
 });

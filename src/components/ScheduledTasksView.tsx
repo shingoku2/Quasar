@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Clock, Plus, Pencil, Trash2, Play } from 'lucide-react';
-import { getErrorMessage } from '../lib/utils';
+import { getErrorMessage, SFTP_CREDENTIAL_TYPES, SSH_CREDENTIAL_TYPES } from '../lib/utils';
+import { useOnViewShown } from '../hooks/useViewVisibility';
 
 export interface ScheduledTask {
   id: string;
@@ -46,31 +47,24 @@ interface CredentialSummary {
 }
 
 
-/** Validate a 6-field cron expression: sec min hour day month dow */
-function isValidCronExpression(expr: string): boolean {
-  const parts = expr.trim().split(/\s+/);
-  if (parts.length !== 6) return false;
-  // Very basic field range check (not exhaustive, full validation is done backend-side)
-  const ranges = [
-    [0, 59],  // seconds
-    [0, 59],  // minutes
-    [0, 23],  // hours
-    [1, 31],  // day of month
-    [1, 12],  // month
-    [0, 7],   // day of week
-  ];
-  return parts.every((part, i) => {
-    if (part === '*') return true;
-    const n = parseInt(part, 10);
-    return Number.isInteger(n) && n >= ranges[i][0] && n <= ranges[i][1];
-  });
+/**
+ * Shape check only: 6 fields (sec min hour day month dow) or 7 (plus year). The backend's
+ * cron parser is the single source of truth for the grammar and its error message is shown
+ * as-is. A hand-rolled field check here used to reject valid steps like `*\/5` and accept
+ * values the backend refused (FE-005).
+ */
+function hasCronShape(expr: string): boolean {
+  const fields = expr.trim().split(/\s+/).length;
+  return fields === 6 || fields === 7;
 }
 
 const DEFAULT_CRON = '0 0 9 * * *'; // 9:00 daily (6-field: sec min hour day month dow)
 
 const ScheduledTasksView: React.FC = () => {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
-  const [hosts, setHosts] = useState<SavedHost[]>([]);
+  const [allHosts, setHosts] = useState<SavedHost[]>([]);
+  // Tasks run over SSH; database, API and other hosts are inventory-only (the backend checks too).
+  const hosts = allHosts.filter((h) => h.protocol.trim().toLowerCase() === 'ssh');
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,9 +106,7 @@ const ScheduledTasksView: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useOnViewShown(load);
 
   const resetForm = () => {
     setForm({
@@ -137,8 +129,8 @@ const ScheduledTasksView: React.FC = () => {
       setError('Name, schedule, and host are required.');
       return;
     }
-    if (!isValidCronExpression(form.cron_expression)) {
-      setError('Invalid cron expression. Use 6-field format: sec min hour day month dow (e.g. 0 0 9 * * *)');
+    if (!hasCronShape(form.cron_expression)) {
+      setError('Invalid cron expression. Use 6 fields: sec min hour day month dow (e.g. 0 */5 * * * * for every 5 minutes)');
       return;
     }
     if (!form.host_id) {
@@ -229,7 +221,7 @@ const ScheduledTasksView: React.FC = () => {
     setShowForm(true);
   };
 
-  const hostName = (hostId: string) => hosts.find((h) => h.id === hostId)?.name ?? hostId;
+  const hostName = (hostId: string) => allHosts.find((h) => h.id === hostId)?.name ?? hostId;
   const credName = (credId: string | null) =>
     credId ? credentials.find((c) => c.id === credId)?.name ?? credId : '—';
 
@@ -351,9 +343,10 @@ const ScheduledTasksView: React.FC = () => {
                   <option value="">None</option>
                   {credentials
                     .filter((c) =>
-                      form.task_type === 'sftp_upload' || form.task_type === 'sftp_download'
-                        ? c.credential_type !== 'ssh_key'
-                        : true
+                      (form.task_type === 'sftp_upload' || form.task_type === 'sftp_download'
+                        ? SFTP_CREDENTIAL_TYPES
+                        : SSH_CREDENTIAL_TYPES
+                      ).includes(c.credential_type)
                     )
                     .map((c) => (
                       <option key={c.id} value={c.id}>
@@ -371,7 +364,8 @@ const ScheduledTasksView: React.FC = () => {
                     setForm((f) => {
                       const isSftp = newType === 'sftp_upload' || newType === 'sftp_download';
                       const selectedCred = credentials.find((c) => c.id === f.credential_id);
-                      const clearCred = isSftp && selectedCred?.credential_type === 'ssh_key';
+                      const allowed = isSftp ? SFTP_CREDENTIAL_TYPES : SSH_CREDENTIAL_TYPES;
+                      const clearCred = !!selectedCred && !allowed.includes(selectedCred.credential_type);
                       return {
                         ...f,
                         task_type: newType,
@@ -402,12 +396,32 @@ const ScheduledTasksView: React.FC = () => {
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Local path</label>
-                  <input
-                    value={form.local_path}
-                    onChange={(e) => setForm((f) => ({ ...f, local_path: e.target.value }))}
-                    className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
-                    placeholder={form.task_type === 'sftp_upload' ? 'C:\\backup\\file.zip' : 'C:\\downloads\\file.zip'}
-                  />
+                  {/* Local paths come from a backend-opened dialog; the backend rejects typed ones (IPC-001). */}
+                  <div className="flex gap-2">
+                    <input
+                      value={form.local_path}
+                      readOnly
+                      aria-label="Local path"
+                      className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
+                      placeholder="Choose a file…"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const picked = form.task_type === 'sftp_upload'
+                            ? await invoke<string | null>('pick_local_file', { title: 'File to upload' })
+                            : await invoke<string | null>('pick_save_location', { defaultName: null });
+                          if (picked) setForm((f) => ({ ...f, local_path: picked }));
+                        } catch (err) {
+                          setError(getErrorMessage(err, 'Could not open the file dialog'));
+                        }
+                      }}
+                      className="shrink-0 bg-bg-sidebar border border-border hover:border-accent rounded-lg px-3 py-2 text-sm text-white"
+                    >
+                      Browse…
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Remote path</label>
