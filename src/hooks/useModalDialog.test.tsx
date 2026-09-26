@@ -146,4 +146,90 @@ describe('useModalDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(connect).toHaveFocus();
   });
+
+  // Self-review: the prompt that takes over from the selector autofocuses its field; the
+  // selector's close must not pull focus away to the prompt's first control (its X button).
+  it('keeps an autofocused field focused through a dialog handoff', () => {
+    const Selector: React.FC<{ onManual: () => void; onClose: () => void }> = ({ onManual, onClose }) => {
+      const ref = useModalDialog(onClose);
+      return (
+        <div role="dialog" aria-modal="true" aria-label="Select" ref={ref} tabIndex={-1}>
+          <button onClick={onManual}>Enter manually</button>
+        </div>
+      );
+    };
+    const Prompt: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+      const ref = useModalDialog(onClose);
+      return (
+        <div role="dialog" aria-modal="true" aria-label="Prompt" ref={ref} tabIndex={-1}>
+          <button aria-label="Close dialog" onClick={onClose}>x</button>
+          <input aria-label="Password" autoFocus />
+        </div>
+      );
+    };
+    const Flow: React.FC = () => {
+      const [step, setStep] = useState<'none' | 'select' | 'manual'>('none');
+      return (
+        <>
+          <button onClick={() => setStep('select')}>Connect</button>
+          {step === 'select' && <Selector onManual={() => setStep('manual')} onClose={() => setStep('none')} />}
+          {step === 'manual' && <Prompt onClose={() => setStep('none')} />}
+        </>
+      );
+    };
+    render(<Flow />);
+    const connect = screen.getByRole('button', { name: 'Connect' });
+    connect.focus();
+    fireEvent.click(connect);
+    fireEvent.click(screen.getByRole('button', { name: 'Enter manually' }));
+    expect(screen.getByLabelText('Password')).toHaveFocus();
+    fireEvent.keyDown(screen.getByLabelText('Password'), { key: 'Escape' });
+    expect(connect).toHaveFocus();
+  });
+
+  // Self-review: StrictMode (main.tsx) runs effect cleanup + setup twice on mount; the
+  // simulated cleanup must not move focus off the autofocused field.
+  it('keeps an autofocused field focused under StrictMode', () => {
+    const Prompt: React.FC = () => {
+      const ref = useModalDialog(() => {});
+      return (
+        <div role="dialog" aria-modal="true" aria-label="Prompt" ref={ref} tabIndex={-1}>
+          <button aria-label="Close dialog">x</button>
+          <input aria-label="Password" autoFocus />
+        </div>
+      );
+    };
+    const Opener: React.FC = () => {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open</button>
+          {open && <Prompt />}
+        </>
+      );
+    };
+    render(<React.StrictMode><Opener /></React.StrictMode>);
+    const openButton = screen.getByRole('button', { name: 'Open' });
+    openButton.focus();
+    fireEvent.click(openButton);
+    expect(screen.getByLabelText('Password')).toHaveFocus();
+  });
+
+  it('skips disabled controls that carry a tabindex', () => {
+    const WithDisabled: React.FC = () => {
+      const ref = useModalDialog();
+      return (
+        <div role="dialog" aria-modal="true" aria-label="D" ref={ref} tabIndex={-1}>
+          <input aria-label="Name" />
+          <button disabled tabIndex={0}>Save</button>
+        </div>
+      );
+    };
+    render(<WithDisabled />);
+    const name = screen.getByLabelText('Name');
+    expect(name).toHaveFocus();
+    // Name is the only tabbable control, so Tab must wrap (be trapped), not leave the dialog.
+    expect(fireEvent.keyDown(name, { key: 'Tab' })).toBe(false);
+    expect(name).toHaveFocus();
+  });
 });

@@ -19,7 +19,10 @@ function captureOpener(): HTMLElement | null {
 /** The elements Tab actually visits: a negative tabIndex (e.g. a hidden autofill field) is skipped. */
 function tabbables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-    (el) => el.tabIndex >= 0 && !(el instanceof HTMLInputElement && el.type === 'hidden'),
+    (el) =>
+      el.tabIndex >= 0 &&
+      !el.matches(':disabled') &&
+      !(el instanceof HTMLInputElement && el.type === 'hidden'),
   );
 }
 
@@ -79,7 +82,11 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>(onClose?:
     dialog.addEventListener('keydown', onKeyDown);
     return () => {
       dialog.removeEventListener('keydown', onKeyDown);
-      if (opener && document.contains(opener)) opener.focus();
+      // Restore only on a real close: the dialog is gone and its focus fell to the body.
+      // StrictMode's simulated unmount keeps the dialog connected, and a dialog that took
+      // over (e.g. an autofocused prompt) already holds focus; neither may lose it.
+      const focusLost = document.activeElement === null || document.activeElement === document.body;
+      if (!dialog.isConnected && focusLost && opener && document.contains(opener)) opener.focus();
     };
   }, [opener]);
 
