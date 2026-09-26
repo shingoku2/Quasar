@@ -52,7 +52,8 @@ Node 24.15.0 (`.nvmrc`), npm 12. Rust toolchain pinned in `rust-toolchain.toml` 
 ```
 src/                      React frontend
   components/             views and dialogs (vault/ = vault UI, vault/credentials/ = credential list, form, view and
-                          buildCredentialPayload; settings/ = Settings panels + appearanceStore; dashboard/ = widgets); tests co-located
+                          buildCredentialPayload; settings/ = Settings panels + appearanceStore;
+                          scheduled/ = task form/list + pure taskForm.ts; dashboard/ = widgets); tests co-located
   hooks/                  useViewVisibility (useOnViewShown, useVisiblePolling), useModalDialog, useSshHostKeyVerification,
                           useTailscaleStatus, useUpdater
   lib/utils.ts            cn(), getErrorMessage(), isUserCancelled()
