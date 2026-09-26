@@ -3,6 +3,9 @@
 //! This module provides centralized database connection management with
 //! automatic foreign key constraint enforcement.
 
+pub mod backup;
+pub mod migrations;
+
 use rusqlite::Connection;
 use std::path::Path;
 use std::time::Duration;

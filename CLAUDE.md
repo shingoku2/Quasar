@@ -58,12 +58,14 @@ src/                      React frontend
   test-setup.ts           global Tauri mocks
   jest-dom-vitest.d.ts    jest-dom matcher types for vitest 5 (drop once jest-dom ships them)
 src-tauri/src/
-  lib.rs                  setup, migrations list, every #[tauri::command] wrapper, generate_handler!
+  lib.rs                  setup, every #[tauri::command] wrapper, generate_handler!
+  db/                     mod.rs (open_connection, DB_FILENAME, app_db_path), migrations.rs (MIGRATIONS),
+                          backup.rs (recognize, import/replace, rollback)
   vault.rs, vault/        VaultState (lock, gate, auto-lock); kdf.rs, credentials.rs, ssh_keys.rs, audit.rs
   ssh.rs                  interactive sessions + host-key prompts; ssh_connect.rs (phased connect),
                           ssh_auth.rs, ssh_exec.rs (one-shot), ssh_pool.rs, ssh_tunnel.rs, sftp.rs
   scheduler.rs  monitoring.rs  scanner.rs  discovery.rs  host_tracker.rs  health.rs  tailscale.rs
-  launcher.rs  ai.rs  local_paths.rs  native_confirm.rs  crypto.rs  validation.rs  errors.rs  db.rs
+  launcher.rs  ai.rs  local_paths.rs  native_confirm.rs  crypto.rs  validation.rs  errors.rs
   ssh_test_server.rs      cfg(test) in-process russh server for connect/auth/exec/pool/tunnel tests
 src-tauri/migrations/     001, 003–015 (no 002, on purpose)
 docs/                     ARCHITECTURE, SCHEMA, SECURITY_MODEL, CORE_WORKFLOWS, RELEASE_SIGNING, style/, archive/
@@ -85,7 +87,7 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 
 - Schema: `docs/SCHEMA.md` (column tables checked by `schema_doc_lists_every_table_and_column`: after a schema change, run it and paste its output). Tables: hosts, credentials, vault_settings, ssh_known_hosts, security_audit_log, discovered_hosts, host_services, scheduled_tasks, metrics_history, alert_history, alert_rules, monitoring_host_credential.
 - Every connection goes through `db::open_connection()`. Never `Connection::open` elsewhere.
-- New migration: `src-tauri/migrations/016_*.sql` (highest + 1), appended to `MIGRATIONS` in `lib.rs`, with `LATEST_SCHEMA_VERSION` bumped (a test checks they match). Append-only; never edit a shipped migration or create a `002`. SQLite has **no** `ADD COLUMN IF NOT EXISTS`: use an `M::up_with_hook` that checks `PRAGMA table_info` (see 011/012).
+- New migration: `src-tauri/migrations/016_*.sql` (highest + 1), appended to `MIGRATIONS` in `db/migrations.rs`, with `LATEST_SCHEMA_VERSION` bumped (a test checks they match). Append-only; never edit a shipped migration or create a `002`. SQLite has **no** `ADD COLUMN IF NOT EXISTS`: use an `M::up_with_hook` that checks `PRAGMA table_info` (see 011/012).
 
 ## Testing
 
