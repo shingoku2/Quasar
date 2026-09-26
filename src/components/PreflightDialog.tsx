@@ -87,7 +87,7 @@ const PreflightDialog: React.FC<PreflightDialogProps> = ({
       <div className="bg-bg-root border border-gray-700 rounded-lg w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="text-lg font-bold text-white">Pre-flight Check</h2>
-          <button onClick={onCancel} className="text-gray-400 hover:text-white">
+          <button onClick={onCancel} aria-label="Close dialog" className="text-gray-400 hover:text-white">
             <X className="h-5 w-5" />
           </button>
         </div>

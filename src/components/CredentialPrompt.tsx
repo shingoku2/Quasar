@@ -50,7 +50,7 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
             <KeyRound className="h-4 w-4 text-accent" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Authentication Required</h2>
           </div>
-          <button onClick={onCancel} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
