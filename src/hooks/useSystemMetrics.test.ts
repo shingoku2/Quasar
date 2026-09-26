@@ -62,4 +62,15 @@ describe('subscribeSystemMetrics (FE-024)', () => {
     expect(seen.mock.calls.map(([m]) => m.cpu_usage_percent)).toEqual([5]);
     stop();
   });
+
+  it('publishes nothing when the initial fetch returns no sample', async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+    const seen = vi.fn();
+    const stop = subscribeSystemMetrics(seen);
+    await flush();
+    expect(seen).not.toHaveBeenCalled();
+    fire(sample(3));
+    expect(seen).toHaveBeenCalledWith(sample(3));
+    stop();
+  });
 });

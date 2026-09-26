@@ -74,7 +74,7 @@ function publish(metrics: SystemMetrics) {
 function start() {
   const gen = ++generation;
   listen<SystemMetrics>('system-metrics', (event) => {
-    if (gen === generation) publish(event.payload);
+    if (event.payload && gen === generation) publish(event.payload);
   })
     .then((stop) => {
       // The last subscriber may have left while listen() was pending.
@@ -84,8 +84,8 @@ function start() {
     .catch((err) => console.error('Failed to listen for system metrics:', err));
   invoke<SystemMetrics>('get_system_metrics')
     .then((metrics) => {
-      // A live event that arrived first is newer: keep it.
-      if (gen === generation && latest === null) publish(metrics);
+      // A live event that arrived first is newer: keep it. No result means no sample.
+      if (metrics && gen === generation && latest === null) publish(metrics);
     })
     .catch((err) => console.warn('Failed to get system metrics:', err));
 }
