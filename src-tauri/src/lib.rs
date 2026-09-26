@@ -139,7 +139,7 @@ use once_cell::sync::Lazy;
 const LATEST_SCHEMA_VERSION: i64 = 14;
 
 /// Database filename (renamed from titan.db for Quasar).
-const DB_FILENAME: &str = "quasar.db";
+use db::DB_FILENAME;
 /// SQLite application_id marker for Quasar databases ("QSR1").
 const QUASAR_APPLICATION_ID: i64 = 0x5153_5231;
 
@@ -833,15 +833,8 @@ async fn remove_saved_hosts(app: AppHandle, ids: Vec<String>) -> Result<usize, S
 }
 
 fn app_db_connection(app: &AppHandle) -> Result<rusqlite::Connection, String> {
-    let app_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-    let db_path = app_dir.join(DB_FILENAME);
-    let db_path_str = db_path
-        .to_str()
-        .ok_or_else(|| "Invalid database path".to_string())?;
-    db::open_connection(db_path_str).map_err(|e| sanitize_error(e, "database"))
+    let db_path = db::app_db_path(app).map_err(|e| sanitize_error(e, "database"))?;
+    db::open_connection(&db_path).map_err(|e| sanitize_error(e, "database"))
 }
 
 fn scheduled_tasks_conn(app: &AppHandle) -> Result<rusqlite::Connection, String> {
@@ -1240,15 +1233,7 @@ async fn set_host_monitoring_credential(
     host_id: String,
     credential_id: Option<String>,
 ) -> Result<(), String> {
-    let app_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| sanitize_error(e.to_string(), "database"))?;
-    let db_path = app_dir.join(DB_FILENAME);
-    let db_path_str = db_path
-        .to_str()
-        .ok_or_else(|| "Invalid database path".to_string())?;
-    let conn = db::open_connection(db_path_str)?;
+    let conn = app_db_connection(&app)?;
     match credential_id.as_deref() {
         Some(id) if !id.is_empty() => {
             check_credential_binding(&conn, &host_id, id, vault::credentials::CredentialUse::Ssh)?;
@@ -2111,15 +2096,7 @@ fn get_app_info(app: AppHandle) -> Result<AppInfo, String> {
 
 #[tauri::command]
 fn clear_metrics_data(app: AppHandle) -> Result<(), String> {
-    let app_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| sanitize_error(e.to_string(), "monitoring"))?;
-    let db_path = app_dir.join(DB_FILENAME);
-    let db_path_str = db_path
-        .to_str()
-        .ok_or_else(|| "Invalid database path".to_string())?;
-    let conn = db::open_connection(db_path_str)?;
+    let conn = app_db_connection(&app)?;
     conn.execute("DELETE FROM metrics_history", [])
         .map_err(|e| sanitize_error(e.to_string(), "database"))?;
     conn.execute("DELETE FROM alert_history", [])

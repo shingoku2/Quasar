@@ -16,7 +16,6 @@ use crate::db;
 use crate::ssh_exec;
 use uuid::Uuid;
 
-const DB_FILENAME: &str = "quasar.db";
 const CHECK_INTERVAL_SECS: u64 = 60;
 const SSH_TIMEOUT_SECS: u64 = 120;
 /// Bounds how many scheduled tasks run at once. Without this, tasks due in the
@@ -104,8 +103,7 @@ struct TaskRow {
 }
 
 fn get_db_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    Ok(app_dir.join(DB_FILENAME))
+    crate::db::app_db_path(app).map(std::path::PathBuf::from)
 }
 
 fn load_enabled_tasks(conn: &rusqlite::Connection) -> Result<Vec<TaskRow>, String> {

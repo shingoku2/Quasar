@@ -991,9 +991,8 @@ pub async fn start_monitoring_task<R: tauri::Runtime>(
     // Try to initialize metrics store, but continue without it if it fails
     let metrics_store = match app_handle.path().app_data_dir() {
         Ok(path) => {
-            let db_path = path.join("quasar.db");
-            if let Some(db_path_str) = db_path.to_str() {
-                match MetricsStore::new(db_path_str.to_string(), 30) {
+            if let Ok(db_path_str) = crate::db::db_path_in(&path) {
+                match MetricsStore::new(db_path_str, 30) {
                     Ok(store) => Some(store),
                     Err(e) => {
                         error!(

@@ -4,7 +4,28 @@
 //! automatic foreign key constraint enforcement.
 
 use rusqlite::Connection;
+use std::path::Path;
 use std::time::Duration;
+use tauri::Manager;
+
+/// The app database's file name inside the app data directory. The one definition every
+/// path to the database uses.
+pub const DB_FILENAME: &str = "quasar.db";
+
+/// Path of the app database inside `app_dir`, as a string (`open_connection` takes one).
+pub fn db_path_in(app_dir: &Path) -> Result<String, String> {
+    app_dir
+        .join(DB_FILENAME)
+        .to_str()
+        .map(str::to_string)
+        .ok_or_else(|| "Invalid database path".to_string())
+}
+
+/// Path of the app database for a running app.
+pub fn app_db_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<String, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    db_path_in(&app_dir)
+}
 
 /// How long a connection waits for a competing writer before returning SQLITE_BUSY.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -96,6 +117,13 @@ pub fn restrict_to_owner(path: &std::path::Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn db_path_is_the_one_file_name_in_the_app_dir() {
+        let dir = std::path::Path::new("/tmp/quasar-app");
+        assert_eq!(db_path_in(dir).unwrap(), dir.join(DB_FILENAME).to_str().unwrap());
+        assert!(db_path_in(dir).unwrap().ends_with("quasar.db"));
+    }
 
     #[test]
     fn test_foreign_keys_enabled() {
