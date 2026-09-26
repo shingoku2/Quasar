@@ -61,4 +61,24 @@ describe('useModalDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
   });
+
+  // Review: a native input with tabIndex -1 (like the unlock dialog's hidden username field)
+  // is skipped by Tab, so it must not count as the trap's first item.
+  it('skips negative-tabindex fields when wrapping', () => {
+    const WithHiddenField: React.FC = () => {
+      const ref = useModalDialog();
+      return (
+        <div role="dialog" aria-modal="true" aria-label="Unlock" ref={ref} tabIndex={-1}>
+          <input aria-label="Hidden username" tabIndex={-1} />
+          <input aria-label="Password" />
+          <button>Unlock</button>
+        </div>
+      );
+    };
+    render(<WithHiddenField />);
+    const password = screen.getByLabelText('Password');
+    expect(password).toHaveFocus();
+    fireEvent.keyDown(password, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Unlock' })).toHaveFocus();
+  });
 });

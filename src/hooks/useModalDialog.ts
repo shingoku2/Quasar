@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'react';
 
 const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]';
+
+/** The elements Tab actually visits: a negative tabIndex (e.g. a hidden autofill field) is skipped. */
+function tabbables(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+    (el) => el.tabIndex >= 0 && !(el instanceof HTMLInputElement && el.type === 'hidden'),
+  );
+}
 
 /**
  * Keyboard behaviour for a modal (FE-020). Attach the returned ref to the `role="dialog"`
@@ -25,7 +32,7 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>(onClose?:
     if (!dialog) return undefined;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!dialog.contains(document.activeElement)) {
-      (dialog.querySelector<HTMLElement>(FOCUSABLE) ?? dialog).focus();
+      (tabbables(dialog)[0] ?? dialog).focus();
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -37,7 +44,7 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>(onClose?:
         return;
       }
       if (e.key !== 'Tab') return;
-      const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const items = tabbables(dialog);
       if (items.length === 0) {
         e.preventDefault();
         return;
