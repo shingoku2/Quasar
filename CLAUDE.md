@@ -63,7 +63,8 @@ src-tauri/src/
                           monitoring, vault, files, ai, app_data)
   db/                     mod.rs (open_connection, DB_FILENAME, app_db_path), migrations.rs (MIGRATIONS),
                           backup.rs (recognize, import/replace, rollback)
-  vault.rs, vault/        VaultState (lock, gate, auto-lock); kdf.rs, credentials.rs, ssh_keys.rs, audit.rs
+  vault.rs, vault/        VaultState (lock, gate, auto-lock, unlock); kdf.rs, lockout.rs, settings.rs,
+                          rotation.rs (password change + v1 migration), credentials.rs, ssh_keys.rs, audit.rs
   ssh.rs                  interactive sessions + host-key prompts; ssh_connect.rs (phased connect),
                           ssh_auth.rs, ssh_exec.rs (one-shot), ssh_pool.rs, ssh_tunnel.rs, sftp.rs
   saved_hosts.rs          the hosts table (read/write, host-move detection) and health probes
