@@ -181,6 +181,20 @@ fn corrupt_blob(msg: &str) -> rusqlite::Error {
     )))
 }
 
+/// An encrypted optional field as its three nullable columns (ciphertext, nonce, tag). `None`
+/// is stored as three NULLs, which `decrypt_optional_blob` reads back as absent.
+type EncryptedColumns = (Option<Vec<u8>>, Option<Vec<u8>>, Option<Vec<u8>>);
+
+fn encrypt_optional(value: Option<&str>, master_key: &[u8; 32]) -> Result<EncryptedColumns, String> {
+    match value {
+        Some(v) => {
+            let (c, n, t) = crypto::encrypt(v.as_bytes(), master_key)?;
+            Ok((Some(c), Some(n.to_vec()), Some(t.to_vec())))
+        }
+        None => Ok((None, None, None)),
+    }
+}
+
 fn decrypt_optional_blob(
     master_key: &[u8; 32],
     ciphertext: Option<Vec<u8>>,
@@ -237,20 +251,8 @@ impl CredentialManager {
         let password_bytes = password.as_bytes();
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
-        let (encrypted_key, key_nonce, key_tag) = match &private_key {
-            Some(pk) => {
-                let (c, n, t) = crypto::encrypt(pk.as_bytes(), master_key)?;
-                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
-            }
-            None => (None, None, None),
-        };
-        let (encrypted_kp, kp_nonce, kp_tag) = match &key_passphrase {
-            Some(kp) => {
-                let (c, n, t) = crypto::encrypt(kp.as_bytes(), master_key)?;
-                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
-            }
-            None => (None, None, None),
-        };
+        let (encrypted_key, key_nonce, key_tag) = encrypt_optional(private_key.as_deref(), master_key)?;
+        let (encrypted_kp, kp_nonce, kp_tag) = encrypt_optional(key_passphrase.as_deref(), master_key)?;
 
         conn.execute(
             "INSERT INTO credentials (id, name, username, encrypted_password, nonce, tag, credential_type, host, port, metadata, created_at, updated_at,
@@ -320,42 +322,10 @@ impl CredentialManager {
                 let nonce_vec: Option<Vec<u8>> = row.get(4)?;
                 let tag_vec: Option<Vec<u8>> = row.get(5)?;
 
-                let password = match (&encrypted_password, &nonce_vec, &tag_vec) {
-                    (None, _, _) | (_, None, _) | (_, _, None) => String::new(),
-                    (Some(ep), Some(n), Some(t)) => {
-                        if n.len() != 12 {
-                            return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(
-                                std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("Invalid nonce length: expected 12, got {}", n.len()),
-                                ),
-                            )));
-                        }
-                        if t.len() != 16 {
-                            return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(
-                                std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!(
-                                        "Invalid auth tag length: expected 16, got {}",
-                                        t.len()
-                                    ),
-                                ),
-                            )));
-                        }
-                        let mut nonce = [0u8; 12];
-                        let mut tag = [0u8; 16];
-                        nonce.copy_from_slice(n);
-                        tag.copy_from_slice(t);
-                        let decrypted =
-                            crypto::decrypt(ep, master_key, &nonce, &tag).map_err(|e| {
-                                rusqlite::Error::ToSqlConversionFailure(Box::new(
-                                    std::io::Error::other(e),
-                                ))
-                            })?;
-                        String::from_utf8(decrypted)
-                            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
-                    }
-                };
+                // Same rules as the key fields (invariant 7): all three NULL is "no password"
+                // (key-only credentials); a partial or malformed triple is an error.
+                let password =
+                    decrypt_optional_blob(master_key, encrypted_password, nonce_vec, tag_vec)?.unwrap_or_default();
 
                 // Optional SSH key fields (columns 13..20; may be NULL if migration 008 not run or password-only cred)
                 let key_path: Option<String> = row.get(13).ok().flatten();
@@ -670,20 +640,8 @@ impl CredentialManager {
         let password_bytes = password.as_bytes();
         let (ciphertext, nonce, tag) = crypto::encrypt(password_bytes, master_key)?;
 
-        let (encrypted_key, key_nonce, key_tag) = match &private_key {
-            Some(pk) => {
-                let (c, n, t) = crypto::encrypt(pk.as_bytes(), master_key)?;
-                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
-            }
-            None => (None, None, None),
-        };
-        let (encrypted_kp, kp_nonce, kp_tag) = match &key_passphrase {
-            Some(kp) => {
-                let (c, n, t) = crypto::encrypt(kp.as_bytes(), master_key)?;
-                (Some(c), Some(n.to_vec()), Some(t.to_vec()))
-            }
-            None => (None, None, None),
-        };
+        let (encrypted_key, key_nonce, key_tag) = encrypt_optional(private_key.as_deref(), master_key)?;
+        let (encrypted_kp, kp_nonce, kp_tag) = encrypt_optional(key_passphrase.as_deref(), master_key)?;
 
         tx.execute(
             "UPDATE credentials SET name = ?1, username = ?2, encrypted_password = ?3, nonce = ?4, tag = ?5,
@@ -791,53 +749,10 @@ mod tests {
         let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
         let db_path = format!("test_credentials_{}_{}.db", timestamp, seq);
 
-        let conn = Connection::open(&db_path).expect("Failed to open test database");
-
-        conn.execute(
-            "CREATE TABLE credentials (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                username TEXT NOT NULL,
-                encrypted_password BLOB NOT NULL,
-                nonce BLOB NOT NULL,
-                tag BLOB NOT NULL,
-                credential_type TEXT NOT NULL DEFAULT 'password',
-                host TEXT,
-                port INTEGER,
-                metadata TEXT,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL,
-                last_used_at INTEGER
-            )",
-            [],
-        )
-        .expect("Failed to create credentials table");
-        // Migration 008 columns so get_credential SELECT works
-        conn.execute_batch(
-            "ALTER TABLE credentials ADD COLUMN key_path TEXT;
-             ALTER TABLE credentials ADD COLUMN encrypted_private_key BLOB;
-             ALTER TABLE credentials ADD COLUMN private_key_nonce BLOB;
-             ALTER TABLE credentials ADD COLUMN private_key_tag BLOB;
-             ALTER TABLE credentials ADD COLUMN encrypted_key_passphrase BLOB;
-             ALTER TABLE credentials ADD COLUMN key_passphrase_nonce BLOB;
-             ALTER TABLE credentials ADD COLUMN key_passphrase_tag BLOB;",
-        )
-        .expect("Failed to add key columns");
-
-        conn.execute(
-            "CREATE TABLE security_audit_log (
-                id TEXT PRIMARY KEY,
-                timestamp INTEGER NOT NULL,
-                event_type TEXT NOT NULL,
-                resource_id TEXT,
-                resource_type TEXT,
-                action TEXT NOT NULL,
-                result TEXT NOT NULL,
-                details TEXT
-            )",
-            [],
-        )
-        .expect("Failed to create audit log table");
+        // The real schema, from the migrations. A hand-written copy drifted once (it kept the
+        // pre-009 NOT NULL password columns, so no test could store a key-only credential).
+        let mut conn = db::open_connection(&db_path).expect("Failed to open test database");
+        crate::db::migrations::MIGRATIONS.to_latest(&mut conn).expect("Failed to migrate test database");
 
         let master_key = [42u8; 32]; // Test key
         (db_path, master_key)
@@ -1152,6 +1067,29 @@ mod tests {
 
         conn.execute("UPDATE credentials SET private_key_nonce = zeroblob(12), private_key_tag = NULL WHERE id = ?1", [&id]).unwrap();
         assert!(manager.get_credential(&master_key, &id).is_err(), "partially NULL triple");
+
+        cleanup_test_db(&db_path);
+    }
+
+    /// RUST-020 / invariant 7: the password follows the same rules as the key fields. A
+    /// partially NULL password triple is corrupt, not "no password" (which would let SSH fall
+    /// back to `none` auth); all three NULL is a key-only credential's missing password.
+    #[test]
+    fn test_malformed_password_triple_is_an_error_not_absent() {
+        let (db_path, master_key) = setup_test_db();
+        let manager = CredentialManager::new(db_path.clone());
+        let id = manager
+            .add_credential(&master_key, "p".into(), "u".into(), "s3cret".into(), "ssh".into(),
+                None, None, None, None, None, None)
+            .unwrap();
+        assert_eq!(manager.get_credential(&master_key, &id).unwrap().password, "s3cret");
+        let conn = Connection::open(&db_path).unwrap();
+
+        conn.execute("UPDATE credentials SET tag = NULL WHERE id = ?1", [&id]).unwrap();
+        assert!(manager.get_credential(&master_key, &id).is_err(), "partially NULL password triple");
+
+        conn.execute("UPDATE credentials SET encrypted_password = NULL, nonce = NULL WHERE id = ?1", [&id]).unwrap();
+        assert_eq!(manager.get_credential(&master_key, &id).unwrap().password, "", "all NULL is no password");
 
         cleanup_test_db(&db_path);
     }
