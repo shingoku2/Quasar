@@ -41,10 +41,31 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
     height: '100%'
   } : undefined;
 
+  // Arrow keys, Home and End move between tabs and switch to the one they land on.
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
+    if (!keys.includes(e.key) || tabs.length === 0) return;
+    const current = tabs.findIndex((t) => t.id === activeTabId);
+    const last = tabs.length - 1;
+    const next =
+      e.key === 'Home' ? 0
+      : e.key === 'End' ? last
+      : e.key === 'ArrowRight' ? (current >= last ? 0 : current + 1)
+      : (current <= 0 ? last : current - 1);
+    e.preventDefault();
+    onTabChange(tabs[next].id);
+    e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
+  };
+
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className || ''}`}>
       {/* Tab Bar */}
-      <div className="flex bg-bg-sidebar border-b border-gray-800 overflow-x-auto no-scrollbar">
+      <div
+        role="tablist"
+        aria-label="Sessions"
+        onKeyDown={handleTabKeyDown}
+        className="flex bg-bg-sidebar border-b border-gray-800 overflow-x-auto no-scrollbar"
+      >
         {tabs.map(tab => (
           <div
             key={tab.id}
@@ -53,7 +74,17 @@ const SessionContainer: React.FC<SessionContainerProps> = ({
               visibleIds.includes(tab.id) ? 'bg-bg-root text-accent' : 'text-gray-500 hover:bg-bg-root/50 hover:text-gray-300'
             }`}
           >
-            <span className="truncate flex-1 text-xs font-bold uppercase tracking-wider">{tab.title}</span>
+            {/* The tab itself: a real control, so keyboard users can switch sessions (FE-022).
+                Its click bubbles to the row, which switches the tab. */}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTabId === tab.id}
+              tabIndex={activeTabId === tab.id ? 0 : -1}
+              className="truncate flex-1 text-left text-xs font-bold uppercase tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+            >
+              {tab.title}
+            </button>
             
             {/* Split Toggle Button (Only if NOT the inventory tab and onToggleSplit provided) */}
             {(tab.closable !== false && onToggleSplit) && (

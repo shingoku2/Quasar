@@ -299,12 +299,26 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
                       ) : (
                         <FileText className="h-4 w-4 text-gray-400" />
                       )}
-                      <span className={cn(
-                        "font-medium",
-                        file.is_dir ? "text-gray-100" : "text-gray-300"
-                      )}>
+                      {/* A real button so the listing works from the keyboard (FE-022):
+                          a folder opens, a file is selected. */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.is_dir) {
+                            handleNavigate(file.name);
+                          } else {
+                            setSelectedFile(file.name);
+                          }
+                        }}
+                        aria-label={file.is_dir ? `Open folder ${file.name}` : file.name}
+                        className={cn(
+                          "font-medium text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded",
+                          file.is_dir ? "text-gray-100" : "text-gray-300"
+                        )}
+                      >
                         {file.name}
-                      </span>
+                      </button>
                       {file.is_dir && (
                         <ChevronRight className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}

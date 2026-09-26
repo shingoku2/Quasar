@@ -10,6 +10,9 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 ## 2026-09-26: Refactors (P7-9)
 
 - A credential whose stored password is only partly present (a corrupt row) now fails to load instead of loading with an empty password, the same rule the key fields already followed. An empty password with no key would have made SSH fall back to `none` auth.
+- Dialogs close with Escape, keep keyboard focus inside while open, return it to where it was on close, and are announced by their title (FE-020).
+- Form labels are tied to their inputs in the task, credential, vault-settings, audit-log and monitoring forms, so screen readers name each field and clicking a label focuses it (FE-021).
+- Session tabs are a keyboard tablist (arrow keys, Home, End), SFTP entries are buttons (Enter opens a folder), and scanner host cards open with Enter or Space (FE-022).
 
 ## 2026-09-26: Repo cleanup
 

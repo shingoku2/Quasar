@@ -123,3 +123,38 @@ describe('SessionContainer interactions', () => {
     expect(screen.getByText('Beta body').parentElement).toHaveClass('block');
   });
 });
+
+// FE-022: the tab bar is a keyboard-operable tablist.
+describe('SessionContainer keyboard tabs', () => {
+  const tabs: SessionTab[] = [
+    { id: 'a', title: 'Alpha', content: <div>A</div> },
+    { id: 'b', title: 'Beta', content: <div>B</div> },
+    { id: 'c', title: 'Gamma', content: <div>C</div> },
+  ];
+
+  it('exposes the tabs with their selected state and a single tab stop', () => {
+    render(<SessionContainer tabs={tabs} activeTabId="b" onTabChange={vi.fn()} onTabClose={vi.fn()} />);
+    const tabEls = screen.getAllByRole('tab');
+    expect(tabEls).toHaveLength(3);
+    expect(screen.getByRole('tab', { name: 'Beta' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Alpha' })).toHaveAttribute('aria-selected', 'false');
+    expect(tabEls.map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
+  });
+
+  it('switches tabs with the arrow keys, Home and End, wrapping at the ends', () => {
+    const onTabChange = vi.fn();
+    render(<SessionContainer tabs={tabs} activeTabId="c" onTabChange={onTabChange} onTabClose={vi.fn()} />);
+    const tablist = screen.getByRole('tablist', { name: 'Sessions' });
+    fireEvent.keyDown(tablist, { key: 'ArrowRight' });
+    expect(onTabChange).toHaveBeenLastCalledWith('a');
+    expect(screen.getByRole('tab', { name: 'Alpha' })).toHaveFocus();
+    fireEvent.keyDown(tablist, { key: 'ArrowLeft' });
+    expect(onTabChange).toHaveBeenLastCalledWith('b');
+    fireEvent.keyDown(tablist, { key: 'Home' });
+    expect(onTabChange).toHaveBeenLastCalledWith('a');
+    fireEvent.keyDown(tablist, { key: 'End' });
+    expect(onTabChange).toHaveBeenLastCalledWith('c');
+    fireEvent.keyDown(tablist, { key: 'a' });
+    expect(onTabChange).toHaveBeenCalledTimes(4);
+  });
+});

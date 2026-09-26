@@ -313,10 +313,21 @@ const NetworkScanner: React.FC<NetworkScannerProps> = ({
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {aliveHosts.map((host) => (
-              <div 
+              <div
                 key={host.ip}
                 onClick={() => onHostClick?.(host)}
-                className="bg-bg-sidebar rounded-lg p-3 flex items-center justify-between hover:bg-bg-sidebar/80 cursor-pointer transition-colors"
+                {...(onHostClick && {
+                  role: 'button',
+                  tabIndex: 0,
+                  'aria-label': `Show details for ${host.ip}`,
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onHostClick(host);
+                    }
+                  },
+                })}
+                className="bg-bg-sidebar rounded-lg p-3 flex items-center justify-between hover:bg-bg-sidebar/80 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <div className="flex items-center space-x-3 flex-1">
                   <div className="text-gray-400">
