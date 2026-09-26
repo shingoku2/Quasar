@@ -111,4 +111,39 @@ describe('useModalDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(openButton).toHaveFocus();
   });
+
+  // Review: a dialog that replaces another in one render (selector -> manual prompt)
+  // returns focus to the original opener, not to the vanished button inside the first.
+  it('carries the opener across a dialog handoff', () => {
+    const Step: React.FC<{ label: string; onNext?: () => void; onClose: () => void }> = ({ label, onNext, onClose }) => {
+      const ref = useModalDialog(onClose);
+      return (
+        <div role="dialog" aria-modal="true" aria-label={label} ref={ref} tabIndex={-1}>
+          {onNext ? <button onClick={onNext}>Enter manually</button> : <input aria-label="Password" />}
+        </div>
+      );
+    };
+    const Flow: React.FC = () => {
+      const [step, setStep] = useState<'none' | 'select' | 'manual'>('none');
+      return (
+        <>
+          <button onClick={() => setStep('select')}>Connect</button>
+          {step === 'select' && <Step label="Select" onNext={() => setStep('manual')} onClose={() => setStep('none')} />}
+          {step === 'manual' && <Step label="Manual" onClose={() => setStep('none')} />}
+        </>
+      );
+    };
+    render(<Flow />);
+    const connect = screen.getByRole('button', { name: 'Connect' });
+    connect.focus();
+    fireEvent.click(connect);
+    const manual = screen.getByRole('button', { name: 'Enter manually' });
+    expect(manual).toHaveFocus();
+    fireEvent.click(manual);
+    const password = screen.getByLabelText('Password');
+    expect(password).toHaveFocus();
+    fireEvent.keyDown(password, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(connect).toHaveFocus();
+  });
 });
