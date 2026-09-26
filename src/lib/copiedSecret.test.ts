@@ -48,4 +48,19 @@ describe('copiedSecret (FE-009)', () => {
     await settle();
     expect(clipboard).toBe('');
   });
+
+  // Review: a lock during the clipboard write must not leave the password behind.
+  it('wipes a copy whose write finishes after the vault locked', async () => {
+    let finishWrite: () => void = () => {};
+    writeText.mockImplementationOnce(async (t: string) => {
+      await new Promise<void>((r) => { finishWrite = r; });
+      clipboard = t;
+    });
+    const copying = copySecret('secret123');
+    flushCopiedSecret();
+    finishWrite();
+    await copying;
+    await settle();
+    expect(clipboard).toBe('');
+  });
 });
