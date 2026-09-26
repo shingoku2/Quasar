@@ -1,6 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
+import React, { useState, useEffect } from 'react';
 import MetricChartCard from './dashboard/MetricChartCard';
 import AlertRules from './dashboard/AlertRules';
 import DiskSpaceCard from './monitoring/DiskSpaceCard';
@@ -10,6 +8,7 @@ import TopProcessesCard from './monitoring/TopProcessesCard';
 import { formatMetricTime, formatRateMb } from './monitoring/format';
 import type { SystemMetrics } from './monitoring/types';
 import { useRemoteHostsHealth } from './monitoring/useRemoteHostsHealth';
+import { subscribeSystemMetrics } from '../hooks/useSystemMetrics';
 
 const MonitoringView: React.FC = () => {
   const [cpuData, setCpuData] = useState<{ time: string; value: number }[]>([]);
@@ -18,51 +17,16 @@ const MonitoringView: React.FC = () => {
   const [netData, setNetData] = useState<{ time: string; value: number }[]>([]);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const { remoteHosts, savedHosts, credentials, setHostCredential } = useRemoteHostsHealth();
-  const unlistenRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const setupListener = async () => {
-      try {
-        const unlisten = await listen('system-metrics', (event) => {
-          const data = event.payload as SystemMetrics;
-          const timeLabel = formatMetricTime(new Date());
-          setMetrics(data);
-          setCpuData(prev => [...prev.slice(-19), { time: timeLabel, value: data.cpu_usage_percent }]);
-          setMemData(prev => [...prev.slice(-19), { time: timeLabel, value: data.memory_usage_percent }]);
-          setDiskData(prev => [...prev.slice(-19), { time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
-          setNetData(prev => [...prev.slice(-19), { time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
-        });
-        if (cancelled) {
-          unlisten();
-        } else {
-          unlistenRef.current = unlisten;
-        }
-      } catch (error) {
-        console.error('Error setting up listener:', error);
-      }
-    };
-
-    setupListener();
-
-    invoke<SystemMetrics>('get_system_metrics').then((data) => {
-      const initialTimeLabel = formatMetricTime(new Date());
-      setMetrics(data);
-      setCpuData([{ time: initialTimeLabel, value: data.cpu_usage_percent }]);
-      setMemData([{ time: initialTimeLabel, value: data.memory_usage_percent }]);
-      setDiskData([{ time: initialTimeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
-      setNetData([{ time: initialTimeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
-    }).catch((err) => {
-      console.warn('Failed to get system metrics:', err);
-    });
-
-    return () => {
-      cancelled = true;
-      unlistenRef.current?.();
-      unlistenRef.current = null;
-    };
-  }, []);
+  // Charts keep the last 20 samples (one shared stream for the app, FE-024).
+  useEffect(() => subscribeSystemMetrics((data) => {
+    const timeLabel = formatMetricTime(new Date());
+    setMetrics(data);
+    setCpuData(prev => [...prev.slice(-19), { time: timeLabel, value: data.cpu_usage_percent }]);
+    setMemData(prev => [...prev.slice(-19), { time: timeLabel, value: data.memory_usage_percent }]);
+    setDiskData(prev => [...prev.slice(-19), { time: timeLabel, value: data.disk_read_mb + data.disk_write_mb }]);
+    setNetData(prev => [...prev.slice(-19), { time: timeLabel, value: data.network_rx_mb + data.network_tx_mb }]);
+  }), []);
 
   return (
     <div className="p-6 space-y-6 h-full overflow-y-auto no-scrollbar bg-bg-root animate-in fade-in duration-500">

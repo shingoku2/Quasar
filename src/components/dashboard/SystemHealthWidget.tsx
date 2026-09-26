@@ -2,29 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Server, AlertTriangle, Cpu, HardDrive, Shield } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { useSystemMetrics } from '../../hooks/useSystemMetrics';
 import { useVisiblePolling } from '../../hooks/useViewVisibility';
 import { cn } from '../../lib/utils';
-
-interface DiskInfo {
-  name: string;
-  mount_point: string;
-  total_gb: number;
-  used_gb: number;
-  free_gb: number;
-  usage_percent: number;
-}
-
-interface SystemMetrics {
-  cpu_usage_percent: number;
-  memory_usage_percent: number;
-  memory_used_mb: number;
-  memory_total_mb: number;
-  disk_usage_percent: number;
-  disk_used_gb: number;
-  disk_total_gb: number;
-  uptime_seconds: number;
-  disks?: DiskInfo[];
-}
 
 interface Alert {
   id: string;
@@ -63,15 +43,12 @@ interface SystemHealthWidgetProps {
 }
 
 const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metrics' }) => {
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const metrics = useSystemMetrics();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [onlineHostsCount, setOnlineHostsCount] = useState<number | null>(null);
   const [vaultTimeout, setVaultTimeout] = useState<number | null>(null);
 
   useEffect(() => {
-    const unlistenMetrics = listen<SystemMetrics>('system-metrics', (event) => {
-      setMetrics(event.payload);
-    });
 
     const unlistenAlerts = listen<BackendAlert[]>('alerts-triggered', (event) => {
       const newAlerts: Alert[] = event.payload.map(a => ({
@@ -92,10 +69,7 @@ const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = ({ variant = 'metr
       ));
     });
 
-    invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
-
     return () => {
-      unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
       unlistenRecovered.then(fn => fn());
     };

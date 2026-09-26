@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, Clock, Check, X, Activity, Cpu, HardDrive } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
+import { useSystemMetrics } from '../../hooks/useSystemMetrics';
 
 export interface Alert {
   id: string;
@@ -11,13 +11,6 @@ export interface Alert {
   severity: 'critical' | 'warning' | 'info';
   timestamp: string;
   acknowledged?: boolean;
-}
-
-interface ProcessInfo {
-  pid: number;
-  name: string;
-  cpu_usage: number;
-  memory_mb: number;
 }
 
 /** Alert payload as emitted by the Rust backend (monitoring.rs `Alert`). */
@@ -30,55 +23,13 @@ interface BackendAlert {
   acknowledged: boolean;
 }
 
-export interface SystemMetrics {
-  // Existing metrics
-  cpu_usage_percent: number;
-  memory_used_mb: number;
-  memory_total_mb: number;
-  memory_usage_percent: number;
-  disk_read_mb: number;
-  disk_write_mb: number;
-  network_rx_mb: number;
-  network_tx_mb: number;
-  timestamp: number;
-  
-  // System info
-  uptime_seconds: number;
-  load_average_1m: number;
-  load_average_5m: number;
-  load_average_15m: number;
-  process_count: number;
-  boot_time: number;
-  
-  // CPU details
-  cpu_count: number;
-  cpu_per_core: number[];
-  cpu_frequency_mhz: number;
-  
-  // Disk details
-  disk_total_gb: number;
-  disk_used_gb: number;
-  disk_free_gb: number;
-  disk_usage_percent: number;
-  
-  // Network details
-  network_packets_rx: number;
-  network_packets_tx: number;
-  network_errors_rx: number;
-  network_errors_tx: number;
-  
-  // Top processes
-  top_cpu_processes: ProcessInfo[];
-  top_memory_processes: ProcessInfo[];
-}
-
 interface AlertFeedProps {
   alerts?: Alert[];
 }
 
 const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => {
   const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const metrics = useSystemMetrics();
 
   const mapSeverity = (severity: unknown): 'critical' | 'warning' | 'info' => {
     const severityStr = String(severity).toLowerCase();
@@ -88,10 +39,6 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
   };
 
   useEffect(() => {
-    // Listen for real-time system metrics
-    const unlistenMetrics = listen<SystemMetrics>('system-metrics', (event) => {
-      setMetrics(event.payload);
-    });
 
     // Listen for triggered alerts
     const unlistenAlerts = listen<BackendAlert[]>('alerts-triggered', (event) => {
@@ -119,11 +66,7 @@ const AlertFeed: React.FC<AlertFeedProps> = ({ alerts: initialAlerts = [] }) => 
       setAlerts(prev => [...recoveryItems, ...prev].slice(0, 50));
     });
 
-    // Initial metrics fetch
-    invoke<SystemMetrics>('get_system_metrics').then(setMetrics).catch(console.error);
-
     return () => {
-      unlistenMetrics.then(fn => fn());
       unlistenAlerts.then(fn => fn());
       unlistenRecovered.then(fn => fn());
     };
