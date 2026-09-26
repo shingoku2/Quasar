@@ -24,6 +24,12 @@ pub fn db_path_in(app_dir: &Path) -> Result<String, String> {
         .ok_or_else(|| "Invalid database path".to_string())
 }
 
+/// A connection to the app database, with errors sanitized for the frontend.
+pub fn app_db_connection<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<Connection, String> {
+    let db_path = app_db_path(app).map_err(|e| crate::errors::sanitize_error(e, "database"))?;
+    open_connection(&db_path).map_err(|e| crate::errors::sanitize_error(e, "database"))
+}
+
 /// Path of the app database for a running app.
 pub fn app_db_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<String, String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
