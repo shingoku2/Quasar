@@ -81,4 +81,34 @@ describe('useModalDialog', () => {
     fireEvent.keyDown(password, { key: 'Tab', shiftKey: true });
     expect(screen.getByRole('button', { name: 'Unlock' })).toHaveFocus();
   });
+
+  // Review: with an autoFocus field, the opener must still get focus back on close.
+  it('gives focus back to the opener when the dialog autofocuses a field', () => {
+    const AutoFocusDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+      const ref = useModalDialog(onClose);
+      return (
+        <div role="dialog" aria-modal="true" aria-label="Prompt" ref={ref} tabIndex={-1}>
+          <input aria-label="Password" autoFocus />
+        </div>
+      );
+    };
+    const Opener: React.FC = () => {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open</button>
+          {open && <AutoFocusDialog onClose={() => setOpen(false)} />}
+        </>
+      );
+    };
+    render(<Opener />);
+    const openButton = screen.getByRole('button', { name: 'Open' });
+    openButton.focus();
+    fireEvent.click(openButton);
+    const password = screen.getByLabelText('Password');
+    expect(password).toHaveFocus();
+    fireEvent.keyDown(password, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(openButton).toHaveFocus();
+  });
 });

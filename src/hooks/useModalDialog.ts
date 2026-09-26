@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]';
@@ -22,6 +22,11 @@ function tabbables(root: HTMLElement): HTMLElement[] {
 export function useModalDialog<T extends HTMLElement = HTMLDivElement>(onClose?: () => void) {
   const ref = useRef<T>(null);
   const onCloseRef = useRef(onClose);
+  // Captured on the first render: a child's autoFocus moves focus during commit, before any
+  // effect runs, so reading it in the effect would record that child instead of the opener.
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -30,7 +35,6 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>(onClose?:
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return undefined;
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!dialog.contains(document.activeElement)) {
       (tabbables(dialog)[0] ?? dialog).focus();
     }
@@ -63,9 +67,9 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>(onClose?:
     dialog.addEventListener('keydown', onKeyDown);
     return () => {
       dialog.removeEventListener('keydown', onKeyDown);
-      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+      if (opener && document.contains(opener)) opener.focus();
     };
-  }, []);
+  }, [opener]);
 
   return ref;
 }
