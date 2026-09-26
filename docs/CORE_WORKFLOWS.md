@@ -52,7 +52,7 @@ This document describes the main user workflows for remote management, automatio
 - **Dashboard**: Real-time metrics (CPU, memory, disks), Hosts Online count (reachable saved hosts), Vault Auto-lock status.
 - **Monitoring view**: Alert Rules panel (create/edit/remove rules; saved in the database and kept across restarts); remote host health (ping + optional SSH metrics). Assign credentials per host for SSH-based checks.
 - **Health before connect**: Use preflight/health check to validate a host before opening a terminal.
-- **Note (Linux only)**: SSH-based remote metric collection (load average, process count via SSH) is currently only implemented for Linux targets in `monitoring.rs`. Windows and macOS remote hosts return ping-only health data.
+- **Note (Linux only)**: SSH-based remote metric collection (load average, process count via SSH) is currently only implemented for Linux targets in `health.rs`. Windows and macOS remote hosts return ping-only health data.
 - **Alert recovery**: When a metric returns below its threshold after an alert fires, an `alerts-recovered` event is emitted and shown in the Recent Activity feed.
 
 ---

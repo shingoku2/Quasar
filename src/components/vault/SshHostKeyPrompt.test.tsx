@@ -142,4 +142,12 @@ describe('SshHostKeyPrompt', () => {
       expect(changedProps.onTrust).toHaveBeenCalledWith(false);
     });
   });
+
+  // A host-key prompt needs an explicit answer: Escape must not reject the key.
+  it('ignores Escape', () => {
+    const onReject = vi.fn();
+    render(<SshHostKeyPrompt {...defaultProps} onReject={onReject} />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onReject).not.toHaveBeenCalled();
+  });
 });

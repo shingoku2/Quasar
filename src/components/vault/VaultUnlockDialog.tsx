@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
+import { useModalDialog } from '../../hooks/useModalDialog';
 import { Lock, ShieldAlert, X, Eye, EyeOff } from 'lucide-react';
 import { getErrorMessage } from '../../lib/utils';
 import { invoke } from '@tauri-apps/api/core';
@@ -9,6 +10,8 @@ interface VaultUnlockDialogProps {
 }
 
 const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCancel }) => {
+  const titleId = useId();
+  const dialogRef = useModalDialog(onCancel);
   const [masterPassword, setMasterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -38,13 +41,16 @@ const VaultUnlockDialog: React.FC<VaultUnlockDialogProps> = ({ onUnlocked, onCan
 
   return (
     <div role="dialog"
+      ref={dialogRef}
+      tabIndex={-1}
       aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
             <Lock className="h-5 w-5 text-accent" />
-            <h2 className="text-base font-bold text-white uppercase tracking-wider">Unlock Vault</h2>
+            <h2 id={titleId} className="text-base font-bold text-white uppercase tracking-wider">Unlock Vault</h2>
           </div>
           {onCancel && (
             <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">

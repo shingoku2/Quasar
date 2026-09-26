@@ -29,4 +29,13 @@ describe('AddHostDialog', () => {
     expect(onAdded).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  // FE-020: named by its heading, and Escape closes it.
+  it('is labelled by its heading and closes on Escape', () => {
+    const onClose = vi.fn();
+    render(<AddHostDialog onAdded={vi.fn()} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: /Add/i });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

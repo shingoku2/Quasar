@@ -7,6 +7,22 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 - New frontend tests for the weakest-covered views: Dashboard host handlers (connect, save, delete), RemoteManager connect flows (credential selector, manual entry, saving a credential, RDP, split view, quick connect), TerminalComponent sessions (connect payload, event channels, resize, cleanup, in-place theme changes), ScheduledTasksView (add, edit, SFTP pickers, credential filtering, delete, run now), SshTunnelsView (start payload, port clamping, errors) and SessionContainer tab interactions. Frontend coverage rose from 73.6/68.2/68.6/75.9 to 83.5/78.2/80.0/85.3 (statements/branches/functions/lines), and the CI floor is raised to 82/76/78/84.
 - New Rust tests: the audit log's `record` and `get_audit_logs` (every filter, search, paging, newest-first order, the default 100-row cap, parameter binding), tunnel state (stop signal, listing, shared clones) and `copy_bidirectional`, and the SFTP password requirement (which had only an empty placeholder test).
 
+## 2026-09-26: Refactors (P7-9)
+
+- The Qodana workflow (#74) runs: its checkout is pinned (actionlint rejected `@v3`), it scans `src-tauri/` where the Cargo project is, and the Rust configuration stage gets 45 minutes instead of 10.
+- A credential whose stored password is only partly present (a corrupt row) now fails to load instead of loading with an empty password, the same rule the key fields already followed. An empty password with no key would have made SSH fall back to `none` auth.
+- Dialogs close with Escape, keep keyboard focus inside while open, return it to where it was on close, and are announced by their title (FE-020). The SSH host-key prompt is the exception to Escape: it needs an explicit Trust or Reject.
+- Form labels are tied to their inputs in the task, credential, vault-settings, audit-log and monitoring forms, so screen readers name each field and clicking a label focuses it (FE-021).
+- Session tabs are a keyboard tablist (arrow keys, Home, End), SFTP entries are buttons (Enter opens a folder), and scanner host cards open with Enter or Space (FE-022). A double-clicked SFTP folder is listed once, not once per click.
+- A revealed credential password hides itself after 30 seconds and as soon as the vault locks (it stayed on screen after auto-lock). A copied password is wiped from the clipboard after 30 seconds or on lock, but only if the clipboard still holds it, so something you copied since survives (FE-009).
+- The credential list can no longer be overwritten by an older, slower load after a newer search (FE-014).
+- CredentialManager is split into `vault/credentials/` (card, form dialog, view dialog, `buildCredentialPayload`, `useRevealedPassword`, `useCredentials`) (FE-027).
+- SettingsView is split into `settings/` (one file per panel, plus `appearanceStore` for the saved theme). The theme is applied once at startup from `main.tsx`; the duplicate apply at module import is gone (FE-027).
+- ScheduledTasksView is split into `scheduled/` (form, list, run-result banner, and a pure `taskForm.ts` for validation, payload, host and credential filtering, now unit-tested) (FE-027).
+- MonitoringView is split into `monitoring/` (system info bar, disk card, process cards, remote hosts list, `useRemoteHostsHealth`, format helpers) (FE-027).
+- The Dashboard widgets and the Monitoring view share one `system-metrics` listener and one initial fetch (`useSystemMetrics`), instead of one each (FE-024).
+- An RDP session opened from the Inventory while split view is on now joins the split; it opened hidden, because the Inventory's handlers were frozen into tab state when the tab was built (FE-018). RemoteManager now keeps open sessions as data (`remote/SessionContent`), and is split into `remote/` (`InventoryPanel`, `useConnectFlow`) (FE-027).
+
 ## 2026-09-26: Repo cleanup
 
 - Deleted 61 superseded files: GEMINI.md, the `conductor/` planning scaffolding, `_archived/` (the removed automation engine), `.codex/`, `.windsurf/`, the MONITORING_PHASE reports, the old workflow test fixtures, three unused template SVGs and a never-compiled scratch file. Their useful content was already in `docs/archive/` and `docs/style/`; the rest is in git history (last present at `5cc7b55`).

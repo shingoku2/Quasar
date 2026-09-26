@@ -119,3 +119,43 @@ describe('SshFileManager', () => {
     expect(mockInvoke).toHaveBeenCalledWith('pick_local_file', expect.anything());
   });
 });
+
+// FE-022: entries are real buttons, so the listing works from the keyboard.
+describe('SshFileManager keyboard entries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('opens a folder from its name button and selects a file from its name', async () => {
+    mockInvoke.mockResolvedValue([
+      { name: 'documents', is_dir: true, size: 4096 },
+      { name: 'readme.txt', is_dir: false, size: 1024 },
+    ]);
+    render(<SshFileManager {...defaultProps} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'readme.txt' }));
+    expect(screen.getByText('Selected:')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open folder documents' }));
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenLastCalledWith(
+        'sftp_list_directory',
+        expect.objectContaining({ remotePath: '/documents' }),
+      );
+    });
+  });
+
+  it('opens a double-clicked folder once, not once per click', async () => {
+    mockInvoke.mockResolvedValue([{ name: 'documents', is_dir: true, size: 4096 }]);
+    render(<SshFileManager {...defaultProps} />);
+    const folder = await screen.findByRole('button', { name: 'Open folder documents' });
+    fireEvent.click(folder);
+    fireEvent.click(folder);
+    fireEvent.doubleClick(folder);
+    await waitFor(() => expect(screen.getByText('/documents')).toBeInTheDocument());
+    const listings = mockInvoke.mock.calls.filter(
+      ([cmd, args]) => cmd === 'sftp_list_directory' && (args as { remotePath: string }).remotePath === '/documents',
+    );
+    expect(listings).toHaveLength(1);
+  });
+});

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
+import { useModalDialog } from '../hooks/useModalDialog';
 import { KeyRound, ShieldQuestion, X } from 'lucide-react';
 
 interface CredentialPromptProps {
@@ -24,6 +25,8 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  const titleId = useId();
+  const dialogRef = useModalDialog(onCancel);
   const [username, setUsername] = useState(initialUsername ?? '');
   const [password, setPassword] = useState('');
   const [saveCredential, setSaveCredential] = useState(false);
@@ -42,15 +45,18 @@ const CredentialPrompt: React.FC<CredentialPromptProps> = ({
 
   return (
     <div role="dialog"
+      ref={dialogRef}
+      tabIndex={-1}
       aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
             <KeyRound className="h-4 w-4 text-accent" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Authentication Required</h2>
+            <h2 id={titleId} className="text-sm font-bold text-white uppercase tracking-wider">Authentication Required</h2>
           </div>
-          <button onClick={onCancel} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>

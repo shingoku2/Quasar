@@ -139,9 +139,9 @@ const AuditLogViewer: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">
                 <Filter className="h-3 w-3 text-gray-500" />
-                <label className="text-xs text-gray-500">Event Type</label>
+                <label htmlFor="audit-event-type" className="text-xs text-gray-500">Event Type</label>
               </div>
-              <select
+              <select id="audit-event-type"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
                 className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
@@ -157,9 +157,9 @@ const AuditLogViewer: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">
                 <Filter className="h-3 w-3 text-gray-500" />
-                <label className="text-xs text-gray-500">Result</label>
+                <label htmlFor="audit-result" className="text-xs text-gray-500">Result</label>
               </div>
-              <select
+              <select id="audit-result"
                 value={filterResult}
                 onChange={(e) => setFilterResult(e.target.value)}
                 className="w-full bg-bg-sidebar border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"

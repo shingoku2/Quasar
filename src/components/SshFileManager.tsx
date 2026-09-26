@@ -102,11 +102,20 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
     fetchFiles('/');
   }, [fetchFiles]);
 
-  const handleNavigate = (fileName: string) => {
-    const newPath = currentPath === '/' 
-      ? `/${fileName}` 
+  // One navigation at a time: a double-click fires the name button twice and the row's
+  // dblclick once, which would open three SFTP connections for the same folder.
+  const navigating = useRef(false);
+  const handleNavigate = async (fileName: string) => {
+    if (navigating.current) return;
+    navigating.current = true;
+    const newPath = currentPath === '/'
+      ? `/${fileName}`
       : `${currentPath}/${fileName}`;
-    fetchFiles(newPath);
+    try {
+      await fetchFiles(newPath);
+    } finally {
+      navigating.current = false;
+    }
   };
 
   const handleBack = () => {
@@ -299,12 +308,26 @@ const SshFileManager: React.FC<SshFileManagerProps> = ({
                       ) : (
                         <FileText className="h-4 w-4 text-gray-400" />
                       )}
-                      <span className={cn(
-                        "font-medium",
-                        file.is_dir ? "text-gray-100" : "text-gray-300"
-                      )}>
+                      {/* A real button so the listing works from the keyboard (FE-022):
+                          a folder opens, a file is selected. */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.is_dir) {
+                            handleNavigate(file.name);
+                          } else {
+                            setSelectedFile(file.name);
+                          }
+                        }}
+                        aria-label={file.is_dir ? `Open folder ${file.name}` : file.name}
+                        className={cn(
+                          "font-medium text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded",
+                          file.is_dir ? "text-gray-100" : "text-gray-300"
+                        )}
+                      >
                         {file.name}
-                      </span>
+                      </button>
                       {file.is_dir && (
                         <ChevronRight className="h-3 w-3 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}

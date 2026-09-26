@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import NetworkScanner from './NetworkScanner';
+import NetworkScanner, { type ScanResult } from './NetworkScanner';
 import '@testing-library/jest-dom';
 
 // Mock Tauri API
@@ -109,5 +109,34 @@ describe('NetworkScanner', () => {
     render(<NetworkScanner initialResults={initialResults as any} />);
 
     expect(screen.getByText('192.168.1.5')).toBeInTheDocument();
+  });
+});
+
+// FE-022: a clickable host card is reachable and operable from the keyboard.
+describe('NetworkScanner host cards', () => {
+  const host: ScanResult = {
+    ip: '192.168.1.5',
+    is_alive: true,
+    open_ports: [22],
+    device_type: 'server',
+    services: [],
+    last_seen: Date.now(),
+  };
+
+  it('opens host details with Enter or Space', () => {
+    const onHostClick = vi.fn();
+    render(<NetworkScanner initialResults={[host]} onHostClick={onHostClick} />);
+    const card = screen.getByRole('button', { name: 'Show details for 192.168.1.5' });
+    expect(card).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(card, { key: 'Enter' });
+    fireEvent.keyDown(card, { key: ' ' });
+    fireEvent.keyDown(card, { key: 'x' });
+    expect(onHostClick).toHaveBeenCalledTimes(2);
+    expect(onHostClick).toHaveBeenCalledWith(expect.objectContaining({ ip: '192.168.1.5' }));
+  });
+
+  it('is not a button when nothing handles the click', () => {
+    render(<NetworkScanner initialResults={[host]} />);
+    expect(screen.queryByRole('button', { name: /Show details for/ })).not.toBeInTheDocument();
   });
 });

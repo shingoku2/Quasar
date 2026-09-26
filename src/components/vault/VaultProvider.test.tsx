@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VaultProvider, useVault } from './VaultProvider';
 import VaultSettings from './VaultSettings';
 import { invoke } from '@tauri-apps/api/core';
+import { copySecret } from '../../lib/copiedSecret';
 import '@testing-library/jest-dom';
 
 // Mock child dialogs
@@ -108,6 +109,35 @@ describe('VaultProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('vault-unlock-dialog')).toBeInTheDocument());
     expect(mockInvoke).toHaveBeenCalledWith('lock_vault');
+  });
+
+  // Review: the lock must wipe a copied password even after the dialog that copied it closed.
+  it('locking wipes a copied password from the clipboard', async () => {
+    const original = navigator.clipboard;
+    let clipboard = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: async (t: string) => { clipboard = t; }, readText: async () => clipboard },
+      configurable: true,
+    });
+    try {
+      const Locker = () => {
+        const { lockVault } = useVault();
+        return <button onClick={() => { void lockVault(); }}>lock</button>;
+      };
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'is_vault_initialized') return true;
+        if (cmd === 'is_vault_locked') return false;
+        return undefined;
+      });
+      render(<VaultProvider><Locker /></VaultProvider>);
+      const lock = await screen.findByRole('button', { name: 'lock' });
+      await copySecret('secret123');
+      expect(clipboard).toBe('secret123');
+      fireEvent.click(lock);
+      await waitFor(() => expect(clipboard).toBe(''));
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', { value: original, configurable: true });
+    }
   });
 
   it('shows error or fallback state when vault check fails', async () => {

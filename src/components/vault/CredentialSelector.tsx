@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
+import { useModalDialog } from '../../hooks/useModalDialog';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, X, Search } from 'lucide-react';
 import { getErrorMessage, SSH_CREDENTIAL_TYPES } from '../../lib/utils';
@@ -33,6 +34,8 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   onCancel,
   onManualEntry 
 }) => {
+  const titleId = useId();
+  const dialogRef = useModalDialog(onCancel);
   const [credentials, setCredentials] = useState<CredentialSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -86,13 +89,16 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
 
   return (
     <div role="dialog"
+      ref={dialogRef}
+      tabIndex={-1}
       aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
             <Key className="h-4 w-4 text-accent" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Select Credential</h2>
+            <h2 id={titleId} className="text-sm font-bold text-white uppercase tracking-wider">Select Credential</h2>
           </div>
           <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors">
             <X className="h-4 w-4" />

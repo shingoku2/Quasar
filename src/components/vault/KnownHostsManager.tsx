@@ -173,7 +173,7 @@ const KnownHostsManager: React.FC = () => {
 
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Fingerprint</label>
+                    <div className="block text-xs font-medium text-gray-500 mb-1">Fingerprint</div>
                     <p className="text-gray-300 font-mono text-xs bg-bg-root border border-gray-700 rounded px-3 py-2 break-all">
                       {host.fingerprint}
                     </p>
@@ -181,12 +181,12 @@ const KnownHostsManager: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <label className="block text-gray-500 mb-1">First Seen</label>
+                      <div className="block text-gray-500 mb-1">First Seen</div>
                       <p className="text-gray-300">{formatUnixSeconds(host.first_seen_at)}</p>
                     </div>
                     {host.last_seen_at > 0 && (
                       <div>
-                        <label className="block text-gray-500 mb-1">Last Seen</label>
+                        <div className="block text-gray-500 mb-1">Last Seen</div>
                         <p className="text-gray-300">{formatUnixSeconds(host.last_seen_at)}</p>
                       </div>
                     )}

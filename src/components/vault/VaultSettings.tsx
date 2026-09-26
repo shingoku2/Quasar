@@ -150,10 +150,10 @@ const VaultSettings: React.FC = () => {
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                  <label htmlFor="vault-settings-timeout" className="block text-sm font-medium text-gray-400 mb-2">
                     Timeout (minutes)
                   </label>
-                  <input
+                  <input id="vault-settings-timeout"
                     type="number"
                     min="1"
                     max="1440"
@@ -201,10 +201,10 @@ const VaultSettings: React.FC = () => {
                 {showChangeMasterPassword && (
                   <div className="bg-bg-root border border-gray-700 rounded-lg p-4 space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                      <label htmlFor="vault-settings-current-password" className="block text-sm font-medium text-gray-400 mb-2">
                         Current Password
                       </label>
-                      <input
+                      <input id="vault-settings-current-password"
                         type="password"
                         autoComplete="current-password"
                         value={currentPassword}
@@ -215,10 +215,10 @@ const VaultSettings: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                      <label htmlFor="vault-settings-new-password" className="block text-sm font-medium text-gray-400 mb-2">
                         New Password
                       </label>
-                      <input
+                      <input id="vault-settings-new-password"
                         type="password"
                         autoComplete="new-password"
                         value={newPassword}
@@ -229,10 +229,10 @@ const VaultSettings: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                      <label htmlFor="vault-settings-confirm-password" className="block text-sm font-medium text-gray-400 mb-2">
                         Confirm New Password
                       </label>
-                      <input
+                      <input id="vault-settings-confirm-password"
                         type="password"
                         autoComplete="new-password"
                         value={confirmPassword}

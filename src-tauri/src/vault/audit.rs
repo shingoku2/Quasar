@@ -1,6 +1,35 @@
 use crate::db;
 use serde::{Deserialize, Serialize};
 
+/// Appends one row to `security_audit_log`. Every audit write goes through here. A
+/// `Transaction` derefs to `Connection`, so pass `&tx` to log inside a transaction.
+pub(crate) fn insert_event(
+    conn: &rusqlite::Connection,
+    event_type: &str,
+    resource_id: Option<&str>,
+    resource_type: Option<&str>,
+    action: &str,
+    result: &str,
+    details: Option<&str>,
+) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![
+            uuid::Uuid::new_v4().to_string(),
+            chrono::Utc::now().timestamp(),
+            event_type,
+            resource_id,
+            resource_type,
+            action,
+            result,
+            details
+        ],
+    )
+    .map(|_| ())
+    .map_err(|e| format!("Failed to log audit event: {}", e))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLogEntry {
     pub id: String,
@@ -44,22 +73,7 @@ impl AuditLogManager {
         details: Option<&str>,
     ) {
         let outcome = crate::db::open_connection(&self.db_path).and_then(|conn| {
-            conn.execute(
-                "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                rusqlite::params![
-                    uuid::Uuid::new_v4().to_string(),
-                    chrono::Utc::now().timestamp(),
-                    event_type,
-                    resource_id,
-                    resource_type,
-                    action,
-                    result,
-                    details
-                ],
-            )
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+            insert_event(&conn, event_type, resource_id, Some(resource_type), action, result, details)
         });
         if let Err(e) = outcome {
             log::warn!("Failed to record audit event {}: {}", event_type, e);

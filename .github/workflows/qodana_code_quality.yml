@@ -10,12 +10,14 @@ on:
 jobs:
   qodana:
     runs-on: ubuntu-latest
+    # Caps a hung scan (GitHub's default is 6 h); above the 45 min configuration timeout below.
+    timeout-minutes: 75
     permissions:
       contents: write
       pull-requests: write
       checks: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}  # to check out the actual pull request commit, not the merge commit
           fetch-depth: 0  # a full history is required for pull request analysis
@@ -23,6 +25,9 @@ jobs:
         uses: JetBrains/qodana-action@v2026.1
         with:
           pr-mode: false
+          # The Cargo project (and qodana.yaml) live in src-tauri/, not the repo root; the
+          # Rust configuration stage (cargo metadata, build scripts) outlasts the 10 min default.
+          args: -i,src-tauri,--property,qd.rust.configuration.timeout.minutes=45
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_1667814189 }}
           QODANA_ENDPOINT: 'https://qodana.cloud'
