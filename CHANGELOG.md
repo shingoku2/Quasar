@@ -2,6 +2,10 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-26: Repo cleanup
+
+- Deleted 61 superseded files: GEMINI.md, the `conductor/` planning scaffolding, `_archived/` (the removed automation engine), `.codex/`, `.windsurf/`, the MONITORING_PHASE reports, the old workflow test fixtures, three unused template SVGs and a never-compiled scratch file. Their useful content was already in `docs/archive/` and `docs/style/`; the rest is in git history (last present at `5cc7b55`).
+
 ## 2026-09-25: PR #68 review fixes
 
 - Legacy `password`-type SSH credentials show up again in the terminal, SFTP and tunnel credential pickers. They had been filtered out, though the backend accepts them.
