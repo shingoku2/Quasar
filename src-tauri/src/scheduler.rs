@@ -106,31 +106,59 @@ fn get_db_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     crate::db::app_db_path(app).map(std::path::PathBuf::from)
 }
 
+/// Columns `task_row_from` reads, in order.
+const TASK_ROW_COLUMNS: &str = "id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, created_at, updated_at, task_type, local_path, remote_path";
+
+/// A row selected with `TASK_ROW_COLUMNS`. A NULL `task_type` (rows from before 012) is SSH.
+fn task_row_from(row: &rusqlite::Row) -> rusqlite::Result<TaskRow> {
+    Ok(TaskRow {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        cron_expression: row.get(2)?,
+        host_id: row.get(3)?,
+        command: row.get(4)?,
+        credential_id: row.get(5)?,
+        enabled: row.get::<_, i64>(6)?,
+        last_run_at: row.get(7)?,
+        created_at: row.get(8)?,
+        updated_at: row.get(9)?,
+        task_type: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "ssh".to_string()),
+        local_path: row.get(11)?,
+        remote_path: row.get(12)?,
+    })
+}
+
+/// Columns `scheduled_task_from` reads, in order.
+const SCHEDULED_TASK_COLUMNS: &str = "id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, last_run_status, last_run_error, last_run_output, created_at, updated_at, task_type, local_path, remote_path";
+
+/// A row selected with `SCHEDULED_TASK_COLUMNS`, as the UI sees it.
+fn scheduled_task_from(row: &rusqlite::Row) -> rusqlite::Result<ScheduledTask> {
+    Ok(ScheduledTask {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        cron_expression: row.get(2)?,
+        host_id: row.get(3)?,
+        command: row.get(4)?,
+        credential_id: row.get(5)?,
+        enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
+        last_run_at: row.get(7)?,
+        last_run_status: row.get(8)?,
+        last_run_error: row.get(9)?,
+        last_run_output: row.get(10)?,
+        created_at: row.get(11)?,
+        updated_at: row.get(12)?,
+        task_type: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "ssh".to_string()),
+        local_path: row.get(14)?,
+        remote_path: row.get(15)?,
+    })
+}
+
 fn load_enabled_tasks(conn: &rusqlite::Connection) -> Result<Vec<TaskRow>, String> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, created_at, updated_at, task_type, local_path, remote_path
-         FROM scheduled_tasks WHERE enabled = 1"
+        &format!("SELECT {} FROM scheduled_tasks WHERE enabled = 1", TASK_ROW_COLUMNS)
     ).map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([], |row| {
-            Ok(TaskRow {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                cron_expression: row.get(2)?,
-                host_id: row.get(3)?,
-                command: row.get(4)?,
-                credential_id: row.get(5)?,
-                enabled: row.get::<_, i64>(6)?,
-                last_run_at: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                task_type: row
-                    .get::<_, Option<String>>(10)?
-                    .unwrap_or_else(|| "ssh".to_string()),
-                local_path: row.get(11)?,
-                remote_path: row.get(12)?,
-            })
-        })
+        .query_map([], task_row_from)
         .map_err(|e| e.to_string())?;
     rows.map(|r| r.map_err(|e| e.to_string())).collect()
 }
@@ -206,32 +234,10 @@ fn set_run_result(
 /// List all scheduled tasks (for UI).
 pub fn list_scheduled_tasks(conn: &rusqlite::Connection) -> Result<Vec<ScheduledTask>, String> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, last_run_status, last_run_error, last_run_output, created_at, updated_at, task_type, local_path, remote_path
-         FROM scheduled_tasks ORDER BY name ASC"
+        &format!("SELECT {} FROM scheduled_tasks ORDER BY name ASC", SCHEDULED_TASK_COLUMNS)
     ).map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([], |row| {
-            Ok(ScheduledTask {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                cron_expression: row.get(2)?,
-                host_id: row.get(3)?,
-                command: row.get(4)?,
-                credential_id: row.get(5)?,
-                enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
-                last_run_at: row.get(7)?,
-                last_run_status: row.get(8)?,
-                last_run_error: row.get(9)?,
-                last_run_output: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
-                task_type: row
-                    .get::<_, Option<String>>(13)?
-                    .unwrap_or_else(|| "ssh".to_string()),
-                local_path: row.get(14)?,
-                remote_path: row.get(15)?,
-            })
-        })
+        .query_map([], scheduled_task_from)
         .map_err(|e| e.to_string())?;
     rows.map(|r| r.map_err(|e| e.to_string())).collect()
 }
@@ -243,32 +249,10 @@ pub fn get_scheduled_task(
     id: &str,
 ) -> Result<Option<ScheduledTask>, String> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, last_run_status, last_run_error, last_run_output, created_at, updated_at, task_type, local_path, remote_path
-         FROM scheduled_tasks WHERE id = ?1"
+        &format!("SELECT {} FROM scheduled_tasks WHERE id = ?1", SCHEDULED_TASK_COLUMNS)
     ).map_err(|e| e.to_string())?;
     let mut rows = stmt
-        .query_map(rusqlite::params![id], |row| {
-            Ok(ScheduledTask {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                cron_expression: row.get(2)?,
-                host_id: row.get(3)?,
-                command: row.get(4)?,
-                credential_id: row.get(5)?,
-                enabled: row.get::<_, i64>(6).map(|n| n != 0)?,
-                last_run_at: row.get(7)?,
-                last_run_status: row.get(8)?,
-                last_run_error: row.get(9)?,
-                last_run_output: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
-                task_type: row
-                    .get::<_, Option<String>>(13)?
-                    .unwrap_or_else(|| "ssh".to_string()),
-                local_path: row.get(14)?,
-                remote_path: row.get(15)?,
-            })
-        })
+        .query_map(rusqlite::params![id], scheduled_task_from)
         .map_err(|e| e.to_string())?;
     rows.next().transpose().map_err(|e| e.to_string())
 }
@@ -276,29 +260,10 @@ pub fn get_scheduled_task(
 /// Load a single task by id for execution (enabled or not).
 fn load_task_by_id(conn: &rusqlite::Connection, task_id: &str) -> Result<Option<TaskRow>, String> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, cron_expression, host_id, command, credential_id, enabled, last_run_at, created_at, updated_at, task_type, local_path, remote_path
-         FROM scheduled_tasks WHERE id = ?1"
+        &format!("SELECT {} FROM scheduled_tasks WHERE id = ?1", TASK_ROW_COLUMNS)
     ).map_err(|e| e.to_string())?;
     let mut rows = stmt
-        .query_map(rusqlite::params![task_id], |row| {
-            Ok(TaskRow {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                cron_expression: row.get(2)?,
-                host_id: row.get(3)?,
-                command: row.get(4)?,
-                credential_id: row.get(5)?,
-                enabled: row.get::<_, i64>(6)?,
-                last_run_at: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-                task_type: row
-                    .get::<_, Option<String>>(10)?
-                    .unwrap_or_else(|| "ssh".to_string()),
-                local_path: row.get(11)?,
-                remote_path: row.get(12)?,
-            })
-        })
+        .query_map(rusqlite::params![task_id], task_row_from)
         .map_err(|e| e.to_string())?;
     rows.next().transpose().map_err(|e| e.to_string())
 }
