@@ -12,7 +12,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tokio::time::{Duration, Instant};
-use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
 pub use audit::{AuditLogEntry, AuditLogFilter, AuditLogManager};
@@ -1065,25 +1064,15 @@ impl VaultState {
         result: &str,
         details: Option<&str>,
     ) -> Result<(), String> {
-        let id = Uuid::new_v4().to_string();
-        let timestamp = chrono::Utc::now().timestamp();
-
-        conn.execute(
-            "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![
-                id,
-                timestamp,
-                event_type,
-                resource_id,
-                resource_type.unwrap_or(resource_type_default),
-                action,
-                result,
-                details
-            ],
-        ).map_err(|e| format!("Failed to log audit event: {}", e))?;
-
-        Ok(())
+        audit::insert_event(
+            conn,
+            event_type,
+            resource_id,
+            Some(resource_type.unwrap_or(resource_type_default)),
+            action,
+            result,
+            details,
+        )
     }
 }
 

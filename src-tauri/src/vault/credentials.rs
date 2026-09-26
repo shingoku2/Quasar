@@ -609,7 +609,7 @@ impl CredentialManager {
         }
 
         // Log audit event within the same transaction so it is atomic with the updates.
-        Self::log_audit_event_tx(
+        Self::log_audit_event(
             &tx,
             "credential_update",
             Some(credential_id),
@@ -713,7 +713,7 @@ impl CredentialManager {
             ],
         ).map_err(|e| format!("Failed to re-encrypt credential: {}", e))?;
 
-        Self::log_audit_event_tx(
+        Self::log_audit_event(
             tx,
             "credential_reencrypt",
             Some(id),
@@ -768,55 +768,7 @@ impl CredentialManager {
         result: &str,
         details: Option<&str>,
     ) -> Result<(), String> {
-        let id = Uuid::new_v4().to_string();
-        let timestamp = chrono::Utc::now().timestamp();
-
-        conn.execute(
-            "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![
-                id,
-                timestamp,
-                event_type,
-                resource_id,
-                resource_type,
-                action,
-                result,
-                details
-            ],
-        ).map_err(|e| format!("Failed to log audit event: {}", e))?;
-
-        Ok(())
-    }
-
-    fn log_audit_event_tx(
-        tx: &rusqlite::Transaction,
-        event_type: &str,
-        resource_id: Option<&str>,
-        resource_type: Option<&str>,
-        action: &str,
-        result: &str,
-        details: Option<&str>,
-    ) -> Result<(), String> {
-        let id = Uuid::new_v4().to_string();
-        let timestamp = chrono::Utc::now().timestamp();
-
-        tx.execute(
-            "INSERT INTO security_audit_log (id, timestamp, event_type, resource_id, resource_type, action, result, details)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![
-                id,
-                timestamp,
-                event_type,
-                resource_id,
-                resource_type,
-                action,
-                result,
-                details
-            ],
-        ).map_err(|e| format!("Failed to log audit event: {}", e))?;
-
-        Ok(())
+        super::audit::insert_event(conn, event_type, resource_id, resource_type, action, result, details)
     }
 }
 
