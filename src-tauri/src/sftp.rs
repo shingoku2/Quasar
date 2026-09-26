@@ -53,6 +53,54 @@ fn require_password_auth(password: &str) -> Result<(), String> {
 /// Progress callback for file transfer operations
 pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
 
+/// Connects to `host`:`port`. Non-interactive: the host key must already be trusted.
+async fn connect(
+    app_handle: AppHandle,
+    host: &str,
+    port: u16,
+) -> Result<client::Handle<SftpClient>, String> {
+    let handler = SftpClient { app_handle, host: host.to_string(), port };
+    crate::ssh_connect::connect_with_diagnostics(
+        Arc::new(client::Config::default()),
+        host,
+        port,
+        handler,
+        Duration::from_secs(10),
+    )
+    .await
+}
+
+/// Authenticates with the password and opens the SFTP subsystem on a new channel.
+async fn open_sftp(
+    session: &mut client::Handle<SftpClient>,
+    username: &str,
+    password: &str,
+) -> Result<SftpSession, String> {
+    let auth_res = session
+        .authenticate_password(username, password)
+        .await
+        .map_err(|e| format!("Authentication error: {}", e))?;
+    if !matches!(auth_res, client::AuthResult::Success) {
+        return Err("Authentication failed".to_string());
+    }
+    let channel = session
+        .channel_open_session()
+        .await
+        .map_err(|e| format!("Failed to open channel: {}", e))?;
+    channel
+        .request_subsystem(true, "sftp")
+        .await
+        .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
+    SftpSession::new(channel.into_stream())
+        .await
+        .map_err(|e| format!("Failed to create SFTP session: {}", e))
+}
+
+/// Ends the SSH session, whatever the operation's result.
+async fn disconnect(session: &client::Handle<SftpClient>) {
+    let _ = session.disconnect(Disconnect::ByApplication, "", "en").await;
+}
+
 /// Upload a file to a remote host via SFTP
 pub async fn upload_file(
     app_handle: AppHandle,
@@ -72,44 +120,10 @@ pub async fn upload_file(
         .map_err(|_| format!("Local file not found or cannot be resolved: {}", local_path))?;
 
     // Connect to SSH
-    let config = russh::client::Config::default();
-    let config = Arc::new(config);
-    let sh = SftpClient {
-        app_handle,
-        host: host.to_string(),
-        port,
-    };
-
-    let mut session =
-        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
-            .await?;
+    let mut session = connect(app_handle, host, port).await?;
 
     let result = async {
-        // Authenticate
-        let auth_res = session
-            .authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication error: {}", e))?;
-
-        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-        if !is_success {
-            return Err("Authentication failed".to_string());
-        }
-
-        // Open SFTP channel
-        let channel = session
-            .channel_open_session()
-            .await
-            .map_err(|e| format!("Failed to open channel: {}", e))?;
-
-        channel
-            .request_subsystem(true, "sftp")
-            .await
-            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
-
-        let sftp = SftpSession::new(channel.into_stream())
-            .await
-            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
+        let sftp = open_sftp(&mut session, username, password).await?;
 
         // Read local file (use canonical path)
         let mut local_file = fs::File::open(&resolved_local_path)
@@ -170,9 +184,7 @@ pub async fn upload_file(
     .await;
 
     // Explicitly disconnect SSH session regardless of result
-    let _ = session
-        .disconnect(russh::Disconnect::ByApplication, "", "en")
-        .await;
+    disconnect(&session).await;
 
     result
 }
@@ -190,44 +202,10 @@ pub async fn download_file(
 ) -> Result<(), String> {
     require_password_auth(password)?;
 
-    let config = russh::client::Config::default();
-    let config = Arc::new(config);
-    let sh = SftpClient {
-        app_handle,
-        host: host.to_string(),
-        port,
-    };
-
-    let mut session =
-        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
-            .await?;
+    let mut session = connect(app_handle, host, port).await?;
 
     let result = async {
-        // Authenticate
-        let auth_res = session
-            .authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication error: {}", e))?;
-
-        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-        if !is_success {
-            return Err("Authentication failed".to_string());
-        }
-
-        // Open SFTP channel
-        let channel = session
-            .channel_open_session()
-            .await
-            .map_err(|e| format!("Failed to open channel: {}", e))?;
-
-        channel
-            .request_subsystem(true, "sftp")
-            .await
-            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
-
-        let sftp = SftpSession::new(channel.into_stream())
-            .await
-            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
+        let sftp = open_sftp(&mut session, username, password).await?;
 
         // Open remote file
         let mut remote_file = sftp
@@ -309,9 +287,7 @@ pub async fn download_file(
     .await;
 
     // Explicitly disconnect SSH session regardless of result
-    let _ = session
-        .disconnect(russh::Disconnect::ByApplication, "", "en")
-        .await;
+    disconnect(&session).await;
 
     result
 }
@@ -327,44 +303,10 @@ pub async fn list_directory(
 ) -> Result<Vec<RemoteFile>, String> {
     require_password_auth(password)?;
 
-    let config = russh::client::Config::default();
-    let config = Arc::new(config);
-    let sh = SftpClient {
-        app_handle,
-        host: host.to_string(),
-        port,
-    };
-
-    let mut session =
-        crate::ssh_connect::connect_with_diagnostics(config, host, port, sh, Duration::from_secs(10))
-            .await?;
+    let mut session = connect(app_handle, host, port).await?;
 
     let result = async {
-        // Authenticate
-        let auth_res = session
-            .authenticate_password(username, password)
-            .await
-            .map_err(|e| format!("Authentication error: {}", e))?;
-
-        let is_success = matches!(auth_res, russh::client::AuthResult::Success);
-        if !is_success {
-            return Err("Authentication failed".to_string());
-        }
-
-        // Open SFTP channel
-        let channel = session
-            .channel_open_session()
-            .await
-            .map_err(|e| format!("Failed to open channel: {}", e))?;
-
-        channel
-            .request_subsystem(true, "sftp")
-            .await
-            .map_err(|e| format!("Failed to request SFTP subsystem: {}", e))?;
-
-        let sftp = SftpSession::new(channel.into_stream())
-            .await
-            .map_err(|e| format!("Failed to create SFTP session: {}", e))?;
+        let sftp = open_sftp(&mut session, username, password).await?;
 
         // Read directory - russh-sftp returns a Vec of entries
         let entries = sftp
@@ -395,9 +337,7 @@ pub async fn list_directory(
     .await;
 
     // Explicitly disconnect SSH session
-    let _ = session
-        .disconnect(russh::Disconnect::ByApplication, "", "en")
-        .await;
+    disconnect(&session).await;
 
     result
 }
