@@ -213,6 +213,56 @@ fn migrate_titan_db_to_quasar(app_dir: &std::path::Path) -> std::io::Result<()> 
     Ok(())
 }
 
+/// What an interactive SSH connection or a tunnel authenticates with.
+struct SshLogin {
+    username: String,
+    password: Option<String>,
+    key_path: Option<String>,
+    private_key: Option<String>,
+    key_passphrase: Option<String>,
+}
+
+/// The login for `host`: from the vault credential when one is named, otherwise the typed
+/// username and password. A stored credential must be allowed for `host` and be an SSH type
+/// (invariant 10); vault access is dropped before returning, so no network phase holds it.
+async fn resolve_ssh_login(
+    vault_state: &vault::VaultState,
+    credential_manager: &vault::CredentialManager,
+    credential_id: Option<String>,
+    host: &str,
+    typed_username: String,
+    typed_password: Option<String>,
+) -> Result<SshLogin, String> {
+    let Some(cid) = credential_id else {
+        return Ok(SshLogin {
+            username: typed_username,
+            password: typed_password,
+            key_path: None,
+            private_key: None,
+            key_passphrase: None,
+        });
+    };
+    let access = vault_state
+        .credential_access()
+        .await
+        .map_err(|e| sanitize_error(e, "vault"))?;
+    let cred = credential_manager
+        .get_credential(access.key(), &cid)
+        .map_err(|e| sanitize_error(e, "credential"))?;
+    drop(access);
+    if !vault::credentials::host_allowed(cred.host.as_deref(), host) {
+        return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
+    }
+    vault::credentials::check_type(&cred.name, &cred.credential_type, vault::credentials::CredentialUse::Ssh)?;
+    Ok(SshLogin {
+        username: cred.username,
+        password: (!cred.password.is_empty()).then_some(cred.password),
+        key_path: cred.key_path,
+        private_key: cred.private_key,
+        key_passphrase: cred.key_passphrase,
+    })
+}
+
 #[tauri::command]
 async fn connect_ssh(
     ssh_state: State<'_, ssh::SshState>,
@@ -226,34 +276,8 @@ async fn connect_ssh(
     password: Option<String>,
     credential_id: Option<String>,
 ) -> Result<(), String> {
-    let (username, password, key_path, private_key, key_passphrase) =
-        if let Some(cid) = credential_id {
-            let access = vault_state
-                .credential_access()
-                .await
-                .map_err(|e| sanitize_error(e, "vault"))?;
-            let cred = credential_manager
-                .get_credential(access.key(), &cid)
-                .map_err(|e| sanitize_error(e, "credential"))?;
-            drop(access);
-            if !vault::credentials::host_allowed(cred.host.as_deref(), &host) {
-                return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
-            }
-            vault::credentials::check_type(&cred.name, &cred.credential_type, vault::credentials::CredentialUse::Ssh)?;
-            (
-                cred.username,
-                if cred.password.is_empty() {
-                    None
-                } else {
-                    Some(cred.password)
-                },
-                cred.key_path,
-                cred.private_key,
-                cred.key_passphrase,
-            )
-        } else {
-            (user, password, None, None, None)
-        };
+    let SshLogin { username, password, key_path, private_key, key_passphrase } =
+        resolve_ssh_login(&vault_state, &credential_manager, credential_id, &host, user, password).await?;
     ssh::connect_ssh(
         ssh_state,
         app,
@@ -295,34 +319,8 @@ async fn start_ssh_tunnel(
         return Err("Invalid remote host format".to_string());
     }
     validate_port(remote_port)?;
-    let (username, password, key_path, private_key, key_passphrase) =
-        if let Some(cid) = credential_id {
-            let access = vault_state
-                .credential_access()
-                .await
-                .map_err(|e| sanitize_error(e, "vault"))?;
-            let cred = credential_manager
-                .get_credential(access.key(), &cid)
-                .map_err(|e| sanitize_error(e, "credential"))?;
-            drop(access);
-            if !vault::credentials::host_allowed(cred.host.as_deref(), &ssh_host) {
-                return Err(vault::credentials::host_mismatch_error(&cred.name, cred.host.as_deref()));
-            }
-            vault::credentials::check_type(&cred.name, &cred.credential_type, vault::credentials::CredentialUse::Ssh)?;
-            (
-                cred.username,
-                if cred.password.is_empty() {
-                    None
-                } else {
-                    Some(cred.password)
-                },
-                cred.key_path,
-                cred.private_key,
-                cred.key_passphrase,
-            )
-        } else {
-            (ssh_user, password, None, None, None)
-        };
+    let SshLogin { username, password, key_path, private_key, key_passphrase } =
+        resolve_ssh_login(&vault_state, &credential_manager, credential_id, &ssh_host, ssh_user, password).await?;
     ssh_tunnel::start_tunnel(
         app,
         tunnel_state.inner(),
@@ -3155,6 +3153,47 @@ mod saved_host_tests {
         // Monitoring binding.
         assert!(check_credential_binding(&conn, &host.id, "key", vault::credentials::CredentialUse::Ssh).is_ok());
         assert!(check_credential_binding(&conn, &host.id, "api", vault::credentials::CredentialUse::Ssh).is_err());
+    }
+
+    /// RUST-020: the one credential-to-login path for the terminal and tunnels keeps both
+    /// checks: host binding and SSH-only types (invariant 10).
+    #[tokio::test]
+    async fn ssh_login_resolution_enforces_host_and_type() {
+        let dir = import_test_dir("sshlogin");
+        let db = dir.join(DB_FILENAME);
+        migrated_quasar_db(&db);
+        let db = db.to_str().unwrap().to_string();
+        let vault = vault::VaultState::new(db.clone());
+        vault.initialize_vault(secrecy::SecretString::from("LivePassword123!")).await.unwrap();
+        let creds = vault::CredentialManager::new(db);
+        let add = |name: &str, ty: &str, password: &str, host: Option<&str>| {
+            let vault = &vault;
+            let creds = &creds;
+            let (name, ty, password, host) = (name.to_string(), ty.to_string(), password.to_string(), host.map(str::to_string));
+            async move {
+                let access = vault.credential_access().await.unwrap();
+                creds
+                    .add_credential(access.key(), name, "admin".into(), password, ty, host, None, None, None, None, None)
+                    .unwrap()
+            }
+        };
+        let bound = add("bound", "ssh", "s3cret", Some("db1")).await;
+        let key_only = add("key", "ssh_key", "", None).await;
+        let api = add("api", "api", "token", None).await;
+
+        let typed = resolve_ssh_login(&vault, &creds, None, "any", "me".into(), Some("pw".into())).await.unwrap();
+        assert_eq!((typed.username.as_str(), typed.password.as_deref()), ("me", Some("pw")));
+
+        let ok = resolve_ssh_login(&vault, &creds, Some(bound.clone()), "DB1", "ignored".into(), None).await.unwrap();
+        assert_eq!((ok.username.as_str(), ok.password.as_deref()), ("admin", Some("s3cret")));
+        assert!(resolve_ssh_login(&vault, &creds, Some(bound), "evil.example", "x".into(), None).await.is_err());
+
+        let key = resolve_ssh_login(&vault, &creds, Some(key_only), "any", "x".into(), None).await.unwrap();
+        assert_eq!(key.password, None, "an empty stored password means none");
+
+        let err = resolve_ssh_login(&vault, &creds, Some(api), "any", "x".into(), None).await.err().unwrap();
+        assert!(err.contains("SSH needs"), "{}", err);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// IPC-003: a monitoring binding needs an existing host and credential, and a credential
