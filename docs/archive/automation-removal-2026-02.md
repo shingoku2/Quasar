@@ -1,6 +1,6 @@
 # Automation canvas removal (February 2026)
 
-_Archived summary of `_archived/automation_20260202/` (its README and REMOVAL_SUMMARY). The removed code itself is in git history._
+_Archived summary of `_archived/automation_20260202/` (its README and REMOVAL_SUMMARY). That directory was deleted on 2026-09-26; the code, and the paths below, are in git history (for example at commit `5cc7b55`)._
 
 
 This folder contains the complete automation/workflow system that was removed from Quasar.
@@ -186,7 +186,7 @@ User requested removal to simplify application. Feature is complete and can be r
 
 ## Archive Location
 
-All code preserved in: `_archived/automation_20260202/`
+All code was preserved in `_archived/automation_20260202/` (deleted 2026-09-26; see git history at `5cc7b55`).
 
 Structure:
 ```
@@ -220,7 +220,7 @@ _archived/automation_20260202/
 
 ## To Restore Automation
 
-See `_archived/automation_20260202/README.md` for complete restoration instructions.
+The restoration guide was `_archived/automation_20260202/README.md`; check it out from git history (`git show 5cc7b55:_archived/automation_20260202/README.md`).
 
 Quick steps:
 1. Copy frontend files back to `src/components/`
