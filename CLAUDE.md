@@ -58,7 +58,9 @@ src/                      React frontend
   test-setup.ts           global Tauri mocks
   jest-dom-vitest.d.ts    jest-dom matcher types for vitest 5 (drop once jest-dom ships them)
 src-tauri/src/
-  lib.rs                  setup, every #[tauri::command] wrapper, generate_handler!
+  lib.rs                  setup (managed state, migrations, background loops), generate_handler!
+  commands/               every #[tauri::command], one module per area (ssh, network, hosts, scheduler,
+                          monitoring, vault, files, ai, app_data)
   db/                     mod.rs (open_connection, DB_FILENAME, app_db_path), migrations.rs (MIGRATIONS),
                           backup.rs (recognize, import/replace, rollback)
   vault.rs, vault/        VaultState (lock, gate, auto-lock); kdf.rs, credentials.rs, ssh_keys.rs, audit.rs
@@ -80,7 +82,7 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 
 ## IPC
 
-- 66 commands, all registered in `generate_handler!` in `lib.rs`. The full list with args and return types is in `docs/ARCHITECTURE.md` (a test keeps it complete); events are listed there too. Add a command there when you add one.
+- 66 commands in `commands/`, all registered in `generate_handler!` in `lib.rs` (by path, e.g. `commands::vault::unlock_vault`). The full list with args and return types is in `docs/ARCHITECTURE.md` (a test keeps it complete); events are listed there too. Add a command there when you add one.
 - **`invoke()` payload keys are lowerCamelCase.** A snake_case key for an `Option<T>` param silently arrives as `None` (no error). `CredentialManager.test.tsx` asserts no payload key contains `_`.
 - Commands return `Result<T, String>`. Sanitize errors with `errors::sanitize_error`; only messages the user must read go through `errors::user_facing_vault_error`. The interactive terminal connect returns raw `ssh_connect` diagnostics by design.
 - A `Cancelled` error means the user declined a native confirmation: treat it as a no-op (`isUserCancelled()`).

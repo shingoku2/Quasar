@@ -5,7 +5,7 @@ How the pieces fit and the patterns the code relies on. CLAUDE.md has the rules 
 ## Shape
 
 - **Frontend**: React 19 + TypeScript in a Tauri webview (`src/`). Every view stays mounted and is hidden with CSS (`Layout.tsx`); lists other views can change reload through `useOnViewShown`, polling goes through `useVisiblePolling` (`hooks/useViewVisibility.tsx`). Each view sits in its own `ErrorBoundary`.
-- **Backend**: Rust (`src-tauri/src/`), Tokio. All commands are registered in `generate_handler!` in `lib.rs`. There's no HTTP server: the webview talks to Rust only through Tauri IPC (commands and events).
+- **Backend**: Rust (`src-tauri/src/`), Tokio. Commands live in `commands/` (one module per area) and are all registered in `generate_handler!` in `lib.rs`. There's no HTTP server: the webview talks to Rust only through Tauri IPC (commands and events).
 - **Storage**: one SQLite file, `quasar.db` (see `docs/SCHEMA.md`). Every connection comes from `db::open_connection()` (busy timeout, WAL, foreign keys, `secure_delete`, owner-only permissions). Never call `Connection::open` elsewhere: before that rule, contended writers failed fast with `SQLITE_BUSY` and scan results and metrics were silently dropped.
 - **Trust boundary**: the webview is treated as potentially compromised. Anything that weakens a security decision is decided in Rust, and the riskiest ones ask the user through a native OS dialog the webview can't click (`native_confirm.rs`). See "Security decisions" below.
 
@@ -17,57 +17,57 @@ Generated from the `#[tauri::command]` signatures. `invoke()` payload keys must 
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `is_vault_initialized` | — | `bool` | lib.rs |
-| `initialize_vault` | masterPassword | `()` | lib.rs |
-| `unlock_vault` | masterPassword | `()` | lib.rs |
-| `lock_vault` | — | `()` | lib.rs |
-| `is_vault_locked` | — | `bool` | lib.rs |
-| `get_vault_settings` | — | `vault::VaultSettings` | lib.rs |
-| `update_vault_settings` | settings | `()` | lib.rs |
-| `change_master_password` | currentPassword, newPassword | `()` | lib.rs |
+| `is_vault_initialized` | — | `bool` | commands/vault.rs |
+| `initialize_vault` | masterPassword | `()` | commands/vault.rs |
+| `unlock_vault` | masterPassword | `()` | commands/vault.rs |
+| `lock_vault` | — | `()` | commands/vault.rs |
+| `is_vault_locked` | — | `bool` | commands/vault.rs |
+| `get_vault_settings` | — | `vault::VaultSettings` | commands/vault.rs |
+| `update_vault_settings` | settings | `()` | commands/vault.rs |
+| `change_master_password` | currentPassword, newPassword | `()` | commands/vault.rs |
 
 ### Credentials
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `add_credential` | name, username, password, credentialType, host?, port?, metadata?, keyPath?, privateKey?, keyPassphrase? | `String` | lib.rs |
-| `get_credential` | credentialId | `vault::CredentialFrontendView` | lib.rs |
-| `reveal_credential_password` | credentialId | `String` | lib.rs |
-| `list_credentials` | — | `Vec<vault::CredentialSummary>` | lib.rs |
-| `search_credentials` | query | `Vec<vault::CredentialSummary>` | lib.rs |
-| `update_credential` | credentialId, name?, username?, password?, metadata?, credentialType?, host?, port?, keyPath?, privateKey?, keyPassphrase? | `()` | lib.rs |
-| `delete_credential` | credentialId | `()` | lib.rs |
+| `add_credential` | name, username, password, credentialType, host?, port?, metadata?, keyPath?, privateKey?, keyPassphrase? | `String` | commands/vault.rs |
+| `get_credential` | credentialId | `vault::CredentialFrontendView` | commands/vault.rs |
+| `reveal_credential_password` | credentialId | `String` | commands/vault.rs |
+| `list_credentials` | — | `Vec<vault::CredentialSummary>` | commands/vault.rs |
+| `search_credentials` | query | `Vec<vault::CredentialSummary>` | commands/vault.rs |
+| `update_credential` | credentialId, name?, username?, password?, metadata?, credentialType?, host?, port?, keyPath?, privateKey?, keyPassphrase? | `()` | commands/vault.rs |
+| `delete_credential` | credentialId | `()` | commands/vault.rs |
 
 ### SSH host keys
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `trust_ssh_host_key` | requestId | `()` | lib.rs |
-| `respond_ssh_host_key_verification` | requestId, accepted | `()` | lib.rs |
-| `get_known_ssh_hosts` | — | `Vec<vault::SshHostKey>` | lib.rs |
-| `remove_ssh_host_key` | host, port | `()` | lib.rs |
-| `update_ssh_host_trust` | host, port, trustStatus | `()` | lib.rs |
+| `trust_ssh_host_key` | requestId | `()` | commands/vault.rs |
+| `respond_ssh_host_key_verification` | requestId, accepted | `()` | commands/vault.rs |
+| `get_known_ssh_hosts` | — | `Vec<vault::SshHostKey>` | commands/vault.rs |
+| `remove_ssh_host_key` | host, port | `()` | commands/vault.rs |
+| `update_ssh_host_trust` | host, port, trustStatus | `()` | commands/vault.rs |
 
 ### Audit
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `get_audit_logs` | filter? | `Vec<vault::AuditLogEntry>` | lib.rs |
+| `get_audit_logs` | filter? | `Vec<vault::AuditLogEntry>` | commands/vault.rs |
 
 ### Saved hosts
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `get_saved_hosts` | — | `Vec<SavedHost>` | lib.rs |
-| `upsert_saved_host` | name, address, protocol, port?, username? | `SavedHost` | lib.rs |
-| `update_saved_host` | hostId, name, address, protocol, port?, username? | `SavedHost` | lib.rs |
-| `remove_saved_hosts` | ids | `usize` | lib.rs |
+| `get_saved_hosts` | — | `Vec<SavedHost>` | commands/hosts.rs |
+| `upsert_saved_host` | name, address, protocol, port?, username? | `SavedHost` | commands/hosts.rs |
+| `update_saved_host` | hostId, name, address, protocol, port?, username? | `SavedHost` | commands/hosts.rs |
+| `remove_saved_hosts` | ids | `usize` | commands/hosts.rs |
 
 ### SSH terminal
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `connect_ssh` | id, host, user, port, password?, credentialId? | `()` | lib.rs |
+| `connect_ssh` | id, host, user, port, password?, credentialId? | `()` | commands/ssh.rs |
 | `write_ssh` | id, data | `()` | ssh.rs |
 | `resize_ssh` | id, rows, cols | `()` | ssh.rs |
 | `disconnect_ssh` | id | `()` | ssh.rs |
@@ -76,78 +76,78 @@ Generated from the `#[tauri::command]` signatures. `invoke()` payload keys must 
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `pick_local_file` | title?, extensions? | `Option<String>` | lib.rs |
-| `pick_save_location` | defaultName?, extensions? | `Option<String>` | lib.rs |
-| `sftp_list_directory` | host, port, username, password?, credentialId?, remotePath | `Vec<sftp::RemoteFile>` | lib.rs |
-| `sftp_upload_file` | host, port, username, password?, credentialId?, localPath, remotePath | `()` | lib.rs |
-| `sftp_download_file` | host, port, username, password?, credentialId?, remotePath, localPath | `()` | lib.rs |
+| `pick_local_file` | title?, extensions? | `Option<String>` | commands/files.rs |
+| `pick_save_location` | defaultName?, extensions? | `Option<String>` | commands/files.rs |
+| `sftp_list_directory` | host, port, username, password?, credentialId?, remotePath | `Vec<sftp::RemoteFile>` | commands/files.rs |
+| `sftp_upload_file` | host, port, username, password?, credentialId?, localPath, remotePath | `()` | commands/files.rs |
+| `sftp_download_file` | host, port, username, password?, credentialId?, remotePath, localPath | `()` | commands/files.rs |
 
 ### SSH tunnels
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `start_ssh_tunnel` | tunnelId, sshHost, sshPort, sshUser, password?, credentialId?, localPort, remoteHost, remotePort | `ssh_tunnel::TunnelInfo` | lib.rs |
-| `list_ssh_tunnels` | — | `Vec<ssh_tunnel::TunnelInfo>` | lib.rs |
-| `close_ssh_tunnel` | tunnelId | `()` | lib.rs |
+| `start_ssh_tunnel` | tunnelId, sshHost, sshPort, sshUser, password?, credentialId?, localPort, remoteHost, remotePort | `ssh_tunnel::TunnelInfo` | commands/ssh.rs |
+| `list_ssh_tunnels` | — | `Vec<ssh_tunnel::TunnelInfo>` | commands/ssh.rs |
+| `close_ssh_tunnel` | tunnelId | `()` | commands/ssh.rs |
 
 ### Scheduled tasks
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `list_scheduled_tasks` | — | `Vec<scheduler::ScheduledTask>` | lib.rs |
-| `add_scheduled_task` | name, cronExpression, hostId, command, credentialId?, enabled, taskType?, localPath?, remotePath? | `String` | lib.rs |
-| `update_scheduled_task` | id, name, cronExpression, hostId, command, credentialId?, enabled, taskType?, localPath?, remotePath? | `()` | lib.rs |
-| `remove_scheduled_task` | id | `()` | lib.rs |
-| `run_scheduled_task_now` | id | `scheduler::TaskRunResult` | lib.rs |
+| `list_scheduled_tasks` | — | `Vec<scheduler::ScheduledTask>` | commands/scheduler.rs |
+| `add_scheduled_task` | name, cronExpression, hostId, command, credentialId?, enabled, taskType?, localPath?, remotePath? | `String` | commands/scheduler.rs |
+| `update_scheduled_task` | id, name, cronExpression, hostId, command, credentialId?, enabled, taskType?, localPath?, remotePath? | `()` | commands/scheduler.rs |
+| `remove_scheduled_task` | id | `()` | commands/scheduler.rs |
+| `run_scheduled_task_now` | id | `scheduler::TaskRunResult` | commands/scheduler.rs |
 
 ### Monitoring and alerts
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `get_system_metrics` | — | `monitoring::SystemMetrics` | lib.rs |
-| `get_remote_hosts_health` | — | `Vec<RemoteHostMetric>` | lib.rs |
-| `set_host_monitoring_credential` | hostId, credentialId? | `()` | lib.rs |
-| `add_alert_rule` | rule | `()` | lib.rs |
-| `remove_alert_rule` | ruleId | `()` | lib.rs |
-| `get_alert_rules` | — | `Vec<monitoring::AlertRule>` | lib.rs |
-| `clear_metrics_data` | — | `()` | lib.rs |
+| `get_system_metrics` | — | `monitoring::SystemMetrics` | commands/monitoring.rs |
+| `get_remote_hosts_health` | — | `Vec<RemoteHostMetric>` | commands/hosts.rs |
+| `set_host_monitoring_credential` | hostId, credentialId? | `()` | commands/hosts.rs |
+| `add_alert_rule` | rule | `()` | commands/monitoring.rs |
+| `remove_alert_rule` | ruleId | `()` | commands/monitoring.rs |
+| `get_alert_rules` | — | `Vec<monitoring::AlertRule>` | commands/monitoring.rs |
+| `clear_metrics_data` | — | `()` | commands/app_data.rs |
 
 ### Health
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `preflight_check` | host | `health::HealthCheckResult` | lib.rs |
-| `check_host_health` | host, port, username, password? | `health::HealthCheckResult` | lib.rs |
+| `preflight_check` | host | `health::HealthCheckResult` | commands/network.rs |
+| `check_host_health` | host, port, username, password? | `health::HealthCheckResult` | commands/network.rs |
 
 ### Discovery and scanning
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `start_discovery` | — | `()` | lib.rs |
-| `scan_network` | cidr | `()` | lib.rs |
-| `stop_scan` | — | `()` | lib.rs |
-| `get_scan_progress` | — | `scanner::ScanProgress` | lib.rs |
-| `is_scanning` | — | `bool` | lib.rs |
-| `get_discovered_hosts` | limit? | `Vec<host_tracker::DiscoveredHost>` | lib.rs |
-| `delete_discovered_host` | ip | `()` | lib.rs |
+| `start_discovery` | — | `()` | commands/network.rs |
+| `scan_network` | cidr | `()` | commands/network.rs |
+| `stop_scan` | — | `()` | commands/network.rs |
+| `get_scan_progress` | — | `scanner::ScanProgress` | commands/network.rs |
+| `is_scanning` | — | `bool` | commands/network.rs |
+| `get_discovered_hosts` | limit? | `Vec<host_tracker::DiscoveredHost>` | commands/network.rs |
+| `delete_discovered_host` | ip | `()` | commands/network.rs |
 
 ### Tailscale, RDP, AI
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `get_tailscale_status` | — | `tailscale::TailscaleStatus` | lib.rs |
-| `connect_rdp` | address | `()` | lib.rs |
-| `check_ai_status` | — | `bool` | lib.rs |
-| `list_ai_models` | — | `Vec<String>` | lib.rs |
-| `send_ai_chat` | model, messages | `()` | lib.rs |
+| `get_tailscale_status` | — | `tailscale::TailscaleStatus` | commands/network.rs |
+| `connect_rdp` | address | `()` | commands/ssh.rs |
+| `check_ai_status` | — | `bool` | commands/ai.rs |
+| `list_ai_models` | — | `Vec<String>` | commands/ai.rs |
+| `send_ai_chat` | model, messages | `()` | commands/ai.rs |
 
 ### App and data
 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
-| `get_app_info` | — | `AppInfo` | lib.rs |
-| `export_database` | destPath | `()` | lib.rs |
-| `import_database` | sourcePath | `()` | lib.rs |
+| `get_app_info` | — | `AppInfo` | commands/app_data.rs |
+| `export_database` | destPath | `()` | commands/app_data.rs |
+| `import_database` | sourcePath | `()` | commands/app_data.rs |
 ## Events (backend → frontend)
 
 | Event | Payload | Emitted by |
