@@ -1,24 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useOptionalVault } from '../VaultProvider';
+import { copySecret } from '../../../lib/copiedSecret';
 
 /** How long a revealed password stays on screen, and a copied one on the clipboard. */
 export const REVEAL_TIMEOUT_MS = 30_000;
-
-/**
- * Wipes the clipboard, but only if it still holds `password`: text the user copied
- * since is left alone. If the clipboard can't be read, it is wiped anyway (a leaked
- * password is worse than a lost clipboard).
- */
-async function clearClipboardIfUnchanged(password: string): Promise<void> {
-  try {
-    const current = await navigator.clipboard.readText();
-    if (current !== password) return;
-  } catch {
-    // Unreadable: fall through and clear.
-  }
-  await navigator.clipboard.writeText('').catch(() => {});
-}
 
 /**
  * A credential's password, fetched only on an explicit reveal (native confirm, audited
@@ -31,8 +17,6 @@ export function useRevealedPassword(credentialId: string) {
   const [isRevealing, setIsRevealing] = useState(false);
   const [copied, setCopied] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clipboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const copiedPassword = useRef<string | null>(null);
 
   const hide = useCallback(() => {
     if (hideTimer.current !== null) clearTimeout(hideTimer.current);
@@ -40,19 +24,11 @@ export function useRevealedPassword(credentialId: string) {
     setPassword(null);
   }, []);
 
-  const flushClipboard = useCallback(() => {
-    if (clipboardTimer.current !== null) clearTimeout(clipboardTimer.current);
-    clipboardTimer.current = null;
-    const pwd = copiedPassword.current;
-    copiedPassword.current = null;
-    if (pwd !== null) void clearClipboardIfUnchanged(pwd);
-  }, []);
-
+  // The clipboard wipe on lock is VaultProvider's (flushCopiedSecret): it must run even
+  // after this dialog has closed.
   useEffect(() => {
-    if (!isVaultLocked) return;
-    hide();
-    flushClipboard();
-  }, [isVaultLocked, hide, flushClipboard]);
+    if (isVaultLocked) hide();
+  }, [isVaultLocked, hide]);
 
   // The on-screen copy goes with the dialog; the clipboard wipe still runs on schedule.
   useEffect(() => () => {
@@ -82,12 +58,9 @@ export function useRevealedPassword(credentialId: string) {
   const copy = async () => {
     if (password === null) return;
     try {
-      await navigator.clipboard.writeText(password);
+      await copySecret(password);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      if (clipboardTimer.current !== null) clearTimeout(clipboardTimer.current);
-      copiedPassword.current = password;
-      clipboardTimer.current = setTimeout(flushClipboard, REVEAL_TIMEOUT_MS);
     } catch (err) {
       console.error('Failed to copy password', err);
     }

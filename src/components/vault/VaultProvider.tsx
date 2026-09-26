@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState, useEf
 import { invoke } from '@tauri-apps/api/core';
 import VaultInitDialog from './VaultInitDialog';
 import VaultUnlockDialog from './VaultUnlockDialog';
+import { flushCopiedSecret } from '../../lib/copiedSecret';
 
 /** True if the error indicates Tauri API is not available (e.g. running in a plain browser). */
 function isTauriUnavailableError(error: unknown): boolean {
@@ -40,6 +41,10 @@ interface VaultProviderProps {
 export const VaultProvider: React.FC<VaultProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   const [isVaultLocked, setIsVaultLocked] = useState(true);
+  // Locking wipes a copied password from the clipboard, even if its dialog has closed.
+  useEffect(() => {
+    if (isVaultLocked) flushCopiedSecret();
+  }, [isVaultLocked]);
   const [showInitDialog, setShowInitDialog] = useState(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
