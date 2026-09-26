@@ -266,4 +266,222 @@ mod tests {
 
         let _ = std::fs::remove_file(&db_path);
     }
+
+    /// A fresh audit table in its own file; removed when the guard drops.
+    struct TempAuditDb(String);
+
+    impl TempAuditDb {
+        fn new(tag: &str) -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "quasar_audit_{}_{}.db",
+                tag,
+                uuid::Uuid::new_v4()
+            ));
+            let path = path.to_string_lossy().into_owned();
+            drop(audit_conn(&path));
+            Self(path)
+        }
+
+        fn manager(&self) -> AuditLogManager {
+            AuditLogManager::new(self.0.clone())
+        }
+    }
+
+    impl Drop for TempAuditDb {
+        fn drop(&mut self) {
+            for suffix in ["", "-wal", "-shm"] {
+                let _ = std::fs::remove_file(format!("{}{}", self.0, suffix));
+            }
+        }
+    }
+
+    fn insert_full(
+        path: &str,
+        id: &str,
+        timestamp: i64,
+        event_type: &str,
+        action: &str,
+        result: &str,
+        details: Option<&str>,
+    ) {
+        let conn = rusqlite::Connection::open(path).unwrap();
+        conn.execute(
+            "INSERT INTO security_audit_log (id, timestamp, event_type, action, result, details)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![id, timestamp, event_type, action, result, details],
+        )
+        .unwrap();
+    }
+
+    fn filter() -> AuditLogFilter {
+        AuditLogFilter {
+            event_type: None,
+            result: None,
+            search_query: None,
+            limit: None,
+            offset: None,
+        }
+    }
+
+    fn ids(entries: &[AuditLogEntry]) -> Vec<&str> {
+        entries.iter().map(|e| e.id.as_str()).collect()
+    }
+
+    fn seeded(tag: &str) -> TempAuditDb {
+        let db = TempAuditDb::new(tag);
+        insert_full(&db.0, "a", 100, "credential_access", "read", "success", Some("ssh to web01"));
+        insert_full(&db.0, "b", 200, "credential_access", "reveal", "denied", None);
+        insert_full(&db.0, "c", 300, "vault_unlock", "unlock", "failure", Some("bad password"));
+        insert_full(&db.0, "d", 400, "scheduled_task", "update", "success", Some("nightly backup"));
+        db
+    }
+
+    #[test]
+    fn recorded_events_are_readable_with_every_field() {
+        let db = TempAuditDb::new("record");
+        let manager = db.manager();
+        let before = chrono::Utc::now().timestamp();
+        manager.record(
+            "scheduled_task",
+            Some("task-1"),
+            "scheduled_task",
+            "create",
+            "success",
+            Some("name=Nightly"),
+        );
+        manager.record("scheduled_task", None, "scheduled_task", "delete", "success", None);
+
+        let logs = manager.get_audit_logs(None).unwrap();
+        assert_eq!(logs.len(), 2);
+        let created = logs.iter().find(|e| e.action == "create").unwrap();
+        assert_eq!(created.event_type, "scheduled_task");
+        assert_eq!(created.resource_id.as_deref(), Some("task-1"));
+        assert_eq!(created.resource_type.as_deref(), Some("scheduled_task"));
+        assert_eq!(created.result, "success");
+        assert_eq!(created.details.as_deref(), Some("name=Nightly"));
+        assert!(created.user_context.is_none());
+        assert!(created.timestamp >= before);
+        let deleted = logs.iter().find(|e| e.action == "delete").unwrap();
+        assert!(deleted.resource_id.is_none());
+        assert!(deleted.details.is_none());
+        assert_ne!(created.id, deleted.id, "each event gets its own id");
+    }
+
+    #[test]
+    fn recording_is_best_effort_when_the_table_is_missing() {
+        let path = std::env::temp_dir()
+            .join(format!("quasar_audit_missing_{}.db", uuid::Uuid::new_v4()))
+            .to_string_lossy()
+            .into_owned();
+        let manager = AuditLogManager::new(path.clone());
+        // Must not panic or return an error: auditing never fails the audited action.
+        manager.record("x", None, "y", "z", "success", None);
+        assert!(manager.get_audit_logs(None).is_err());
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{}", path, suffix));
+        }
+    }
+
+    #[test]
+    fn logs_are_newest_first() {
+        let db = seeded("order");
+        let logs = db.manager().get_audit_logs(None).unwrap();
+        assert_eq!(ids(&logs), vec!["d", "c", "b", "a"]);
+    }
+
+    #[test]
+    fn default_filter_caps_the_result_at_100() {
+        let db = TempAuditDb::new("cap");
+        let conn = rusqlite::Connection::open(&db.0).unwrap();
+        for i in 0..105 {
+            conn.execute(
+                "INSERT INTO security_audit_log (id, timestamp, event_type, action, result)
+                 VALUES (?1, ?2, 'credential_access', 'read', 'success')",
+                rusqlite::params![format!("e{i}"), i],
+            )
+            .unwrap();
+        }
+        drop(conn);
+        let manager = db.manager();
+        assert_eq!(manager.get_audit_logs(None).unwrap().len(), 100);
+        // An explicit filter without a limit returns everything.
+        assert_eq!(manager.get_audit_logs(Some(filter())).unwrap().len(), 105);
+        assert_eq!(manager.get_audit_log_count(None).unwrap(), 105);
+    }
+
+    #[test]
+    fn filters_by_event_type_and_result() {
+        let db = seeded("filters");
+        let manager = db.manager();
+        let by_type = manager
+            .get_audit_logs(Some(AuditLogFilter { event_type: Some("credential_access".into()), ..filter() }))
+            .unwrap();
+        assert_eq!(ids(&by_type), vec!["b", "a"]);
+
+        let by_result = manager
+            .get_audit_logs(Some(AuditLogFilter { result: Some("success".into()), ..filter() }))
+            .unwrap();
+        assert_eq!(ids(&by_result), vec!["d", "a"]);
+
+        let both = AuditLogFilter {
+            event_type: Some("credential_access".into()),
+            result: Some("denied".into()),
+            ..filter()
+        };
+        assert_eq!(ids(&manager.get_audit_logs(Some(both.clone())).unwrap()), vec!["b"]);
+        assert_eq!(manager.get_audit_log_count(Some(both)).unwrap(), 1);
+    }
+
+    #[test]
+    fn search_matches_event_type_action_or_details() {
+        let db = seeded("search");
+        let manager = db.manager();
+        let search = |q: &str| {
+            let f = AuditLogFilter { search_query: Some(q.into()), ..filter() };
+            let found = manager.get_audit_logs(Some(f.clone())).unwrap();
+            assert_eq!(manager.get_audit_log_count(Some(f)).unwrap() as usize, found.len());
+            found.into_iter().map(|e| e.id).collect::<Vec<_>>()
+        };
+        assert_eq!(search("vault"), vec!["c"]); // event_type
+        assert_eq!(search("reveal"), vec!["b"]); // action
+        assert_eq!(search("web01"), vec!["a"]); // details
+        assert_eq!(search("backup"), vec!["d"]);
+        assert!(search("nothing-matches").is_empty());
+    }
+
+    #[test]
+    fn search_text_is_bound_as_a_parameter_not_sql() {
+        let db = seeded("inject");
+        let manager = db.manager();
+        let f = AuditLogFilter { search_query: Some("' OR 1=1 --".into()), ..filter() };
+        assert!(manager.get_audit_logs(Some(f)).unwrap().is_empty());
+        let f = AuditLogFilter {
+            event_type: Some("x'; DROP TABLE security_audit_log; --".into()),
+            ..filter()
+        };
+        assert!(manager.get_audit_logs(Some(f)).unwrap().is_empty());
+        assert_eq!(manager.get_audit_log_count(None).unwrap(), 4, "the table survives");
+    }
+
+    #[test]
+    fn limit_and_offset_page_through_newest_first() {
+        let db = seeded("paging");
+        let manager = db.manager();
+        let page = |limit, offset| {
+            let f = AuditLogFilter { limit: Some(limit), offset: Some(offset), ..filter() };
+            manager.get_audit_logs(Some(f)).unwrap().into_iter().map(|e| e.id).collect::<Vec<_>>()
+        };
+        assert_eq!(page(2, 0), vec!["d", "c"]);
+        assert_eq!(page(2, 2), vec!["b", "a"]);
+        assert!(page(2, 4).is_empty());
+    }
+
+    #[test]
+    fn cleanup_with_nothing_old_removes_nothing() {
+        let db = TempAuditDb::new("cleanup_none");
+        let manager = db.manager();
+        manager.record("e", None, "t", "a", "success", None);
+        assert_eq!(manager.cleanup_old_entries(1).unwrap(), 0);
+        assert_eq!(manager.get_audit_log_count(None).unwrap(), 1);
+    }
 }

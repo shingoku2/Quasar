@@ -405,9 +405,19 @@ pub async fn list_directory(
 
 #[cfg(test)]
 mod tests {
-    #[tokio::test]
-    async fn test_sftp_connection_structure() {
-        // Note: This test can't easily be run without a mock app handle
-        // but validates the function signatures for compilation
+    use super::*;
+
+    #[test]
+    fn sftp_refuses_an_empty_password() {
+        let err = require_password_auth("").unwrap_err();
+        assert!(err.contains("password-based authentication"), "{err}");
+        assert!(err.contains("not yet supported"), "{err}");
+    }
+
+    #[test]
+    fn sftp_accepts_any_non_empty_password() {
+        assert!(require_password_auth("x").is_ok());
+        // Whitespace is a legal (if unwise) password; it is not treated as "none".
+        assert!(require_password_auth(" ").is_ok());
     }
 }

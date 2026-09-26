@@ -38,7 +38,7 @@ npm run tauri            # full app (Vite on :1420 + Rust); wraps `tauri dev` wi
 npm run dev              # frontend only
 npm run build            # tsc && vite build
 npm test                 # vitest run
-npm run coverage         # tests + coverage floor (vite.config.ts); what CI runs
+npm run coverage         # tests + coverage floor (vite.config.ts: 82/76/78/84 stmts/branches/funcs/lines); what CI runs
 npx tsc --noEmit
 cd src-tauri && cargo clippy --all-targets -- -D warnings
 cd src-tauri && cargo test
@@ -94,7 +94,8 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 - Stub `window.confirm` with `vi.spyOn(window, 'confirm')` per test and restore it; never at module scope (it leaked across files once). Restore anything global you replace (e.g. `navigator.clipboard`) in `finally`/`afterEach`.
 - Mocks must forward the props a test asserts on (a Recharts mock that dropped props once hid a broken color).
 - `useTailscaleStatus` shares a module-level poll: call `resetTailscaleStatusCache()` in `beforeEach`.
-- Rust: unit tests in `#[cfg(test)]` modules, integration tests in `src-tauri/tests/`. Use `ssh_test_server` for anything that connects over SSH.
+- To test a parent's own logic, stub its children with a mock that captures the callbacks it passes them (see `RemoteManager.flows.test.tsx`, `DashboardView.handlers.test.tsx`). Inside `act()`, wrap a callback call in braces (`act(() => { cb(); })`): returning an async handler's promise makes `act` async, and unawaited it doesn't flush state.
+- Rust: unit tests in `#[cfg(test)]` modules, integration tests in `src-tauri/tests/`. Use `ssh_test_server` for anything that connects over SSH (it has no SFTP subsystem, so SFTP transfers aren't tested end to end). DB tests use a temp file (see `TempAuditDb` in `vault/audit.rs`), never a path in the repo.
 
 ## Conventions
 

@@ -38,13 +38,13 @@ export default defineConfig(async () => ({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "html"],
-      // A floor just under the September 2026 baseline (73.5/68.2/68.7/75.9), so coverage
-      // can't quietly slide. Raise these as tests are added (CI-007).
+      // A floor just under the current baseline (83.5/78.2/80.0/85.3, 2026-09-26), so
+      // coverage can't quietly slide. Raise these as tests are added (CI-007).
       thresholds: {
-        statements: 72,
-        branches: 66,
-        functions: 67,
-        lines: 74,
+        statements: 82,
+        branches: 76,
+        functions: 78,
+        lines: 84,
       },
     },
   },
