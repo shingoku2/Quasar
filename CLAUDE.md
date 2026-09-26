@@ -52,7 +52,7 @@ Node 24.15.0 (`.nvmrc`), npm 12. Rust toolchain pinned in `rust-toolchain.toml` 
 ```
 src/                      React frontend
   components/             views and dialogs (vault/ = vault UI, dashboard/ = widgets); tests co-located
-  hooks/                  useViewVisibility (useOnViewShown, useVisiblePolling), useSshHostKeyVerification,
+  hooks/                  useViewVisibility (useOnViewShown, useVisiblePolling), useModalDialog, useSshHostKeyVerification,
                           useTailscaleStatus, useUpdater
   lib/utils.ts            cn(), getErrorMessage(), isUserCancelled()
   test-setup.ts           global Tauri mocks
@@ -109,7 +109,7 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 ## Conventions
 
 - TypeScript: `docs/style/typescript.md`. `const` by default, no `any`, no unexplained type assertions, `===`, single quotes, semicolons. `cn()` for conditional classes.
-- React: function components and hooks. Every view stays mounted (hidden with CSS): load lists other views can change (or an import can replace, e.g. alert rules) with `useOnViewShown`, poll with `useVisiblePolling`. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
+- React: function components and hooks. Every `role="dialog"` element takes `ref={useModalDialog(onClose)}`, `tabIndex={-1}` and an accessible name (`aria-labelledby` on its heading, or `aria-label`); leave `onClose` out only for prompts that need an explicit answer. Every view stays mounted (hidden with CSS): load lists other views can change (or an import can replace, e.g. alert rules) with `useOnViewShown`, poll with `useVisiblePolling`. Vault state comes from `VaultProvider`. Each view is wrapped in `<ErrorBoundary scope=…>`. The host-key prompt is mounted once (`vault/HostKeyPromptHost` in `Layout`), keyed by request id so each queued prompt starts with fresh confirmation state; don't mount `useSshHostKeyVerification` again.
 - Rust: no `unwrap`/`expect` outside tests. `SecretString` for passwords, `Zeroizing`/`zeroize` for key bytes. Validate network inputs with `validation.rs`. Multi-step DB writes in a transaction.
 - `tailscale.rs` only runs `tailscale status --json` with fixed args: never pass user input, never call the control-plane API.
 

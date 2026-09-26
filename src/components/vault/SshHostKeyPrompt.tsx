@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
+import { useModalDialog } from '../../hooks/useModalDialog';
 import { ShieldAlert, ShieldCheck, AlertTriangle, Copy, Check } from 'lucide-react';
 
 interface SshHostKeyPromptProps {
@@ -22,6 +23,8 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
   onTrust,
   onReject,
 }) => {
+  const titleId = useId();
+  const dialogRef = useModalDialog(onReject);
   // A changed key is the MITM case: don't default to replacing the stored key forever, and
   // require an explicit confirmation before it can be accepted at all (RSEC-007).
   const [trustPermanently, setTrustPermanently] = useState(!isChanged);
@@ -36,7 +39,10 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
 
   return (
     <div role="dialog"
+      ref={dialogRef}
+      tabIndex={-1}
       aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 backdrop-blur-md">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className={`px-6 py-4 border-b border-gray-800 flex justify-between items-center ${isChanged ? 'bg-alert/10' : 'bg-bg-root/50'}`}>
@@ -46,7 +52,7 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
             ) : (
               <ShieldAlert className="h-5 w-5 text-warning" />
             )}
-            <h2 className="text-base font-bold text-white uppercase tracking-wider">
+            <h2 id={titleId} className="text-base font-bold text-white uppercase tracking-wider">
               {isChanged ? 'Host Key Changed - Security Warning' : 'Unknown SSH Host'}
             </h2>
           </div>

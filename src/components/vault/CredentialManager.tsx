@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalDialog } from '../../hooks/useModalDialog';
 import { invoke } from '@tauri-apps/api/core';
 import { Key, Plus, Edit2, Trash2, Search, Server, User, Lock, Save, X, Eye, EyeOff } from 'lucide-react';
 import { getErrorMessage, isUserCancelled } from '../../lib/utils';
@@ -286,6 +287,7 @@ const CredentialDialog: React.FC<{
   onClose: () => void;
   onSaved: () => void;
 }> = ({ credential, onClose, onSaved }) => {
+  const dialogRef = useModalDialog(onClose);
   const [formData, setFormData] = useState<CredentialFormData>({
     name: credential?.name || '',
     username: credential?.username || '',
@@ -390,7 +392,7 @@ const CredentialDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={credential ? 'Edit Credential' : 'Add Credential'}>
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={credential ? 'Edit Credential' : 'Add Credential'}>
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">
@@ -476,8 +478,8 @@ const CredentialDialog: React.FC<{
                     type="button"
                     onClick={() => setShowPassphrase(!showPassphrase)}
                     aria-label="Toggle passphrase visibility"
+                    aria-pressed={showPassphrase}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                    tabIndex={-1}
                   >
                     {showPassphrase ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -544,8 +546,8 @@ const CredentialDialog: React.FC<{
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label="Toggle password visibility"
+                aria-pressed={showPassword}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                tabIndex={-1}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -581,6 +583,7 @@ const CredentialViewDialog: React.FC<{
   credential: Credential;
   onClose: () => void;
 }> = ({ credential, onClose }) => {
+  const dialogRef = useModalDialog(onClose);
   const [copied, setCopied] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
@@ -638,7 +641,7 @@ const CredentialViewDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="View Credential">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="View Credential">
       <div className="bg-bg-sidebar border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-bg-root/50">
           <div className="flex items-center space-x-2">

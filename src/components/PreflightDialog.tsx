@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
+import { useModalDialog } from '../hooks/useModalDialog';
 import { invoke } from '@tauri-apps/api/core';
 import { Activity, Cpu, HardDrive, Clock, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { getErrorMessage } from '../lib/utils';
@@ -38,6 +39,8 @@ const PreflightDialog: React.FC<PreflightDialogProps> = ({
   onConnect,
   onCancel
 }) => {
+  const titleId = useId();
+  const dialogRef = useModalDialog(onCancel);
   const [result, setResult] = useState<HealthCheckResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -82,12 +85,15 @@ const PreflightDialog: React.FC<PreflightDialogProps> = ({
 
   return (
     <div role="dialog"
+      ref={dialogRef}
+      tabIndex={-1}
       aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-bg-root border border-gray-700 rounded-lg w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-lg font-bold text-white">Pre-flight Check</h2>
-          <button onClick={onCancel} className="text-gray-400 hover:text-white">
+          <h2 id={titleId} className="text-lg font-bold text-white">Pre-flight Check</h2>
+          <button onClick={onCancel} aria-label="Close dialog" className="text-gray-400 hover:text-white">
             <X className="h-5 w-5" />
           </button>
         </div>
