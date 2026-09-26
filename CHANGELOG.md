@@ -13,6 +13,9 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 - Dialogs close with Escape, keep keyboard focus inside while open, return it to where it was on close, and are announced by their title (FE-020).
 - Form labels are tied to their inputs in the task, credential, vault-settings, audit-log and monitoring forms, so screen readers name each field and clicking a label focuses it (FE-021).
 - Session tabs are a keyboard tablist (arrow keys, Home, End), SFTP entries are buttons (Enter opens a folder), and scanner host cards open with Enter or Space (FE-022).
+- A revealed credential password hides itself after 30 seconds and as soon as the vault locks (it stayed on screen after auto-lock). A copied password is wiped from the clipboard after 30 seconds or on lock, but only if the clipboard still holds it, so something you copied since survives (FE-009).
+- The credential list can no longer be overwritten by an older, slower load after a newer search (FE-014).
+- CredentialManager is split into `vault/credentials/` (card, form dialog, view dialog, `buildCredentialPayload`, `useRevealedPassword`, `useCredentials`) (FE-027).
 
 ## 2026-09-26: Repo cleanup
 
