@@ -158,7 +158,7 @@ Generated from the `#[tauri::command]` signatures. `invoke()` payload keys must 
 | `ssh_timeout_{id}` | — | `ssh.rs` (30 min idle) |
 | `ssh-host-key-verification` | pending host-key request (id, host, port, fingerprint, old fingerprint for a changed key) | `ssh.rs`; shown once, app-wide, by `vault/HostKeyPromptHost` (queued; keyed by request id so confirmation state never carries over) |
 | `system-metrics` | `SystemMetrics` | monitoring loop |
-| `alerts-triggered` / `alerts-recovered` | alerts / recoveries | `monitoring.rs` |
+| `alerts-triggered` / `alerts-recovered` | alerts / recoveries | `monitoring/task.rs` |
 | `vault-auto-locked` | — | auto-lock ticker, and `import_database` (the imported vault needs its own password) |
 | `host-discovered` | `DiscoveredHost` | `discovery.rs` (mDNS) |
 | `scan_progress`, `scan_result`, `scan_complete`, `scan_error` | progress / one host / total / sanitized error | `scan_network` |
