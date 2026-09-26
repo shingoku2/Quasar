@@ -475,7 +475,7 @@ Each commit message carries the finding ids and what was verified.
 | P7-7 dependencies | D1 `773368b`, D2 `35bbd74`, D3 `4bdd56e`, D4 `e6fa0ff`, D5 `1ed3032`, D6 `628449d`, D7 `58a3596` |
 | P7-8 docs & cleanup | `150b8bc` (archive/moves, CLEAN-008/010/016/017, FE-029), `3733af4` (CLEAN-005), `c36207d` (SCHEMA/workflows/threat model, RUST-018, CLEAN-014), `5a0da03` (CLAUDE.md, ARCHITECTURE, AGENTS stub, CHANGELOG, README; CLEAN-002/003/004/006/007) |
 
-**Not done in P7-8:** deleting the superseded files (GEMINI.md, `conductor/` remainder, `_archived/`, `.codex/`, `.windsurf/`, the three MONITORING_PHASE reports, `test-workflow-*.json`, `public/tauri.svg`, `public/vite.svg`, `src/assets/react.svg`, `src-tauri/test_salt_api.rs`: CLEAN-009, CLEAN-011, CLEAN-012, the rest of CLEAN-016). The session's permission policy blocked the `git rm`; it needs a human-run or explicitly allowed commit. Remote branch cleanup (CLEAN-019) is also left.
+**Deleted after PR #68 (2026-09-26), on Edward's go-ahead:** the superseded files (GEMINI.md, `conductor/` remainder, `_archived/`, `.codex/`, `.windsurf/`, the three MONITORING_PHASE reports, `test-workflow-*.json`, `public/tauri.svg`, `public/vite.svg`, `src/assets/react.svg`, `src-tauri/test_salt_api.rs`: CLEAN-009, CLEAN-011, CLEAN-012, the rest of CLEAN-016). 61 files; tracked files 343 → 282. Everything flagged as holding unique content had already moved to `docs/archive/` or `docs/style/` in P7-8, and all of it stays in git history (last present at `5cc7b55`). Remote branch cleanup (CLEAN-019) is still left.
 
 ### Verification
 
