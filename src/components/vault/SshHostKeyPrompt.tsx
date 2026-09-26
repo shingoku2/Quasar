@@ -96,23 +96,23 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Host</label>
+              <div className="block text-xs font-medium text-gray-500 mb-2">Host</div>
               <p className="text-white font-mono text-sm bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
                 {host}:{port}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Key Type</label>
+              <div className="block text-xs font-medium text-gray-500 mb-2">Key Type</div>
               <p className="text-white font-mono text-sm bg-bg-root border border-gray-700 rounded-lg px-4 py-2 uppercase">
                 {keyType}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">
+              <div className="block text-xs font-medium text-gray-500 mb-2">
                 {isChanged ? 'New Fingerprint' : 'Fingerprint'}
-              </label>
+              </div>
               <div className="flex items-center space-x-2">
                 <div className="flex-1 bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
                   <p className="text-white font-mono text-xs break-all">{fingerprint}</p>
@@ -129,7 +129,7 @@ const SshHostKeyPrompt: React.FC<SshHostKeyPromptProps> = ({
 
             {isChanged && oldFingerprint && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-2">Previous Fingerprint</label>
+                <div className="block text-xs font-medium text-gray-500 mb-2">Previous Fingerprint</div>
                 <div className="bg-bg-root border border-alert/30 rounded-lg px-4 py-2">
                   <p className="text-gray-400 font-mono text-xs break-all line-through">{oldFingerprint}</p>
                 </div>

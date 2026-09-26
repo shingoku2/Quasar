@@ -174,8 +174,8 @@ const RemoteHostsList = React.memo(({ remoteHosts, savedHosts, credentials, setH
                   </div>
                 )}
                 <div className="mt-3">
-                  <label className="block text-xs text-gray-500 mb-1">SSH metrics credential</label>
-                  <select
+                  <label htmlFor="monitoring-ssh-credential" className="block text-xs text-gray-500 mb-1">SSH metrics credential</label>
+                  <select id="monitoring-ssh-credential"
                     value={currentCredId}
                     onChange={(e) => setHostCredential(host.id, e.target.value || null)}
                     className="w-full bg-bg-root border border-border rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-accent"

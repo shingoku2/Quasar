@@ -109,9 +109,8 @@ describe('AuditLogViewer', () => {
     render(<AuditLogViewer />);
     await waitFor(() => expect(screen.getByText('Vault unlocked')).toBeInTheDocument());
 
-    // The event type select is the first combobox on the page (no aria-label on the select itself)
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'credential_access' } });
+    // FE-021: the filters are labelled, so query them the way a screen reader names them.
+    fireEvent.change(screen.getByLabelText('Event Type'), { target: { value: 'credential_access' } });
 
     expect(screen.queryByText('Vault unlocked')).not.toBeInTheDocument();
     expect(screen.getByText('Credential retrieved')).toBeInTheDocument();
@@ -121,9 +120,7 @@ describe('AuditLogViewer', () => {
     render(<AuditLogViewer />);
     await waitFor(() => expect(screen.getByText('Vault unlocked')).toBeInTheDocument());
 
-    // The result select is the second combobox on the page
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[1], { target: { value: 'failure' } });
+    fireEvent.change(screen.getByLabelText('Result'), { target: { value: 'failure' } });
 
     expect(screen.queryByText('Vault unlocked')).not.toBeInTheDocument();
     expect(screen.getByText('Vault unlock failed')).toBeInTheDocument();

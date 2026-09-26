@@ -414,8 +414,8 @@ const CredentialDialog: React.FC<{
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Name</label>
-            <input
+            <label htmlFor="cred-name" className="block text-sm font-medium text-gray-400 mb-2">Name</label>
+            <input id="cred-name"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -426,8 +426,8 @@ const CredentialDialog: React.FC<{
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Type</label>
-            <select
+            <label htmlFor="cred-type" className="block text-sm font-medium text-gray-400 mb-2">Type</label>
+            <select id="cred-type"
               value={formData.credential_type}
               onChange={(e) => setFormData({ ...formData, credential_type: e.target.value })}
               className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
@@ -444,8 +444,8 @@ const CredentialDialog: React.FC<{
           {formData.credential_type === 'ssh_key' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Key path (optional)</label>
-                <input
+                <label htmlFor="cred-key-path" className="block text-sm font-medium text-gray-400 mb-2">Key path (optional)</label>
+                <input id="cred-key-path"
                   type="text"
                   value={formData.key_path}
                   onChange={(e) => setFormData({ ...formData, key_path: e.target.value })}
@@ -454,8 +454,8 @@ const CredentialDialog: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Private key PEM (or use path above)</label>
-                <textarea
+                <label htmlFor="cred-private-key" className="block text-sm font-medium text-gray-400 mb-2">Private key PEM (or use path above)</label>
+                <textarea id="cred-private-key"
                   value={formData.private_key}
                   onChange={(e) => setFormData({ ...formData, private_key: e.target.value })}
                   className="w-full bg-bg-root border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent font-mono text-xs min-h-[120px]"
@@ -464,9 +464,9 @@ const CredentialDialog: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Key passphrase (optional)</label>
+                <label htmlFor="cred-key-passphrase" className="block text-sm font-medium text-gray-400 mb-2">Key passphrase (optional)</label>
                 <div className="relative">
-                  <input
+                  <input id="cred-key-passphrase"
                     type={showPassphrase ? 'text' : 'password'}
                     autoComplete="off"
                     value={formData.key_passphrase}
@@ -490,8 +490,8 @@ const CredentialDialog: React.FC<{
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Host (optional)</label>
-              <input
+              <label htmlFor="cred-host" className="block text-sm font-medium text-gray-400 mb-2">Host (optional)</label>
+              <input id="cred-host"
                 type="text"
                 value={formData.host}
                 onChange={(e) => setFormData({ ...formData, host: e.target.value })}
@@ -500,8 +500,8 @@ const CredentialDialog: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Port (optional)</label>
-              <input
+              <label htmlFor="cred-port" className="block text-sm font-medium text-gray-400 mb-2">Port (optional)</label>
+              <input id="cred-port"
                 type="number"
                 min="1"
                 max="65535"
@@ -514,10 +514,10 @@ const CredentialDialog: React.FC<{
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Username</label>
+            <label htmlFor="cred-username" className="block text-sm font-medium text-gray-400 mb-2">Username</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <input
+              <input id="cred-username"
                 type="text"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -530,10 +530,10 @@ const CredentialDialog: React.FC<{
 
           {formData.credential_type !== 'ssh_key' && (
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
+            <label htmlFor="cred-password" className="block text-sm font-medium text-gray-400 mb-2">Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <input
+              <input id="cred-password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 value={formData.password}
@@ -655,18 +655,18 @@ const CredentialViewDialog: React.FC<{
 
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+            <div className="block text-xs font-medium text-gray-500 mb-1">Name</div>
             <p className="text-white font-medium">{credential.name}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <div className="block text-xs font-medium text-gray-500 mb-1">Type</div>
             <p className="text-white font-mono uppercase text-sm">{credential.credential_type}</p>
           </div>
 
           {credential.host && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Host</label>
+              <div className="block text-xs font-medium text-gray-500 mb-1">Host</div>
               <p className="text-white font-mono text-sm">
                 {credential.host}{credential.port ? `:${credential.port}` : ''}
               </p>
@@ -674,7 +674,7 @@ const CredentialViewDialog: React.FC<{
           )}
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Username</label>
+            <div className="block text-xs font-medium text-gray-500 mb-1">Username</div>
             <div className="flex items-center justify-between bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
               <p className="text-white font-mono text-sm">{credential.username}</p>
               <button
@@ -688,7 +688,7 @@ const CredentialViewDialog: React.FC<{
 
           {credential.has_password && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
+              <div className="block text-xs font-medium text-gray-500 mb-1">Password</div>
               <div className="flex items-center justify-between bg-bg-root border border-gray-700 rounded-lg px-4 py-2">
                 <p className="text-white font-mono text-sm flex-1 truncate">
                   {showPassword ? revealedPassword : '••••••••••••'}

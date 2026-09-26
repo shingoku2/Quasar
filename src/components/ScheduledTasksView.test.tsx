@@ -483,4 +483,16 @@ describe('ScheduledTasksView flows', () => {
     // Unknown host and credential ids fall back to the raw id.
     expect(screen.getByText(/Host: gone · Credential: missing/)).toBeInTheDocument();
   });
+
+  // FE-021: every form field has an accessible name from its visible label.
+  it('labels every task form field', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue([]);
+    render(<ScheduledTasksView />);
+    await waitFor(() => screen.getByText('Add task'));
+    fireEvent.click(screen.getByText('Add task'));
+    for (const label of ['Name', /Cron schedule/, 'Host', /Credential/, 'Task type', 'Command']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument();
+    }
+  });
 });

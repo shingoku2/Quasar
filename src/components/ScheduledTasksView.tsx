@@ -299,8 +299,8 @@ const ScheduledTasksView: React.FC = () => {
             </h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Name</label>
-                <input
+                <label htmlFor="task-name" className="block text-xs text-gray-500 mb-1">Name</label>
+                <input id="task-name"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent"
@@ -308,8 +308,8 @@ const ScheduledTasksView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Cron schedule (sec min hour day month dow)</label>
-                <input
+                <label htmlFor="task-cron" className="block text-xs text-gray-500 mb-1">Cron schedule (sec min hour day month dow)</label>
+                <input id="task-cron"
                   value={form.cron_expression}
                   onChange={(e) => setForm((f) => ({ ...f, cron_expression: e.target.value }))}
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
@@ -317,8 +317,8 @@ const ScheduledTasksView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Host</label>
-                <select
+                <label htmlFor="task-host" className="block text-xs text-gray-500 mb-1">Host</label>
+                <select id="task-host"
                   value={form.host_id}
                   onChange={(e) => setForm((f) => ({ ...f, host_id: e.target.value }))}
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent"
@@ -332,8 +332,8 @@ const ScheduledTasksView: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Credential (optional)</label>
-                <select
+                <label htmlFor="task-credential" className="block text-xs text-gray-500 mb-1">Credential (optional)</label>
+                <select id="task-credential"
                   value={form.credential_id ?? ''}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, credential_id: e.target.value || null }))
@@ -356,8 +356,8 @@ const ScheduledTasksView: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Task type</label>
-                <select
+                <label htmlFor="task-type" className="block text-xs text-gray-500 mb-1">Task type</label>
+                <select id="task-type"
                   value={form.task_type}
                   onChange={(e) => {
                     const newType = e.target.value as 'ssh' | 'sftp_upload' | 'sftp_download';
@@ -383,8 +383,8 @@ const ScheduledTasksView: React.FC = () => {
             </div>
             {form.task_type === 'ssh' && (
               <div className="mt-4">
-                <label className="block text-xs text-gray-500 mb-1">Command</label>
-                <input
+                <label htmlFor="task-command" className="block text-xs text-gray-500 mb-1">Command</label>
+                <input id="task-command"
                   value={form.command}
                   onChange={(e) => setForm((f) => ({ ...f, command: e.target.value }))}
                   className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
@@ -395,10 +395,10 @@ const ScheduledTasksView: React.FC = () => {
             {(form.task_type === 'sftp_upload' || form.task_type === 'sftp_download') && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Local path</label>
+                  <label htmlFor="task-local-path" className="block text-xs text-gray-500 mb-1">Local path</label>
                   {/* Local paths come from a backend-opened dialog; the backend rejects typed ones (IPC-001). */}
                   <div className="flex gap-2">
-                    <input
+                    <input id="task-local-path"
                       value={form.local_path}
                       readOnly
                       aria-label="Local path"
@@ -424,8 +424,8 @@ const ScheduledTasksView: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Remote path</label>
-                  <input
+                  <label htmlFor="task-remote-path" className="block text-xs text-gray-500 mb-1">Remote path</label>
+                  <input id="task-remote-path"
                     value={form.remote_path}
                     onChange={(e) => setForm((f) => ({ ...f, remote_path: e.target.value }))}
                     className="w-full bg-bg-sidebar border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent font-mono"
