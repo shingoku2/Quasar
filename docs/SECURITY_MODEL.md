@@ -1,6 +1,6 @@
 # Security Model - Credential Vault
 
-_Threat model for the credential vault. Originally written as a January 2026 planning spec; revised September 2026 to match the implementation (`src-tauri/src/vault/kdf.rs`, CLAUDE.md Security Notes). Where this document and the code disagree, the code and its regression tests win._
+_Threat model for the credential vault. Originally written as a January 2026 planning spec; revised September 2026 to match the implementation (`src-tauri/src/vault/kdf.rs`, CLAUDE.md Security invariants). Where this document and the code disagree, the code and its regression tests win._
 
 ## Threat Model
 
@@ -122,18 +122,18 @@ _Threat model for the credential vault. Originally written as a January 2026 pla
 
 ### SSH Host Key Verification
 
-**Algorithm:** SHA256 fingerprinting (OpenSSH format)
+**Algorithm:** SHA-256 of the presented public key (`crypto::ssh_host_key_fingerprint`)
 
 **Process:**
-1. Extract server's public key during SSH handshake
-2. Compute SHA256 hash of public key bytes
-3. Encode as Base64 (OpenSSH format: `SHA256:...`)
-4. Compare with stored fingerprint in known_hosts table
+1. Extract the server's public key during the SSH handshake (`presented_key_bytes`; a certificate pins its underlying key)
+2. Compute the SHA-256 hash of the key bytes
+3. Format it as colon-separated hex (`SHA256:aa:bb:...`). This is not OpenSSH's Base64 form, so compare fingerprints against `ssh-keygen -l -E sha256` by eye, not by string
+4. Compare with the pinned fingerprint in the `ssh_known_hosts` table (host matched case-insensitively; a key that differs from any other port's trusted key counts as changed)
 
 **Security Properties:**
 - Prevents MITM attacks (attacker cannot forge key)
-- Detects compromised servers (key change alert)
-- Compatible with OpenSSH known_hosts format
+- Detects compromised servers: a changed key needs a native confirmation, and a Rejected key is refused without a prompt
+- Non-interactive paths (exec, SFTP, monitoring, scheduled tasks) accept only a key already trusted for that host and port
 
 ## Access Control
 
@@ -219,20 +219,28 @@ _Threat model for the credential vault. Originally written as a January 2026 pla
 
 | Event Type | Logged Data | Purpose |
 |------------|-------------|---------|
-| `vault_unlock` | Timestamp, result (success/failure) | Track unauthorized access attempts |
-| `vault_lock` | Timestamp | Track vault usage patterns |
-| `credential_access` | Timestamp, credential_id, result | Track credential usage |
-| `credential_create` | Timestamp, credential_id | Track credential lifecycle |
-| `credential_update` | Timestamp, credential_id | Track credential modifications |
-| `credential_delete` | Timestamp, credential_id | Track credential removal |
-| `host_key_verify` | Timestamp, host, port, result | Track SSH connection security |
-| `host_key_trust` | Timestamp, host, port, fingerprint | Track trusted host additions |
-| `host_key_changed` | Timestamp, host, port, old/new fingerprint | Track potential MITM attacks |
+Every row carries a timestamp, event type, resource id/type, action, result (`success`/`failure`) and optional details.
+
+| Event Type | Logged when | Purpose |
+|------------|-------------|---------|
+| `vault_initialize` | The master password is first set | Vault lifecycle |
+| `vault_unlock` | Every unlock attempt (success or failure) | Track unauthorized access attempts |
+| `vault_lock` | Manual lock and the lock a database import forces (auto-lock isn't logged) | Track vault usage patterns |
+| `vault_kdf_migration` | A v1 vault (or its `.bak`) is migrated to KDF v2 | Track key changes |
+| `password_change` | The master password is changed (success or failure) | Track key changes |
+| `credential_create` / `credential_update` / `credential_delete` | A credential is written | Track credential lifecycle |
+| `credential_access` | A credential is decrypted for use (including background monitoring) | Track credential usage |
+| `credential_reveal` | A password is shown in the UI (after the native confirm) | Track plaintext exposure |
+| `credential_reencrypt` | Credentials are re-encrypted under a new key | Track key changes |
+| `ssh_host_key_trust` | A host key is trusted from the prompt | Track trusted host additions |
+| `ssh_host_key_trust_change` | A pinned key's trust status is changed | Track trust decisions |
+| `ssh_host_key_remove` | A pinned host key is removed | Track trust decisions |
+| `scheduled_task_create` / `_update` / `_delete` / `_run` | A scheduled task is changed or run | Track remote actions |
 
 ### Audit Log Security
 
 **Integrity:**
-- Append-only (no deletion or modification)
+- No command edits or deletes entries; the only deletion is retention pruning (below)
 - Stored in separate table from credentials
 - Consider HMAC signing for tamper detection (future enhancement)
 
@@ -242,9 +250,8 @@ _Threat model for the credential vault. Originally written as a January 2026 pla
 - Logs only metadata (IDs, timestamps, results)
 
 **Retention:**
-- Keep last 10,000 entries (configurable)
-- Older entries archived or deleted
-- Export functionality for long-term storage
+- Entries older than 90 days are pruned by the monitoring loop's daily cleanup (`AUDIT_RETENTION_DAYS`)
+- For longer retention, keep a database export (Settings → Data)
 
 ## Compliance Considerations
 

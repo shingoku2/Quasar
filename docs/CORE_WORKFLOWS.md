@@ -33,7 +33,7 @@ This document describes the main user workflows for remote management, automatio
   - **Download file**: Enter the remote path and pick the save location with the dialog. File transfers use a vault password credential for SFTP and time out after an hour.
 - **Add task**: Name, **cron schedule**, host, optional credential (a host-bound credential must match the task's host). Enabled by default. Creating, changing, deleting and running tasks are audited.
 - **Cron format**: **6 fields** (sec min hour day month dow), e.g. `0 0 9 * * *` = daily at 9:00. Use the placeholder in the form as a guide.
-- **Execution**: The scheduler checks every 60 seconds and starts due tasks in the background (a slow task doesn't delay others). A task never runs twice at once. Password or SSH key from the vault. If the vault is locked, tasks that need a credential are skipped. A command's exit status is recorded correctly (non-zero = Failed); output is capped at 1 MiB.
+- **Execution**: The scheduler checks every 60 seconds and starts due tasks in the background (a slow task doesn't delay others). A task never runs twice at once. Password or SSH key from the vault. If the vault is locked, a task that needs a credential fails with "Vault is locked" (scheduled runs don't reset the auto-lock timer; "Run now" does). A command's exit status is recorded correctly (non-zero = Failed); output is capped at 1 MiB while running, and the stored last-run output keeps the first 4 KiB.
 - **Last run**: Each task shows last run time, status (Success / Failed), and optional error or output snippet.
 - **Run now**: Use the play button to run a task once and see the full result (output/error) in the result panel. It's refused while the same task is already running.
 

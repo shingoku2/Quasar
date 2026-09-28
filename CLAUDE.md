@@ -82,7 +82,8 @@ src-tauri/src/
   ssh_test_server.rs      cfg(test) in-process russh server for connect/auth/exec/pool/tunnel tests
 src-tauri/migrations/     001, 003–015 (no 002, on purpose)
 docs/                     ARCHITECTURE, SCHEMA, SECURITY_MODEL, CORE_WORKFLOWS, RELEASE_SIGNING, style/, archive/
-audit/, AUDIT.md          September 2026 audit (findings, plan, verification)
+audit/, AUDIT.md          September 2026 audit (findings, plan, verification); audit/qodana.sarif.json and
+                          audit/RustRover Checks/ are raw IDE inspection exports (mostly false positives)
 ```
 
 ## Stack
@@ -91,7 +92,7 @@ Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides 
 
 ## IPC
 
-- 66 commands in `commands/`, all registered in `generate_handler!` in `lib.rs` (by path, e.g. `commands::vault::unlock_vault`). The full list with args and return types is in `docs/ARCHITECTURE.md` (a test keeps it complete); events are listed there too. Add a command there when you add one.
+- 66 commands: 63 in `commands/` plus the terminal's `write_ssh`/`resize_ssh`/`disconnect_ssh` in `ssh.rs`, all registered in `generate_handler!` in `lib.rs` (by path, e.g. `commands::vault::unlock_vault`). The full list with args and return types is in `docs/ARCHITECTURE.md` (a test keeps it complete); events are listed there too. Add a command there when you add one.
 - **`invoke()` payload keys are lowerCamelCase.** A snake_case key for an `Option<T>` param silently arrives as `None` (no error). `CredentialManager.test.tsx` asserts no payload key contains `_`.
 - Commands return `Result<T, String>`. Sanitize errors with `errors::sanitize_error`; only messages the user must read go through `errors::user_facing_vault_error`. The interactive terminal connect returns raw `ssh_connect` diagnostics by design.
 - A `Cancelled` error means the user declined a native confirmation: treat it as a no-op (`isUserCancelled()`).
@@ -143,7 +144,7 @@ Each rule has regression tests; don't weaken one without replacing its test. Rat
 
 ## CI
 
-`.github/workflows/ci.yml` (push/PR to `master`): actionlint; frontend (`tsc`, `npm run coverage`, `npm audit`); MSRV check; backend (clippy `--all-targets`, `cargo test`, `cargo audit`, `cargo deny`); build matrix. `release.yml` (`v*` semver tags; its gate runs the same checks as `ci.yml`, including the coverage floor and `cargo deny`) builds signed bundles as a **draft** release (publish it by hand; see `docs/RELEASE_SIGNING.md`). `audit.yml` runs audits weekly. `qodana_code_quality.yml` runs Qodana for Rust (EAP) on PRs against `src-tauri/` (its config is `src-tauri/qodana.yaml`), with a 45 min configuration timeout. Rules: actions pinned to a commit SHA with the version in a comment; read-only `GITHUB_TOKEN` by default; **never use the `secrets` context in a step `if:`** (map it to a job-level env; that bug made `release.yml` invalid for a month). Accepted advisories: `src-tauri/.cargo/audit.toml` and `deny.toml` `ignore` (keep them in sync), documented in `SECURITY.md`.
+`.github/workflows/ci.yml` (push/PR to `master`): actionlint; frontend (`tsc`, `npm run coverage`, `npm audit`); MSRV check; backend (clippy `--all-targets`, `cargo test`, `cargo audit`, `cargo deny`); build matrix. `release.yml` (`v*` semver tags; its gate runs the same checks as `ci.yml`, including the coverage floor and `cargo deny`) builds signed bundles as a **draft** release (publish it by hand; see `docs/RELEASE_SIGNING.md`). `audit.yml` runs audits weekly. `qodana_code_quality.yml` runs Qodana for Rust (EAP) against `src-tauri/` on PRs and pushes to `master` (its config is `src-tauri/qodana.yaml`), with a 45 min configuration timeout. Rules: actions pinned to a commit SHA with the version in a comment; read-only `GITHUB_TOKEN` by default; **never use the `secrets` context in a step `if:`** (map it to a job-level env; that bug made `release.yml` invalid for a month). Accepted advisories: `src-tauri/.cargo/audit.toml` and `deny.toml` `ignore` (keep them in sync), documented in `SECURITY.md`.
 
 ## Constraints
 

@@ -4,7 +4,7 @@ Updated 2026-09-25 after the full audit (`AUDIT.md`, Phase 7 / EDW-26). Topic fi
 - `vault_rs_patterns.md`: vault locking/concurrency model and the Argon2 baseline.
 - `patterns.md`: the `claim_scan()` TOCTOU lesson (top section: claim synchronously before
   `tokio::spawn`, never inside the spawned task) and the historical 2026-03-02 findings list.
-- `CLAUDE.md` Security Notes 1-19 are the authoritative list of invariants and their
+- `CLAUDE.md` "Security invariants" 1-17 are the authoritative list of invariants and their
   regression tests. If this file disagrees with them, they win; fix this file.
 
 ## Established safe patterns (verified 2026-09-25)

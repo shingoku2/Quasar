@@ -155,7 +155,7 @@ Generated from the `#[tauri::command]` signatures. `invoke()` payload keys must 
 | `ssh_data_{id}` | terminal output chunk (batched) | `ssh.rs` |
 | `ssh_stats_{id}` | `{ bandwidth, latency }` | `ssh.rs` |
 | `ssh_closed_{id}` | — | `ssh.rs` (server closed the session) |
-| `ssh_timeout_{id}` | — | `ssh.rs` (30 min idle) |
+| `ssh_timeout_{id}` | — | `background.rs` (idle reaper: 30 min without traffic) |
 | `ssh-host-key-verification` | pending host-key request (id, host, port, fingerprint, old fingerprint for a changed key) | `ssh.rs`; shown once, app-wide, by `vault/HostKeyPromptHost` (queued; keyed by request id so confirmation state never carries over) |
 | `system-metrics` | `SystemMetrics` | monitoring loop |
 | `alerts-triggered` / `alerts-recovered` | alerts / recoveries | `monitoring/task.rs` |

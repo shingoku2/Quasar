@@ -218,11 +218,11 @@ Migration 003. Key/value rows (see below).
 | `auto_lock_timeout` | Minutes, 1-1440 |
 | `lockout_failed_attempts`, `lockout_until_unix` | Persisted unlock lockout |
 
-See `src-tauri/src/vault/kdf.rs` and CLAUDE.md Security Notes 10 and 15.
+See `src-tauri/src/vault/kdf.rs` and CLAUDE.md security invariants 1 (KDF v2) and 5 (persisted lockout).
 
 ## Migrations
 
-- Files live in `src-tauri/migrations/` and are registered, in order, in `MIGRATIONS` in `src-tauri/src/lib.rs`. `rusqlite_migration` tracks them by **position** in that list (`user_version`), not by filename.
+- Files live in `src-tauri/migrations/` and are registered, in order, in `MIGRATIONS` in `src-tauri/src/db/migrations.rs`. `rusqlite_migration` tracks them by **position** in that list (`user_version`), not by filename.
 - There is no `002_*.sql` (an early draft was merged into 003). Never create one: it would shift every later index and corrupt existing databases.
 - **The next migration is the highest existing number + 1** (currently `016_`). Append it to `MIGRATIONS` and bump `LATEST_SCHEMA_VERSION` (a test checks they match).
 - Migrations are append-only: never edit one that has shipped.

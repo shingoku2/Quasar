@@ -2,6 +2,13 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-28: Inspection triage and docs refresh
+
+- Qodana and RustRover inspection exports are kept in `audit/` (`qodana.sarif.json`, `RustRover Checks/`). Triaged: the Rust "errors" (a `check_password` argument count, `TempAuditDb::manager`, unused `sysinfo`/`rusqlite_migration`, detached modules) are analyzer false positives; clippy and the tests are clean.
+- The Qodana workflow follows the CI rules: its action is pinned to a commit SHA (v2026.1.3, the release `@v2026.1` already resolved to), its token has read-only contents (write only for checks and PR comments), and its push trigger targets `master` instead of the nonexistent `main`. The unused root `qodana.yaml` (an unedited starter template) is gone; the workflow's config is `src-tauri/qodana.yaml`.
+- Removed two light-theme CSS overrides no element used (`.text-gray-900`, `.scrollbar-thumb:hover`). New tests for the Discovery view and `DiscoveryState`.
+- Docs checked against the code: `SECURITY_MODEL.md` lists the audit events actually logged (the table named three that never existed), the real 90-day audit retention, and the colon-hex host-key fingerprint format; `SECURITY.md` documents the `glib` advisory `deny.toml` already ignores; `SCHEMA.md` points at `db/migrations.rs`; `CORE_WORKFLOWS.md` says a locked vault fails a scheduled run rather than skipping it; `ARCHITECTURE.md` names `background.rs` as the idle-timeout emitter.
+
 ## 2026-09-26: Test gap fill
 
 - New frontend tests for the weakest-covered views: Dashboard host handlers (connect, save, delete), RemoteManager connect flows (credential selector, manual entry, saving a credential, RDP, split view, quick connect), TerminalComponent sessions (connect payload, event channels, resize, cleanup, in-place theme changes), ScheduledTasksView (add, edit, SFTP pickers, credential filtering, delete, run now), SshTunnelsView (start payload, port clamping, errors) and SessionContainer tab interactions. Frontend coverage rose from 73.6/68.2/68.6/75.9 to 83.5/78.2/80.0/85.3 (statements/branches/functions/lines), and the CI floor is raised to 82/76/78/84.

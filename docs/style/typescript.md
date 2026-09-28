@@ -5,7 +5,7 @@ This document summarizes key rules and best practices from the Google TypeScript
 ## 1. Language Features
 - **Variable Declarations:** Always use `const` or `let`. **`var` is forbidden.** Use `const` by default.
 - **Modules:** Use ES6 modules (`import`/`export`). **Do not use `namespace`.**
-- **Exports (Quasar convention, differs from Google's guide):** React components are default-exported, one per file (`export default function VaultSettings`), as ~40 existing components are; import them with default-import syntax. Hooks, utilities, types and constants use named exports. A component file may also export its props/types by name.
+- **Exports (Quasar convention, differs from Google's guide):** React components are default-exported, one per file (`export default function VaultSettings`), as ~60 existing components are; import them with default-import syntax. Hooks, utilities, types and constants use named exports. A component file may also export its props/types by name.
 - **Classes:**
   - **Do not use `#private` fields.** Use TypeScript's `private` visibility modifier.
   - Mark properties never reassigned outside the constructor with `readonly`.

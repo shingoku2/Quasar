@@ -63,9 +63,9 @@ versions receive backported fixes.
 
 ## Known Dependency Advisories
 
-Tracked, accepted risks in third-party dependencies — checked by `cargo audit` in CI
-(`.github/workflows/ci.yml`) and suppressed with a documented rationale in
-`src-tauri/.cargo/audit.toml` rather than silently ignored:
+Tracked, accepted risks in third-party dependencies — checked by `cargo audit` and
+`cargo deny` in CI (`.github/workflows/ci.yml`) and suppressed with a documented rationale
+in `src-tauri/.cargo/audit.toml` and `src-tauri/deny.toml` rather than silently ignored:
 
 - **[RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071)** ("Marvin
   Attack" timing side-channel in the `rsa` crate). Pulled in transitively by `russh`/
@@ -77,6 +77,12 @@ Tracked, accepted risks in third-party dependencies — checked by `cargo audit`
   GHSA-c38w-74pg-36hr / GHSA-4grx-2x9w-596c (CVE-2023-49092, medium). This is what
   GitHub's Dependabot flags for `src-tauri/Cargo.lock`. Re-checked September 24, 2026:
   `rsa 0.10.0-rc.18` (the version in the lockfile) is still unpatched upstream.
+- **[RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429)** (unsoundness
+  in `glib`'s `VariantStrIter`). Pulled in by Tauri's gtk-rs 0.18 stack on Linux
+  (`glib 0.18.5`); it can't be upgraded from here. No crate in the tree (wry, tao,
+  webkit2gtk, gtk, gio, muda, tauri) calls the affected iterator, and Quasar doesn't use
+  glib directly. It goes away with Tauri's GTK4 migration. `cargo audit` reports unsound
+  advisories as warnings only, so only `deny.toml` needs to ignore it.
 
 ## Known Design Notes
 
@@ -85,7 +91,7 @@ here so reports about them can skip straight to "is the intentional handling act
 
 - **`connect_ssh` (the interactive terminal path) returns raw connection errors to the
   frontend**, including resolved IPs and which phase (DNS/TCP/handshake) failed, instead of
-  a sanitized message. This is deliberate — see `CLAUDE.md`'s Security Notes — so users can
+  a sanitized message. This is deliberate — see `CLAUDE.md`'s IPC section — so users can
   self-diagnose connection issues. SFTP and scheduled-task SSH paths are sanitized.
 - **`list_credentials` works without unlocking the vault.** It only returns metadata (name,
   type, username) — never secret material — so a locked vault still lets the UI show what

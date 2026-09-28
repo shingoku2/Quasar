@@ -1,5 +1,7 @@
 # scanner.rs — claim_scan() / TOCTOU pattern (2026-09-17 review)
 
+_Line and file references below are as of when each note was written; since 2026-09-26 the Tauri commands live in `src-tauri/src/commands/` (plus three terminal commands in `ssh.rs`), not `lib.rs`._
+
 Reviewed a fix for a real TOCTOU race in `scan_network`: the `lib.rs` command does
 `tokio::spawn(async move { ...scanner::scan_network(...).await... })` and returns
 immediately. If the atomic "check `is_scanning`, set it, reset `stop_signal`" claim
