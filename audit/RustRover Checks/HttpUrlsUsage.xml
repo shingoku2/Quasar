@@ -1,0 +1,314 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/qodana.sarif.json</file>
+  <line>25775</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/qodana.sarif.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>589</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/qodana.sarif.json</file>
+  <line>28647</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/qodana.sarif.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>72</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/qodana.sarif.json</file>
+  <line>28681</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/qodana.sarif.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>143</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/qodana.sarif.json</file>
+  <line>28715</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/qodana.sarif.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>69</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/qodana.sarif.json</file>
+  <line>29853</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/qodana.sarif.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>87</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/qodana.sarif.json</file>
+  <line>30651</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/qodana.sarif.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>81</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/acl-manifests.json</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/acl-manifests.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>68350</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/acl-manifests.json</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/acl-manifests.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>68688</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/acl-manifests.json</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/acl-manifests.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>68831</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>143</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>110</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>118</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>149</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>96</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>104</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>2430</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>96</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>2433</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>104</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>2436</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>82</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json</file>
+  <line>2439</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/desktop-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>90</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>143</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>110</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>118</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>149</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>96</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>104</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>2430</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>96</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>2433</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>104</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>2436</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>82</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json</file>
+  <line>2439</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/gen/schemas/linux-schema.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>90</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/tauri.conf.json</file>
+  <line>41</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/tauri.conf.json" />
+  <problem_class id="HttpUrlsUsage" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Link with unencrypted protocol</problem_class>
+  <description>HTTP links are not secure</description>
+  <highlighted_element>http://</highlighted_element>
+  <language>JSON</language>
+  <offset>23</offset>
+  <length>7</length>
+</problem>
+</problems>

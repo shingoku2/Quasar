@@ -1,0 +1,302 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/AIAssistant.tsx</file>
+  <line>57</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/AIAssistant.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from checkStatus is ignored</description>
+  <highlighted_element>checkStatus</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/HostList.tsx</file>
+  <line>88</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/HostList.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from fetchHosts is ignored</description>
+  <highlighted_element>fetchHosts</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/HostList.tsx</file>
+  <line>91</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/HostList.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from fetchHosts is ignored</description>
+  <highlighted_element>fetchHosts</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkScanner.tsx</file>
+  <line>111</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkScanner.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from setupListeners is ignored</description>
+  <highlighted_element>setupListeners</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>14</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/PreflightDialog.tsx</file>
+  <line>68</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/PreflightDialog.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from checkHealth is ignored</description>
+  <highlighted_element>checkHealth</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshFileManager.tsx</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshFileManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from fetchFiles is ignored</description>
+  <highlighted_element>fetchFiles</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshFileManager.tsx</file>
+  <line>126</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshFileManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from fetchFiles is ignored</description>
+  <highlighted_element>fetchFiles</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshFileManager.tsx</file>
+  <line>272</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshFileManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from fetchFiles is ignored</description>
+  <highlighted_element>fetchFiles</highlighted_element>
+  <language>JavaScript</language>
+  <offset>47</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshFileManager.tsx</file>
+  <line>318</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshFileManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from handleNavigate is ignored</description>
+  <highlighted_element>handleNavigate</highlighted_element>
+  <language>JavaScript</language>
+  <offset>28</offset>
+  <length>14</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshFileManager.tsx</file>
+  <line>345</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshFileManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from handleDownload is ignored</description>
+  <highlighted_element>handleDownload</highlighted_element>
+  <language>JavaScript</language>
+  <offset>63</offset>
+  <length>14</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.tsx</file>
+  <line>180</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from initSession is ignored</description>
+  <highlighted_element>initSession</highlighted_element>
+  <language>JavaScript</language>
+  <offset>8</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.tsx</file>
+  <line>180</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from initSession is ignored</description>
+  <highlighted_element>initSession</highlighted_element>
+  <language>JavaScript</language>
+  <offset>8</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/DashboardView.tsx</file>
+  <line>110</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/DashboardView.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from handleQuickConnect is ignored</description>
+  <highlighted_element>handleQuickConnect</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/settings/DataSettings.tsx</file>
+  <line>32</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/settings/DataSettings.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadInfo is ignored</description>
+  <highlighted_element>loadInfo</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/AuditLogViewer.tsx</file>
+  <line>27</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/AuditLogViewer.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadAuditLogs is ignored</description>
+  <highlighted_element>loadAuditLogs</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/CredentialManager.tsx</file>
+  <line>82</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/CredentialManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadCredentials is ignored</description>
+  <highlighted_element>loadCredentials</highlighted_element>
+  <language>JavaScript</language>
+  <offset>16</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/CredentialManager.tsx</file>
+  <line>127</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/CredentialManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadCredentials is ignored</description>
+  <highlighted_element>loadCredentials</highlighted_element>
+  <language>JavaScript</language>
+  <offset>12</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/CredentialManager.tsx</file>
+  <line>138</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/CredentialManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadCredentials is ignored</description>
+  <highlighted_element>loadCredentials</highlighted_element>
+  <language>JavaScript</language>
+  <offset>12</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/CredentialSelector.tsx</file>
+  <line>45</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/CredentialSelector.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadCredentials is ignored</description>
+  <highlighted_element>loadCredentials</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/KnownHostsManager.tsx</file>
+  <line>44</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/KnownHostsManager.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadHosts is ignored</description>
+  <highlighted_element>loadHosts</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/VaultProvider.tsx</file>
+  <line>97</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/VaultProvider.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from checkVaultStatus is ignored</description>
+  <highlighted_element>checkVaultStatus</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/VaultProvider.tsx</file>
+  <line>116</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/VaultProvider.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from setupListener is ignored</description>
+  <highlighted_element>setupListener</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/VaultProvider.tsx</file>
+  <line>170</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/VaultProvider.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from checkVaultStatus is ignored</description>
+  <highlighted_element>checkVaultStatus</highlighted_element>
+  <language>JavaScript</language>
+  <offset>16</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/VaultSettings.tsx</file>
+  <line>29</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/VaultSettings.tsx" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from loadSettings is ignored</description>
+  <highlighted_element>loadSettings</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useUpdater.ts</file>
+  <line>76</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useUpdater.ts" />
+  <problem_class id="JSIgnoredPromiseFromCall" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Result of method call returning a promise is ignored</problem_class>
+  <description>Promise returned from checkForUpdates is ignored</description>
+  <highlighted_element>checkForUpdates</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>15</length>
+</problem>
+</problems>

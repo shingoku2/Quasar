@@ -1,0 +1,26 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/Sidebar.tsx</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/Sidebar.tsx" />
+  <problem_class id="ES6PreferShortImport" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Import can be shortened</problem_class>
+  <description>Import can be shortened</description>
+  <highlighted_element>'./vault/VaultProvider'</highlighted_element>
+  <language>JavaScript</language>
+  <offset>25</offset>
+  <length>23</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/main.tsx</file>
+  <line>5</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/main.tsx" />
+  <problem_class id="ES6PreferShortImport" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Import can be shortened</problem_class>
+  <description>Import can be shortened</description>
+  <highlighted_element>&quot;./components/vault/VaultProvider&quot;</highlighted_element>
+  <language>JavaScript</language>
+  <offset>30</offset>
+  <length>34</length>
+</problem>
+</problems>

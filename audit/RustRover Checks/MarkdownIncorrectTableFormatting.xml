@@ -1,0 +1,1406 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agents/security-reviewer.md</file>
+  <line>56</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agents/security-reviewer.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Definition | |----------|------------| | **CRITICAL** | Direct compromise of cryptograp...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>538</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>38</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Check | Phase 1 (`fcc58d2`) | EDW-25 re-run (`97dd84a`) | |---|---|---| | `npx tsc --noEmit` | ✅ c...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1315</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>60</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Sev | Area | Location | Summary | Effort | Verified | |---|---|---|---|---|---|---| | RSEC-00...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>19600</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>260</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| # | Batch | Contents | Depends on | Risk | |---|---|---|---|---| | D1 | Lockfile-only | `cargo upd...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1609</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>277</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Path | Class | Reason (one line) | Evidence | Unique info lost if deleted? | |---|---|---|---|---|...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>10421</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>388</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Batch | Contents | Why here | Size | |---|---|---|---| | **P7-0: Stop-the-bleeding hygiene** | CLE...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>2609</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>407</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | How | Result | |---|---|---| | RSEC-001 | Read `vault.rs:140-220, 380-412`, then argon2 0.5.3...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1701</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>456</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Commit | Batch | Finding(s) | Change | |---|---|---|---| | `eee12f3` | P7-0 | CLEAN-001, CLEAN-013...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1481</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>468</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Batch | Commits (oldest → newest) | |---|---| | P7-2 vault state | `6f84c2a`, review follow-up `93...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1022</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>495</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Metric | Before (`97dd84a`, EDW-25 re-run) | After (`57e109a`) | |---|---|---| | npm vulnerabiliti...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>904</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/README.md</file>
+  <line>80</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/README.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Doc | What's in it | |---|---| | [`CLAUDE.md`](CLAUDE.md) | Contributor and agent guide: commands,...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>875</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/00-recon.md</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/00-recon.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Tool | Container (used for baseline) | Required by repo | CI | Verdict | |---|---|---|---|---| | n...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1246</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/00-recon.md</file>
+  <line>35</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/00-recon.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Defined at | Purpose | Frontend call sites | |---|---|---|---| | `add_alert_rule` | `src...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>9620</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/00-recon.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/00-recon.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Event | Emitted at | Listened in frontend? | |---|---|---| | `system-metrics` | monitoring.rs:949 ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>626</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/01-baseline.md</file>
+  <line>12</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/01-baseline.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Check | Result | Pre-existing failure? | Raw file | |---|---|---|---| | `npm ci` | ✅ exit 0, 196 p...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>2056</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/01-baseline.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/01-baseline.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| File | Lines | | File | Lines | |---|---|---|---|---| | **ai.rs** | **0.00%** | | scanner.rs | 73....</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>797</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>32</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | file:line | Evidence | Impact | Fix | Effort (S/M/L) | |---|---|---|---|---|---|--...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>18005</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>113</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | |---|---| | Critical | 1 | | High | 0 | | Medium | 4 | | Low | 10 | | Info | 4 ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>124</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02b-ipc-boundary.md</file>
+  <line>29</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02b-ipc-boundary.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | file:line | Evidence | Impact | Fix | Effort (S/M/L) | |---|---|---|---|---|---|--...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>13494</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02b-ipc-boundary.md</file>
+  <line>82</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02b-ipc-boundary.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | |---|---| | Critical | 0 | | High | 0 | | Medium | 4 (IPC-001, IPC-002, IPC-003...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>177</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02b-ipc-boundary.md</file>
+  <line>94</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02b-ipc-boundary.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Validation | Vault-gated? | Webview-abuse potential | Notes | |---|---|---|---|---| | `c...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>7408</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>31</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | file:line | Evidence | Impact | Fix | Effort | |---|---|---|---|---|---|---| | RUS...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>29071</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>114</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Site | What | Stop path | |---|---|---| | `lib.rs:444` | network scan | `stop_scan` → `stop_signal...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1577</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>190</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | |---|---| | Critical | 0 | | High | 0 | | Medium | 8 | | Low | 15 | | Info | 6 ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>124</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/04-frontend.md</file>
+  <line>23</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/04-frontend.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | file:line | Evidence | Impact | Fix | Effort (S/M/L) | |---|---|---|---|---|---|--...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>27344</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/04-frontend.md</file>
+  <line>81</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/04-frontend.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | |---|---| | Critical | 0 | | High | 0 | | Medium | 5 | | Low | 20 | | Info | 4 ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>124</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | file:line | Evidence | Impact | Fix | Effort (S/M/L) | |---|---|---|---|---|---|--...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>31287</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>191</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | IDs | |---|---|---| | Critical | 0 | — | | High | 1 | CI-001 | | Medium | 8 | C...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>410</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/06-cleanup.md</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/06-cleanup.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | file:line | Evidence | Impact | Fix | Effort | |---|---|---|---|---|---|---| | CLE...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>16708</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/06-cleanup.md</file>
+  <line>46</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/06-cleanup.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Path | Class | Reason (one line) | Evidence | Unique info lost if deleted? | |---|---|---|---|---|...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>10421</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/06-cleanup.md</file>
+  <line>158</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/06-cleanup.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| AGENTS.md section (line) | Keep? | Destination | |---|---|---| | Credential-Access Gate, EDW-15 (:...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>2173</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/06-cleanup.md</file>
+  <line>193</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/06-cleanup.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Branch | Head | Last commit | Status | Recommendation | |---|---|---|---|---| | `master` | 97dd84a...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1337</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/06-cleanup.md</file>
+  <line>231</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/06-cleanup.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | |---|---| | Critical | 0 | | High | 0 | | Medium | 3 | | Low | 12 | | Info | 5 ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>124</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/06-cleanup.md</file>
+  <line>240</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/06-cleanup.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Inventory class | Rows | |---|---| | KEEP | 23 | | UPDATE | 16 | | MERGE | 4 | | ARCHIVE | 12 | | ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>113</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>18</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `is_vault_initialized` | —...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>591</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>31</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `add_credential` | name, u...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>809</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `trust_ssh_host_key` | req...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>448</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>53</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `get_audit_logs` | filter?...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>152</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>59</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `get_saved_hosts` | — | `V...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>409</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>68</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `connect_ssh` | id, host, ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>298</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>77</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `pick_local_file` | title?...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>625</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>87</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `start_ssh_tunnel` | tunne...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>374</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>95</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `list_scheduled_tasks` | —...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>634</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `get_system_metrics` | — |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>589</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>117</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `preflight_check` | host |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>262</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>124</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `start_discovery` | — | `(...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>518</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>136</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `get_tailscale_status` | —...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>379</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | Args (camelCase) | Returns | Defined in | |---|---|---|---| | `get_app_info` | — | `AppI...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>257</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>153</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Event | Payload | Emitted by | |---|---|---| | `ssh_data_{id}` | terminal output chunk (batched) |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1051</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/CORE_WORKFLOWS.md</file>
+  <line>88</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/CORE_WORKFLOWS.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Example | Meaning | |-------------------|----------------------| | `0 0 9 *...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>268</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/RELEASE_SIGNING.md</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/RELEASE_SIGNING.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Secret | Value | |--------|-------| | `TAURI_SIGNING_PRIVATE_KEY` | Contents of the private key fi...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>194</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/RELEASE_SIGNING.md</file>
+  <line>45</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/RELEASE_SIGNING.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Secret | Value | |--------|-------| | `WINDOWS_CERTIFICATE` | Base64 of the `.pfx` file (`certutil...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>246</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/RELEASE_SIGNING.md</file>
+  <line>61</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/RELEASE_SIGNING.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Secret | Value | |--------|-------| | `APPLE_CERTIFICATE` | Base64 of the exported `.p12` certific...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>644</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>13</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | INTEGER | | | PK | | `aler...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>454</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>30</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `rule` |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>168</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>40</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `name` |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>812</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>67</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `ip` | T...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>430</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>84</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `host_id...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>367</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>99</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `name` |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>365</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>114</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | INTEGER | | | PK | | `time...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>646</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>137</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `host_id` | TEXT | | | PK | | `cr...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>138</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `name` |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>674</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>169</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `timesta...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>382</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>185</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `id` | TEXT | | | PK | | `host` |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>431</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>201</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Column | Type | Null | Default | Key | |---|---|---|---|---| | `key` | TEXT | | | PK | | `value`...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>170</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SCHEMA.md</file>
+  <line>209</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SCHEMA.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Key | Meaning | |---|---| | `vault_initialized` | `true` once a master password is set | | `salt` ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>773</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>24</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Attack Vector | Threat Level | Mitigation | |---------------|--------------|------------| | Databa...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>685</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>160</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| From State | To State | Trigger | Security Check | |------------|----------|---------|------------...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>519</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>220</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Event Type | Logged Data | Purpose | |------------|-------------|---------| | `vault_unlock` | Tim...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>829</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Control | Implementation | |---------|----------------| | IA-5 (Authenticator Management) | Master...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>405</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>23</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Category | Critical | High | Medium | Low | |----------|----------|------|--------|-----| | Securi...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>290</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>42</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `&quot;pubkey&quot;: &quot;&quot;` — updater accepts u...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>762</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Verify Argon2id params match OWASP...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>681</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>61</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | IPv4 regex allows leading zeros (`...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>609</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>70</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Verify every `execute()` / `query(...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>501</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>78</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `sanitize_error()` pattern-matches...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>422</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>85</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `navigator.clipboard.writeText(cre...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>264</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>95</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `lib.rs` contains all 70+ command ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>722</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>104</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Cron schedule assumes UTC — no tim...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>685</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>113</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | VecDeque pending ops has no capaci...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>560</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>121</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Background thread has no clean shu...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>404</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>128</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `.unwrap_or_else(\|e\| e.into_inne...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>326</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>135</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | System metrics commands hardcoded ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>425</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>142</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | No connection pooling — each opera...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>223</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>148</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Run `grep -n &quot;\.unwrap()\|\.expect...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>297</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>158</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| File | Finding | Severity | Action | |------|---------|----------|--------| | `DashboardView.tsx:8...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1026</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>169</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| File | Finding | Severity | Action | |------|---------|----------|--------| | `VaultProvider.tsx:9...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1476</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>182</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| File / Location | Finding | Severity | Action | |-----------------|---------|----------|--------| ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1091</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>193</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Multiple components use `alert()` ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>601</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>202</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| File | Finding | Severity | Action | |------|---------|----------|--------| | Frontend host databa...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>778</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Action | WCAG | |--------|------| | Add `role=&quot;dialog&quot;` to dialog container | 4.1.2 | | Add `aria-...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>308</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>230</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Action | WCAG | |--------|------| | Every `&lt;input&gt;` / `&lt;select&gt;` must have `&lt;label htmlFor&gt;` or `a...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>211</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>238</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Control | Action | WCAG | |---------|--------|------| | `&lt;div onClick&gt;` toggle in AlertRules | Rep...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>349</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>247</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Action | WCAG | |--------|------| | Error messages: wrap in `&lt;div role=&quot;alert&quot; aria-live=&quot;assertiv...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>198</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>255</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Action | WCAG | |--------|------| | Add `role=&quot;application&quot;` + `aria-label=&quot;SSH Terminal&quot;` to cont...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>193</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>266</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Migration `002` is absent (jump fr...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>215</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>272</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | Frontend SQLite ownership | Resolv...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>220</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>280</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Table | Column(s) | Used in | |-------|-----------|---------| | `security_audit_log` | `created_at...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>412</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>291</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `SavedHost.id` typed as `number` i...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>607</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>299</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `change_master_password` re-encryp...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>352</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>312</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Command | TS Parameter | Rust Parameter | Status | |---------|-------------|----------------|-----...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>340</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>322</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Event (Rust `emit`) | Event (TS `listen`) | Verified? | |--------------------|--------------------...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>456</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>333</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Tauri command registered | Used in frontend? | |--------------------------|-------------------| | ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>299</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>346</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | No `cargo audit` step — Rust CVE t...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>580</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>356</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Severity | Action | |---------|----------|--------| | `releaseDraft: true` — releases ne...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>407</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>364</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Check | Action | |-------|--------| | No `cargo fmt --check` | Add to backend-checks job | | No Ru...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>303</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>376</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Location | Finding | Action | |---------|---------|--------| | `lib.rs:greet()` | Debug test funct...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>487</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>384</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Action | |---------|--------| | No ESLint config exists (`eslint.config.js` missing) | A...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>401</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>392</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Finding | Action | |---------|--------| | `index.html` title: &quot;Tauri + React + Typescript&quot; | Chang...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>471</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md</file>
+  <line>138</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Severity | Count | |----------|--------| | Critical | 0 | | High | 3 | | Medium | 6 | | Low ...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>110</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Fix | |----|-----| | **H-1** | `monitoring.rs`: All `AlertEngine` and `MetricsStore` mutex lo...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1465</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md</file>
+  <line>171</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| ID | Severity | Summary | Fix | |----|----------|---------|-----| | **AUD-01** | Critical | DB exp...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1273</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Risk | Likelihood | Impact | Mitigation | |------|-----------|--------|------------| | Future migr...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>387</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>335</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Risk | Likelihood | Impact | Mitigation | |------|-----------|--------|------------| | Library bug...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>509</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>349</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Metric | Option 1 | Option 3A (rusqlite_migration) | Option 3B (refinery) | Option 3C (custom) | |...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>518</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>360</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Aspect | Option 1 | Option 3 | |--------|----------|----------| | Adding new migrations | Manual i...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>478</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>372</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="MarkdownIncorrectTableFormatting" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Incorrect table formatting</problem_class>
+  <description>Table is not correctly formatted</description>
+  <highlighted_element>| Feature | Option 1 | Option 3A | Option 3B | Option 3C | |---------|----------|-----------|-------...</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>515</length>
+</problem>
+</problems>

@@ -1,0 +1,542 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/App.test.tsx</file>
+  <line>24</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/App.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 24-28</description>
+  <highlighted_element>if (cmd === 'check_ai_status') return Promise.resolve(false);</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>61</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/App.test.tsx</file>
+  <line>29</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/App.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 29-33</description>
+  <highlighted_element>if (cmd === 'get_vault_settings') return Promise.resolve({ auto_lock_timeout_minutes: 15, vault_init...</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>117</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/Layout.test.tsx</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/Layout.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 19-23</description>
+  <highlighted_element>if (cmd === 'check_ai_status') return Promise.resolve(false);</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>61</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/Layout.test.tsx</file>
+  <line>27</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/Layout.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 27-31</description>
+  <highlighted_element>if (cmd === 'get_vault_settings') return Promise.resolve({ auto_lock_timeout_minutes: 15, vault_init...</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>117</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/RemoteManager.flows.test.tsx</file>
+  <line>298</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/RemoteManager.flows.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 298-302</description>
+  <highlighted_element>mockVault(false);</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/RemoteManager.flows.test.tsx</file>
+  <line>312</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/RemoteManager.flows.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 312-316</description>
+  <highlighted_element>mockVault(false);</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>17</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/ScheduledTasksView.test.tsx</file>
+  <line>106</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/ScheduledTasksView.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 106-112</description>
+  <highlighted_element>render(&lt;ScheduledTasksView /&gt;);</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>31</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/ScheduledTasksView.test.tsx</file>
+  <line>129</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/ScheduledTasksView.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 129-135</description>
+  <highlighted_element>render(&lt;ScheduledTasksView /&gt;);</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>31</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 103-134</description>
+  <highlighted_element>const { result } = renderHook(() =&gt; useSshHostKeyVerification());</highlighted_element>
+  <language>TypeScript</language>
+  <offset>4</offset>
+  <length>65</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>220</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 220-251</description>
+  <highlighted_element>const { result } = renderHook(() =&gt; useSshHostKeyVerification());</highlighted_element>
+  <language>TypeScript</language>
+  <offset>4</offset>
+  <length>65</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>293</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 293-324</description>
+  <highlighted_element>const { result } = renderHook(() =&gt; useSshHostKeyVerification());</highlighted_element>
+  <language>TypeScript</language>
+  <offset>4</offset>
+  <length>65</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>358</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 358-389</description>
+  <highlighted_element>const { result } = renderHook(() =&gt; useSshHostKeyVerification());</highlighted_element>
+  <language>TypeScript</language>
+  <offset>4</offset>
+  <length>65</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx</file>
+  <line>118</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 118-130</description>
+  <highlighted_element>const callback = vi.fn();</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>25</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx</file>
+  <line>140</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 140-152</description>
+  <highlighted_element>const callback = vi.fn();</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>4</offset>
+  <length>25</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/files.rs</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/files.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 103-105</description>
+  <highlighted_element>if !vault::credentials::host_allowed(cred.host.as_deref(), host) {</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>66</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/ssh.rs</file>
+  <line>42</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/ssh.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 42-44</description>
+  <highlighted_element>if !vault::credentials::host_allowed(cred.host.as_deref(), host) {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>66</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/backup.rs</file>
+  <line>199</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 199-202</description>
+  <highlighted_element>rusqlite::backup::Backup::new(&amp;src, &amp;mut dst)</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>45</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/backup.rs</file>
+  <line>210</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 210-213</description>
+  <highlighted_element>rusqlite::backup::Backup::new(&amp;src, &amp;mut dst)</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>45</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 11-17</description>
+  <highlighted_element>let names: Vec&lt;String&gt; = tx</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>27</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs</file>
+  <line>32</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 32-35</description>
+  <highlighted_element>if !names.contains(&amp;col.to_string()) {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>38</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 43-49</description>
+  <highlighted_element>let names: Vec&lt;String&gt; = tx</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>27</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs</file>
+  <line>64</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 64-67</description>
+  <highlighted_element>if !names.contains(&amp;col.to_string()) {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>38</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/health.rs</file>
+  <line>38</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/health.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 38-42</description>
+  <highlighted_element>match timeout(Duration::from_secs(2), pinger.ping(seq, &amp;payload)).await {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>73</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/host_tracker.rs</file>
+  <line>154</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/host_tracker.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 154-167</description>
+  <highlighted_element>|row| {</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/host_tracker.rs</file>
+  <line>221</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/host_tracker.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 221-234</description>
+  <highlighted_element>|row| {</highlighted_element>
+  <language>Rust</language>
+  <offset>59</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs</file>
+  <line>336</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 336-346</description>
+  <highlighted_element>let mut processes: Vec&lt;_&gt; = self</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>32</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs</file>
+  <line>358</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 358-368</description>
+  <highlighted_element>let mut processes: Vec&lt;_&gt; = self</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>32</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scanner.rs</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 102-106</description>
+  <highlighted_element>match timeout(Duration::from_secs(2), pinger.ping(seq, &amp;payload)).await {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>73</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/sftp.rs</file>
+  <line>32</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/sftp.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 32-41</description>
+  <highlighted_element>async fn check_server_key(</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>26</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>681</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 681-685</description>
+  <highlighted_element>if let Some(conn) = conn {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>26</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>694</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 694-698</description>
+  <highlighted_element>if let Some(conn) = conn {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>26</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs</file>
+  <line>155</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 155-164</description>
+  <highlighted_element>impl russh::client::Handler for AcceptAnyKey {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>46</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 28-37</description>
+  <highlighted_element>async fn check_server_key(</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>26</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>424</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 424-432</description>
+  <highlighted_element>impl russh::client::Handler for AcceptAnyKey {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>46</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs</file>
+  <line>281</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 281-289</description>
+  <highlighted_element>impl russh::client::Handler for AcceptAnyKey {</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>46</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>114</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 114-120</description>
+  <highlighted_element>if let Some(ref search) = filter.search_query {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>47</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>186</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 186-192</description>
+  <highlighted_element>if let Some(ref search) = filter.search_query {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>47</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs</file>
+  <line>421</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 421-433</description>
+  <highlighted_element>|row| {</highlighted_element>
+  <language>Rust</language>
+  <offset>27</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs</file>
+  <line>700</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 700-712</description>
+  <highlighted_element>|row| {</highlighted_element>
+  <language>Rust</language>
+  <offset>42</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/ssh_keys.rs</file>
+  <line>131</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/ssh_keys.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 131-143</description>
+  <highlighted_element>|row| {</highlighted_element>
+  <language>Rust</language>
+  <offset>16</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/ssh_keys.rs</file>
+  <line>361</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/ssh_keys.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 361-373</description>
+  <highlighted_element>|row| {</highlighted_element>
+  <language>Rust</language>
+  <offset>31</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1065</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 1,065-1,075</description>
+  <highlighted_element>let caller = {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>14</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1076</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 1,076-1,081</description>
+  <highlighted_element>for _ in 0..1000 {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1160</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 1,160-1,170</description>
+  <highlighted_element>let rotation = {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>16</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1171</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="DuplicatedCode" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Duplicated code fragment</problem_class>
+  <description>Duplicate code: lines 1,171-1,176</description>
+  <highlighted_element>for _ in 0..1000 {</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>18</length>
+</problem>
+</problems>

@@ -1,0 +1,38 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>133</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="ES6RedundantAwait" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Redundant 'await' expression</problem_class>
+  <description>Redundant 'await' for a non-promise type</description>
+  <highlighted_element>await result.current.handleTrust(true)</highlighted_element>
+  <language>TypeScript</language>
+  <offset>6</offset>
+  <length>38</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>186</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="ES6RedundantAwait" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Redundant 'await' expression</problem_class>
+  <description>Redundant 'await' for a non-promise type</description>
+  <highlighted_element>await result.current.handleTrust(false)</highlighted_element>
+  <language>TypeScript</language>
+  <offset>6</offset>
+  <length>39</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts</file>
+  <line>250</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" />
+  <problem_class id="ES6RedundantAwait" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Redundant 'await' expression</problem_class>
+  <description>Redundant 'await' for a non-promise type</description>
+  <highlighted_element>await result.current.handleTrust(true)</highlighted_element>
+  <language>TypeScript</language>
+  <offset>6</offset>
+  <length>38</length>
+</problem>
+</problems>

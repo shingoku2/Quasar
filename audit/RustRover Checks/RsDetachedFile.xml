@@ -1,0 +1,314 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/background.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/background.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! App-lifetime background loops started from `setup`, after every `app.manage(...)` and //! the mi...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>3306</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/ai.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/ai.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! The optional local AI assistant (Ollama). use crate::*; #[tauri::command] pub(crate) async fn ...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>1176</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/app_data.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/app_data.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! App info, metrics cleanup, and database export/import. use crate::*; /// App info for Settings...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>4297</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/files.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/files.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Backend-opened file dialogs (local path grants) and SFTP transfers. use crate::*; // SFTP comm...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>7927</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/hosts.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/hosts.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Saved hosts and their monitoring credentials. use crate::*; #[tauri::command] pub(crate) async...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>6789</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/mod.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/mod.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Every `#[tauri::command]`, grouped by area. `lib.rs` registers them in `generate_handler!`. //! ...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>435</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/monitoring.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/monitoring.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Local system metrics and alert rules. use crate::*; #[tauri::command] pub(crate) fn get_system...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>989</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/network.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/network.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Network scanning, mDNS discovery, Tailscale status and one-off host checks. use crate::*; /// ...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>4609</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/scheduler.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/scheduler.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Scheduled tasks: validation (types, hosts, credentials, local-path grants) and the task commands...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>8629</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/ssh.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/ssh.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Interactive SSH sessions, tunnels and RDP launch, and the credential-to-login path they share. ...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>5107</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/commands/vault.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/commands/vault.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Vault lifecycle, credentials, known host keys and the audit log. use crate::*; // Vault comman...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>16060</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/backup.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Recognizing, importing and replacing the app database (RSEC-004, RUST-004, invariant 13). use s...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>11694</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! The schema migrations, in order. Append-only: never edit a shipped migration or add a //! `002` ...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>4411</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/mod.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/mod.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Database connection utilities for Quasar //! //! This module provides centralized database conne...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>8266</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/alerts.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/alerts.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Alert rules and the engine that evaluates them, persists rules (RUST-002) and keeps //! alert st...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>14375</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Local system metrics: the types the UI receives and the sysinfo-based collector. use serde::{De...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>12416</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/mod.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/mod.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Monitoring: local metrics, alert rules, history storage and the background loop. Split //! by co...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>16187</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/store.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/store.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Metrics and alert history in SQLite. use super::{Alert, SystemMetrics}; use crate::db; pub str...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>9417</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/monitoring/task.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/monitoring/task.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! The monitoring loop: collect, evaluate alerts, emit, persist, and housekeeping. use super::{Ale...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>5893</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/saved_hosts.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/saved_hosts.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Saved hosts (the `hosts` table): reading and writing them, and probing their health for //! the ...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>11090</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scheduler/mod.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scheduler/mod.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Cron-based scheduled task execution (SSH commands on saved hosts). //! Runs in a background task...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>19847</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scheduler/runner.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scheduler/runner.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Running one task: credential resolution, SSH exec or SFTP transfer, result recording, and //! th...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>13118</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scheduler/store.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scheduler/store.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Scheduled-task rows: the columns, mappers and CRUD, plus run results and the task host. use chr...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>10402</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/lockout.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/lockout.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! The unlock lockout, persisted in `vault_settings` so it survives a restart (invariant 5). use s...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>3544</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/rotation.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/rotation.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Re-keying the vault: master-password change (invariants 2-4) and the legacy v1 -&gt; v2 //! migrati...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>21626</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/settings.rs</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/settings.rs" />
+  <problem_class id="RsDetachedFile" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Detached file</problem_class>
+  <description>Module declaration missing. This may impact smart editing features and auto-completion.</description>
+  <highlighted_element>//! Vault settings (auto-lock timeout) as stored in `vault_settings`. use super::*; impl VaultStat...</highlighted_element>
+  <language>Rust</language>
+  <offset>0</offset>
+  <length>2703</length>
+</problem>
+</problems>

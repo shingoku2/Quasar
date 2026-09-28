@@ -1,0 +1,62 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>402</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="RsUnresolvedMethod" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Unresolved method</problem_class>
+  <description>&lt;html&gt;Method `manager` not found in the current scope for type `TempAuditDb`&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0599&quot;&gt;E0599&lt;/a&gt;]&lt;br/&gt;&lt;/html&gt;</description>
+  <highlighted_element>manager</highlighted_element>
+  <language>Rust</language>
+  <offset>22</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>429</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="RsUnresolvedMethod" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Unresolved method</problem_class>
+  <description>&lt;html&gt;Method `manager` not found in the current scope for type `TempAuditDb`&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0599&quot;&gt;E0599&lt;/a&gt;]&lt;br/&gt;&lt;/html&gt;</description>
+  <highlighted_element>manager</highlighted_element>
+  <language>Rust</language>
+  <offset>25</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>452</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="RsUnresolvedMethod" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Unresolved method</problem_class>
+  <description>&lt;html&gt;Method `manager` not found in the current scope for type `TempAuditDb`&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0599&quot;&gt;E0599&lt;/a&gt;]&lt;br/&gt;&lt;/html&gt;</description>
+  <highlighted_element>manager</highlighted_element>
+  <language>Rust</language>
+  <offset>25</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>469</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="RsUnresolvedMethod" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Unresolved method</problem_class>
+  <description>&lt;html&gt;Method `manager` not found in the current scope for type `TempAuditDb`&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0599&quot;&gt;E0599&lt;/a&gt;]&lt;br/&gt;&lt;/html&gt;</description>
+  <highlighted_element>manager</highlighted_element>
+  <language>Rust</language>
+  <offset>25</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>483</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="RsUnresolvedMethod" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Unresolved method</problem_class>
+  <description>&lt;html&gt;Method `manager` not found in the current scope for type `TempAuditDb`&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0599&quot;&gt;E0599&lt;/a&gt;]&lt;br/&gt;&lt;/html&gt;</description>
+  <highlighted_element>manager</highlighted_element>
+  <language>Rust</language>
+  <offset>25</offset>
+  <length>7</length>
+</problem>
+</problems>

@@ -1,0 +1,278 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx</file>
+  <line>20</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field setOptions</description>
+  <highlighted_element>setOptions</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field selectNodes</description>
+  <highlighted_element>selectNodes</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx</file>
+  <line>23</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field getScale</description>
+  <highlighted_element>getScale</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx</file>
+  <line>24</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field moveTo</description>
+  <highlighted_element>moveTo</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field fit</description>
+  <highlighted_element>fit</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx</file>
+  <line>26</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/NetworkTopologyView.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field destroy</description>
+  <highlighted_element>destroy</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field dispose</description>
+  <highlighted_element>dispose</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>31</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field loadAddon</description>
+  <highlighted_element>loadAddon</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>39</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused method onData</description>
+  <highlighted_element>onData</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>49</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field fit</description>
+  <highlighted_element>fit</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>59</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field observe</description>
+  <highlighted_element>observe</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>60</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field unobserve</description>
+  <highlighted_element>unobserve</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx</file>
+  <line>17</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field observe</description>
+  <highlighted_element>observe</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx</file>
+  <line>18</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field unobserve</description>
+  <highlighted_element>unobserve</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx</file>
+  <line>27</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field loadAddon</description>
+  <highlighted_element>loadAddon</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field dispose</description>
+  <highlighted_element>dispose</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx</file>
+  <line>30</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field onData</description>
+  <highlighted_element>onData</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx</file>
+  <line>39</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused field fit</description>
+  <highlighted_element>fit</highlighted_element>
+  <language>JavaScript</language>
+  <offset>6</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/Dashboard.test.tsx</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/Dashboard.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused property XAxis</description>
+  <highlighted_element>XAxis</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/Dashboard.test.tsx</file>
+  <line>16</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/Dashboard.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused property YAxis</description>
+  <highlighted_element>YAxis</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/Dashboard.test.tsx</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/Dashboard.test.tsx" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused property LineChart</description>
+  <highlighted_element>LineChart</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/jest-dom-vitest.d.ts</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/jest-dom-vitest.d.ts" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused interface Matchers</description>
+  <highlighted_element>Matchers</highlighted_element>
+  <language>JavaScript</language>
+  <offset>12</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/test-setup.ts</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/test-setup.ts" />
+  <problem_class id="JSUnusedGlobalSymbols" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unused global symbol</problem_class>
+  <description>Unused property convertFileSrc</description>
+  <highlighted_element>convertFileSrc</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>14</length>
+</problem>
+</problems>

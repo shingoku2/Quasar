@@ -1,0 +1,614 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/patterns.md</file>
+  <line>10</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/patterns.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (66 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>claim.</highlighted_element>
+  <language>Markdown</language>
+  <offset>65</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (40 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>session:</highlighted_element>
+  <language>Markdown</language>
+  <offset>5</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>10</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses 'defense'</description>
+  <highlighted_element>defence</highlighted_element>
+  <language>Markdown</language>
+  <offset>158</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>195</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>41</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>226</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>200</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>26</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>39</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>85</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses '-iz-' in suffixes</description>
+  <highlighted_element>parameterised</highlighted_element>
+  <language>Markdown</language>
+  <offset>36</offset>
+  <length>13</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses '-iz-' in suffixes</description>
+  <highlighted_element>zeroisation</highlighted_element>
+  <language>Markdown</language>
+  <offset>17</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02b-ipc-boundary.md</file>
+  <line>67</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02b-ipc-boundary.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>120</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>67</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>42</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Markdown</language>
+  <offset>90</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>67</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses 'defense'</description>
+  <highlighted_element>defence</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>167</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>honoured</highlighted_element>
+  <language>Markdown</language>
+  <offset>339</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/audit-plan-2026-02-28.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>33</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/automation-removal-2026-02.md</file>
+  <line>138</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/automation-removal-2026-02.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>3</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/mvp-roadmap-2026-02-18.md</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/mvp-roadmap-2026-02-18.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>27</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/mvp-roadmap-2026-02-18.md</file>
+  <line>81</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/mvp-roadmap-2026-02-18.md" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>Markdown</language>
+  <offset>27</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx</file>
+  <line>82</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/TerminalComponent.session.test.tsx" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses '-iz-' in suffixes</description>
+  <highlighted_element>initialises</highlighted_element>
+  <language>JavaScript</language>
+  <offset>56</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/AuditLogViewer.test.tsx</file>
+  <line>112</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/AuditLogViewer.test.tsx" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English does not double '-l-' in suffixes</description>
+  <highlighted_element>labelled</highlighted_element>
+  <language>JavaScript</language>
+  <offset>31</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useModalDialog.ts</file>
+  <line>30</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useModalDialog.ts" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>TypeScript</language>
+  <offset>12</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.ts</file>
+  <line>36</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.ts" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English does not double '-l-' in suffixes</description>
+  <highlighted_element>Cancelled</highlighted_element>
+  <language>TypeScript</language>
+  <offset>6</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useTailscaleStatus.ts</file>
+  <line>68</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useTailscaleStatus.ts" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (46 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>poll.</highlighted_element>
+  <language>TypeScript</language>
+  <offset>48</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx</file>
+  <line>31</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>JavaScript</language>
+  <offset>67</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/deny.toml</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/deny.toml" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>honours</highlighted_element>
+  <language>TOML</language>
+  <offset>42</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/migrations/006_discovered_hosts.sql</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/migrations/006_discovered_hosts.sql" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>GenericSQL</language>
+  <offset>24</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/migrations/010_scheduled_tasks.sql</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/migrations/010_scheduled_tasks.sql" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>GenericSQL</language>
+  <offset>25</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/migrations/011_scheduled_task_run_result.sql</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/migrations/011_scheduled_task_run_result.sql" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>GenericSQL</language>
+  <offset>25</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/migrations/012_scheduled_tasks_sftp.sql</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/migrations/012_scheduled_tasks_sftp.sql" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Some style guides suggest that commas should set off the year in a month-day-year date.</description>
+  <highlighted_element>2026</highlighted_element>
+  <language>GenericSQL</language>
+  <offset>25</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/local_paths.rs</file>
+  <line>13</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/local_paths.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (55 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>session.</highlighted_element>
+  <language>Rust</language>
+  <offset>33</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/saved_hosts.rs</file>
+  <line>255</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/saved_hosts.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (40 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>badly.</highlighted_element>
+  <language>Rust</language>
+  <offset>68</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scanner.rs</file>
+  <line>281</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (44 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>request.</highlighted_element>
+  <language>Rust</language>
+  <offset>48</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scanner.rs</file>
+  <line>671</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (47 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>stop.</highlighted_element>
+  <language>Rust</language>
+  <offset>66</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scanner.rs</file>
+  <line>690</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (52 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>privileges).</highlighted_element>
+  <language>Rust</language>
+  <offset>22</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scheduler/runner.rs</file>
+  <line>275</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scheduler/runner.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (47 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>execution).</highlighted_element>
+  <language>Rust</language>
+  <offset>58</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Rust</language>
+  <offset>35</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>584</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Rust</language>
+  <offset>15</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>595</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Rust</language>
+  <offset>18</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_test_server.rs</file>
+  <line>2</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_test_server.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>British roots ending with '-our' usually have '-or' in American English</description>
+  <highlighted_element>behaviour</highlighted_element>
+  <language>Rust</language>
+  <offset>63</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>4</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses '-iz-' in suffixes</description>
+  <highlighted_element>normalises</highlighted_element>
+  <language>Rust</language>
+  <offset>69</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>9</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (49 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>downstream.</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses '-iz-' in suffixes</description>
+  <highlighted_element>normalise</highlighted_element>
+  <language>Rust</language>
+  <offset>38</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>156</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English uses '-iz-' in suffixes</description>
+  <highlighted_element>sanitises</highlighted_element>
+  <language>Rust</language>
+  <offset>41</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>302</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English does not double '-l-' in suffixes</description>
+  <highlighted_element>Modelled</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/rotation.rs</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/rotation.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>Long sentences (42 words here) are harder to read, according to the research; consider splitting</description>
+  <highlighted_element>true.</highlighted_element>
+  <language>Rust</language>
+  <offset>25</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>59</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English does not double '-l-' in suffixes</description>
+  <highlighted_element>cancelled</highlighted_element>
+  <language>Rust</language>
+  <offset>76</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>63</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="GrazieStyle" severity="STYLE_SUGGESTION" attribute_key="TEXT_STYLE_SUGGESTION">Style</problem_class>
+  <description>American English does not double '-l-' in suffixes</description>
+  <highlighted_element>cancelled</highlighted_element>
+  <language>Rust</language>
+  <offset>69</offset>
+  <length>9</length>
+</problem>
+</problems>

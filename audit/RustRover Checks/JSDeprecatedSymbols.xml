@@ -1,0 +1,74 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/AIAssistant.tsx</file>
+  <line>143</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/AIAssistant.tsx" />
+  <problem_class id="JSDeprecatedSymbols" severity="WEAK WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated symbol used</problem_class>
+  <description>Deprecated symbol used, consult docs for better alternative</description>
+  <highlighted_element>FormEvent</highlighted_element>
+  <language>JavaScript</language>
+  <offset>37</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/AddHostDialog.tsx</file>
+  <line>53</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/AddHostDialog.tsx" />
+  <problem_class id="JSDeprecatedSymbols" severity="WEAK WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated symbol used</problem_class>
+  <description>Deprecated symbol used, consult docs for better alternative</description>
+  <highlighted_element>FormEvent</highlighted_element>
+  <language>JavaScript</language>
+  <offset>39</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/CredentialPrompt.tsx</file>
+  <line>35</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/CredentialPrompt.tsx" />
+  <problem_class id="JSDeprecatedSymbols" severity="WEAK WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated symbol used</problem_class>
+  <description>Deprecated symbol used, consult docs for better alternative</description>
+  <highlighted_element>FormEvent</highlighted_element>
+  <language>JavaScript</language>
+  <offset>39</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/VaultInitDialog.tsx</file>
+  <line>37</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/VaultInitDialog.tsx" />
+  <problem_class id="JSDeprecatedSymbols" severity="WEAK WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated symbol used</problem_class>
+  <description>Deprecated symbol used, consult docs for better alternative</description>
+  <highlighted_element>FormEvent</highlighted_element>
+  <language>JavaScript</language>
+  <offset>39</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/VaultUnlockDialog.tsx</file>
+  <line>20</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/VaultUnlockDialog.tsx" />
+  <problem_class id="JSDeprecatedSymbols" severity="WEAK WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated symbol used</problem_class>
+  <description>Deprecated symbol used, consult docs for better alternative</description>
+  <highlighted_element>FormEvent</highlighted_element>
+  <language>JavaScript</language>
+  <offset>39</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/credentials/CredentialFormDialog.tsx</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/credentials/CredentialFormDialog.tsx" />
+  <problem_class id="JSDeprecatedSymbols" severity="WEAK WARNING" attribute_key="DEPRECATED_ATTRIBUTES">Deprecated symbol used</problem_class>
+  <description>Deprecated symbol used, consult docs for better alternative</description>
+  <highlighted_element>FormEvent</highlighted_element>
+  <language>JavaScript</language>
+  <offset>39</offset>
+  <length>9</length>
+</problem>
+</problems>

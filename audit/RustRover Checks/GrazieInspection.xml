@@ -1,0 +1,2078 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/MEMORY.md</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/MEMORY.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>37</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/patterns.md</file>
+  <line>74</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/patterns.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>2</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/patterns.md</file>
+  <line>136</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/patterns.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>86</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md</file>
+  <line>24</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>68</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md</file>
+  <line>81</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'write' does not usually follow articles like 'the'. Check that 'write' is spelled correctly; using 'write' as a noun may be non-standard.</description>
+  <highlighted_element>the write</highlighted_element>
+  <language>Markdown</language>
+  <offset>35</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md</file>
+  <line>83</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agent-memory/security-reviewer/vault_rs_patterns.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>3</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agents/security-reviewer.md</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agents/security-reviewer.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agents/security-reviewer.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agents/security-reviewer.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>350</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.claude/agents/security-reviewer.md</file>
+  <line>95</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.claude/agents/security-reviewer.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>2</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.github/workflows/qodana_code_quality.yml</file>
+  <line>13</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.github/workflows/qodana_code_quality.yml" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>When a number forms part of an adjectival compound, use a hyphen.</description>
+  <highlighted_element>45 min</highlighted_element>
+  <language>yaml</language>
+  <offset>60</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.github/workflows/qodana_code_quality.yml</file>
+  <line>29</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.github/workflows/qodana_code_quality.yml" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>When a number forms part of an adjectival compound, use a hyphen.</description>
+  <highlighted_element>10 min</highlighted_element>
+  <language>yaml</language>
+  <offset>82</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.jules/bolt.md</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.jules/bolt.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This word is normally spelled as one.</description>
+  <highlighted_element>anti-pattern</highlighted_element>
+  <language>Markdown</language>
+  <offset>192</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/.jules/sentinel.md</file>
+  <line>6</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/.jules/sentinel.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'write' does not usually follow articles like 'a'. Check that 'write' is spelled correctly; using 'write' as a noun may be non-standard.</description>
+  <highlighted_element>a write</highlighted_element>
+  <language>Markdown</language>
+  <offset>372</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>23</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Use a comma before 'and' if it connects two independent clauses (unless they are closely connected and short).</description>
+  <highlighted_element>and</highlighted_element>
+  <language>Markdown</language>
+  <offset>129</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>27</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Use a comma before 'and' if it connects two independent clauses (unless they are closely connected and short).</description>
+  <highlighted_element>and</highlighted_element>
+  <language>Markdown</language>
+  <offset>190</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean 'one of'?</description>
+  <highlighted_element>one</highlighted_element>
+  <language>Markdown</language>
+  <offset>109</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>194</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>149</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>195</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>112</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>226</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: '&quot;' seems to be missing</description>
+  <highlighted_element>&quot;</highlighted_element>
+  <language>Markdown</language>
+  <offset>38</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/AUDIT.md</file>
+  <line>380</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/AUDIT.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: '&quot;' seems to be missing</description>
+  <highlighted_element>&quot;</highlighted_element>
+  <language>Markdown</language>
+  <offset>315</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CHANGELOG.md</file>
+  <line>41</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CHANGELOG.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>In American English, 'afterward' is the preferred variant. 'Afterwards' is more commonly used in British English and other dialects.</description>
+  <highlighted_element>afterwards</highlighted_element>
+  <language>Markdown</language>
+  <offset>152</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CHANGELOG.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CHANGELOG.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>204</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CLAUDE.md</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CLAUDE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Two consecutive dots</description>
+  <highlighted_element>..</highlighted_element>
+  <language>Markdown</language>
+  <offset>21</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CLAUDE.md</file>
+  <line>119</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CLAUDE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This word is normally spelled as one.</description>
+  <highlighted_element>Multi-step</highlighted_element>
+  <language>Markdown</language>
+  <offset>157</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CLAUDE.md</file>
+  <line>126</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CLAUDE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CLAUDE.md</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CLAUDE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>When a number forms part of an adjectival compound, use a hyphen.</description>
+  <highlighted_element>45 min</highlighted_element>
+  <language>Markdown</language>
+  <offset>598</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/CLAUDE.md</file>
+  <line>150</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/CLAUDE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This word is normally spelled as one.</description>
+  <highlighted_element>hand-written</highlighted_element>
+  <language>Markdown</language>
+  <offset>304</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/README.md</file>
+  <line>8</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/README.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>93</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/00-recon.md</file>
+  <line>157</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/00-recon.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'write' does not usually follow articles like 'the'. Check that 'write' is spelled correctly; using 'write' as a noun may be non-standard.</description>
+  <highlighted_element>the write</highlighted_element>
+  <language>Markdown</language>
+  <offset>199</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>4</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02a-rust-security.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02a-rust-security.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>37</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/02b-ipc-boundary.md</file>
+  <line>48</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/02b-ipc-boundary.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean the formatting language?</description>
+  <highlighted_element>markdown</highlighted_element>
+  <language>Markdown</language>
+  <offset>139</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/03-rust-quality.md</file>
+  <line>133</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/03-rust-quality.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>For abbreviations such as 'artificial intelligence', use all capital letters. The rare word 'ai' is a synonym for 'three-toed sloth'.</description>
+  <highlighted_element>ai</highlighted_element>
+  <language>Markdown</language>
+  <offset>35</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/04-frontend.md</file>
+  <line>8</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/04-frontend.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>A comma may be missing after the conjunctive/linking adverb 'Otherwise'.</description>
+  <highlighted_element>Otherwise</highlighted_element>
+  <language>Markdown</language>
+  <offset>479</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/04-frontend.md</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/04-frontend.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This word is normally spelled as one.</description>
+  <highlighted_element>hand-written</highlighted_element>
+  <language>Markdown</language>
+  <offset>141</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/04-frontend.md</file>
+  <line>16</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/04-frontend.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>In American English, 'afterward' is the preferred variant. 'Afterwards' is more commonly used in British English and other dialects.</description>
+  <highlighted_element>afterwards</highlighted_element>
+  <language>Markdown</language>
+  <offset>109</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/04-frontend.md</file>
+  <line>74</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/04-frontend.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>File types are usually capitalized</description>
+  <highlighted_element>json</highlighted_element>
+  <language>Markdown</language>
+  <offset>101</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>123</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'assert' does not usually follow articles like 'the'. Check that 'assert' is spelled correctly; using 'assert' as a noun may be non-standard.</description>
+  <highlighted_element>the assert</highlighted_element>
+  <language>Markdown</language>
+  <offset>236</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>134</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'rely' requires the preposition 'on' (or 'upon').</description>
+  <highlighted_element>relying</highlighted_element>
+  <language>Markdown</language>
+  <offset>206</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>149</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>522</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>167</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'ignore' does not usually follow articles like 'the'. Check that 'ignore' is spelled correctly; using 'ignore' as a noun may be non-standard.</description>
+  <highlighted_element>the ignore</highlighted_element>
+  <language>Markdown</language>
+  <offset>320</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt</file>
+  <line>667</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt</file>
+  <line>668</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt</file>
+  <line>669</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt</file>
+  <line>670</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-test.txt</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-test.txt</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-test.txt</file>
+  <line>153</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-test.txt</file>
+  <line>154</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt</file>
+  <line>346</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>markup5ever</highlighted_element>
+  <language>TEXT</language>
+  <offset>16</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt</file>
+  <line>347</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>html5ever</highlighted_element>
+  <language>TEXT</language>
+  <offset>20</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt</file>
+  <line>1025</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>File types are usually capitalized</description>
+  <highlighted_element>json</highlighted_element>
+  <language>TEXT</language>
+  <offset>10</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt</file>
+  <line>1033</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>File types are usually capitalized</description>
+  <highlighted_element>json</highlighted_element>
+  <language>TEXT</language>
+  <offset>6</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt</file>
+  <line>1035</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/cargo-tree-dups.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>File types are usually capitalized</description>
+  <highlighted_element>json</highlighted_element>
+  <language>TEXT</language>
+  <offset>6</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/npm-build.txt</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/npm-build.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ']' seems to be missing</description>
+  <highlighted_element>[</highlighted_element>
+  <language>TEXT</language>
+  <offset>1</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/npm-build.txt</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/npm-build.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ']' seems to be missing</description>
+  <highlighted_element>[</highlighted_element>
+  <language>TEXT</language>
+  <offset>35</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/npm-ci.txt</file>
+  <line>9</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/npm-ci.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This phrase is duplicated. You should probably use 'npm notice' only once.</description>
+  <highlighted_element>npm notice npm notice</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>21</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt</file>
+  <line>685</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt</file>
+  <line>686</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt</file>
+  <line>687</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt</file>
+  <line>688</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-llvm-cov.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt</file>
+  <line>167</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt</file>
+  <line>168</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt</file>
+  <line>169</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt</file>
+  <line>170</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/npm-build.txt</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/npm-build.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ']' seems to be missing</description>
+  <highlighted_element>[</highlighted_element>
+  <language>TEXT</language>
+  <offset>1</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/npm-build.txt</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/npm-build.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ']' seems to be missing</description>
+  <highlighted_element>[</highlighted_element>
+  <language>TEXT</language>
+  <offset>35</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/phase7/rsec001-test-before-fix.txt</file>
+  <line>5</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/phase7/rsec001-test-before-fix.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>10</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>5</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>6</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>7</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>8</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>9</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>10</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>12</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>13</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>14</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>16</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>17</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>18</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>20</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>22</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>23</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>24</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>32</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>35</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>36</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>37</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>38</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>39</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>40</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>41</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>42</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>44</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>45</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>46</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>47</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>48</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>49</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>51</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/apt-install.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: ')' seems to be missing</description>
+  <highlighted_element>(</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt</file>
+  <line>517</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt</file>
+  <line>518</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt</file>
+  <line>519</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt</file>
+  <line>520</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/refresh/cargo-test.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo: you repeated a word.</description>
+  <highlighted_element>test test</highlighted_element>
+  <language>TEXT</language>
+  <offset>0</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/vitest-coverage-retry.txt</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/vitest-coverage-retry.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>File types are usually capitalized</description>
+  <highlighted_element>html</highlighted_element>
+  <language>TEXT</language>
+  <offset>126</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/raw/vitest-coverage-retry.txt</file>
+  <line>3</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/raw/vitest-coverage-retry.txt" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>File types are usually capitalized</description>
+  <highlighted_element>html</highlighted_element>
+  <language>TEXT</language>
+  <offset>138</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>43</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/ARCHITECTURE.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/ARCHITECTURE.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'unlock' does not usually follow articles like 'the'. Check that 'unlock' is spelled correctly; using 'unlock' as a noun may be non-standard.</description>
+  <highlighted_element>the unlock</highlighted_element>
+  <language>Markdown</language>
+  <offset>365</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>106</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>53</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>274</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/SECURITY_MODEL.md</file>
+  <line>305</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/SECURITY_MODEL.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>30</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/automation-removal-2026-02.md</file>
+  <line>42</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/automation-removal-2026-02.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>For abbreviations such as 'artificial intelligence', use all capital letters. The rare word 'ai' is a synonym for 'three-toed sloth'.</description>
+  <highlighted_element>ai</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>300</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>343</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>275</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This word is normally spelled as one.</description>
+  <highlighted_element>multi-factor</highlighted_element>
+  <language>Markdown</language>
+  <offset>7</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>293</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The modal verb 'Can' requires the verb's base form.</description>
+  <highlighted_element>snapshot</highlighted_element>
+  <language>Markdown</language>
+  <offset>6</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/mvp-roadmap-2026-02-18.md</file>
+  <line>18</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/mvp-roadmap-2026-02-18.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>29</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/product-vision.md</file>
+  <line>15</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/product-vision.md" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Markdown</language>
+  <offset>57</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/HealthCheckBadge.tsx</file>
+  <line>23</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/HealthCheckBadge.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The adjective or adverb 'off-screen' is spelled with a hyphen.</description>
+  <highlighted_element>off screen</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>28</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/HostList.test.tsx</file>
+  <line>212</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/HostList.test.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>It appears that the past participle should be used here.</description>
+  <highlighted_element>Connect</highlighted_element>
+  <language>JavaScript</language>
+  <offset>20</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshFileManager.tsx</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshFileManager.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean 'double click' (= noun)?</description>
+  <highlighted_element>double-click</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>33</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/SshTunnelsView.test.tsx</file>
+  <line>161</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/SshTunnelsView.test.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>In American English, 'afterward' is the preferred variant. 'Afterwards' is more commonly used in British English and other dialects.</description>
+  <highlighted_element>afterwards</highlighted_element>
+  <language>JavaScript</language>
+  <offset>64</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/AlertRules.tsx</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/AlertRules.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The word 'replace' is a verb. Did you mean the noun 'replacement'?</description>
+  <highlighted_element>replace</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>39</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/SystemHealthWidget.test.tsx</file>
+  <line>20</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/SystemHealthWidget.test.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Use a comma before 'or' if it connects two independent clauses (unless they are closely connected and short).</description>
+  <highlighted_element>or</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>40</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/vault/credentials/useCredentials.ts</file>
+  <line>9</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/vault/credentials/useCredentials.ts" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'delete' does not usually follow articles like 'a'. Check that 'delete' is spelled correctly; using 'delete' as a noun may be non-standard.</description>
+  <highlighted_element>a delete</highlighted_element>
+  <language>TypeScript</language>
+  <offset>18</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.ts</file>
+  <line>55</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.ts" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible spelling mistake found.</description>
+  <highlighted_element>Id</highlighted_element>
+  <language>TypeScript</language>
+  <offset>6</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useViewVisibility.tsx</file>
+  <line>10</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useViewVisibility.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The adjective or adverb 'off-screen' is spelled with a hyphen.</description>
+  <highlighted_element>off screen</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>25</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/hooks/useViewVisibility.tsx</file>
+  <line>59</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/hooks/useViewVisibility.tsx" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean 'being'?</description>
+  <highlighted_element>begin</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>65</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src/lib/copiedSecret.ts</file>
+  <line>45</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/lib/copiedSecret.ts" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'write' does not usually follow articles like 'the'. Check that 'write' is spelled correctly; using 'write' as a noun may be non-standard.</description>
+  <highlighted_element>the write</highlighted_element>
+  <language>JavaScript</language>
+  <offset>50</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/.cargo/audit.toml</file>
+  <line>1</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/.cargo/audit.toml" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The official name of this software platform is spelled with a capital &quot;H&quot;.</description>
+  <highlighted_element>github</highlighted_element>
+  <language>TOML</language>
+  <offset>40</offset>
+  <length>6</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/Cargo.toml</file>
+  <line>13</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/Cargo.toml" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Use a comma before 'but' if it connects two independent clauses (unless they are closely connected and short).</description>
+  <highlighted_element>but</highlighted_element>
+  <language>TOML</language>
+  <offset>38</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/deny.toml</file>
+  <line>22</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/deny.toml" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>webkit2gtk</highlighted_element>
+  <language>TOML</language>
+  <offset>22</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/backup.rs</file>
+  <line>71</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The word 'installs' is not a noun.</description>
+  <highlighted_element>installs</highlighted_element>
+  <language>Rust</language>
+  <offset>66</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/backup.rs</file>
+  <line>128</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>In American English, 'afterward' is the preferred variant. 'Afterwards' is more commonly used in British English and other dialects.</description>
+  <highlighted_element>afterwards</highlighted_element>
+  <language>Rust</language>
+  <offset>7</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/db/backup.rs</file>
+  <line>130</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'suspend' does not usually follow articles like 'the'. Check that 'suspend' is spelled correctly; using 'suspend' as a noun may be non-standard.</description>
+  <highlighted_element>the suspend</highlighted_element>
+  <language>Rust</language>
+  <offset>73</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>687</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Unpaired symbol: '}' seems to be missing</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Rust</language>
+  <offset>89</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>961</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>A comma is probably missing here.</description>
+  <highlighted_element>failure</highlighted_element>
+  <language>Rust</language>
+  <offset>11</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/local_paths.rs</file>
+  <line>4</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/local_paths.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Two consecutive dots</description>
+  <highlighted_element>..</highlighted_element>
+  <language>Rust</language>
+  <offset>73</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/saved_hosts.rs</file>
+  <line>255</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/saved_hosts.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>When a number forms part of an adjectival compound, use a hyphen.</description>
+  <highlighted_element>30 second</highlighted_element>
+  <language>Rust</language>
+  <offset>37</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scanner.rs</file>
+  <line>278</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>A comma may be missing after the conjunctive/linking adverb 'Otherwise'.</description>
+  <highlighted_element>Otherwise</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/scanner.rs</file>
+  <line>667</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>A comma may be missing after the conjunctive/linking adverb 'Otherwise'.</description>
+  <highlighted_element>Otherwise</highlighted_element>
+  <language>Rust</language>
+  <offset>44</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_connect.rs</file>
+  <line>153</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_connect.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'connect' does not usually follow articles like 'the'. Check that 'connect' is spelled correctly; using 'connect' as a noun may be non-standard.</description>
+  <highlighted_element>the</highlighted_element>
+  <language>Rust</language>
+  <offset>86</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_connect.rs</file>
+  <line>154</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_connect.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'connect' does not usually follow articles like 'the'. Check that 'connect' is spelled correctly; using 'connect' as a noun may be non-standard.</description>
+  <highlighted_element>connect</highlighted_element>
+  <language>Rust</language>
+  <offset>8</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>6</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>When a number forms part of an adjectival compound, use a hyphen.</description>
+  <highlighted_element>30 second</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>28</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>When a number forms part of an adjectival compound, use a hyphen.</description>
+  <highlighted_element>30 second</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>9</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Use a comma before 'and' if it connects two independent clauses (unless they are closely connected and short).</description>
+  <highlighted_element>and</highlighted_element>
+  <language>Rust</language>
+  <offset>13</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>46</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The word 'install' is not a noun.</description>
+  <highlighted_element>install</highlighted_element>
+  <language>Rust</language>
+  <offset>53</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/tailscale.rs</file>
+  <line>155</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/tailscale.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The word 'install' is not a noun.</description>
+  <highlighted_element>install</highlighted_element>
+  <language>Rust</language>
+  <offset>16</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/validation.rs</file>
+  <line>143</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/validation.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Two consecutive dots</description>
+  <highlighted_element>..</highlighted_element>
+  <language>Rust</language>
+  <offset>44</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/validation.rs</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/validation.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Two consecutive dots</description>
+  <highlighted_element>..</highlighted_element>
+  <language>Rust</language>
+  <offset>45</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>64</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>A determiner may be missing.</description>
+  <highlighted_element>(best</highlighted_element>
+  <language>Rust</language>
+  <offset>33</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean 'not'?</description>
+  <highlighted_element>no</highlighted_element>
+  <language>Rust</language>
+  <offset>22</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs</file>
+  <line>752</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>This word is normally spelled as one.</description>
+  <highlighted_element>hand-written</highlighted_element>
+  <language>Rust</language>
+  <offset>51</offset>
+  <length>12</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs</file>
+  <line>3</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>26</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs</file>
+  <line>11</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs</file>
+  <line>29</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs</file>
+  <line>45</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs</file>
+  <line>118</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/kdf.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>13</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>171</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>53</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1204</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The verb 'unlock' does not usually follow articles like 'the'. Check that 'unlock' is spelled correctly; using 'unlock' as a noun may be non-standard.</description>
+  <highlighted_element>the unlock</highlighted_element>
+  <language>Rust</language>
+  <offset>41</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1359</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Possible typo detected.</description>
+  <highlighted_element>Argon2id</highlighted_element>
+  <language>Rust</language>
+  <offset>71</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1486</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>Did you mean the adverb 'anymore'?</description>
+  <highlighted_element>any more</highlighted_element>
+  <language>Rust</language>
+  <offset>71</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/vite.config.ts</file>
+  <line>5</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/vite.config.ts" />
+  <problem_class id="GrazieInspection" severity="GRAMMAR_ERROR" attribute_key="GRAMMAR_ERROR">Grammar</problem_class>
+  <description>The official spelling of this programming framework is 'Node.js'.</description>
+  <highlighted_element>nodejs</highlighted_element>
+  <language>JavaScript</language>
+  <offset>33</offset>
+  <length>6</length>
+</problem>
+</problems>

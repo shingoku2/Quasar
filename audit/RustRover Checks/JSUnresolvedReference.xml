@@ -1,0 +1,122 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>19</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>8</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>26</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>30</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Unresolved variable or type process</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>17</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>32</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Unresolved variable or type process</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>3</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Unresolved variable or type process</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>17</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>46</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>15</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>55</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>4</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>61</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>28</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/scripts/tauri-dev.js</file>
+  <line>65</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/scripts/tauri-dev.js" />
+  <problem_class id="JSUnresolvedReference" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved reference</problem_class>
+  <description>Missing import statement</description>
+  <highlighted_element>process</highlighted_element>
+  <language>JavaScript</language>
+  <offset>2</offset>
+  <length>7</length>
+</problem>
+</problems>

@@ -1,0 +1,14 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>239</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="RsTypeCheck" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Type checker</problem_class>
+  <description>&lt;html&gt;Type mismatch&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0308&quot;&gt;E0308&lt;/a&gt;]&lt;br/&gt;expected `&amp;amp;soup::auto::server_message::ServerMessage`, but found `&amp;amp;[u8]`&lt;/html&gt;</description>
+  <highlighted_element>password_bytes</highlighted_element>
+  <language>Rust</language>
+  <offset>57</offset>
+  <length>14</length>
+</problem>
+</problems>

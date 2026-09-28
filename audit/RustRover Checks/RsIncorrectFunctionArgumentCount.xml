@@ -1,0 +1,14 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>239</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="RsIncorrectFunctionArgumentCount" severity="ERROR" attribute_key="ERRORS_ATTRIBUTES">Wrong number of arguments</problem_class>
+  <description>&lt;html&gt;This function takes 4 parameters, but 2 parameters were supplied&amp;nbsp;[&lt;a href=&quot;https://doc.rust-lang.org/error-index.html#E0061&quot;&gt;E0061&lt;/a&gt;]&lt;br/&gt;&lt;/html&gt;</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Rust</language>
+  <offset>71</offset>
+  <length>1</length>
+</problem>
+</problems>

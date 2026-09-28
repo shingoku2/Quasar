@@ -1,0 +1,542 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>155</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>ssh::</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>155</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>ssh::</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>156</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>ssh::</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>156</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>ssh::</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>157</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>ssh::</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>157</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>ssh::</highlighted_element>
+  <language>Rust</language>
+  <offset>12</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>830</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>vault::credentials::CredentialUse::</highlighted_element>
+  <language>Rust</language>
+  <offset>65</offset>
+  <length>35</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/lib.rs</file>
+  <line>831</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/lib.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>vault::credentials::CredentialUse::</highlighted_element>
+  <language>Rust</language>
+  <offset>65</offset>
+  <length>35</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/sftp.rs</file>
+  <line>30</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/sftp.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>17</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/sftp.rs</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/sftp.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>28</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/sftp.rs</file>
+  <line>226</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/sftp.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>std::path::</highlighted_element>
+  <language>Rust</language>
+  <offset>29</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>150</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>17</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>154</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>28</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>37</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>208</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>35</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>222</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>20</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>342</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>26</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh.rs</file>
+  <line>375</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>24</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs</file>
+  <line>155</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::client::</highlighted_element>
+  <language>Rust</language>
+  <offset>9</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs</file>
+  <line>166</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>std::sync::</highlighted_element>
+  <language>Rust</language>
+  <offset>63</offset>
+  <length>11</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>26</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>17</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>30</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>28</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>79</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>14</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>111</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>112</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>23</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>119</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>122</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>125</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>126</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>277</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>17</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>318</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>20</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>477</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>21</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>481</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::</highlighted_element>
+  <language>Rust</language>
+  <offset>33</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>424</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::client::</highlighted_element>
+  <language>Rust</language>
+  <offset>9</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs</file>
+  <line>503</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>russh::client::</highlighted_element>
+  <language>Rust</language>
+  <offset>9</offset>
+  <length>15</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs</file>
+  <line>78</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>std::</highlighted_element>
+  <language>Rust</language>
+  <offset>57</offset>
+  <length>5</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs</file>
+  <line>83</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>tokio::</highlighted_element>
+  <language>Rust</language>
+  <offset>4</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs</file>
+  <line>378</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>tokio::</highlighted_element>
+  <language>Rust</language>
+  <offset>38</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs</file>
+  <line>379</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>tokio::</highlighted_element>
+  <language>Rust</language>
+  <offset>40</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs</file>
+  <line>309</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>rusqlite::</highlighted_element>
+  <language>Rust</language>
+  <offset>15</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs</file>
+  <line>414</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>rusqlite::</highlighted_element>
+  <language>Rust</language>
+  <offset>47</offset>
+  <length>10</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>174</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>crate::</highlighted_element>
+  <language>Rust</language>
+  <offset>19</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>653</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>crate::</highlighted_element>
+  <language>Rust</language>
+  <offset>19</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1241</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>crate::</highlighted_element>
+  <language>Rust</language>
+  <offset>25</offset>
+  <length>7</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/vault.rs</file>
+  <line>1362</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/vault.rs" />
+  <problem_class id="RsUnnecessaryQualifications" severity="WEAK WARNING" attribute_key="NOT_USED_ELEMENT_ATTRIBUTES">Unnecessary path prefix</problem_class>
+  <description>Path prefix not necessary</description>
+  <highlighted_element>std::time::</highlighted_element>
+  <language>Rust</language>
+  <offset>27</offset>
+  <length>11</length>
+</problem>
+</problems>

@@ -1,0 +1,26 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>504</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnwrap" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unwrap can be replaced with `?`</problem_class>
+  <description>`unwrap()` can be replaced with `?`</description>
+  <highlighted_element>unwrap()</highlighted_element>
+  <language>Rust</language>
+  <offset>9</offset>
+  <length>8</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs</file>
+  <line>507</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" />
+  <problem_class id="RsUnwrap" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Unwrap can be replaced with `?`</problem_class>
+  <description>`unwrap()` can be replaced with `?`</description>
+  <highlighted_element>unwrap()</highlighted_element>
+  <language>Rust</language>
+  <offset>13</offset>
+  <length>8</length>
+</problem>
+</problems>

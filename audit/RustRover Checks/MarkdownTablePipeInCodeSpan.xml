@@ -1,0 +1,14 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/audit/05-tests-deps-ci.md</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/audit/05-tests-deps-ci.md" />
+  <problem_class id="MarkdownTablePipeInCodeSpan" severity="WARNING" attribute_key="WARNING_ATTRIBUTES">Unescaped pipe in code span</problem_class>
+  <description>Unescaped '|' inside a code span is treated as a column separator in tables</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>1766</offset>
+  <length>1</length>
+</problem>
+</problems>

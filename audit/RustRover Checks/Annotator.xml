@@ -1,0 +1,3785 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'Disconnect' #loc</description>
+  <highlighted_element>D</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'ByApplication' #loc</description>
+  <highlighted_element>B</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>59</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>21</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ';' #loc</description>
+  <highlighted_element>;</highlighted_element>
+  <language>Markdown</language>
+  <offset>76</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'Disconnect' #loc</description>
+  <highlighted_element>D</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'ByApplication' #loc</description>
+  <highlighted_element>B</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>59</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>25</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ';' #loc</description>
+  <highlighted_element>;</highlighted_element>
+  <language>Markdown</language>
+  <offset>76</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>const, extern, fn or unsafe expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>19</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>33</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ';' #loc</description>
+  <highlighted_element>;</highlighted_element>
+  <language>Markdown</language>
+  <offset>45</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'Disconnect' #loc</description>
+  <highlighted_element>D</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'ByApplication' #loc</description>
+  <highlighted_element>B</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>59</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>34</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ';' #loc</description>
+  <highlighted_element>;</highlighted_element>
+  <language>Markdown</language>
+  <offset>76</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>35</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected #loc</description>
+  <highlighted_element />
+  <language>Markdown</language>
+  <offset>6</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>47</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>47</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>47</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>const, extern, fn or unsafe expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>19</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>49</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>49</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>14</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>49</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '?' #loc</description>
+  <highlighted_element>?</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>6</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>51</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ';' #loc</description>
+  <highlighted_element>;</highlighted_element>
+  <language>Markdown</language>
+  <offset>7</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'Disconnect' #loc</description>
+  <highlighted_element>D</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'ByApplication' #loc</description>
+  <highlighted_element>B</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>59</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>54</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ';' #loc</description>
+  <highlighted_element>;</highlighted_element>
+  <language>Markdown</language>
+  <offset>76</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>55</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected #loc</description>
+  <highlighted_element />
+  <language>Markdown</language>
+  <offset>6</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>71</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>71</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>18</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>71</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>30</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>71</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>35</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>71</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>50</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>72</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>7</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>13</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>19</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>25</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>30</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>50</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>56</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>59</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>62</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>73</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>72</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>74</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>13</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>74</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>109</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>109</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>109</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '+' #loc</description>
+  <highlighted_element>+</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>109</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>38</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>109</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>42</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>110</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '&gt;' #loc</description>
+  <highlighted_element>&gt;</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>25</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>51</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>120</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>55</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>121</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '&gt;' #loc</description>
+  <highlighted_element>&gt;</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'for' #loc</description>
+  <highlighted_element>for</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>7</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>13</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>33</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>54</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>84</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>177</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>177</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>43</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>177</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>47</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>177</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>52</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>178</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>178</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>35</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>178</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>53</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>179</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>180</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>181</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>182</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>16</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>183</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>16</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>17</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>185</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>16</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>203</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>203</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>203</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>203</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>54</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>203</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>54</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>204</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>204</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>204</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>58</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>204</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>58</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>211</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>211</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>211</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>211</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>80</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>211</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>80</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>212</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>212</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>212</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>69</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>212</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>69</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>224</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>224</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>224</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>21</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>245</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>245</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>245</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>21</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>275</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md</file>
+  <line>275</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/code-review-2026-02-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>24</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>66</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>52</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>67</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>17</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>37</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>102</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>3</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'fs' #loc</description>
+  <highlighted_element>f</highlighted_element>
+  <language>Markdown</language>
+  <offset>5</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>7</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'create_dir_all' #loc</description>
+  <highlighted_element>c</highlighted_element>
+  <language>Markdown</language>
+  <offset>9</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>103</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>104</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>16</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>104</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>25</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>104</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>104</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>41</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>104</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>76</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>9</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>19</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'Connection' #loc</description>
+  <highlighted_element>C</highlighted_element>
+  <language>Markdown</language>
+  <offset>21</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>31</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'open' #loc</description>
+  <highlighted_element>o</highlighted_element>
+  <language>Markdown</language>
+  <offset>33</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>37</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>50</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>105</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>58</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>106</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>4</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>106</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>18</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>106</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>71</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>106</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>71</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>107</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>140</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'for' #loc</description>
+  <highlighted_element>for</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>140</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got 'in' #loc</description>
+  <highlighted_element>in</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>140</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>25</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'SshCommand' #loc</description>
+  <highlighted_element>S</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>29</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>35</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>45</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>55</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '}' #loc</description>
+  <highlighted_element>}</highlighted_element>
+  <language>Markdown</language>
+  <offset>65</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>9</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>24</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'new' #loc</description>
+  <highlighted_element>n</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>29</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>205</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>38</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'if' #loc</description>
+  <highlighted_element>if</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>14</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '==' #loc</description>
+  <highlighted_element>==</highlighted_element>
+  <language>Markdown</language>
+  <offset>30</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>36</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>219</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>312</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md</file>
+  <line>312</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>40</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>4</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>40</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>33</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>38</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'new' #loc</description>
+  <highlighted_element>n</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>43</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>43</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>44</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got 'in' #loc</description>
+  <highlighted_element>in</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>2</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>44</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>7</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>13</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>33</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>54</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>50</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>84</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>51</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>51</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>51</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>37</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>52</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>53</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>56</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>4</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>56</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>145</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>145</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>24</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>145</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>145</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>145</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>145</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>52</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>146</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>24</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>40</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>151</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>52</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>52</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md</file>
+  <line>152</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/implementation-summary-2026-02-01.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>52</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>37</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>4</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>37</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>18</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>37</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>80</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>37</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>80</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>38</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>38</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>141</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>141</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>20</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>141</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>30</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>142</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>142</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>8</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'migrations' #loc</description>
+  <highlighted_element>m</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>20</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'runner' #loc</description>
+  <highlighted_element>r</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>28</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>175</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>176</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'let' unexpected #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>15</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>27</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'MigrationRunner' #loc</description>
+  <highlighted_element>M</highlighted_element>
+  <language>Markdown</language>
+  <offset>29</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>44</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'new' #loc</description>
+  <highlighted_element>n</highlighted_element>
+  <language>Markdown</language>
+  <offset>46</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>49</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>253</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>54</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>254</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>6</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>254</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>254</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>20</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>254</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '|' #loc</description>
+  <highlighted_element>|</highlighted_element>
+  <language>Markdown</language>
+  <offset>23</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>483</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>1</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>483</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'up' #loc</description>
+  <highlighted_element>u</highlighted_element>
+  <language>Markdown</language>
+  <offset>3</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/migration-options-decision.md</file>
+  <line>483</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/migration-options-decision.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>5</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>182</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'#', &lt;item&gt; or shebang_line expected, got 'let' #loc</description>
+  <highlighted_element>let</highlighted_element>
+  <language>Markdown</language>
+  <offset>0</offset>
+  <length>3</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>182</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '=' #loc</description>
+  <highlighted_element>=</highlighted_element>
+  <language>Markdown</language>
+  <offset>9</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>182</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '{' #loc</description>
+  <highlighted_element>{</highlighted_element>
+  <language>Markdown</language>
+  <offset>21</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>183</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>6</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>183</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>10</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>22</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'CpuUsage' #loc</description>
+  <highlighted_element>C</highlighted_element>
+  <language>Markdown</language>
+  <offset>24</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>184</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>185</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>185</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>32</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>185</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'GreaterThan' #loc</description>
+  <highlighted_element>G</highlighted_element>
+  <language>Markdown</language>
+  <offset>34</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>185</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>45</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>186</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>13</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'::' expected, got '::' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>27</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>identifier expected, got 'Critical' #loc</description>
+  <highlighted_element>C</highlighted_element>
+  <language>Markdown</language>
+  <offset>29</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>187</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ',' #loc</description>
+  <highlighted_element>,</highlighted_element>
+  <language>Markdown</language>
+  <offset>37</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>188</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>11</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>189</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ':' #loc</description>
+  <highlighted_element>:</highlighted_element>
+  <language>Markdown</language>
+  <offset>20</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>192</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>12</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>192</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>21</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>192</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>26</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>280</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '.' #loc</description>
+  <highlighted_element>.</highlighted_element>
+  <language>Markdown</language>
+  <offset>4</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>280</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>'!' or '::' expected, got '(' #loc</description>
+  <highlighted_element>(</highlighted_element>
+  <language>Markdown</language>
+  <offset>18</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>280</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>';' expected, got ')' #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>67</offset>
+  <length>1</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md</file>
+  <line>280</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/monitoring-2026-02.md" />
+  <problem_class id="Annotator" severity="ERROR" attribute_key="WRONG_REFERENCES_ATTRIBUTES">Annotator</problem_class>
+  <hints />
+  <description>Expected `;`, received `)` #loc</description>
+  <highlighted_element>)</highlighted_element>
+  <language>Markdown</language>
+  <offset>67</offset>
+  <length>1</length>
+</problem>
+</problems>

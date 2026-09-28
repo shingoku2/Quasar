@@ -1,0 +1,14 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/src/components/dashboard/AlertRules.tsx</file>
+  <line>123</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/src/components/dashboard/AlertRules.tsx" />
+  <problem_class id="ES6MissingAwait" severity="WEAK WARNING" attribute_key="INFO_ATTRIBUTES">Missing await for an async function call</problem_class>
+  <description>Missing await for an async function call</description>
+  <highlighted_element>loadRules</highlighted_element>
+  <language>TypeScript JSX</language>
+  <offset>6</offset>
+  <length>9</length>
+</problem>
+</problems>

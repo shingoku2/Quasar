@@ -1,0 +1,91 @@
+<root>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/commands/files.rs" line="103" start="3744" end="3927" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/commands/ssh.rs" line="42" start="1512" end="1679" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" line="199" start="9027" end="9290" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/db/backup.rs" line="210" start="9500" end="9751" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" line="11" start="531" end="870" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" line="43" start="1729" end="2068" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" line="32" start="1290" end="1433" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/db/migrations.rs" line="64" start="2483" end="2626" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/health.rs" line="38" start="1167" end="1410" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/scanner.rs" line="102" start="2923" end="3166" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/host_tracker.rs" line="154" start="5478" end="6007" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/host_tracker.rs" line="221" start="8056" end="8558" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs" line="336" start="11182" end="11576" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/monitoring/collector.rs" line="358" start="11892" end="12286" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/sftp.rs" line="32" start="701" end="1081" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/ssh_exec.rs" line="28" start="551" end="931" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" line="681" start="24629" end="24788" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/ssh.rs" line="694" start="25051" end="25226" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/ssh_auth.rs" line="155" start="6022" end="6310" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/ssh_pool.rs" line="424" start="14500" end="14773" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/ssh_tunnel.rs" line="281" start="9048" end="9321" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault.rs" line="1065" start="46938" end="47302" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault.rs" line="1160" start="51468" end="51834" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault.rs" line="1076" start="47311" end="47540" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault.rs" line="1171" start="51843" end="52072" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" line="114" start="3464" end="3839" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault/audit.rs" line="186" start="6036" end="6411" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" line="421" start="16171" end="16634" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault/credentials.rs" line="700" start="27148" end="27611" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault/ssh_keys.rs" line="131" start="4524" end="5075" />
+  <fragment file="file://$PROJECT_DIR$/src-tauri/src/vault/ssh_keys.rs" line="361" start="14475" end="15026" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/App.test.tsx" line="24" start="1084" end="1828" />
+  <fragment file="file://$PROJECT_DIR$/src/components/Layout.test.tsx" line="19" start="725" end="1469" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/App.test.tsx" line="29" start="1833" end="2294" />
+  <fragment file="file://$PROJECT_DIR$/src/components/Layout.test.tsx" line="27" start="1667" end="2128" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/components/RemoteManager.flows.test.tsx" line="298" start="13898" end="14205" />
+  <fragment file="file://$PROJECT_DIR$/src/components/RemoteManager.flows.test.tsx" line="312" start="14834" end="15141" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/components/ScheduledTasksView.test.tsx" line="106" start="3998" end="4320" />
+  <fragment file="file://$PROJECT_DIR$/src/components/ScheduledTasksView.test.tsx" line="129" start="4987" end="5309" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" line="103" start="2933" end="3723" />
+  <fragment file="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" line="220" start="6478" end="7268" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" line="293" start="8363" end="9128" />
+  <fragment file="file://$PROJECT_DIR$/src/hooks/useSshHostKeyVerification.test.ts" line="358" start="10062" end="10827" />
+</duplicate>
+<duplicate cost="1" hash="0">
+  <fragment file="file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx" line="118" start="3641" end="4068" />
+  <fragment file="file://$PROJECT_DIR$/src/hooks/useViewVisibility.test.tsx" line="140" start="4454" end="4881" />
+</duplicate>
+</root>

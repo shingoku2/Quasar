@@ -1,0 +1,50 @@
+<problems>
+<problem>
+  <file>file://$PROJECT_DIR$/README.md</file>
+  <line>87</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/README.md" />
+  <problem_class id="MarkdownUnresolvedFileReference" severity="WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved file references</problem_class>
+  <description>Cannot resolve file ''</description>
+  <highlighted_element />
+  <language>Markdown</language>
+  <offset>29</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/README.md</file>
+  <line>91</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/README.md" />
+  <problem_class id="MarkdownUnresolvedFileReference" severity="WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved file references</problem_class>
+  <description>Cannot resolve file ''</description>
+  <highlighted_element />
+  <language>Markdown</language>
+  <offset>33</offset>
+  <length>0</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md</file>
+  <line>8</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md" />
+  <problem_class id="MarkdownUnresolvedFileReference" severity="WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved file references</problem_class>
+  <description>Cannot resolve directory 'docs'</description>
+  <highlighted_element>docs</highlighted_element>
+  <language>Markdown</language>
+  <offset>38</offset>
+  <length>4</length>
+</problem>
+<problem>
+  <file>file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md</file>
+  <line>8</line>
+  <module>Quasar</module>
+  <entry_point TYPE="file" FQNAME="file://$PROJECT_DIR$/docs/archive/codebase-audit-2026-02-18.md" />
+  <problem_class id="MarkdownUnresolvedFileReference" severity="WARNING" attribute_key="INFO_ATTRIBUTES">Unresolved file references</problem_class>
+  <description>Cannot resolve file 'DEFERRED_AUDIT_FIX_PLAN.md'</description>
+  <highlighted_element>DEFERRED_AUDIT_FIX_PLAN.md</highlighted_element>
+  <language>Markdown</language>
+  <offset>43</offset>
+  <length>26</length>
+</problem>
+</problems>

@@ -139,6 +139,26 @@ impl Drop for DropGuard {
 }
 
 #[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_discovery_state_new_starts_idle() {
+        let state = DiscoveryState::new();
+        assert!(!state.running.load(Ordering::SeqCst));
+        assert!(!state.stop_requested.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_request_stop_flags_stop_without_flipping_running() {
+        let state = DiscoveryState::new();
+        state.request_stop();
+        assert!(state.stop_requested.load(Ordering::SeqCst));
+        assert!(!state.running.load(Ordering::SeqCst));
+    }
+}
+
+#[cfg(test)]
 mod poll_tests {
     use super::*;
 
