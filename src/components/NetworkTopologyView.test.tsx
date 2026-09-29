@@ -151,6 +151,14 @@ describe('NetworkTopologyView', () => {
     expect(mockNetworkFocus).toHaveBeenCalledWith('192.168.1.5', expect.any(Object));
   });
 
+  it('finds a host by the saved name shown on its node', () => {
+    render(<NetworkTopologyView hosts={mockHosts} savedHosts={[{ name: 'Office Desk', address: '192.168.1.10' }]} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Search hosts...'), { target: { value: 'office' } });
+
+    expect(mockNetworkSelectNodes).toHaveBeenCalledWith(['192.168.1.10']);
+  });
+
   it('registers click and double-click events and triggers callbacks', () => {
     const onHostClick = vi.fn();
     const onHostConnect = vi.fn();

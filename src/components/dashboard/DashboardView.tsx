@@ -76,16 +76,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return () => { cancelled = true; };
   }, []);
 
-  // Saved hosts stay on the topology even when a scan finds them offline. Reloaded on
-  // view shown: hosts are added and removed from other views.
-  useOnViewShown(async () => {
+  // Saved hosts stay on the topology even when a scan finds them offline. Reloaded when the
+  // view is shown (other views add and remove hosts) and on `hostsUpdated`, which a save from
+  // this view's own Add Host dialog fires while the Dashboard stays visible.
+  const loadSavedHosts = useCallback(async () => {
     try {
       const list = await invoke<SavedHost[] | undefined>('get_saved_hosts');
       setSavedHosts(Array.isArray(list) ? list : []);
     } catch {
       setSavedHosts([]);
     }
-  });
+  }, []);
+  useOnViewShown(loadSavedHosts);
+  useEffect(() => {
+    const onHostsUpdated = () => { void loadSavedHosts(); };
+    window.addEventListener('hostsUpdated', onHostsUpdated);
+    return () => window.removeEventListener('hostsUpdated', onHostsUpdated);
+  }, [loadSavedHosts]);
 
   const handleQuickConnect = async (host: SavedHost) => {
     onNavigate('remote');

@@ -235,6 +235,17 @@ describe('DashboardView handlers', () => {
     await waitFor(() => expect(topologyProps?.savedHosts).toEqual(saved));
   });
 
+  it('reloads saved hosts when a host is saved while the Dashboard stays open', async () => {
+    const saved = { id: 'h1', name: 'nas', address: '10.0.0.21', port: 22, username: null, protocol: 'ssh' };
+    let list: typeof saved[] = [];
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? list : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('get_saved_hosts'));
+    list = [saved];
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual([saved]));
+  });
+
   it('treats a failed saved-host load as no saved hosts', async () => {
     vi.mocked(invoke).mockImplementation(async (cmd: string) => {
       if (cmd === 'get_saved_hosts') throw new Error('db');

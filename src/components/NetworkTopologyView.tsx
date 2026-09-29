@@ -9,6 +9,7 @@ import { ZoomIn, ZoomOut, Maximize2, Pause, Play, Search } from 'lucide-react';
 export interface TopologySavedHost {
   name: string;
   address: string;
+  protocol?: string;
 }
 
 interface NetworkTopologyViewProps {
@@ -244,6 +245,7 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
     const matchingHosts = hosts.filter(h => 
       h.ip.includes(searchQuery) || 
       h.hostname?.toLowerCase().includes(query) ||
+      findSaved(h)?.name.toLowerCase().includes(query) ||
       h.device_type.toLowerCase().includes(query)
     );
 
@@ -257,7 +259,7 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
         }
       });
     }
-  }, [searchQuery, hosts]);
+  }, [searchQuery, hosts, findSaved]);
 
   const handleZoomIn = () => {
     if (networkRef.current) {

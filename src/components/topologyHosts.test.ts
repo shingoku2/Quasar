@@ -20,6 +20,36 @@ describe('savedHostLookup', () => {
   });
 });
 
+describe('savedHostLookup with one machine saved several times', () => {
+  it('prefers an SSH record, then RDP, whatever order the list is in', () => {
+    const find = savedHostLookup([
+      { id: 'db', address: '10.0.0.5', protocol: 'database' },
+      { id: 'rdp', address: '10.0.0.5', protocol: 'rdp' },
+      { id: 'ssh', address: '10.0.0.5', protocol: 'SSH' },
+    ]);
+    expect(find(result({ ip: '10.0.0.5' }))?.id).toBe('ssh');
+  });
+
+  it('falls back to RDP, then to the first record when none has a client', () => {
+    expect(savedHostLookup([
+      { id: 'api', address: '10.0.0.5', protocol: 'api' },
+      { id: 'rdp', address: '10.0.0.5', protocol: 'rdp' },
+    ])(result({ ip: '10.0.0.5' }))?.id).toBe('rdp');
+    expect(savedHostLookup([
+      { id: 'api', address: '10.0.0.5', protocol: 'api' },
+      { id: 'db', address: '10.0.0.5', protocol: 'database' },
+    ])(result({ ip: '10.0.0.5' }))?.id).toBe('api');
+  });
+
+  it('prefers an IP match over a hostname match', () => {
+    const find = savedHostLookup([
+      { id: 'by-name', address: 'pi.lan', protocol: 'ssh' },
+      { id: 'by-ip', address: '10.0.0.7', protocol: 'database' },
+    ]);
+    expect(find(result({ ip: '10.0.0.7', hostname: 'pi.lan' }))?.id).toBe('by-ip');
+  });
+});
+
 describe('carryKnownHostnames', () => {
   it('gives an offline result without a hostname the one last seen for its IP', () => {
     const previous = [result({ ip: '10.0.0.7', hostname: 'pi.lan' })];
