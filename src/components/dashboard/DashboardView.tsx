@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import AlertFeed from './AlertFeed';
@@ -79,15 +79,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   // Saved hosts stay on the topology even when a scan finds them offline. Reloaded when the
   // view is shown (other views add and remove hosts) and on `hostsUpdated`, which a save from
   // this view's own Add Host dialog fires while the Dashboard stays visible.
-  const loadSavedHosts = useCallback(async () => {
+  // The last loaded list, or null until the first load settles (see handleHostConnect).
+  const loadedSavedHostsRef = useRef<SavedHost[] | null>(null);
+  const loadSavedHosts = useCallback(async (): Promise<SavedHost[]> => {
+    let hosts: SavedHost[] = [];
     try {
       const list = await invoke<SavedHost[] | undefined>('get_saved_hosts');
-      setSavedHosts(Array.isArray(list) ? list : []);
+      hosts = Array.isArray(list) ? list : [];
     } catch {
-      setSavedHosts([]);
+      // No saved hosts: the topology shows live hosts only.
     }
+    loadedSavedHostsRef.current = hosts;
+    setSavedHosts(hosts);
+    return hosts;
   }, []);
-  useOnViewShown(loadSavedHosts);
+  useOnViewShown(() => { void loadSavedHosts(); });
   useEffect(() => {
     const onHostsUpdated = () => { void loadSavedHosts(); };
     window.addEventListener('hostsUpdated', onHostsUpdated);
@@ -124,10 +130,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     setDiscoveredHosts(prev => carryKnownHostnames(prev, results));
   }, []);
 
-  const handleHostConnect = (host: ScanResult) => {
+  const handleHostConnect = async (host: ScanResult) => {
     // A saved host connects with its saved protocol, port and user. An offline scan result has
     // no open ports to guess them from, and RemoteManager refuses protocols it has no client for.
-    const saved = savedHostLookup(savedHosts)(host);
+    // Discovered hosts can load (and be double-clicked) before saved hosts do; don't fall back
+    // to guessing from the scan until the saved list has loaded.
+    const saved = savedHostLookup(loadedSavedHostsRef.current ?? await loadSavedHosts())(host);
     if (saved) {
       setSelectedHost(null);
       handleQuickConnect(saved);

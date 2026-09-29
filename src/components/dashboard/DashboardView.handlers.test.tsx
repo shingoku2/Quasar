@@ -12,7 +12,7 @@ interface TopologyProps {
   hosts: ScanResult[];
   savedHosts?: Array<{ name: string; address: string }>;
   onHostClick: (h: ScanResult) => void;
-  onHostConnect: (h: ScanResult) => void;
+  onHostConnect: (h: ScanResult) => void | Promise<void>;
 }
 let topologyProps: TopologyProps | null = null;
 vi.mock('../NetworkTopologyView', () => ({
@@ -25,7 +25,7 @@ vi.mock('../NetworkTopologyView', () => ({
 interface DetailProps {
   host: ScanResult | null;
   onClose: () => void;
-  onConnect: (h: ScanResult) => void;
+  onConnect: (h: ScanResult) => void | Promise<void>;
   onSave: (h: ScanResult) => void;
   onDelete: (ip: string) => void;
 }
@@ -125,7 +125,7 @@ describe('DashboardView handlers', () => {
     window.addEventListener('quickConnectTriggered', listener);
     try {
       render(<DashboardView onNavigate={onNavigate} />);
-      act(() => { topologyProps?.onHostConnect(host({ hostname: 'box', open_ports: [2222, 80] })); });
+      await act(async () => { await topologyProps?.onHostConnect(host({ hostname: 'box', open_ports: [2222, 80] })); });
       expect(onNavigate).toHaveBeenCalledWith('remote');
       const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
       expect(stored).toMatchObject({ name: 'box', address: '10.0.0.9', port: 2222, protocol: 'ssh', username: null });
@@ -135,12 +135,26 @@ describe('DashboardView handlers', () => {
     }
   });
 
+  it('a connect before saved hosts have loaded waits for them instead of guessing', async () => {
+    const saved = { id: 'h1', name: 'box', address: '10.0.0.9', port: 2200, username: 'ed', protocol: 'ssh' };
+    let resolveSaved: (hosts: typeof saved[]) => void = () => {};
+    vi.mocked(invoke).mockImplementation((cmd: string) => (cmd === 'get_saved_hosts'
+      ? new Promise((resolve) => { resolveSaved = resolve; })
+      : Promise.resolve([])));
+    render(<DashboardView onNavigate={onNavigate} />);
+    let connecting: Promise<void> | void = undefined;
+    act(() => { connecting = topologyProps?.onHostConnect(host({ open_ports: [22] })); });
+    expect(sessionStorage.getItem('quickConnectHost')).toBeNull();
+    await act(async () => { resolveSaved([saved]); await connecting; });
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
+  });
+
   it('a saved host connects with its saved record, even when the scan found it offline', async () => {
     const saved = { id: 'h1', name: 'win-box', address: '10.0.0.9', port: 3390, username: 'ed', protocol: 'rdp' };
     vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? [saved] : []));
     render(<DashboardView onNavigate={onNavigate} />);
     await waitFor(() => expect(topologyProps?.savedHosts).toEqual([saved]));
-    act(() => { topologyProps?.onHostConnect(host({ is_alive: false, open_ports: [] })); });
+    await act(async () => { await topologyProps?.onHostConnect(host({ is_alive: false, open_ports: [] })); });
     expect(onNavigate).toHaveBeenCalledWith('remote');
     expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
   });
@@ -156,18 +170,18 @@ describe('DashboardView handlers', () => {
     expect(topologyProps?.hosts).toEqual([expect.objectContaining({ ip: '10.0.0.5', is_alive: false, hostname: 'pi.lan' })]);
   });
 
-  it('a host with port 3389 open connects as RDP and falls back to its IP as the name', () => {
+  it('a host with port 3389 open connects as RDP and falls back to its IP as the name', async () => {
     vi.mocked(invoke).mockResolvedValueOnce([]);
     render(<DashboardView onNavigate={onNavigate} />);
-    act(() => { topologyProps?.onHostConnect(host({ open_ports: [3389] })); });
+    await act(async () => { await topologyProps?.onHostConnect(host({ open_ports: [3389] })); });
     const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
     expect(stored).toMatchObject({ name: '10.0.0.9', protocol: 'rdp', port: 3389 });
   });
 
-  it('a host with no open ports connects on port 22', () => {
+  it('a host with no open ports connects on port 22', async () => {
     vi.mocked(invoke).mockResolvedValueOnce([]);
     render(<DashboardView onNavigate={onNavigate} />);
-    act(() => { topologyProps?.onHostConnect(host({ open_ports: [] })); });
+    await act(async () => { await topologyProps?.onHostConnect(host({ open_ports: [] })); });
     const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
     expect(stored.port).toBe(22);
   });
