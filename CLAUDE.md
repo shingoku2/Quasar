@@ -13,8 +13,8 @@ Quasar is a Tauri 2 desktop app for remote infrastructure management: SSH termin
    - **Identify the issue first.** Use an explicit EDW identifier from the task, branch, PR, or
      commit. Without one, pick an issue only if exactly one open issue's scope clearly matches the
      work, and name it (with the reason) in your reply. If none or several match, don't guess:
-     skip the sync entirely (no Linear or Notion edits of any kind, including Last verified),
-     and report that it was skipped and why.
+     skip the tracker sync (no Linear edits, no Notion Next action or phase-table edits) and
+     report that it was skipped and why. The change-log entry below still happens.
    - **Match the state change to the evidence** (for the identified issue). Only finished work,
      backed by a merged or pushed commit/PR and passing checks, moves it to Done or ticks a "Done
      when" box. Tick only the boxes that evidence covers. Partial work sets In Progress and gets a
@@ -30,6 +30,12 @@ Quasar is a Tauri 2 desktop app for remote infrastructure management: SSH termin
      set Last verified date and add links. Change Next action or the phase table under Current priorities only to match
      tracker changes made under the rules above. Never mark a phase done that Linear doesn't
      show as Done.
+   - **Every change to the app gets a Notion change-log entry, issue or not.** Add it, newest first, to
+     the "Quasar change log" page under the Quasar project page, during the same task: date, area,
+     status (branch/PR/merged, commit link), Linear issue or "none", what changed, why, behavior now
+     (with limitations), files, and verification (what ran and what didn't). Then set the project
+     page's Last verified date and the "Latest:" line in its App change log section. When a branch
+     merges later, update its entry's status. This is separate from `CHANGELOG.md`; do both.
    - If an update fails or is skipped, report which one and why.
 ## Commands
 
