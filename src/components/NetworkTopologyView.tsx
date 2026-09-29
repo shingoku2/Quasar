@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Network } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { ScanResult } from './NetworkScanner';
 import { ZoomIn, ZoomOut, Maximize2, Pause, Play, Search } from 'lucide-react';
 
+/** A saved (inventory) host, matched against scan results by address. */
+export interface TopologySavedHost {
+  name: string;
+  address: string;
+}
+
 interface NetworkTopologyViewProps {
   hosts: ScanResult[];
+  /** Saved hosts: a scanned IP that matches one is drawn even when it didn't answer. */
+  savedHosts?: TopologySavedHost[];
   gatewayIp?: string;
   onHostClick?: (host: ScanResult) => void;
   onHostConnect?: (host: ScanResult) => void;
@@ -13,7 +21,8 @@ interface NetworkTopologyViewProps {
 }
 
 const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
-  hosts,
+  hosts: allHosts,
+  savedHosts,
   gatewayIp = '192.168.1.1',
   onHostClick,
   onHostConnect,
@@ -27,6 +36,26 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
   // making that effect depend on it (which would tear down and rebuild the network,
   // resetting the layout, on every play/pause toggle).
   const physicsEnabledRef = useRef(physicsEnabled);
+
+  // Saved hosts keyed by lowercased address, so a scan result matches on its IP or hostname.
+  const savedByAddress = useMemo(() => {
+    const map = new Map<string, TopologySavedHost>();
+    (savedHosts ?? []).forEach(saved => map.set(saved.address.trim().toLowerCase(), saved));
+    return map;
+  }, [savedHosts]);
+
+  const findSaved = useCallback((host: ScanResult): TopologySavedHost | undefined =>
+    savedByAddress.get(host.ip.toLowerCase()) ??
+    (host.hostname ? savedByAddress.get(host.hostname.toLowerCase()) : undefined),
+  [savedByAddress]);
+
+  // A scan reports every address in the range; only hosts that answered, or that are
+  // saved, belong on the map. Everything else is just an empty IP.
+  const hosts = useMemo(
+    () => allHosts.filter(host => host.is_alive || findSaved(host) !== undefined),
+    [allHosts, findSaved],
+  );
+
   useEffect(() => {
     physicsEnabledRef.current = physicsEnabled;
   }, [physicsEnabled]);
@@ -67,22 +96,25 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
       };
 
       const colors = deviceColors[host.device_type as keyof typeof deviceColors] || deviceColors.unknown;
+      const saved = findSaved(host);
+      // Only a saved host can be here without answering: draw it dimmed.
+      const offline = !host.is_alive;
 
       nodes.add({
         id: host.ip,
-        label: host.hostname || host.ip,
+        label: host.hostname || saved?.name || host.ip,
         shape: 'dot',
         color: {
-          background: colors.bg,
-          border: colors.border,
+          background: offline ? '#1e293b' : colors.bg,
+          border: offline ? '#475569' : colors.border,
           highlight: {
-            background: colors.bg,
+            background: offline ? '#1e293b' : colors.bg,
             border: '#ffffff'
           }
         },
-        font: { color: '#ffffff', size: 12 },
+        font: { color: offline ? '#94a3b8' : '#ffffff', size: 12 },
         size: 20 + (host.services.length * 2),
-        title: `${host.ip}\n${host.hostname || 'No hostname'}\nDevice: ${host.device_type}\nLatency: ${host.latency_ms || 'N/A'}ms\nServices: ${host.services.length}`,
+        title: `${host.ip}\n${host.hostname || 'No hostname'}${saved ? `\nSaved: ${saved.name}` : ''}\nStatus: ${offline ? 'Offline' : 'Online'}\nDevice: ${host.device_type}\nLatency: ${host.latency_ms || 'N/A'}ms\nServices: ${host.services.length}`,
         mass: 2,
       });
 
@@ -203,7 +235,7 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
         networkRef.current = null;
       }
     };
-  }, [hosts, gatewayIp, onHostClick, onHostConnect]);
+  }, [hosts, findSaved, gatewayIp, onHostClick, onHostConnect]);
 
   // Update physics when toggled
   useEffect(() => {

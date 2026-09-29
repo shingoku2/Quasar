@@ -3,11 +3,12 @@ import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import AlertFeed from './AlertFeed';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
-import NetworkTopologyView from '../NetworkTopologyView';
+import NetworkTopologyView, { TopologySavedHost } from '../NetworkTopologyView';
 import HostDetailDialog from '../HostDetailDialog';
 import QuickConnectWidget from './QuickConnectWidget';
 import AddHostDialog, { AddHostInitialValues } from '../AddHostDialog';
 import { ViewId } from '../Sidebar';
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 import { List, Network as NetworkIcon } from 'lucide-react';
 
 /** Backend discovered host shape (get_discovered_hosts). */
@@ -57,6 +58,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [selectedHost, setSelectedHost] = useState<ScanResult | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'topology'>('topology');
   const [hostToSave, setHostToSave] = useState<AddHostInitialValues | null>(null);
+  const [savedHosts, setSavedHosts] = useState<TopologySavedHost[]>([]);
 
   // Load last scan from DB so the user sees persisted results without running a new scan
   useEffect(() => {
@@ -72,6 +74,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Saved hosts stay on the topology even when a scan finds them offline. Reloaded on
+  // view shown: hosts are added and removed from other views.
+  useOnViewShown(async () => {
+    try {
+      const list = await invoke<TopologySavedHost[] | undefined>('get_saved_hosts');
+      setSavedHosts(Array.isArray(list) ? list : []);
+    } catch {
+      setSavedHosts([]);
+    }
+  });
 
   const handleQuickConnect = async (host: SavedHost) => {
     onNavigate('remote');
@@ -184,6 +197,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             ) : (
               <NetworkTopologyView
                 hosts={discoveredHosts}
+                savedHosts={savedHosts}
                 onHostClick={handleHostClick}
                 onHostConnect={handleHostConnect}
               />

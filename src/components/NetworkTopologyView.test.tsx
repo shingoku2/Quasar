@@ -176,4 +176,44 @@ describe('NetworkTopologyView', () => {
     clickHandler({ nodes: ['gateway'] });
     expect(onHostClick).toHaveBeenCalledTimes(1); // Still 1 from before
   });
+
+  it('draws only hosts that answered, plus saved hosts that did not', () => {
+    const scan = [
+      ...mockHosts,
+      { ip: '192.168.1.20', is_alive: false, open_ports: [], device_type: 'unknown', services: [], last_seen: 0 },
+      { ip: '192.168.1.21', is_alive: false, open_ports: [], device_type: 'unknown', services: [], last_seen: 0 },
+    ];
+    render(
+      <NetworkTopologyView
+        hosts={scan}
+        savedHosts={[{ name: 'nas', address: '192.168.1.21' }]}
+      />
+    );
+
+    const nodes = mockDataSetAdd.mock.calls.map(([arg]) => arg).filter(arg => !('from' in arg));
+    expect(nodes.map(n => n.id)).toEqual(['gateway', '192.168.1.5', '192.168.1.10', '192.168.1.21']);
+    const offlineSaved = nodes.find(n => n.id === '192.168.1.21');
+    expect(offlineSaved.label).toBe('nas');
+    expect(offlineSaved.title).toContain('Status: Offline');
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('matches saved hosts by hostname, case-insensitively', () => {
+    const scan = [
+      { ip: '10.0.0.7', hostname: 'Pi.lan', is_alive: false, open_ports: [], device_type: 'unknown', services: [], last_seen: 0 },
+    ];
+    render(<NetworkTopologyView hosts={scan} savedHosts={[{ name: 'pi', address: 'pi.LAN' }]} />);
+
+    const ids = mockDataSetAdd.mock.calls.map(([arg]) => arg.id);
+    expect(ids).toContain('10.0.0.7');
+  });
+
+  it('shows the empty state when every scanned address was offline and unsaved', () => {
+    const scan = [
+      { ip: '192.168.1.30', is_alive: false, open_ports: [], device_type: 'unknown', services: [], last_seen: 0 },
+    ];
+    render(<NetworkTopologyView hosts={scan} />);
+
+    expect(screen.getByText('No hosts discovered yet')).toBeInTheDocument();
+  });
 });

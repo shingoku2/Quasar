@@ -10,6 +10,7 @@ import '@testing-library/jest-dom';
 // hands them, so these tests exercise DashboardView's own handlers.
 interface TopologyProps {
   hosts: ScanResult[];
+  savedHosts?: Array<{ name: string; address: string }>;
   onHostClick: (h: ScanResult) => void;
   onHostConnect: (h: ScanResult) => void;
 }
@@ -175,7 +176,7 @@ describe('DashboardView handlers', () => {
   });
 
   it('deleting a discovered host removes it from the list', async () => {
-    vi.mocked(invoke).mockResolvedValueOnce([persisted]).mockResolvedValueOnce(undefined);
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_discovered_hosts' ? [persisted] : undefined));
     render(<DashboardView onNavigate={onNavigate} />);
     await waitFor(() => expect(screen.getByTestId('topology')).toHaveTextContent('10.0.0.5'));
     await act(async () => { await detailProps?.onDelete('10.0.0.5'); });
@@ -186,12 +187,32 @@ describe('DashboardView handlers', () => {
   it('a failed delete keeps the host and tells the user', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.mocked(invoke).mockResolvedValueOnce([persisted]).mockRejectedValueOnce(new Error('nope'));
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'delete_discovered_host') throw new Error('nope');
+      return cmd === 'get_discovered_hosts' ? [persisted] : [];
+    });
     render(<DashboardView onNavigate={onNavigate} />);
     await waitFor(() => expect(screen.getByTestId('topology')).toHaveTextContent('10.0.0.5'));
     await act(async () => { await detailProps?.onDelete('10.0.0.5'); });
     expect(alertSpy).toHaveBeenCalledWith('Failed to delete host');
     expect(screen.getByTestId('topology')).toHaveTextContent('10.0.0.5');
+  });
+
+  it('hands saved hosts to the topology', async () => {
+    const saved = [{ id: 'h1', name: 'nas', address: '10.0.0.21', port: 22, username: null, protocol: 'ssh' }];
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? saved : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual(saved));
+  });
+
+  it('treats a failed saved-host load as no saved hosts', async () => {
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_saved_hosts') throw new Error('db');
+      return [];
+    });
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('get_saved_hosts'));
+    expect(topologyProps?.savedHosts).toEqual([]);
   });
 
   it('the list view toggle reflects the active mode', () => {

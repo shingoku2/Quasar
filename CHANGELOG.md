@@ -2,6 +2,10 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-29: Topology shows only live and saved hosts
+
+- The Dashboard topology drew a node for every address a scan probed (a /24 meant 254 dots), because `NetworkScanner` hands the parent every result, dead ones included. It now draws only hosts that answered, plus scanned addresses matching a saved host by IP or hostname (case-insensitive). A saved host that didn't answer is drawn dimmed, labelled with its saved name, and its tooltip says Offline. The Dashboard loads saved hosts with `useOnViewShown`.
+
 ## 2026-09-28: Inspection triage and docs refresh
 
 - Qodana and RustRover inspection exports are kept in `audit/` (`qodana.sarif.json`, `RustRover Checks/`). Triaged: the Rust "errors" (a `check_password` argument count, `TempAuditDb::manager`, unused `sysinfo`/`rusqlite_migration`, detached modules) are analyzer false positives; clippy and the tests are clean.
