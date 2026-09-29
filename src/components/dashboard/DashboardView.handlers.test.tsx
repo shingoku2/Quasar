@@ -47,6 +47,14 @@ vi.mock('../AddHostDialog', () => ({
   },
 }));
 
+let scannerOnResults: ((results: ScanResult[]) => void) | undefined;
+vi.mock('../NetworkScanner', () => ({
+  default: (props: { onResults: (results: ScanResult[]) => void }) => {
+    scannerOnResults = props.onResults;
+    return <div data-testid="scanner" />;
+  },
+}));
+
 vi.mock('./SystemHealthWidget', () => ({ default: () => null }));
 vi.mock('./AlertFeed', () => ({ default: () => null }));
 vi.mock('./QuickConnectWidget', () => ({ default: () => null }));
@@ -74,6 +82,7 @@ describe('DashboardView handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     topologyProps = null;
+    scannerOnResults = undefined;
     detailProps = null;
     addHostValues = undefined;
     addHostOnAdded = undefined;
@@ -124,6 +133,27 @@ describe('DashboardView handlers', () => {
     } finally {
       window.removeEventListener('quickConnectTriggered', listener);
     }
+  });
+
+  it('a saved host connects with its saved record, even when the scan found it offline', async () => {
+    const saved = { id: 'h1', name: 'win-box', address: '10.0.0.9', port: 3390, username: 'ed', protocol: 'rdp' };
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? [saved] : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual([saved]));
+    act(() => { topologyProps?.onHostConnect(host({ is_alive: false, open_ports: [] })); });
+    expect(onNavigate).toHaveBeenCalledWith('remote');
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
+  });
+
+  it('a finished scan keeps the last known hostname of an address that went offline', async () => {
+    vi.mocked(invoke).mockImplementation(async (cmd: string) =>
+      (cmd === 'get_discovered_hosts' ? [{ ...persisted, hostname: 'pi.lan' }] : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.hosts[0]?.hostname).toBe('pi.lan'));
+    fireEvent.click(screen.getByText('List'));
+    act(() => { scannerOnResults?.([host({ ip: '10.0.0.5', is_alive: false, open_ports: [] })]); });
+    fireEvent.click(screen.getByText('Topology'));
+    expect(topologyProps?.hosts).toEqual([expect.objectContaining({ ip: '10.0.0.5', is_alive: false, hostname: 'pi.lan' })]);
   });
 
   it('a host with port 3389 open connects as RDP and falls back to its IP as the name', () => {

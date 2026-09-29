@@ -3,7 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import AlertFeed from './AlertFeed';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
-import NetworkTopologyView, { TopologySavedHost } from '../NetworkTopologyView';
+import NetworkTopologyView from '../NetworkTopologyView';
+import { carryKnownHostnames, savedHostLookup } from '../topologyHosts';
 import HostDetailDialog from '../HostDetailDialog';
 import QuickConnectWidget from './QuickConnectWidget';
 import AddHostDialog, { AddHostInitialValues } from '../AddHostDialog';
@@ -58,7 +59,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [selectedHost, setSelectedHost] = useState<ScanResult | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'topology'>('topology');
   const [hostToSave, setHostToSave] = useState<AddHostInitialValues | null>(null);
-  const [savedHosts, setSavedHosts] = useState<TopologySavedHost[]>([]);
+  const [savedHosts, setSavedHosts] = useState<SavedHost[]>([]);
 
   // Load last scan from DB so the user sees persisted results without running a new scan
   useEffect(() => {
@@ -79,7 +80,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   // view shown: hosts are added and removed from other views.
   useOnViewShown(async () => {
     try {
-      const list = await invoke<TopologySavedHost[] | undefined>('get_saved_hosts');
+      const list = await invoke<SavedHost[] | undefined>('get_saved_hosts');
       setSavedHosts(Array.isArray(list) ? list : []);
     } catch {
       setSavedHosts([]);
@@ -110,7 +111,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     });
   }, []);
 
+  // A finished scan replaces the list. Offline results keep the hostname last seen for their
+  // IP, so a saved host addressed by hostname can still be matched while it is down.
+  const handleScanResults = useCallback((results: ScanResult[]) => {
+    setDiscoveredHosts(prev => carryKnownHostnames(prev, results));
+  }, []);
+
   const handleHostConnect = (host: ScanResult) => {
+    // A saved host connects with its saved protocol, port and user. An offline scan result has
+    // no open ports to guess them from, and RemoteManager refuses protocols it has no client for.
+    const saved = savedHostLookup(savedHosts)(host);
+    if (saved) {
+      setSelectedHost(null);
+      handleQuickConnect(saved);
+      return;
+    }
     const savedHost: SavedHost = {
       id: String(Date.now()),
       name: host.hostname || host.ip,
@@ -189,7 +204,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               <div className="h-full overflow-y-auto no-scrollbar">
                 <NetworkScanner
                   initialResults={discoveredHosts}
-                  onResults={setDiscoveredHosts}
+                  onResults={handleScanResults}
                   onHostFound={handleHostFound}
                   onHostClick={handleHostClick}
                 />

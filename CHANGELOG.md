@@ -5,6 +5,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 ## 2026-09-29: Topology shows only live and saved hosts
 
 - The Dashboard topology drew a node for every address a scan probed (a /24 meant 254 dots), because `NetworkScanner` hands the parent every result, dead ones included. It now draws only hosts that answered, plus scanned addresses matching a saved host by IP or hostname (case-insensitive). A saved host is labelled with its saved name; one that didn't answer is drawn dimmed and its tooltip says Offline. The Dashboard loads saved hosts with `useOnViewShown`.
+- Connecting to a saved host from the topology or its detail dialog uses the saved record (protocol, port, user), so an offline saved RDP or custom-port host no longer opens as SSH on port 22, and inventory-only hosts get RemoteManager's "no built-in client" message. A finished scan keeps the last known hostname (from the discovered-hosts DB or an earlier scan) of an address that went offline, so a saved host addressed by hostname stays on the map while it's down. Matching lives in `src/components/topologyHosts.ts`.
 - Agent rule (`CLAUDE.md` Session Start): every app change also gets an entry on the Notion "Quasar change log" page, even when no Linear issue matches.
 
 ## 2026-09-28: Inspection triage and docs refresh

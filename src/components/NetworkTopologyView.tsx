@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Network } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { ScanResult } from './NetworkScanner';
+import { savedHostLookup } from './topologyHosts';
 import { ZoomIn, ZoomOut, Maximize2, Pause, Play, Search } from 'lucide-react';
 
 /** A saved (inventory) host, matched against scan results by IP address or hostname, case-insensitively. */
@@ -37,17 +38,7 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
   // resetting the layout, on every play/pause toggle).
   const physicsEnabledRef = useRef(physicsEnabled);
 
-  // Saved hosts keyed by lowercased address, so a scan result matches on its IP or hostname.
-  const savedByAddress = useMemo(() => {
-    const map = new Map<string, TopologySavedHost>();
-    (savedHosts ?? []).forEach(saved => map.set(saved.address.trim().toLowerCase(), saved));
-    return map;
-  }, [savedHosts]);
-
-  const findSaved = useCallback((host: ScanResult): TopologySavedHost | undefined =>
-    savedByAddress.get(host.ip.toLowerCase()) ??
-    (host.hostname ? savedByAddress.get(host.hostname.toLowerCase()) : undefined),
-  [savedByAddress]);
+  const findSaved = useMemo(() => savedHostLookup(savedHosts ?? []), [savedHosts]);
 
   // A scan reports every address in the range; only hosts that answered, or that are
   // saved, belong on the map. Everything else is just an empty IP.
