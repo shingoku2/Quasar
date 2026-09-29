@@ -140,7 +140,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     // no open ports to guess them from, and RemoteManager refuses protocols it has no client for.
     // Discovered hosts can load (and be double-clicked) before saved hosts do, and a save
     // reloads them; don't fall back to guessing from the scan until the latest load settles.
-    const saved = savedHostLookup(await (savedHostsLoadRef.current ?? loadSavedHosts()))(host);
+    let load = savedHostsLoadRef.current ?? loadSavedHosts();
+    let hosts = await load;
+    // A newer load may have started while this one was pending: follow it to the latest.
+    while (savedHostsLoadRef.current && savedHostsLoadRef.current !== load) {
+      load = savedHostsLoadRef.current;
+      hosts = await load;
+    }
+    const saved = savedHostLookup(hosts)(host);
     if (saved) {
       setSelectedHost(null);
       handleQuickConnect(saved);

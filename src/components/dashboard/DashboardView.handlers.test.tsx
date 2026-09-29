@@ -167,6 +167,24 @@ describe('DashboardView handlers', () => {
     expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
   });
 
+  it('a connect waiting on a load follows a newer reload that starts meanwhile', async () => {
+    const stale = { id: 'h1', name: 'box', address: '10.0.0.9', port: 22, username: 'old', protocol: 'ssh' };
+    const fresh = { ...stale, port: 2200, username: 'new' };
+    const resolvers: Array<(hosts: unknown[]) => void> = [];
+    vi.mocked(invoke).mockImplementation((cmd: string) => (cmd === 'get_saved_hosts'
+      ? new Promise((resolve) => { resolvers.push(resolve); })
+      : Promise.resolve([])));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    let connecting: Promise<void> | void = undefined;
+    act(() => { connecting = topologyProps?.onHostConnect(host({ open_ports: [22] })); });
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    await act(async () => { resolvers[0]([stale]); });
+    expect(sessionStorage.getItem('quickConnectHost')).toBeNull();
+    await act(async () => { resolvers[1]([fresh]); await connecting; });
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(fresh);
+  });
+
   it('an older saved-host load that finishes last does not overwrite a newer one', async () => {
     const newer = [{ id: 'h2', name: 'new', address: '10.0.0.2', port: 22, username: null, protocol: 'ssh' }];
     const resolvers: Array<(hosts: unknown[]) => void> = [];
