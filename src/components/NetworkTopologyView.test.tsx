@@ -198,14 +198,21 @@ describe('NetworkTopologyView', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('matches saved hosts by hostname, case-insensitively', () => {
+  it('matches saved hosts by hostname, case-insensitively, and labels them with the saved name', () => {
     const scan = [
       { ip: '10.0.0.7', hostname: 'Pi.lan', is_alive: false, open_ports: [], device_type: 'unknown', services: [], last_seen: 0 },
+      { ip: '10.0.0.8', hostname: 'nas.lan', is_alive: true, open_ports: [], device_type: 'unknown', services: [], last_seen: 0 },
     ];
-    render(<NetworkTopologyView hosts={scan} savedHosts={[{ name: 'pi', address: 'pi.LAN' }]} />);
+    render(
+      <NetworkTopologyView
+        hosts={scan}
+        savedHosts={[{ name: 'pi', address: 'pi.LAN' }, { name: 'storage', address: '10.0.0.8' }]}
+      />
+    );
 
-    const ids = mockDataSetAdd.mock.calls.map(([arg]) => arg.id);
-    expect(ids).toContain('10.0.0.7');
+    const nodes = mockDataSetAdd.mock.calls.map(([arg]) => arg).filter(arg => !('from' in arg));
+    expect(nodes.find(n => n.id === '10.0.0.7')?.label).toBe('pi');
+    expect(nodes.find(n => n.id === '10.0.0.8')?.label).toBe('storage');
   });
 
   it('shows the empty state when every scanned address was offline and unsaved', () => {

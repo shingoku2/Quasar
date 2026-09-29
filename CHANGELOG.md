@@ -4,7 +4,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 
 ## 2026-09-29: Topology shows only live and saved hosts
 
-- The Dashboard topology drew a node for every address a scan probed (a /24 meant 254 dots), because `NetworkScanner` hands the parent every result, dead ones included. It now draws only hosts that answered, plus scanned addresses matching a saved host by IP or hostname (case-insensitive). A saved host that didn't answer is drawn dimmed, labelled with its saved name, and its tooltip says Offline. The Dashboard loads saved hosts with `useOnViewShown`.
+- The Dashboard topology drew a node for every address a scan probed (a /24 meant 254 dots), because `NetworkScanner` hands the parent every result, dead ones included. It now draws only hosts that answered, plus scanned addresses matching a saved host by IP or hostname (case-insensitive). A saved host is labelled with its saved name; one that didn't answer is drawn dimmed and its tooltip says Offline. The Dashboard loads saved hosts with `useOnViewShown`.
 - Agent rule (`CLAUDE.md` Session Start): every app change also gets an entry on the Notion "Quasar change log" page, even when no Linear issue matches.
 
 ## 2026-09-28: Inspection triage and docs refresh

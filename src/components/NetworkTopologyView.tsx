@@ -4,7 +4,7 @@ import { DataSet } from 'vis-data';
 import { ScanResult } from './NetworkScanner';
 import { ZoomIn, ZoomOut, Maximize2, Pause, Play, Search } from 'lucide-react';
 
-/** A saved (inventory) host, matched against scan results by address. */
+/** A saved (inventory) host, matched against scan results by IP address or hostname, case-insensitively. */
 export interface TopologySavedHost {
   name: string;
   address: string;
@@ -102,7 +102,8 @@ const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
 
       nodes.add({
         id: host.ip,
-        label: host.hostname || saved?.name || host.ip,
+        // A saved host goes by the name the user gave it, online or not.
+        label: saved?.name || host.hostname || host.ip,
         shape: 'dot',
         color: {
           background: offline ? '#1e293b' : colors.bg,
