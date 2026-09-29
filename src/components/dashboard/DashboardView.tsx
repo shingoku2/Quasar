@@ -79,19 +79,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   // Saved hosts stay on the topology even when a scan finds them offline. Reloaded when the
   // view is shown (other views add and remove hosts) and on `hostsUpdated`, which a save from
   // this view's own Add Host dialog fires while the Dashboard stays visible.
-  // The last loaded list, or null until the first load settles (see handleHostConnect).
-  const loadedSavedHostsRef = useRef<SavedHost[] | null>(null);
-  const loadSavedHosts = useCallback(async (): Promise<SavedHost[]> => {
-    let hosts: SavedHost[] = [];
-    try {
-      const list = await invoke<SavedHost[] | undefined>('get_saved_hosts');
-      hosts = Array.isArray(list) ? list : [];
-    } catch {
-      // No saved hosts: the topology shows live hosts only.
-    }
-    loadedSavedHostsRef.current = hosts;
-    setSavedHosts(hosts);
-    return hosts;
+  // The most recent load (first or refresh). handleHostConnect awaits it, so a connect made
+  // while saved hosts are loading or reloading never uses a missing or stale list.
+  const savedHostsLoadRef = useRef<Promise<SavedHost[]> | null>(null);
+  const loadSavedHosts = useCallback((): Promise<SavedHost[]> => {
+    const load = (async () => {
+      try {
+        const list = await invoke<SavedHost[] | undefined>('get_saved_hosts');
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return []; // No saved hosts: the topology shows live hosts only.
+      }
+    })();
+    savedHostsLoadRef.current = load;
+    void load.then(hosts => {
+      // A slower, older load must not overwrite a newer one.
+      if (savedHostsLoadRef.current === load) setSavedHosts(hosts);
+    });
+    return load;
   }, []);
   useOnViewShown(() => { void loadSavedHosts(); });
   useEffect(() => {
@@ -133,9 +138,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const handleHostConnect = async (host: ScanResult) => {
     // A saved host connects with its saved protocol, port and user. An offline scan result has
     // no open ports to guess them from, and RemoteManager refuses protocols it has no client for.
-    // Discovered hosts can load (and be double-clicked) before saved hosts do; don't fall back
-    // to guessing from the scan until the saved list has loaded.
-    const saved = savedHostLookup(loadedSavedHostsRef.current ?? await loadSavedHosts())(host);
+    // Discovered hosts can load (and be double-clicked) before saved hosts do, and a save
+    // reloads them; don't fall back to guessing from the scan until the latest load settles.
+    const saved = savedHostLookup(await (savedHostsLoadRef.current ?? loadSavedHosts()))(host);
     if (saved) {
       setSelectedHost(null);
       handleQuickConnect(saved);

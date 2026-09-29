@@ -149,6 +149,38 @@ describe('DashboardView handlers', () => {
     expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
   });
 
+  it('a connect during a reload after a save waits for the new list', async () => {
+    const saved = { id: 'h1', name: 'box', address: '10.0.0.9', port: 2200, username: 'ed', protocol: 'ssh' };
+    let resolveReload: (hosts: typeof saved[]) => void = () => {};
+    let loads = 0;
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd !== 'get_saved_hosts') return Promise.resolve([]);
+      loads += 1;
+      return loads === 1 ? Promise.resolve([]) : new Promise((resolve) => { resolveReload = resolve; });
+    });
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual([]));
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    let connecting: Promise<void> | void = undefined;
+    act(() => { connecting = topologyProps?.onHostConnect(host({ open_ports: [22] })); });
+    await act(async () => { resolveReload([saved]); await connecting; });
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
+  });
+
+  it('an older saved-host load that finishes last does not overwrite a newer one', async () => {
+    const newer = [{ id: 'h2', name: 'new', address: '10.0.0.2', port: 22, username: null, protocol: 'ssh' }];
+    const resolvers: Array<(hosts: unknown[]) => void> = [];
+    vi.mocked(invoke).mockImplementation((cmd: string) => (cmd === 'get_saved_hosts'
+      ? new Promise((resolve) => { resolvers.push(resolve); })
+      : Promise.resolve([])));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    await act(async () => { resolvers[1](newer); });
+    await act(async () => { resolvers[0]([{ id: 'old', name: 'old', address: '10.0.0.1', port: 22, username: null, protocol: 'ssh' }]); });
+    expect(topologyProps?.savedHosts).toEqual(newer);
+  });
+
   it('a saved host connects with its saved record, even when the scan found it offline', async () => {
     const saved = { id: 'h1', name: 'win-box', address: '10.0.0.9', port: 3390, username: 'ed', protocol: 'rdp' };
     vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? [saved] : []));
