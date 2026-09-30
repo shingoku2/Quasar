@@ -95,27 +95,54 @@ mod tests {
         assert!(metrics.timestamp > 0);
     }
 
-    fn metrics_store_db() -> (MetricsStore, String) {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        // A nanosecond timestamp alone isn't a reliable uniqueness guarantee
-        // (clock resolution can be coarser than 1ns, and concurrent test threads
-        // can race), so a per-process counter is appended to rule out collisions.
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let db_path = format!(
-            "test_metrics_store_{}_{}.db",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos(),
-            seq
-        );
+    /// A metrics database isolated in the system temporary directory and removed
+    /// even when a test unwinds after an assertion failure.
+    struct TempMetricsDb {
+        store: Option<MetricsStore>,
+        path: String,
+    }
+
+    impl TempMetricsDb {
+        fn path(&self) -> &str {
+            &self.path
+        }
+    }
+
+    impl std::ops::Deref for TempMetricsDb {
+        type Target = MetricsStore;
+
+        fn deref(&self) -> &Self::Target {
+            self.store.as_ref().unwrap()
+        }
+    }
+
+    impl Drop for TempMetricsDb {
+        fn drop(&mut self) {
+            // Close the cached SQLite connection before removing the file. This is
+            // required on Windows, where an open database cannot be unlinked.
+            drop(self.store.take());
+            for suffix in ["", "-wal", "-shm"] {
+                let _ = std::fs::remove_file(format!("{}{}", self.path, suffix));
+            }
+        }
+    }
+
+    fn metrics_store_db() -> TempMetricsDb {
+        let db_path = std::env::temp_dir().join(format!(
+            "quasar_metrics_store_{}_{}.db",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        let db_path = db_path.to_string_lossy().into_owned();
         let conn = rusqlite::Connection::open(&db_path).unwrap();
         conn.execute_batch(include_str!("../../migrations/004_monitoring.sql"))
             .unwrap();
         drop(conn);
         let store = MetricsStore::new(db_path.clone(), 30).unwrap();
-        (store, db_path)
+        TempMetricsDb {
+            store: Some(store),
+            path: db_path,
+        }
     }
 
     fn sample_metrics() -> SystemMetrics {
@@ -164,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_stored_metrics_round_trip_without_process_lists() {
-        let (store, db_path) = metrics_store_db();
+        let store = metrics_store_db();
         let metrics = sample_metrics();
         store.save_metrics(&metrics, "localhost").unwrap();
 
@@ -185,16 +212,14 @@ mod tests {
         // rather than erroring, which is also how pre-existing rows behave.
         assert!(row.top_cpu_processes.is_empty());
         assert!(row.top_memory_processes.is_empty());
-
-        let _ = std::fs::remove_file(&db_path);
     }
 
     #[test]
     fn test_stored_metadata_excludes_process_lists() {
-        let (store, db_path) = metrics_store_db();
+        let store = metrics_store_db();
         store.save_metrics(&sample_metrics(), "localhost").unwrap();
 
-        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let conn = rusqlite::Connection::open(store.path()).unwrap();
         let metadata: String = conn
             .query_row("SELECT metadata FROM metrics_history", [], |r| r.get(0))
             .unwrap();
@@ -205,8 +230,6 @@ mod tests {
             "process lists dominated stored row size and are never read back: {metadata}"
         );
         assert!(metadata.contains("cpu_per_core"), "other fields are kept");
-
-        let _ = std::fs::remove_file(&db_path);
     }
 
     #[test]
@@ -713,7 +736,7 @@ mod tests {
     /// contract), and cleanup_old_metrics deletes only rows past the retention window.
     #[test]
     fn alert_history_round_trip_and_metrics_cleanup() {
-        let (store, db_path) = metrics_store_db();
+        let store = metrics_store_db();
         let alert = Alert {
             id: "a-1".to_string(),
             rule_id: "cpu-hot".to_string(),
@@ -731,7 +754,7 @@ mod tests {
         let old_ts = now - 31 * 86_400;
         let fresh_ts = now - 29 * 86_400;
         {
-            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            let conn = rusqlite::Connection::open(store.path()).unwrap();
             let (rule_id, host, severity, triggered_at, message): (String, String, String, i64, String) =
                 conn.query_row(
                     "SELECT rule_id, host, severity, triggered_at, message FROM alert_history WHERE alert_id = 'a-1'",
@@ -755,7 +778,7 @@ mod tests {
         let deleted = store.cleanup_old_metrics().unwrap();
         assert_eq!(deleted, 1, "only the 31-day-old row is past the 30-day retention");
         {
-            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            let conn = rusqlite::Connection::open(store.path()).unwrap();
             let remaining: Vec<i64> = conn
                 .prepare("SELECT timestamp FROM metrics_history")
                 .unwrap()
@@ -765,6 +788,5 @@ mod tests {
                 .collect();
             assert_eq!(remaining, vec![fresh_ts]);
         }
-        let _ = std::fs::remove_file(&db_path);
     }
 }
