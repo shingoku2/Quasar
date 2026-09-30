@@ -396,4 +396,72 @@ mod tests {
 
         cleanup(&db_path);
     }
+
+    /// A rescan refreshes the mutable fields and bumps the scan count, but the original
+    /// sighting (first_seen) is kept.
+    #[test]
+    fn rescan_refreshes_fields_but_keeps_first_seen() {
+        let (tracker, db_path) = setup_test_tracker();
+        let mut scan = make_scan_result("192.168.1.20");
+        scan.last_seen = 1_700_000_000;
+        tracker.save_host(&scan).unwrap();
+
+        let mut rescan = make_scan_result("192.168.1.20");
+        rescan.hostname = Some("renamed-host".to_string());
+        rescan.device_type = "workstation".to_string();
+        rescan.vendor = Some("Acme".to_string());
+        rescan.mac_address = Some("aa:bb:cc:dd:ee:ff".to_string());
+        rescan.last_seen = 1_700_000_999;
+        tracker.save_host(&rescan).unwrap();
+
+        let host = tracker.get_host("192.168.1.20").unwrap().unwrap();
+        assert_eq!(host.first_seen, 1_700_000_000, "first_seen is the original sighting");
+        assert_eq!(host.last_seen, 1_700_000_999);
+        assert_eq!(host.hostname.as_deref(), Some("renamed-host"));
+        assert_eq!(host.device_type, "workstation");
+        assert_eq!(host.vendor.as_deref(), Some("Acme"));
+        assert_eq!(host.mac_address.as_deref(), Some("aa:bb:cc:dd:ee:ff"));
+        assert_eq!(host.scan_count, 2);
+
+        cleanup(&db_path);
+    }
+
+    /// The inventory list is most-recent-first (what the UI promises).
+    #[test]
+    fn list_hosts_is_most_recent_first() {
+        let (tracker, db_path) = setup_test_tracker();
+        for (ip, last_seen) in [
+            ("192.168.1.30", 1_700_000_100),
+            ("192.168.1.31", 1_700_000_300),
+            ("192.168.1.32", 1_700_000_200),
+        ] {
+            let mut scan = make_scan_result(ip);
+            scan.last_seen = last_seen;
+            tracker.save_host(&scan).unwrap();
+        }
+        let ips: Vec<String> = tracker.list_hosts(None).unwrap().into_iter().map(|h| h.ip).collect();
+        assert_eq!(ips, ["192.168.1.31", "192.168.1.32", "192.168.1.30"]);
+
+        cleanup(&db_path);
+    }
+
+    /// Migration 006 cascades: deleting a host must not leave its services behind.
+    #[test]
+    fn delete_host_cascades_its_services() {
+        let (tracker, db_path) = setup_test_tracker();
+        tracker.save_host(&make_scan_result("192.168.1.40")).unwrap();
+        tracker.delete_host("192.168.1.40").unwrap();
+
+        let conn = Connection::open(&db_path).unwrap();
+        let (hosts, services): (i64, i64) = conn
+            .query_row(
+                "SELECT (SELECT COUNT(*) FROM discovered_hosts), (SELECT COUNT(*) FROM host_services)",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((hosts, services), (0, 0), "no orphan services after delete");
+
+        cleanup(&db_path);
+    }
 }
