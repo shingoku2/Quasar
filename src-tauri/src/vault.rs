@@ -1016,6 +1016,160 @@ mod tests {
         cleanup_test_db(&db_path);
     }
 
+    /// The auto-lock decision that background.rs's loop delegates to: a locked vault is a
+    /// no-op, recent activity keeps the vault open, and activity older than the timeout
+    /// drops the key and the activity stamp.
+    #[tokio::test]
+    async fn auto_lock_fires_only_after_the_timeout() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        assert!(!vault.check_auto_lock().await.unwrap(), "a locked vault cannot lock again");
+
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        assert!(!vault.check_auto_lock().await.unwrap(), "just used: too soon");
+
+        // No activity stamp (never touched since unlock): leave it alone.
+        vault.inner.write().await.last_activity = None;
+        assert!(!vault.check_auto_lock().await.unwrap());
+
+        let timeout_secs = vault.inner.read().await.settings.auto_lock_timeout_minutes * 60;
+        vault.inner.write().await.last_activity =
+            Some(Instant::now() - Duration::from_secs(timeout_secs + 60));
+        assert!(vault.check_auto_lock().await.unwrap(), "past the timeout: lock");
+        assert!(vault.is_locked().await);
+        assert!(vault.inner.read().await.last_activity.is_none());
+        assert!(!vault.check_auto_lock().await.unwrap(), "already locked: no-op");
+        cleanup_test_db(&db_path);
+    }
+
+    /// RSEC-016: while a master-password change runs, check_auto_lock must not lock — even
+    /// when the timeout has passed — or it would strand the re-encryption pass.
+    #[tokio::test]
+    async fn auto_lock_stays_out_of_a_password_change() {
+        let db_path = setup_test_db();
+        let vault = VaultState::new(db_path.clone());
+        vault.initialize_vault(SecretString::from("TestPassword123!")).await.unwrap();
+        let timeout_secs = vault.inner.read().await.settings.auto_lock_timeout_minutes * 60;
+        vault.inner.write().await.last_activity =
+            Some(Instant::now() - Duration::from_secs(timeout_secs + 60));
+
+        vault.changing_password.store(true, Ordering::SeqCst);
+        assert!(!vault.check_auto_lock().await.unwrap());
+        assert!(!vault.is_locked().await);
+        vault.changing_password.store(false, Ordering::SeqCst);
+        assert!(vault.check_auto_lock().await.unwrap(), "once rotation is over, the stale activity locks");
+        assert!(vault.is_locked().await);
+        cleanup_test_db(&db_path);
+    }
+
+    /// IPC-006, DB side: a hand-edited or corrupt `auto_lock_timeout` row falls back to the
+    /// default instead of disabling auto-lock (0), overflowing `* 60` (huge values), or
+    /// exceeding the accepted range.
+    #[test]
+    fn auto_lock_minutes_fall_back_to_the_default_for_a_bad_stored_row() {
+        let db_path = setup_test_db();
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        assert_eq!(VaultState::load_auto_lock_minutes(&conn), DEFAULT_AUTO_LOCK_MINUTES, "no row");
+        for (stored, expected) in [
+            ("1".to_string(), 1),
+            ("1440".to_string(), 1440),
+            ("0".to_string(), DEFAULT_AUTO_LOCK_MINUTES),
+            ("1441".to_string(), DEFAULT_AUTO_LOCK_MINUTES),
+            (u64::MAX.to_string(), DEFAULT_AUTO_LOCK_MINUTES),
+            ("-5".to_string(), DEFAULT_AUTO_LOCK_MINUTES),
+            ("garbage".to_string(), DEFAULT_AUTO_LOCK_MINUTES),
+        ] {
+            conn.execute(
+                "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES ('auto_lock_timeout', ?1, 0)",
+                [&stored],
+            )
+            .unwrap();
+            assert_eq!(VaultState::load_auto_lock_minutes(&conn), expected, "stored {stored:?}");
+        }
+        drop(conn);
+        cleanup_test_db(&db_path);
+    }
+
+    /// Invariant 5, edges: an expired persisted deadline never locks anyone out, persisted
+    /// state only ever raises the in-memory tracking, unparseable rows are ignored, and a
+    /// deadline already past is persisted as roughly "now".
+    #[tokio::test]
+    async fn persisted_lockout_only_raises_and_expires() {
+        let db_path = setup_test_db();
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let now = chrono::Utc::now().timestamp();
+        let set = |key: &str, value: String| {
+            conn.execute(
+                "INSERT OR REPLACE INTO vault_settings (key, value, updated_at) VALUES (?1, ?2, 0)",
+                rusqlite::params![key, value],
+            )
+            .unwrap();
+        };
+        let vault = VaultState::new(db_path.clone());
+
+        // Deadline in the past: the failed-attempt count is still loaded, but no lockout.
+        set("lockout_failed_attempts", "3".to_string());
+        set("lockout_until_unix", (now - 60).to_string());
+        {
+            let mut inner = vault.inner.write().await;
+            VaultState::load_persisted_lockout(&conn, &mut inner);
+            assert_eq!(inner.failed_attempts, 3);
+            assert!(inner.lockout_until.is_none(), "an expired deadline must not lock");
+        }
+
+        // A weaker persisted state never lowers a stronger in-memory one.
+        set("lockout_failed_attempts", "1".to_string());
+        set("lockout_until_unix", (now + 60).to_string());
+        {
+            let mut inner = vault.inner.write().await;
+            inner.failed_attempts = 4;
+            inner.lockout_until = Some(Instant::now() + Duration::from_secs(600));
+            VaultState::load_persisted_lockout(&conn, &mut inner);
+            assert_eq!(inner.failed_attempts, 4, "attempts only ever raise");
+            let remaining = inner.lockout_until.unwrap() - Instant::now();
+            assert!(remaining > Duration::from_secs(500), "an earlier persisted deadline must not shorten the lockout");
+        }
+
+        // A stronger persisted state raises both.
+        set("lockout_failed_attempts", "7".to_string());
+        set("lockout_until_unix", (now + 3600).to_string());
+        {
+            let mut inner = vault.inner.write().await;
+            VaultState::load_persisted_lockout(&conn, &mut inner);
+            assert_eq!(inner.failed_attempts, 7);
+            let remaining = inner.lockout_until.unwrap() - Instant::now();
+            assert!(remaining > Duration::from_secs(3500) && remaining <= Duration::from_secs(3600));
+        }
+
+        // Unparseable rows are ignored: the previous (stronger) state stays as it was.
+        set("lockout_failed_attempts", "many".to_string());
+        set("lockout_until_unix", "soon".to_string());
+        {
+            let mut inner = vault.inner.write().await;
+            VaultState::load_persisted_lockout(&conn, &mut inner);
+            assert_eq!(inner.failed_attempts, 7, "garbage never resets the count");
+            assert!(inner.lockout_until.is_some());
+        }
+
+        // A deadline already in the past is persisted as roughly now: it can't produce a
+        // future lockout on reload.
+        let past = Instant::now() - Duration::from_secs(30);
+        VaultState::persist_lockout(&conn, 2, Some(past)).unwrap();
+        let until_unix: i64 = conn
+            .query_row("SELECT value FROM vault_settings WHERE key = 'lockout_until_unix'", [], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert!(
+            (until_unix - chrono::Utc::now().timestamp()).abs() <= 5,
+            "a past deadline persists as ~now, got {until_unix}"
+        );
+        drop(conn);
+        cleanup_test_db(&db_path);
+    }
+
     /// RUST-003: the saved timeout is what auto-lock uses after a restart.
     #[tokio::test]
     async fn test_saved_auto_lock_timeout_is_loaded_on_unlock() {

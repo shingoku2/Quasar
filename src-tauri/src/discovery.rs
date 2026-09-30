@@ -178,4 +178,24 @@ mod poll_tests {
         poll_receivers(&mut receivers, Duration::from_millis(10), |_| hosts += 1);
         assert!(receivers.is_empty());
     }
+
+    /// Only a resolved service yields a host: lifecycle events (search started, service
+    /// found but not yet resolved) are ignored without touching the receiver.
+    #[test]
+    fn lifecycle_events_produce_no_host_but_keep_the_receiver() {
+        assert!(discovered_host(ServiceEvent::SearchStarted("_ssh._tcp.local.".into())).is_none());
+        assert!(discovered_host(ServiceEvent::ServiceFound(
+            "devbox._ssh._tcp.local.".into(),
+            "_ssh._tcp.local.".into(),
+        ))
+        .is_none());
+
+        let (tx, rx) = flume::bounded::<ServiceEvent>(1);
+        tx.send(ServiceEvent::SearchStarted("_ssh._tcp.local.".into())).unwrap();
+        let mut receivers = vec![rx];
+        let mut hosts = 0;
+        poll_receivers(&mut receivers, Duration::from_millis(10), |_| hosts += 1);
+        assert_eq!(hosts, 0);
+        assert_eq!(receivers.len(), 1, "a non-resolved event keeps the receiver");
+    }
 }

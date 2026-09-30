@@ -1,11 +1,13 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import AlertFeed from './AlertFeed';
 import type { Alert } from './AlertFeed';
 import '@testing-library/jest-dom';
 
 const mockInvoke = vi.mocked(invoke);
+const mockListen = vi.mocked(listen);
 
 const makeAlert = (overrides: Partial<Alert> = {}): Alert => ({
   id: '1',
@@ -118,5 +120,84 @@ describe('AlertFeed', () => {
   it('shows Recent Activity heading', () => {
     render(<AlertFeed />);
     expect(screen.getByText('Recent Activity')).toBeInTheDocument();
+  });
+
+  it('receives and displays alerts-triggered and alerts-recovered events', async () => {
+    type EventCallback = (event: { payload: unknown }) => void;
+    const listeners: Record<string, EventCallback> = {};
+    const unlistenTriggered = vi.fn();
+    const unlistenRecovered = vi.fn();
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      listeners[eventName] = handler as EventCallback;
+      return eventName === 'alerts-triggered' ? unlistenTriggered : unlistenRecovered;
+    });
+
+    const { unmount } = render(<AlertFeed alerts={[]} />);
+
+    await waitFor(() => {
+      expect(listeners['alerts-triggered']).toBeDefined();
+      expect(listeners['alerts-recovered']).toBeDefined();
+    });
+
+    // 1. Emit alerts-triggered with various severities
+    act(() => {
+      listeners['alerts-triggered']({
+        payload: [
+          {
+            id: 'backend-1',
+            rule_id: 'rule-critical',
+            message: 'Disk space critical: 98%',
+            severity: 'Critical',
+            timestamp: 1700000000,
+            acknowledged: false,
+          },
+          {
+            id: 'backend-2',
+            rule_id: '',
+            message: 'CPU usage warning: 82%',
+            severity: 'Warning',
+            timestamp: 1700000001,
+            acknowledged: false,
+          },
+          {
+            id: 'backend-3',
+            rule_id: 'rule-info',
+            message: 'Network load nominal',
+            severity: 'Info',
+            timestamp: 1700000002,
+            acknowledged: false,
+          },
+        ],
+      });
+    });
+
+    expect(screen.getByText('Disk space critical: 98%')).toBeInTheDocument();
+    expect(screen.getByText('CPU usage warning: 82%')).toBeInTheDocument();
+    expect(screen.getByText('Network load nominal')).toBeInTheDocument();
+    // Default rule_id fallback to 'System'
+    expect(screen.getByText('System')).toBeInTheDocument();
+
+    // 2. Emit alerts-recovered
+    act(() => {
+      listeners['alerts-recovered']({
+        payload: [
+          {
+            rule_id: 'rule-critical',
+            message: 'Disk space recovered: now 70%',
+            recovered_at: 1700000060,
+          },
+        ],
+      });
+    });
+
+    expect(screen.getByText('Disk space recovered: now 70%')).toBeInTheDocument();
+
+    // 3. Unmount unlistens
+    unmount();
+    await waitFor(() => {
+      expect(unlistenTriggered).toHaveBeenCalled();
+      expect(unlistenRecovered).toHaveBeenCalled();
+    });
   });
 });

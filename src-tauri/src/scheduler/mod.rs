@@ -302,15 +302,159 @@ mod tests {
         }
     }
 
+    /// `is_due` decides whether every scheduled task runs; the old test only re-implemented
+    /// fragments of it. Pin down the actual function: the `t <= now` boundary, the
+    /// two-minute lookback for a task that never ran, an exhausted schedule, and invalid
+    /// cron.
     #[test]
     fn test_is_due() {
-        // cron crate 0.12 uses 6-field: sec min hour day month dow. "0 0 9 * * *" = daily 9:00.
-        let now = Utc::now();
-        let last_run = (now - chrono::Duration::hours(2)).timestamp();
-        let after = DateTime::from_timestamp(last_run, 0).unwrap();
-        let s = Schedule::from_str("0 0 9 * * *").unwrap();
-        let next = s.after(&after).next();
-        assert!(next.is_some());
+        // 2026-01-01T00:00:00Z; cron crate 0.17 uses 6 fields: sec min hour day month dow.
+        let base = DateTime::from_timestamp(1_767_225_600, 0).unwrap();
+        let at = |days: i64, secs: i64| base + chrono::Duration::seconds(days * 86_400 + secs);
+        let nine_am = 9 * 3600;
+
+        // A task that ran yesterday at 09:00 is due exactly at today's 09:00 (t <= now)...
+        assert!(is_due("0 0 9 * * *", Some(at(4, nine_am).timestamp()), at(5, nine_am)));
+        // ...but not one second earlier.
+        assert!(!is_due("0 0 9 * * *", Some(at(4, nine_am).timestamp()), at(5, nine_am - 1)));
+        // Having run today at 09:00, it is not due again today.
+        assert!(!is_due("0 0 9 * * *", Some(at(5, nine_am).timestamp()), at(5, nine_am + 30)));
+
+        // Never run (`last_run_at == None`): the lookback is CHECK_INTERVAL_SECS * 2, so a
+        // just-passed occurrence fires at once...
+        assert!(is_due("0 0 9 * * *", None, at(5, nine_am + 119)));
+        // ...except exactly at the window edge, where the occurrence falls on `after`
+        // itself and `Schedule::after` is exclusive of it...
+        assert!(!is_due("0 0 9 * * *", None, at(5, nine_am + 120)));
+        // ...and one five minutes back is outside the window entirely.
+        assert!(!is_due("0 0 9 * * *", None, at(5, nine_am + 300)));
+
+        // An every-second task that ran at `now` is not due at the same instant.
+        assert!(!is_due("* * * * * *", Some(at(5, nine_am).timestamp()), at(5, nine_am)));
+        assert!(is_due("* * * * * *", Some(at(5, nine_am - 2).timestamp()), at(5, nine_am)));
+
+        // Invalid expressions and schedules with no future occurrences are never due.
+        assert!(!is_due("not cron", None, at(5, nine_am)));
+        assert!(!is_due("0 0 9 * * * 2020", None, at(5, nine_am)));
+    }
+
+    /// RUST-006: a stalled SFTP transfer is cut off at SFTP_TASK_TIMEOUT instead of holding
+    /// a concurrency slot forever. The paused clock makes the one-hour cap instant.
+    #[tokio::test(start_paused = true)]
+    async fn bounded_sftp_caps_a_stalled_transfer() {
+        let err = bounded_sftp(std::future::pending::<Result<(), String>>())
+            .await
+            .unwrap_err();
+        assert_eq!(err, "SFTP transfer timed out");
+        assert!(bounded_sftp(async { Ok(()) }).await.is_ok());
+        assert_eq!(bounded_sftp(async { Err("boom".to_string()) }).await.unwrap_err(), "boom");
+    }
+
+    /// The `last_executed` guard: a task that just started isn't re-run by the next ticks,
+    /// even while the cron still says it's due, until CHECK_INTERVAL_SECS has passed. This
+    /// protects a task whose `last_run_at` couldn't be persisted.
+    #[tokio::test]
+    async fn recently_started_tasks_wait_out_the_guard() {
+        let state = SchedulerState::new();
+        let starts: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let runner = {
+            let starts = starts.clone();
+            move |task: TaskRow, now: DateTime<Utc>| {
+                let starts = starts.clone();
+                async move {
+                    starts.lock().unwrap().push(task.id.clone());
+                    Some((task.id, now))
+                }
+            }
+        };
+        let tasks = || vec![every_second_task("sched-test-guard")];
+        let started = || starts.lock().unwrap().len();
+        let t0 = Utc::now();
+
+        spawn_due_runs(tasks(), t0, &state, runner.clone());
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while state.last_executed.lock().unwrap().is_empty() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the first run is recorded");
+        assert_eq!(started(), 1);
+
+        // 30 s later the cron still says due, but the guard skips the task.
+        spawn_due_runs(tasks(), t0 + chrono::Duration::seconds(30), &state, runner.clone());
+        for _ in 0..10 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(started(), 1, "a task that started within CHECK_INTERVAL_SECS is skipped");
+
+        // Once the guard window has passed, it runs again.
+        spawn_due_runs(
+            tasks(),
+            t0 + chrono::Duration::seconds(CHECK_INTERVAL_SECS as i64 + 1),
+            &state,
+            runner.clone(),
+        );
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while started() < 2 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the task runs again after the guard expires");
+    }
+
+    /// MAX_CONCURRENT_TASKS: a burst of tasks due in the same tick runs at most five at a
+    /// time, so one unreachable host can't delay everything behind its SSH timeout.
+    #[tokio::test]
+    async fn concurrent_runs_are_bounded() {
+        use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+        let state = SchedulerState::new();
+        let in_flight = Arc::new(AtomicUsize::new(0));
+        let peak = Arc::new(AtomicUsize::new(0));
+        let released = Arc::new(AtomicBool::new(false));
+        let runner = {
+            let (in_flight, peak, released) = (in_flight.clone(), peak.clone(), released.clone());
+            move |task: TaskRow, now: DateTime<Utc>| {
+                let (in_flight, peak, released) = (in_flight.clone(), peak.clone(), released.clone());
+                async move {
+                    let n = in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+                    peak.fetch_max(n, Ordering::SeqCst);
+                    while !released.load(Ordering::SeqCst) {
+                        tokio::task::yield_now().await;
+                    }
+                    in_flight.fetch_sub(1, Ordering::SeqCst);
+                    Some((task.id, now))
+                }
+            }
+        };
+        const TASK_COUNT: usize = 7;
+        let tasks: Vec<TaskRow> = (0..TASK_COUNT)
+            .map(|i| every_second_task(&format!("sched-test-cap-{i}")))
+            .collect();
+        spawn_due_runs(tasks, Utc::now(), &state, runner);
+
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while in_flight.load(Ordering::SeqCst) < MAX_CONCURRENT_TASKS {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("five tasks should start");
+        for _ in 0..20 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(in_flight.load(Ordering::SeqCst), MAX_CONCURRENT_TASKS, "no sixth run may start");
+
+        released.store(true, Ordering::SeqCst);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while state.last_executed.lock().unwrap().len() < TASK_COUNT {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("all runs finish");
+        assert_eq!(peak.load(Ordering::SeqCst), MAX_CONCURRENT_TASKS);
     }
 
     #[test]

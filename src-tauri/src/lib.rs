@@ -390,6 +390,255 @@ mod saved_host_tests {
         assert!(remove_saved_hosts_in_conn(&mut conn, &["id".to_string()]).is_err());
     }
 
+    /// The monitoring-credential join, name ordering, and the small write edges: an empty
+    /// username is stored as NULL, updating a missing id is an error, and a host without a
+    /// binding reads back with credential_id None — the IPC-003 filtering downstream keys
+    /// off that value.
+    #[test]
+    fn saved_hosts_carry_monitoring_credentials_and_sort_by_name() {
+        let mut conn = host_conn();
+        let zeta = upsert_saved_host_in_conn(&mut conn, "zeta", "10.0.0.2", "ssh", None, Some("")).unwrap();
+        let alpha = upsert_saved_host_in_conn(&mut conn, "alpha", "10.0.0.1", "ssh", None, Some("root")).unwrap();
+        assert_eq!(zeta.username, None, "an empty username is stored as NULL");
+        conn.execute(
+            "INSERT INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, 'cred-1')",
+            [&alpha.id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO monitoring_host_credential (host_id, credential_id) VALUES (?1, NULL)",
+            [&zeta.id],
+        )
+        .unwrap();
+
+        let hosts = get_saved_hosts_from_conn(&conn).unwrap();
+        assert_eq!(hosts.len(), 2);
+        assert_eq!(hosts[0].name, "alpha", "hosts are listed by name");
+        assert_eq!(hosts[0].credential_id.as_deref(), Some("cred-1"));
+        assert_eq!(hosts[1].name, "zeta");
+        assert_eq!(hosts[1].credential_id, None, "a NULL join result is None, not an error");
+
+        let one = get_saved_host_by_id(&conn, &alpha.id).unwrap().unwrap();
+        assert_eq!(one.credential_id.as_deref(), Some("cred-1"));
+        assert!(get_saved_host_by_id(&conn, "missing").unwrap().is_none());
+
+        let err = update_saved_host_in_conn(&conn, "missing", "n", "10.0.0.3", "ssh", None, None).unwrap_err();
+        assert!(err.contains("not found"), "{err}");
+        // The upsert match key is (address, protocol, port): a different port is a new host.
+        let other = upsert_saved_host_in_conn(&mut conn, "alpha", "10.0.0.1", "ssh", Some(2222), None).unwrap();
+        assert_ne!(other.id, alpha.id);
+    }
+
+    /// Multi-deletes above the SQLite host-parameter limit are chunked (999 per statement):
+    /// a regression to a single un-chunked IN clause breaks large deletes on limited builds.
+    #[test]
+    fn remove_saved_hosts_chunks_past_the_parameter_limit() {
+        let mut conn = host_conn();
+        let ids: Vec<String> = (0..1001)
+            .map(|i| {
+                upsert_saved_host_in_conn(&mut conn, &format!("h{i}"), &format!("10.0.0.{i}"), "ssh", None, None)
+                    .unwrap()
+                    .id
+            })
+            .collect();
+        assert_eq!(remove_saved_hosts_in_conn(&mut conn, &ids).unwrap(), 1001);
+        assert!(get_saved_hosts_from_conn(&conn).unwrap().is_empty());
+    }
+
+    /// The one-time titan.db rename must never touch an existing quasar.db, and must
+    /// tolerate either file being absent.
+    #[test]
+    fn titan_database_is_renamed_only_when_quasar_is_absent() {
+        let dir = import_test_dir("titan");
+        // Neither file: no-op.
+        migrate_titan_db_to_quasar(&dir).unwrap();
+        assert!(!dir.join(DB_FILENAME).exists());
+
+        // Only titan.db: it becomes quasar.db.
+        std::fs::write(dir.join("titan.db"), b"legacy").unwrap();
+        migrate_titan_db_to_quasar(&dir).unwrap();
+        assert!(!dir.join("titan.db").exists());
+        assert_eq!(std::fs::read(dir.join(DB_FILENAME)).unwrap(), b"legacy");
+
+        // Both: the live database wins and the old file is left alone.
+        std::fs::write(dir.join("titan.db"), b"stale").unwrap();
+        std::fs::write(dir.join(DB_FILENAME), b"live").unwrap();
+        migrate_titan_db_to_quasar(&dir).unwrap();
+        assert_eq!(std::fs::read(dir.join(DB_FILENAME)).unwrap(), b"live");
+        assert_eq!(std::fs::read(dir.join("titan.db")).unwrap(), b"stale");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A missing source, an arbitrary file, or a foreign SQLite database are all rejected
+    /// before anything is touched: no vault lock, no .bak, live DB unchanged (these guards
+    /// are what stop a bad pick from clobbering the vault).
+    #[tokio::test]
+    async fn import_rejects_bad_sources_before_touching_anything() {
+        let dir = import_test_dir("badsrc");
+        let live = dir.join(DB_FILENAME);
+        migrated_quasar_db(&live);
+        let vault = vault::VaultState::new(live.to_str().unwrap().to_string());
+        vault
+            .initialize_vault(secrecy::SecretString::from("LivePassword123!"))
+            .await
+            .unwrap();
+
+        let missing = dir.join("nope.db");
+        let err = import_database_at(&dir, missing.to_str().unwrap(), &vault, None).await.unwrap_err();
+        assert!(err.contains("Source file not found"), "{err}");
+
+        let junk = dir.join("junk.db");
+        std::fs::write(&junk, b"this is not a database at all").unwrap();
+        let err = import_database_at(&dir, junk.to_str().unwrap(), &vault, None).await.unwrap_err();
+        assert!(err.contains("not a valid SQLite database"), "{err}");
+
+        let foreign = dir.join("foreign.db");
+        rusqlite::Connection::open(&foreign)
+            .unwrap()
+            .execute_batch("CREATE TABLE unrelated (x INTEGER); INSERT INTO unrelated VALUES (1);")
+            .unwrap();
+        let err = import_database_at(&dir, foreign.to_str().unwrap(), &vault, None).await.unwrap_err();
+        assert!(err.contains("not a recognized Quasar backup"), "{err}");
+
+        assert!(!vault.is_locked().await, "a rejected import must not lock the vault");
+        assert!(
+            !dir.join(format!("{}.bak", DB_FILENAME)).exists(),
+            "a rejected import must not back up or replace anything"
+        );
+        let conn = rusqlite::Connection::open(&live).unwrap();
+        let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+        assert_eq!(version, LATEST_SCHEMA_VERSION, "the live database is untouched");
+        let initialized: String = conn
+            .query_row("SELECT value FROM vault_settings WHERE key = 'vault_initialized'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(initialized, "true");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Pre-application_id backups are recognized by their schema: three core tables plus at
+    /// least two marker tables. One marker, or a missing (or wrong-shaped) core table, must
+    /// not pass — a false positive would let an unrelated SQLite file replace the vault.
+    #[test]
+    fn legacy_signature_needs_core_tables_and_two_markers() {
+        use crate::db::backup::has_quasar_legacy_signature;
+        let hosts = "CREATE TABLE hosts (id TEXT, name TEXT, address TEXT, port INTEGER);";
+        let creds = "CREATE TABLE credentials (id TEXT, name TEXT, username TEXT);";
+        let creds_new = "CREATE TABLE credentials_new (id TEXT, name TEXT, username TEXT);";
+        let settings = "CREATE TABLE vault_settings (key TEXT, value TEXT);";
+        let audit = "CREATE TABLE security_audit_log (id TEXT, event_type TEXT, action TEXT);";
+        let known = "CREATE TABLE ssh_known_hosts (id TEXT, host TEXT, fingerprint TEXT);";
+        let recognized = |schema: &str| {
+            let conn = rusqlite::Connection::open_in_memory().unwrap();
+            conn.execute_batch(schema).unwrap();
+            has_quasar_legacy_signature(&conn).unwrap()
+        };
+        assert!(recognized(&format!("{hosts}{creds}{settings}{audit}{known}")));
+        // Migration 005's mid-state schema (credentials_new) counts as the core table.
+        assert!(recognized(&format!("{hosts}{creds_new}{settings}{audit}{known}")));
+        assert!(!recognized(&format!("{hosts}{creds}{settings}{audit}")), "one marker is not enough");
+        assert!(!recognized(&format!("{hosts}{creds}{settings}")));
+        assert!(!recognized(&format!("{hosts}{settings}{audit}{known}")), "no credentials table");
+        assert!(!recognized(&format!("{creds}{settings}{audit}{known}")), "no hosts table");
+        assert!(
+            !recognized(&format!("CREATE TABLE hosts (id TEXT, x TEXT);{creds}{settings}{audit}{known}")),
+            "a wrong-shaped core table must not pass"
+        );
+    }
+
+    /// The SFTP-side sibling of `ssh_login_resolution_enforces_host_and_type` (invariant 10;
+    /// SFTP is password-only): host binding, SSH-password-only types, an explicit refusal of
+    /// empty-password credentials, the typed-password fallback, and the locked-vault error.
+    #[tokio::test]
+    async fn sftp_auth_resolution_enforces_host_and_type() {
+        let dir = import_test_dir("sftpauth");
+        let db = dir.join(DB_FILENAME);
+        migrated_quasar_db(&db);
+        let db = db.to_str().unwrap().to_string();
+        let vault = vault::VaultState::new(db.clone());
+        vault
+            .initialize_vault(secrecy::SecretString::from("LivePassword123!"))
+            .await
+            .unwrap();
+        let creds = vault::CredentialManager::new(db);
+        let add = |name: &str, ty: &str, password: &str, host: Option<&str>| {
+            let vault = &vault;
+            let creds = &creds;
+            let (name, ty, password, host) =
+                (name.to_string(), ty.to_string(), password.to_string(), host.map(str::to_string));
+            async move {
+                let access = vault.credential_access().await.unwrap();
+                creds
+                    .add_credential(access.key(), name, "admin".into(), password, ty, host, None, None, None, None, None)
+                    .unwrap()
+            }
+        };
+        let bound = add("bound", "ssh", "s3cret", Some("db1")).await;
+        let key_only = add("key", "ssh_key", "", None).await;
+        let api = add("api", "api", "token", None).await;
+        let no_password = add("nopw", "password", "", None).await;
+
+        // Typed password, no credential — and the missing-both case.
+        let (u, p) = resolve_sftp_auth(&vault, &creds, "any", "me".into(), Some("pw".into()), None).await.unwrap();
+        assert_eq!((u.as_str(), p.as_str()), ("me", "pw"));
+        let err = resolve_sftp_auth(&vault, &creds, "any", "me".into(), None, None).await.unwrap_err();
+        assert!(err.contains("password or a credential"), "{err}");
+
+        // A bound SSH password credential works against its own host (case-insensitive)...
+        let (u, p) = resolve_sftp_auth(&vault, &creds, "DB1", "ignored".into(), None, Some(bound.clone()))
+            .await
+            .unwrap();
+        assert_eq!((u.as_str(), p.as_str()), ("admin", "s3cret"));
+        // ...and only against that host.
+        let err = resolve_sftp_auth(&vault, &creds, "evil.example", "x".into(), None, Some(bound))
+            .await
+            .unwrap_err();
+        assert!(err.contains("restricted to host"), "{err}");
+
+        // SFTP is password-only: SSH-key and API credentials are refused.
+        for (id, label) in [(&key_only, "an SSH-key"), (&api, "an API")] {
+            let err = resolve_sftp_auth(&vault, &creds, "any", "x".into(), None, Some(id.clone()))
+                .await
+                .unwrap_err();
+            assert!(err.contains("SFTP needs"), "{label}: {err}");
+        }
+        // An SSH-type credential with no stored password has nothing to authenticate with.
+        let err = resolve_sftp_auth(&vault, &creds, "any", "x".into(), None, Some(no_password))
+            .await
+            .unwrap_err();
+        assert!(err.contains("SFTP needs a password credential"), "{err}");
+
+        // A locked vault is reported as such (the credential path needs the master key).
+        vault.lock_vault().await.unwrap();
+        let err = resolve_sftp_auth(&vault, &creds, "any", "x".into(), None, Some(api)).await.unwrap_err();
+        assert_eq!(err, "Vault is locked");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The name/command length caps and path validation on saved tasks (IPC-011).
+    #[test]
+    fn scheduled_task_validation_bounds_names_commands_and_paths() {
+        let mut conn = migrated_memory_db();
+        let host = upsert_saved_host_in_conn(&mut conn, "srv", "10.0.0.5", "ssh", None, Some("root")).unwrap();
+        let validate = |name: &str, cmd: &str, t: Option<&str>, lp: Option<&str>, rp: Option<&str>| {
+            validate_scheduled_task(&conn, name, &host.id, cmd, t, lp, rp, None).map(str::to_string)
+        };
+        let max_name = "n".repeat(MAX_TASK_NAME_LEN);
+        assert!(validate(&max_name, "uptime", None, None, None).is_ok());
+        let err = validate(&format!("{max_name}x"), "uptime", None, None, None).unwrap_err();
+        assert!(err.contains("1-200"), "{err}");
+
+        let max_cmd = "c".repeat(MAX_TASK_COMMAND_LEN);
+        assert!(validate("t", &max_cmd, None, None, None).is_ok());
+        let err = validate("t", &format!("{max_cmd}x"), None, None, None).unwrap_err();
+        assert!(err.contains("too long"), "{err}");
+
+        // SFTP paths go through validate_path: no '..', no empty.
+        assert!(validate("t", "", Some("sftp_upload"), Some("/tmp/../etc/passwd"), Some("/srv/a")).is_err());
+        assert!(validate("t", "", Some("sftp_upload"), Some(""), Some("/srv/a")).is_err());
+        assert!(validate("t", "", Some("sftp_download"), Some("/tmp/a"), Some("/srv/../x")).is_err());
+        assert!(validate("t", "", Some("sftp_upload"), Some("/tmp/a"), Some("/srv/a")).is_ok());
+    }
+
     fn migrated_quasar_db(path: &std::path::Path) {
         let mut conn = rusqlite::Connection::open(path).unwrap();
         MIGRATIONS.to_latest(&mut conn).unwrap();

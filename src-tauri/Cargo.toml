@@ -68,3 +68,5 @@ tauri-plugin-updater = "2.10.1"
 [dev-dependencies]
 # Same flume mdns-sd uses (it re-exports `flume::Receiver`); tests build channels with it.
 flume = { version = "0.12", default-features = false }
+# Paused clocks, so timeout behavior (e.g. the one-hour SFTP transfer cap) is instant to test.
+tokio = { version = "1.53.1", features = ["test-util"] }

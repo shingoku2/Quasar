@@ -95,27 +95,54 @@ mod tests {
         assert!(metrics.timestamp > 0);
     }
 
-    fn metrics_store_db() -> (MetricsStore, String) {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        // A nanosecond timestamp alone isn't a reliable uniqueness guarantee
-        // (clock resolution can be coarser than 1ns, and concurrent test threads
-        // can race), so a per-process counter is appended to rule out collisions.
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let db_path = format!(
-            "test_metrics_store_{}_{}.db",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos(),
-            seq
-        );
+    /// A metrics database isolated in the system temporary directory and removed
+    /// even when a test unwinds after an assertion failure.
+    struct TempMetricsDb {
+        store: Option<MetricsStore>,
+        path: String,
+    }
+
+    impl TempMetricsDb {
+        fn path(&self) -> &str {
+            &self.path
+        }
+    }
+
+    impl std::ops::Deref for TempMetricsDb {
+        type Target = MetricsStore;
+
+        fn deref(&self) -> &Self::Target {
+            self.store.as_ref().unwrap()
+        }
+    }
+
+    impl Drop for TempMetricsDb {
+        fn drop(&mut self) {
+            // Close the cached SQLite connection before removing the file. This is
+            // required on Windows, where an open database cannot be unlinked.
+            drop(self.store.take());
+            for suffix in ["", "-wal", "-shm"] {
+                let _ = std::fs::remove_file(format!("{}{}", self.path, suffix));
+            }
+        }
+    }
+
+    fn metrics_store_db() -> TempMetricsDb {
+        let db_path = std::env::temp_dir().join(format!(
+            "quasar_metrics_store_{}_{}.db",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        let db_path = db_path.to_string_lossy().into_owned();
         let conn = rusqlite::Connection::open(&db_path).unwrap();
         conn.execute_batch(include_str!("../../migrations/004_monitoring.sql"))
             .unwrap();
         drop(conn);
         let store = MetricsStore::new(db_path.clone(), 30).unwrap();
-        (store, db_path)
+        TempMetricsDb {
+            store: Some(store),
+            path: db_path,
+        }
     }
 
     fn sample_metrics() -> SystemMetrics {
@@ -164,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_stored_metrics_round_trip_without_process_lists() {
-        let (store, db_path) = metrics_store_db();
+        let store = metrics_store_db();
         let metrics = sample_metrics();
         store.save_metrics(&metrics, "localhost").unwrap();
 
@@ -185,16 +212,14 @@ mod tests {
         // rather than erroring, which is also how pre-existing rows behave.
         assert!(row.top_cpu_processes.is_empty());
         assert!(row.top_memory_processes.is_empty());
-
-        let _ = std::fs::remove_file(&db_path);
     }
 
     #[test]
     fn test_stored_metadata_excludes_process_lists() {
-        let (store, db_path) = metrics_store_db();
+        let store = metrics_store_db();
         store.save_metrics(&sample_metrics(), "localhost").unwrap();
 
-        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let conn = rusqlite::Connection::open(store.path()).unwrap();
         let metadata: String = conn
             .query_row("SELECT metadata FROM metrics_history", [], |r| r.get(0))
             .unwrap();
@@ -205,8 +230,6 @@ mod tests {
             "process lists dominated stored row size and are never read back: {metadata}"
         );
         assert!(metadata.contains("cpu_per_core"), "other fields are kept");
-
-        let _ = std::fs::remove_file(&db_path);
     }
 
     #[test]
@@ -446,5 +469,324 @@ mod tests {
         engine.dismiss_alert(&alerts[0].id);
         let alerts = engine.get_active_alerts();
         assert!(alerts.is_empty());
+    }
+
+    /// The alert state machine in both directions: during cooldown a triggered rule stays
+    /// silent, dropping below the threshold emits exactly one recovery (which clears the
+    /// cooldown tracker), and re-crossing the threshold alerts again at once.
+    #[test]
+    fn cooldown_suppresses_repeats_and_recovery_resets_the_rule() {
+        let engine = AlertEngine::new();
+        let mut rule = percent_rule("cpu-cycle", 50.0);
+        rule.cooldown_seconds = 300;
+        engine.add_rule(rule).unwrap();
+        let mut metrics = sample_metrics();
+
+        metrics.cpu_usage_percent = 90.0;
+        let (alerts, recoveries) = engine.evaluate(&metrics);
+        assert_eq!(alerts.len(), 1);
+        assert!(recoveries.is_empty());
+        assert_eq!(alerts[0].rule_id, "cpu-cycle");
+        assert!(alerts[0].message.contains("90.0%"), "{}", alerts[0].message);
+
+        // Still hot on the next tick: the cooldown suppresses the repeat.
+        metrics.cpu_usage_percent = 95.0;
+        metrics.timestamp += 5;
+        let (alerts, recoveries) = engine.evaluate(&metrics);
+        assert!(alerts.is_empty(), "a rule in cooldown must not re-alert");
+        assert!(recoveries.is_empty());
+
+        // Dropped below the threshold: exactly one recovery referring to this tick.
+        metrics.cpu_usage_percent = 10.0;
+        metrics.timestamp += 5;
+        let (alerts, recoveries) = engine.evaluate(&metrics);
+        assert!(alerts.is_empty());
+        assert_eq!(recoveries.len(), 1);
+        assert_eq!(recoveries[0].rule_id, "cpu-cycle");
+        assert_eq!(recoveries[0].recovered_at, metrics.timestamp);
+        assert!(recoveries[0].message.contains("recovered"));
+
+        // Staying low does not repeat the recovery...
+        metrics.timestamp += 5;
+        assert!(engine.evaluate(&metrics).1.is_empty());
+
+        // ...and re-crossing alerts immediately: the recovery cleared the cooldown.
+        metrics.cpu_usage_percent = 90.0;
+        metrics.timestamp += 5;
+        assert_eq!(engine.evaluate(&metrics).0.len(), 1);
+    }
+
+    #[test]
+    fn zero_cooldown_alerts_on_every_tick() {
+        let engine = AlertEngine::new();
+        let mut rule = percent_rule("cpu-spam", 50.0);
+        rule.cooldown_seconds = 0;
+        engine.add_rule(rule).unwrap();
+        let mut metrics = sample_metrics();
+        metrics.cpu_usage_percent = 90.0;
+
+        assert_eq!(engine.evaluate(&metrics).0.len(), 1);
+        metrics.timestamp += 5;
+        assert_eq!(engine.evaluate(&metrics).0.len(), 1);
+        assert_eq!(engine.get_active_alerts().len(), 2);
+    }
+
+    /// The whole comparison matrix at and around the boundary, the Equals epsilon, each
+    /// metric reading its own field, and disabled rules never firing.
+    #[test]
+    fn evaluate_covers_every_operator_and_metric() {
+        fn fires(metrics: &SystemMetrics, operator: ComparisonOperator, threshold: f64) -> bool {
+            let engine = AlertEngine::new();
+            engine
+                .add_rule(AlertRule {
+                    id: "m".to_string(),
+                    metric: MetricType::CpuUsage,
+                    operator,
+                    threshold,
+                    severity: AlertSeverity::Info,
+                    enabled: true,
+                    cooldown_seconds: 0,
+                })
+                .unwrap();
+            !engine.evaluate(metrics).0.is_empty()
+        }
+
+        let mut metrics = sample_metrics();
+        metrics.cpu_usage_percent = 50.0; // the value under test below
+        let m = &metrics;
+        use ComparisonOperator::*;
+
+        assert!(fires(m, GreaterThan, 49.9));
+        assert!(!fires(m, GreaterThan, 50.0));
+        assert!(!fires(m, GreaterThan, 50.1));
+        assert!(fires(m, LessThan, 50.1));
+        assert!(!fires(m, LessThan, 50.0));
+        assert!(!fires(m, LessThan, 49.9));
+        assert!(fires(m, GreaterThanOrEqual, 50.0));
+        assert!(!fires(m, GreaterThanOrEqual, 50.1));
+        assert!(fires(m, LessThanOrEqual, 50.0));
+        assert!(!fires(m, LessThanOrEqual, 49.9));
+        // Equals matches within a 0.01 tolerance and not beyond it.
+        assert!(fires(m, Equals, 50.0));
+        assert!(fires(m, Equals, 50.005));
+        assert!(fires(m, Equals, 49.995));
+        assert!(!fires(m, Equals, 50.02));
+        assert!(!fires(m, Equals, 49.98));
+
+        // Each metric reads its own field: only the disk rule fires.
+        metrics.cpu_usage_percent = 10.0;
+        metrics.memory_usage_percent = 20.0;
+        metrics.disk_usage_percent = 90.0;
+        for (metric, expected) in [
+            (MetricType::CpuUsage, false),
+            (MetricType::MemoryUsage, false),
+            (MetricType::DiskUsage, true),
+        ] {
+            let engine = AlertEngine::new();
+            engine
+                .add_rule(AlertRule {
+                    id: "which".to_string(),
+                    metric,
+                    operator: ComparisonOperator::GreaterThan,
+                    threshold: 80.0,
+                    severity: AlertSeverity::Warning,
+                    enabled: true,
+                    cooldown_seconds: 0,
+                })
+                .unwrap();
+            assert_eq!(engine.evaluate(&metrics).0.len(), usize::from(expected));
+        }
+
+        // A disabled rule never evaluates.
+        let engine = AlertEngine::new();
+        let mut disabled = percent_rule("off", 0.0);
+        disabled.enabled = false;
+        engine.add_rule(disabled).unwrap();
+        let (alerts, recoveries) = engine.evaluate(&metrics);
+        assert!(alerts.is_empty() && recoveries.is_empty());
+    }
+
+    /// The active-alerts list is capped at 50, evicting the oldest first, so a flapping
+    /// rule cannot grow it unbounded.
+    #[test]
+    fn active_alerts_are_capped_at_fifty() {
+        let engine = AlertEngine::new();
+        let mut rule = percent_rule("cpu-cap", 50.0);
+        rule.cooldown_seconds = 0;
+        engine.add_rule(rule).unwrap();
+        let mut metrics = sample_metrics();
+        metrics.cpu_usage_percent = 90.0;
+
+        for i in 0..60u64 {
+            metrics.timestamp = 1_700_000_000 + i;
+            let (alerts, _) = engine.evaluate(&metrics);
+            assert_eq!(alerts.len(), 1);
+        }
+        let active = engine.get_active_alerts();
+        assert_eq!(active.len(), 50);
+        assert_eq!(active.first().unwrap().timestamp, 1_700_000_010, "the ten oldest were evicted");
+        assert_eq!(active.last().unwrap().timestamp, 1_700_000_059);
+    }
+
+    /// Stored rules are JSON keyed on these exact variant names (alert_rules.rule); renaming
+    /// one would orphan every stored rule on upgrade. Also pins the cooldown default for
+    /// rows written before the field existed.
+    #[test]
+    fn alert_rule_wire_format_is_stable() {
+        let rule = AlertRule {
+            id: "r1".to_string(),
+            metric: MetricType::CpuUsage,
+            operator: ComparisonOperator::GreaterThan,
+            threshold: 90.0,
+            severity: AlertSeverity::Warning,
+            enabled: true,
+            cooldown_seconds: 300,
+        };
+        let json = serde_json::to_string(&rule).unwrap();
+        assert!(json.contains(r#""metric":"CpuUsage""#), "{json}");
+        assert!(json.contains(r#""operator":"GreaterThan""#), "{json}");
+        assert!(json.contains(r#""severity":"Warning""#), "{json}");
+        assert!(json.contains(r#""cooldown_seconds":300"#), "{json}");
+
+        let pre_cooldown: AlertRule = serde_json::from_str(
+            r#"{"id":"r1","metric":"CpuUsage","operator":"GreaterThan","threshold":90.0,"severity":"Warning","enabled":true}"#,
+        )
+        .expect("a rule stored before cooldown_seconds existed still loads");
+        assert_eq!(pre_cooldown.cooldown_seconds, default_cooldown());
+
+        // Every variant name that can appear in stored JSON.
+        let names = [
+            serde_json::to_string(&MetricType::CpuUsage).unwrap(),
+            serde_json::to_string(&MetricType::MemoryUsage).unwrap(),
+            serde_json::to_string(&MetricType::DiskUsage).unwrap(),
+            serde_json::to_string(&ComparisonOperator::GreaterThan).unwrap(),
+            serde_json::to_string(&ComparisonOperator::LessThan).unwrap(),
+            serde_json::to_string(&ComparisonOperator::Equals).unwrap(),
+            serde_json::to_string(&ComparisonOperator::GreaterThanOrEqual).unwrap(),
+            serde_json::to_string(&ComparisonOperator::LessThanOrEqual).unwrap(),
+            serde_json::to_string(&AlertSeverity::Info).unwrap(),
+            serde_json::to_string(&AlertSeverity::Warning).unwrap(),
+            serde_json::to_string(&AlertSeverity::Critical).unwrap(),
+        ];
+        assert_eq!(
+            names,
+            [
+                r#""CpuUsage""#,
+                r#""MemoryUsage""#,
+                r#""DiskUsage""#,
+                r#""GreaterThan""#,
+                r#""LessThan""#,
+                r#""Equals""#,
+                r#""GreaterThanOrEqual""#,
+                r#""LessThanOrEqual""#,
+                r#""Info""#,
+                r#""Warning""#,
+                r#""Critical""#
+            ]
+        );
+    }
+
+    /// A stored rule that no longer parses is skipped without failing the load, and
+    /// validate_rule holds the documented boundaries (id ≤ 64, threshold 0..=100 inclusive,
+    /// cooldown ≤ one day inclusive).
+    #[test]
+    fn attach_store_skips_unparseable_rules_and_validation_holds_its_boundaries() {
+        let path = std::env::temp_dir().join(format!(
+            "quasar_alert_attach_{}_{}.db",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        {
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE alert_rules (id TEXT PRIMARY KEY, rule TEXT NOT NULL, updated_at INTEGER NOT NULL);",
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO alert_rules (id, rule, updated_at) VALUES ('good', ?1, 0)",
+                [serde_json::to_string(&percent_rule("good", 50.0)).unwrap()],
+            )
+            .unwrap();
+            conn.execute("INSERT INTO alert_rules (id, rule, updated_at) VALUES ('bad-json', '{}', 0)", [])
+                .unwrap();
+            conn.execute(
+                "INSERT INTO alert_rules (id, rule, updated_at) VALUES ('bad-variant', ?1, 0)",
+                [r#"{"id":"x","metric":"CpuLoad","operator":"GreaterThan","threshold":1.0,"severity":"Warning","enabled":true,"cooldown_seconds":0}"#],
+            )
+            .unwrap();
+        }
+
+        let engine = AlertEngine::new();
+        assert_eq!(engine.attach_store(path.to_str().unwrap().to_string()).unwrap(), 1);
+        assert_eq!(engine.get_rules().len(), 1);
+        assert_eq!(engine.get_rules()[0].id, "good");
+        let _ = std::fs::remove_file(&path);
+
+        assert!(validate_rule(&percent_rule("x", 0.0)).is_ok(), "0% is a valid threshold");
+        assert!(validate_rule(&percent_rule("x", 100.0)).is_ok(), "100% is a valid threshold");
+        assert!(validate_rule(&percent_rule("x", -0.1)).is_err());
+        let mut maxed = percent_rule("x", 50.0);
+        maxed.cooldown_seconds = MAX_COOLDOWN_SECONDS;
+        assert!(validate_rule(&maxed).is_ok(), "exactly one day of cooldown is allowed");
+        assert!(validate_rule(&percent_rule(&"i".repeat(64), 50.0)).is_ok());
+        assert!(validate_rule(&percent_rule(&"i".repeat(65), 50.0)).is_err());
+    }
+
+    /// save_alert persists the full alert (severity as its Debug name is the stored
+    /// contract), and cleanup_old_metrics deletes only rows past the retention window.
+    #[test]
+    fn alert_history_round_trip_and_metrics_cleanup() {
+        let store = metrics_store_db();
+        let alert = Alert {
+            id: "a-1".to_string(),
+            rule_id: "cpu-hot".to_string(),
+            message: "CpuUsage is 90.0% (threshold: 50.0%)".to_string(),
+            severity: AlertSeverity::Warning,
+            timestamp: 1_700_000_000,
+            acknowledged: false,
+        };
+        store.save_alert(&alert, "localhost").unwrap();
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let old_ts = now - 31 * 86_400;
+        let fresh_ts = now - 29 * 86_400;
+        {
+            let conn = rusqlite::Connection::open(store.path()).unwrap();
+            let (rule_id, host, severity, triggered_at, message): (String, String, String, i64, String) =
+                conn.query_row(
+                    "SELECT rule_id, host, severity, triggered_at, message FROM alert_history WHERE alert_id = 'a-1'",
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+                )
+                .unwrap();
+            assert_eq!((rule_id.as_str(), host.as_str()), ("cpu-hot", "localhost"));
+            assert_eq!(severity, "Warning", "severity is stored as its Debug name");
+            assert_eq!(triggered_at, 1_700_000_000);
+            assert!(message.contains("90.0%"));
+            for ts in [old_ts, fresh_ts] {
+                conn.execute(
+                    "INSERT INTO metrics_history (timestamp, host) VALUES (?1, 'localhost')",
+                    [ts],
+                )
+                .unwrap();
+            }
+        }
+
+        let deleted = store.cleanup_old_metrics().unwrap();
+        assert_eq!(deleted, 1, "only the 31-day-old row is past the 30-day retention");
+        {
+            let conn = rusqlite::Connection::open(store.path()).unwrap();
+            let remaining: Vec<i64> = conn
+                .prepare("SELECT timestamp FROM metrics_history")
+                .unwrap()
+                .query_map([], |r| r.get(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect();
+            assert_eq!(remaining, vec![fresh_ts]);
+        }
     }
 }
