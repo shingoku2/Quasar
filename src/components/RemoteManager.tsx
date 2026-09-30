@@ -69,7 +69,7 @@ const RemoteManager: React.FC = () => {
       if (host.protocol === 'ssh') {
         await connectFlow.begin(host, 'ssh');
       } else if (host.protocol === 'rdp') {
-        await invoke('connect_rdp', { address: host.address });
+        await invoke('connect_rdp', { address: host.address, port: host.port });
         addSession({ kind: 'rdp', id: crypto.randomUUID(), title: `RDP: ${host.name}`, address: host.address });
       } else {
         // database / api / other hosts are inventory + monitoring entries; there is
@@ -114,7 +114,9 @@ const RemoteManager: React.FC = () => {
           name: host.name,
           address: host.address,
           protocol: host.protocol,
-          port: host.port || 22,
+          // A host without a stored port uses its protocol's default, not SSH's 22. Only a
+          // missing port is defaulted: an invalid one (0) goes on to be rejected by the backend.
+          port: host.port ?? (host.protocol === 'rdp' ? 3389 : 22),
           username: host.username || undefined
         };
 

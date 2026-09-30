@@ -228,6 +228,22 @@ describe('DashboardView handlers', () => {
     expect(stored).toMatchObject({ name: '10.0.0.9', protocol: 'rdp', port: 3389 });
   });
 
+  it('a host with SSH and RDP open connects as RDP on 3389, not on its first open port', async () => {
+    vi.mocked(invoke).mockResolvedValueOnce([]);
+    render(<DashboardView onNavigate={onNavigate} />);
+    await act(async () => { await topologyProps?.onHostConnect(host({ open_ports: [22, 3389] })); });
+    const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
+    expect(stored).toMatchObject({ protocol: 'rdp', port: 3389 });
+  });
+
+  it('an SSH host connects on 22 when it is open, even if another port comes first', async () => {
+    vi.mocked(invoke).mockResolvedValueOnce([]);
+    render(<DashboardView onNavigate={onNavigate} />);
+    await act(async () => { await topologyProps?.onHostConnect(host({ open_ports: [80, 22] })); });
+    const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
+    expect(stored).toMatchObject({ protocol: 'ssh', port: 22 });
+  });
+
   it('a host with no open ports connects on port 22', async () => {
     vi.mocked(invoke).mockResolvedValueOnce([]);
     render(<DashboardView onNavigate={onNavigate} />);

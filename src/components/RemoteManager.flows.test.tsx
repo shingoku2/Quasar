@@ -236,9 +236,37 @@ describe('RemoteManager connect flows', () => {
     mockVault(false);
     render(<RemoteManager />);
     await act(async () => { hostListProps?.onConnect({ id: 'r', name: 'desk', address: '10.0.0.3', protocol: 'rdp' }); });
-    expect(invoke).toHaveBeenCalledWith('connect_rdp', { address: '10.0.0.3' });
+    expect(invoke).toHaveBeenCalledWith('connect_rdp', { address: '10.0.0.3', port: undefined });
     expect(screen.getByText('RDP: desk')).toBeInTheDocument();
     expect(screen.getByText('Launched RDP client for 10.0.0.3')).toBeInTheDocument();
+  });
+
+  it('an RDP host on a custom port launches on that port', async () => {
+    mockVault(false);
+    render(<RemoteManager />);
+    await act(async () => { hostListProps?.onConnect({ id: 'r', name: 'desk', address: '10.0.0.3', protocol: 'rdp', port: 3390 }); });
+    const rdpCalls = vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === 'connect_rdp');
+    expect(rdpCalls).toEqual([['connect_rdp', { address: '10.0.0.3', port: 3390 }]]);
+  });
+
+  it('a quick-connect port of 0 is passed on for the backend to reject, not replaced', async () => {
+    vi.useFakeTimers();
+    mockVault(false);
+    sessionStorage.setItem('quickConnectHost', JSON.stringify({ id: 'q4', name: 'bad', address: '10.6.6.6', protocol: 'rdp', port: 0, username: null }));
+    render(<RemoteManager />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+    const rdpCalls = vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === 'connect_rdp');
+    expect(rdpCalls).toEqual([['connect_rdp', { address: '10.6.6.6', port: 0 }]]);
+  });
+
+  it('a quick-connect RDP host without a stored port launches on 3389, not 22', async () => {
+    vi.useFakeTimers();
+    mockVault(false);
+    sessionStorage.setItem('quickConnectHost', JSON.stringify({ id: 'q3', name: 'win', address: '10.7.7.7', protocol: 'rdp', port: null, username: null }));
+    render(<RemoteManager />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+    const rdpCalls = vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === 'connect_rdp');
+    expect(rdpCalls).toEqual([['connect_rdp', { address: '10.7.7.7', port: 3389 }]]);
   });
 
   it('a failed RDP launch is reported and opens no tab', async () => {
