@@ -10,8 +10,9 @@ import '@testing-library/jest-dom';
 // hands them, so these tests exercise DashboardView's own handlers.
 interface TopologyProps {
   hosts: ScanResult[];
+  savedHosts?: Array<{ name: string; address: string }>;
   onHostClick: (h: ScanResult) => void;
-  onHostConnect: (h: ScanResult) => void;
+  onHostConnect: (h: ScanResult) => void | Promise<void>;
 }
 let topologyProps: TopologyProps | null = null;
 vi.mock('../NetworkTopologyView', () => ({
@@ -24,7 +25,7 @@ vi.mock('../NetworkTopologyView', () => ({
 interface DetailProps {
   host: ScanResult | null;
   onClose: () => void;
-  onConnect: (h: ScanResult) => void;
+  onConnect: (h: ScanResult) => void | Promise<void>;
   onSave: (h: ScanResult) => void;
   onDelete: (ip: string) => void;
 }
@@ -43,6 +44,14 @@ vi.mock('../AddHostDialog', () => ({
     addHostValues = props.initialValues;
     addHostOnAdded = props.onAdded;
     return <div data-testid="add-host">{props.initialValues?.protocol}:{props.initialValues?.port}</div>;
+  },
+}));
+
+let scannerOnResults: ((results: ScanResult[]) => void) | undefined;
+vi.mock('../NetworkScanner', () => ({
+  default: (props: { onResults: (results: ScanResult[]) => void }) => {
+    scannerOnResults = props.onResults;
+    return <div data-testid="scanner" />;
   },
 }));
 
@@ -73,6 +82,7 @@ describe('DashboardView handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     topologyProps = null;
+    scannerOnResults = undefined;
     detailProps = null;
     addHostValues = undefined;
     addHostOnAdded = undefined;
@@ -115,7 +125,7 @@ describe('DashboardView handlers', () => {
     window.addEventListener('quickConnectTriggered', listener);
     try {
       render(<DashboardView onNavigate={onNavigate} />);
-      act(() => { topologyProps?.onHostConnect(host({ hostname: 'box', open_ports: [2222, 80] })); });
+      await act(async () => { await topologyProps?.onHostConnect(host({ hostname: 'box', open_ports: [2222, 80] })); });
       expect(onNavigate).toHaveBeenCalledWith('remote');
       const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
       expect(stored).toMatchObject({ name: 'box', address: '10.0.0.9', port: 2222, protocol: 'ssh', username: null });
@@ -125,18 +135,103 @@ describe('DashboardView handlers', () => {
     }
   });
 
-  it('a host with port 3389 open connects as RDP and falls back to its IP as the name', () => {
+  it('a connect before saved hosts have loaded waits for them instead of guessing', async () => {
+    const saved = { id: 'h1', name: 'box', address: '10.0.0.9', port: 2200, username: 'ed', protocol: 'ssh' };
+    let resolveSaved: (hosts: typeof saved[]) => void = () => {};
+    vi.mocked(invoke).mockImplementation((cmd: string) => (cmd === 'get_saved_hosts'
+      ? new Promise((resolve) => { resolveSaved = resolve; })
+      : Promise.resolve([])));
+    render(<DashboardView onNavigate={onNavigate} />);
+    let connecting: Promise<void> | void = undefined;
+    act(() => { connecting = topologyProps?.onHostConnect(host({ open_ports: [22] })); });
+    expect(sessionStorage.getItem('quickConnectHost')).toBeNull();
+    await act(async () => { resolveSaved([saved]); await connecting; });
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
+  });
+
+  it('a connect during a reload after a save waits for the new list', async () => {
+    const saved = { id: 'h1', name: 'box', address: '10.0.0.9', port: 2200, username: 'ed', protocol: 'ssh' };
+    let resolveReload: (hosts: typeof saved[]) => void = () => {};
+    let loads = 0;
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd !== 'get_saved_hosts') return Promise.resolve([]);
+      loads += 1;
+      return loads === 1 ? Promise.resolve([]) : new Promise((resolve) => { resolveReload = resolve; });
+    });
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual([]));
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    let connecting: Promise<void> | void = undefined;
+    act(() => { connecting = topologyProps?.onHostConnect(host({ open_ports: [22] })); });
+    await act(async () => { resolveReload([saved]); await connecting; });
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
+  });
+
+  it('a connect waiting on a load follows a newer reload that starts meanwhile', async () => {
+    const stale = { id: 'h1', name: 'box', address: '10.0.0.9', port: 22, username: 'old', protocol: 'ssh' };
+    const fresh = { ...stale, port: 2200, username: 'new' };
+    const resolvers: Array<(hosts: unknown[]) => void> = [];
+    vi.mocked(invoke).mockImplementation((cmd: string) => (cmd === 'get_saved_hosts'
+      ? new Promise((resolve) => { resolvers.push(resolve); })
+      : Promise.resolve([])));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    let connecting: Promise<void> | void = undefined;
+    act(() => { connecting = topologyProps?.onHostConnect(host({ open_ports: [22] })); });
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    await act(async () => { resolvers[0]([stale]); });
+    expect(sessionStorage.getItem('quickConnectHost')).toBeNull();
+    await act(async () => { resolvers[1]([fresh]); await connecting; });
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(fresh);
+  });
+
+  it('an older saved-host load that finishes last does not overwrite a newer one', async () => {
+    const newer = [{ id: 'h2', name: 'new', address: '10.0.0.2', port: 22, username: null, protocol: 'ssh' }];
+    const resolvers: Array<(hosts: unknown[]) => void> = [];
+    vi.mocked(invoke).mockImplementation((cmd: string) => (cmd === 'get_saved_hosts'
+      ? new Promise((resolve) => { resolvers.push(resolve); })
+      : Promise.resolve([])));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    await act(async () => { resolvers[1](newer); });
+    await act(async () => { resolvers[0]([{ id: 'old', name: 'old', address: '10.0.0.1', port: 22, username: null, protocol: 'ssh' }]); });
+    expect(topologyProps?.savedHosts).toEqual(newer);
+  });
+
+  it('a saved host connects with its saved record, even when the scan found it offline', async () => {
+    const saved = { id: 'h1', name: 'win-box', address: '10.0.0.9', port: 3390, username: 'ed', protocol: 'rdp' };
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? [saved] : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual([saved]));
+    await act(async () => { await topologyProps?.onHostConnect(host({ is_alive: false, open_ports: [] })); });
+    expect(onNavigate).toHaveBeenCalledWith('remote');
+    expect(JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}')).toEqual(saved);
+  });
+
+  it('a finished scan keeps the last known hostname of an address that went offline', async () => {
+    vi.mocked(invoke).mockImplementation(async (cmd: string) =>
+      (cmd === 'get_discovered_hosts' ? [{ ...persisted, hostname: 'pi.lan' }] : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.hosts[0]?.hostname).toBe('pi.lan'));
+    fireEvent.click(screen.getByText('List'));
+    act(() => { scannerOnResults?.([host({ ip: '10.0.0.5', is_alive: false, open_ports: [] })]); });
+    fireEvent.click(screen.getByText('Topology'));
+    expect(topologyProps?.hosts).toEqual([expect.objectContaining({ ip: '10.0.0.5', is_alive: false, hostname: 'pi.lan' })]);
+  });
+
+  it('a host with port 3389 open connects as RDP and falls back to its IP as the name', async () => {
     vi.mocked(invoke).mockResolvedValueOnce([]);
     render(<DashboardView onNavigate={onNavigate} />);
-    act(() => { topologyProps?.onHostConnect(host({ open_ports: [3389] })); });
+    await act(async () => { await topologyProps?.onHostConnect(host({ open_ports: [3389] })); });
     const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
     expect(stored).toMatchObject({ name: '10.0.0.9', protocol: 'rdp', port: 3389 });
   });
 
-  it('a host with no open ports connects on port 22', () => {
+  it('a host with no open ports connects on port 22', async () => {
     vi.mocked(invoke).mockResolvedValueOnce([]);
     render(<DashboardView onNavigate={onNavigate} />);
-    act(() => { topologyProps?.onHostConnect(host({ open_ports: [] })); });
+    await act(async () => { await topologyProps?.onHostConnect(host({ open_ports: [] })); });
     const stored = JSON.parse(sessionStorage.getItem('quickConnectHost') ?? '{}');
     expect(stored.port).toBe(22);
   });
@@ -175,7 +270,7 @@ describe('DashboardView handlers', () => {
   });
 
   it('deleting a discovered host removes it from the list', async () => {
-    vi.mocked(invoke).mockResolvedValueOnce([persisted]).mockResolvedValueOnce(undefined);
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_discovered_hosts' ? [persisted] : undefined));
     render(<DashboardView onNavigate={onNavigate} />);
     await waitFor(() => expect(screen.getByTestId('topology')).toHaveTextContent('10.0.0.5'));
     await act(async () => { await detailProps?.onDelete('10.0.0.5'); });
@@ -186,12 +281,43 @@ describe('DashboardView handlers', () => {
   it('a failed delete keeps the host and tells the user', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.mocked(invoke).mockResolvedValueOnce([persisted]).mockRejectedValueOnce(new Error('nope'));
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'delete_discovered_host') throw new Error('nope');
+      return cmd === 'get_discovered_hosts' ? [persisted] : [];
+    });
     render(<DashboardView onNavigate={onNavigate} />);
     await waitFor(() => expect(screen.getByTestId('topology')).toHaveTextContent('10.0.0.5'));
     await act(async () => { await detailProps?.onDelete('10.0.0.5'); });
     expect(alertSpy).toHaveBeenCalledWith('Failed to delete host');
     expect(screen.getByTestId('topology')).toHaveTextContent('10.0.0.5');
+  });
+
+  it('hands saved hosts to the topology', async () => {
+    const saved = [{ id: 'h1', name: 'nas', address: '10.0.0.21', port: 22, username: null, protocol: 'ssh' }];
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? saved : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual(saved));
+  });
+
+  it('reloads saved hosts when a host is saved while the Dashboard stays open', async () => {
+    const saved = { id: 'h1', name: 'nas', address: '10.0.0.21', port: 22, username: null, protocol: 'ssh' };
+    let list: typeof saved[] = [];
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => (cmd === 'get_saved_hosts' ? list : []));
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('get_saved_hosts'));
+    list = [saved];
+    act(() => { window.dispatchEvent(new Event('hostsUpdated')); });
+    await waitFor(() => expect(topologyProps?.savedHosts).toEqual([saved]));
+  });
+
+  it('treats a failed saved-host load as no saved hosts', async () => {
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_saved_hosts') throw new Error('db');
+      return [];
+    });
+    render(<DashboardView onNavigate={onNavigate} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('get_saved_hosts'));
+    expect(topologyProps?.savedHosts).toEqual([]);
   });
 
   it('the list view toggle reflects the active mode', () => {

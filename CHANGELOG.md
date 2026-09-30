@@ -2,6 +2,13 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-29: Topology shows only live and saved hosts
+
+- The Dashboard topology drew a node for every address a scan probed (a /24 meant 254 dots), because `NetworkScanner` hands the parent every result, dead ones included. It now draws only hosts that answered, plus scanned addresses matching a saved host by IP or hostname (case-insensitive). A saved host is labelled with its saved name; one that didn't answer is drawn dimmed and its tooltip says Offline. The Dashboard loads saved hosts with `useOnViewShown`.
+- Connecting to a saved host from the topology or its detail dialog uses the saved record (protocol, port, user), so an offline saved RDP or custom-port host no longer opens as SSH on port 22, and inventory-only hosts get RemoteManager's "no built-in client" message. A finished scan keeps the last known hostname (from the discovered-hosts DB or an earlier scan) of an address that went offline, so a saved host addressed by hostname stays on the map while it's down. Matching lives in `src/components/topologyHosts.ts`.
+- A machine saved more than once (say as SSH and as a database) connects with its SSH record, then RDP, instead of whichever record came last. The Dashboard reloads saved hosts on `hostsUpdated`, so a host saved from its own Add Host dialog is used immediately. Topology search also matches the saved name shown on a node. A connect made while saved hosts are loading or reloading (on open, or right after a save) waits for that load rather than using a missing or stale list, and a slower older load can't overwrite a newer one. The host details dialog shows Offline for a host that didn't answer (it always said Online).
+- Agent rule (`CLAUDE.md` Session Start): every app change also gets an entry on the Notion "Quasar change log" page, even when no Linear issue matches.
+
 ## 2026-09-28: Inspection triage and docs refresh
 
 - Qodana and RustRover inspection exports are kept in `audit/` (`qodana.sarif.json`, `RustRover Checks/`). Triaged: the Rust "errors" (a `check_password` argument count, `TempAuditDb::manager`, unused `sysinfo`/`rusqlite_migration`, detached modules) are analyzer false positives; clippy and the tests are clean.

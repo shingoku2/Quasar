@@ -35,6 +35,15 @@ describe('HostDetailDialog', () => {
     expect(screen.getAllByText('web-server').length).toBeGreaterThan(0);
   });
 
+  it('reports the host as online or offline from is_alive', () => {
+    const { rerender } = render(<HostDetailDialog host={mockHost} onClose={vi.fn()} />);
+    expect(screen.getByText('Online')).toBeInTheDocument();
+
+    rerender(<HostDetailDialog host={{ ...mockHost, is_alive: false, latency_ms: undefined }} onClose={vi.fn()} />);
+    expect(screen.getByText('Offline')).toBeInTheDocument();
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
+  });
+
   it('renders overview tab by default', () => {
     render(<HostDetailDialog host={mockHost} onClose={vi.fn()} />);
 

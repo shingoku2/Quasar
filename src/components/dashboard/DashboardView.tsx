@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import SystemHealthWidget from './SystemHealthWidget';
 import AlertFeed from './AlertFeed';
 import NetworkScanner, { ScanResult } from '../NetworkScanner';
 import NetworkTopologyView from '../NetworkTopologyView';
+import { carryKnownHostnames, savedHostLookup } from '../topologyHosts';
 import HostDetailDialog from '../HostDetailDialog';
 import QuickConnectWidget from './QuickConnectWidget';
 import AddHostDialog, { AddHostInitialValues } from '../AddHostDialog';
 import { ViewId } from '../Sidebar';
+import { useOnViewShown } from '../../hooks/useViewVisibility';
 import { List, Network as NetworkIcon } from 'lucide-react';
 
 /** Backend discovered host shape (get_discovered_hosts). */
@@ -57,6 +59,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [selectedHost, setSelectedHost] = useState<ScanResult | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'topology'>('topology');
   const [hostToSave, setHostToSave] = useState<AddHostInitialValues | null>(null);
+  const [savedHosts, setSavedHosts] = useState<SavedHost[]>([]);
 
   // Load last scan from DB so the user sees persisted results without running a new scan
   useEffect(() => {
@@ -72,6 +75,35 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Saved hosts stay on the topology even when a scan finds them offline. Reloaded when the
+  // view is shown (other views add and remove hosts) and on `hostsUpdated`, which a save from
+  // this view's own Add Host dialog fires while the Dashboard stays visible.
+  // The most recent load (first or refresh). handleHostConnect awaits it, so a connect made
+  // while saved hosts are loading or reloading never uses a missing or stale list.
+  const savedHostsLoadRef = useRef<Promise<SavedHost[]> | null>(null);
+  const loadSavedHosts = useCallback((): Promise<SavedHost[]> => {
+    const load = (async () => {
+      try {
+        const list = await invoke<SavedHost[] | undefined>('get_saved_hosts');
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return []; // No saved hosts: the topology shows live hosts only.
+      }
+    })();
+    savedHostsLoadRef.current = load;
+    void load.then(hosts => {
+      // A slower, older load must not overwrite a newer one.
+      if (savedHostsLoadRef.current === load) setSavedHosts(hosts);
+    });
+    return load;
+  }, []);
+  useOnViewShown(() => { void loadSavedHosts(); });
+  useEffect(() => {
+    const onHostsUpdated = () => { void loadSavedHosts(); };
+    window.addEventListener('hostsUpdated', onHostsUpdated);
+    return () => window.removeEventListener('hostsUpdated', onHostsUpdated);
+  }, [loadSavedHosts]);
 
   const handleQuickConnect = async (host: SavedHost) => {
     onNavigate('remote');
@@ -97,7 +129,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     });
   }, []);
 
-  const handleHostConnect = (host: ScanResult) => {
+  // A finished scan replaces the list. Offline results keep the hostname last seen for their
+  // IP, so a saved host addressed by hostname can still be matched while it is down.
+  const handleScanResults = useCallback((results: ScanResult[]) => {
+    setDiscoveredHosts(prev => carryKnownHostnames(prev, results));
+  }, []);
+
+  const handleHostConnect = async (host: ScanResult) => {
+    // A saved host connects with its saved protocol, port and user. An offline scan result has
+    // no open ports to guess them from, and RemoteManager refuses protocols it has no client for.
+    // Discovered hosts can load (and be double-clicked) before saved hosts do, and a save
+    // reloads them; don't fall back to guessing from the scan until the latest load settles.
+    let load = savedHostsLoadRef.current ?? loadSavedHosts();
+    let hosts = await load;
+    // A newer load may have started while this one was pending: follow it to the latest.
+    while (savedHostsLoadRef.current && savedHostsLoadRef.current !== load) {
+      load = savedHostsLoadRef.current;
+      hosts = await load;
+    }
+    const saved = savedHostLookup(hosts)(host);
+    if (saved) {
+      setSelectedHost(null);
+      handleQuickConnect(saved);
+      return;
+    }
     const savedHost: SavedHost = {
       id: String(Date.now()),
       name: host.hostname || host.ip,
@@ -176,7 +231,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               <div className="h-full overflow-y-auto no-scrollbar">
                 <NetworkScanner
                   initialResults={discoveredHosts}
-                  onResults={setDiscoveredHosts}
+                  onResults={handleScanResults}
                   onHostFound={handleHostFound}
                   onHostClick={handleHostClick}
                 />
@@ -184,6 +239,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             ) : (
               <NetworkTopologyView
                 hosts={discoveredHosts}
+                savedHosts={savedHosts}
                 onHostClick={handleHostClick}
                 onHostConnect={handleHostConnect}
               />

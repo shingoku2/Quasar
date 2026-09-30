@@ -13,8 +13,8 @@ Quasar is a Tauri 2 desktop app for remote infrastructure management: SSH termin
    - **Identify the issue first.** Use an explicit EDW identifier from the task, branch, PR, or
      commit. Without one, pick an issue only if exactly one open issue's scope clearly matches the
      work, and name it (with the reason) in your reply. If none or several match, don't guess:
-     skip the sync entirely (no Linear or Notion edits of any kind, including Last verified),
-     and report that it was skipped and why.
+     skip the tracker sync (no Linear edits, no Notion Next action or phase-table edits) and
+     report that it was skipped and why. The change-log entry below still happens.
    - **Match the state change to the evidence** (for the identified issue). Only finished work,
      backed by a merged or pushed commit/PR and passing checks, moves it to Done or ticks a "Done
      when" box. Tick only the boxes that evidence covers. Partial work sets In Progress and gets a
@@ -30,6 +30,12 @@ Quasar is a Tauri 2 desktop app for remote infrastructure management: SSH termin
      set Last verified date and add links. Change Next action or the phase table under Current priorities only to match
      tracker changes made under the rules above. Never mark a phase done that Linear doesn't
      show as Done.
+   - **Every change to the app gets a Notion change-log entry, issue or not.** Add it, newest first, to
+     the "Quasar change log" page under the Quasar project page, during the same task: date, area,
+     status (branch/PR/merged, commit link), Linear issue or "none", what changed, why, behavior now
+     (with limitations), files, and verification (what ran and what didn't). Then set the project
+     page's Last verified date and the "Latest:" line in its App change log section. When a branch
+     merges later, update its entry's status. This is separate from `CHANGELOG.md`; do both.
    - If an update fails or is skipped, report which one and why.
 ## Commands
 
@@ -151,5 +157,6 @@ Each rule has regression tests; don't weaken one without replacing its test. Rat
 - SFTP supports password credentials only (`ssh` and legacy `password`: `SFTP_CREDENTIAL_TYPES`, which `RemoteManager` passes to `CredentialSelector`). Add key auth in `sftp.rs` before exposing `ssh_key` credentials there. Credential pickers use `SSH_CREDENTIAL_TYPES` / `SFTP_CREDENTIAL_TYPES`, never a hand-written list.
 - The Vite port is fixed at 1420 (Tauri config and CSP depend on it).
 - `discovery.rs` is a singleton; don't bypass it.
+- The Dashboard topology (`NetworkTopologyView`) draws only scan results with `is_alive`, plus results whose IP or hostname matches a saved host (`savedHosts` prop, drawn dimmed when offline; matching in `topologyHosts.ts`). The scanner resolves hostnames only for live hosts, so the Dashboard carries the last known hostname onto offline results (`carryKnownHostnames`). Connecting to a matched saved host uses the saved record, not the scan result; with several records at one address, the SSH one, then RDP, then the first. The Dashboard reloads saved hosts on view shown and on the `hostsUpdated` window event. A connect awaits the latest saved-host load (first or refresh), and only the latest load updates state. Scan results still include dead addresses; filter, don't assume.
 - Only `ssh` and `rdp` hosts have an in-app client; other protocols are inventory-only. Scheduled tasks run against `ssh` hosts only, checked when saved and at each run (`scheduler::host_protocol_runs_tasks`; tests `scheduled_task_validation`, `tasks_only_run_against_ssh_hosts`).
 - Updater keys live outside the repo (`~/.tauri/`); `*.key` is gitignored.

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useModalDialog } from '../hooks/useModalDialog';
 import { X, Server, Laptop, Router, Printer, HelpCircle, Copy, Check, ExternalLink, Trash2 } from 'lucide-react';
 import { ScanResult } from './NetworkScanner';
+import { cn } from '../lib/utils';
 
 interface HostDetailDialogProps {
   host: ScanResult | null;
@@ -194,8 +195,9 @@ const HostDetailDialog: React.FC<HostDetailDialogProps> = ({
               <div className="bg-bg-root rounded-lg p-4">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Status</p>
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-white font-medium">Online</span>
+                  {/* Offline saved hosts are clickable on the topology, so don't assume Online. */}
+                  <div className={cn('w-3 h-3 rounded-full', host.is_alive ? 'bg-green-500' : 'bg-slate-500')} />
+                  <span className="text-white font-medium">{host.is_alive ? 'Online' : 'Offline'}</span>
                   {host.latency_ms && (
                     <span className="text-gray-500 text-sm">({host.latency_ms}ms latency)</span>
                   )}
