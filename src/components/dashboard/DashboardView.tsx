@@ -41,6 +41,16 @@ function persistedToScanResult(h: PersistedDiscoveredHost): ScanResult {
   };
 }
 
+/**
+ * Protocol and port for a scanned host from its open ports: RDP on 3389 when that is open,
+ * otherwise SSH on 22 if open, else on the first open port (22 when none are known). Connect and
+ * Save share it, so the port always belongs to the protocol it is paired with.
+ */
+function guessConnection(host: ScanResult): { protocol: 'ssh' | 'rdp'; port: number } {
+  if (host.open_ports.includes(3389)) return { protocol: 'rdp', port: 3389 };
+  return { protocol: 'ssh', port: host.open_ports.includes(22) ? 22 : host.open_ports[0] ?? 22 };
+}
+
 interface SavedHost {
   id: string;
   name: string;
@@ -153,30 +163,26 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       handleQuickConnect(saved);
       return;
     }
+    const { protocol, port } = guessConnection(host);
     const savedHost: SavedHost = {
       id: String(Date.now()),
       name: host.hostname || host.ip,
       address: host.ip,
-      port: host.open_ports?.[0] ?? 22,
+      port,
       username: null,
-      protocol: host.open_ports.includes(3389) ? 'rdp' : 'ssh',
+      protocol,
     };
     setSelectedHost(null);
     handleQuickConnect(savedHost);
   };
 
   const handleHostSave = async (host: ScanResult) => {
-    const hasRdp = host.open_ports.includes(3389);
-    const protocol: 'ssh' | 'rdp' = hasRdp ? 'rdp' : 'ssh';
-    const defaultPort = hasRdp
-      ? 3389
-      : (host.open_ports.includes(22) ? 22 : host.open_ports[0] ?? 22);
-
+    const { protocol, port } = guessConnection(host);
     setHostToSave({
       name: host.hostname || host.ip,
       address: host.ip,
       protocol,
-      port: defaultPort,
+      port,
       username: '',
     });
   };

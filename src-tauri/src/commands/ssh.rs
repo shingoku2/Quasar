@@ -148,10 +148,38 @@ pub(crate) fn close_ssh_tunnel(
     }
 }
 
+/// Launches the system RDP client for `address`, on `port` when one is given (a saved host's
+/// port; the client's default 3389 otherwise).
 #[tauri::command]
-pub(crate) async fn connect_rdp(address: String) -> Result<(), String> {
-    if validate_ip(&address).is_err() && validate_hostname(&address).is_err() {
+pub(crate) async fn connect_rdp(address: String, port: Option<u16>) -> Result<(), String> {
+    check_rdp_target(&address, port)?;
+    launcher::launch_rdp(&address, port).map_err(|e| sanitize_error(e, "network"))
+}
+
+fn check_rdp_target(address: &str, port: Option<u16>) -> Result<(), String> {
+    if validate_ip(address).is_err() && validate_hostname(address).is_err() {
         return Err("Invalid host address format".to_string());
     }
-    launcher::launch_rdp(&address).map_err(|e| sanitize_error(e, "network"))
+    if let Some(port) = port {
+        validate_port(port)?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rdp_target_check_accepts_addresses_with_or_without_a_port() {
+        assert!(check_rdp_target("10.0.0.5", None).is_ok());
+        assert!(check_rdp_target("desk.lan", Some(3390)).is_ok());
+    }
+
+    #[test]
+    fn rdp_target_check_rejects_bad_addresses_and_port_zero() {
+        assert!(check_rdp_target("10.0.0.5 /admin", None).is_err());
+        assert!(check_rdp_target("host:3390", None).is_err());
+        assert!(check_rdp_target("10.0.0.5", Some(0)).is_err());
+    }
 }

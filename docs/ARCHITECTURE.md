@@ -136,7 +136,7 @@ Generated from the `#[tauri::command]` signatures. `invoke()` payload keys must 
 | Command | Args (camelCase) | Returns | Defined in |
 |---|---|---|---|
 | `get_tailscale_status` | — | `tailscale::TailscaleStatus` | commands/network.rs |
-| `connect_rdp` | address | `()` | commands/ssh.rs |
+| `connect_rdp` | address, port? | `()` | commands/ssh.rs |
 | `check_ai_status` | — | `bool` | commands/ai.rs |
 | `list_ai_models` | — | `Vec<String>` | commands/ai.rs |
 | `send_ai_chat` | model, messages | `()` | commands/ai.rs |

@@ -2,6 +2,12 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-30: RDP launches use the host's port
+
+- RDP launches ignored a saved host's port: `connect_rdp` took only an address, so a host saved on 3390 opened on 3389. It now takes an optional `port` and passes `mstsc` a single `/v:host[:port]` argument (the default 3389 is left implicit). The launcher used to pass `/v` and the address as two arguments, which isn't the form `mstsc` documents.
+- A quick-connect host without a stored port uses its protocol's default (3389 for RDP), not 22.
+- Dashboard connect for an unsaved scanned host picks the port for the protocol it chose: RDP on 3389 when that's open, otherwise SSH on 22 if open, else the first open port. It used the first open port whatever the protocol, so a host with 22 and 3389 open became RDP on 22. Save already chose this way; both now share `guessConnection`.
+
 ## 2026-09-29: Topology shows only live and saved hosts
 
 - The Dashboard topology drew a node for every address a scan probed (a /24 meant 254 dots), because `NetworkScanner` hands the parent every result, dead ones included. It now draws only hosts that answered, plus scanned addresses matching a saved host by IP or hostname (case-insensitive). A saved host is labelled with its saved name; one that didn't answer is drawn dimmed and its tooltip says Offline. The Dashboard loads saved hosts with `useOnViewShown`.
