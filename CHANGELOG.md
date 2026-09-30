@@ -2,6 +2,10 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-09-30: Replace yanked dependency blocking CI
+
+- Updated the locked `yoke-derive` dependency from 0.8.3 (yanked on crates.io) to 0.8.4. This resolves PR #80's `cargo deny` failure while retaining the policy that rejects yanked dependencies.
+
 ## 2026-09-30: RDP launches use the host's port
 
 - RDP launches ignored a saved host's port: `connect_rdp` took only an address, so a host saved on 3390 opened on 3389. It now takes an optional `port` and passes `mstsc` a single `/v:host[:port]` argument (the default 3389 is left implicit). The launcher used to pass `/v` and the address as two arguments, which isn't the form `mstsc` documents.
