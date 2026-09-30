@@ -249,6 +249,16 @@ describe('RemoteManager connect flows', () => {
     expect(rdpCalls).toEqual([['connect_rdp', { address: '10.0.0.3', port: 3390 }]]);
   });
 
+  it('a quick-connect port of 0 is passed on for the backend to reject, not replaced', async () => {
+    vi.useFakeTimers();
+    mockVault(false);
+    sessionStorage.setItem('quickConnectHost', JSON.stringify({ id: 'q4', name: 'bad', address: '10.6.6.6', protocol: 'rdp', port: 0, username: null }));
+    render(<RemoteManager />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(250); });
+    const rdpCalls = vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === 'connect_rdp');
+    expect(rdpCalls).toEqual([['connect_rdp', { address: '10.6.6.6', port: 0 }]]);
+  });
+
   it('a quick-connect RDP host without a stored port launches on 3389, not 22', async () => {
     vi.useFakeTimers();
     mockVault(false);

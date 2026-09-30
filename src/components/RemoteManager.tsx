@@ -114,8 +114,9 @@ const RemoteManager: React.FC = () => {
           name: host.name,
           address: host.address,
           protocol: host.protocol,
-          // A host without a stored port uses its protocol's default, not SSH's 22.
-          port: host.port || (host.protocol === 'rdp' ? 3389 : 22),
+          // A host without a stored port uses its protocol's default, not SSH's 22. Only a
+          // missing port is defaulted: an invalid one (0) goes on to be rejected by the backend.
+          port: host.port ?? (host.protocol === 'rdp' ? 3389 : 22),
           username: host.username || undefined
         };
 
