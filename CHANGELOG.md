@@ -2,6 +2,10 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-10-03: Tauri 2.12
+
+- Tauri crates moved to 2.12 (Dependabot PR #82: `tauri` 2.12.0, `tauri-build` 2.7.1, `tauri-plugin-dialog` 2.8.0, `-fs` 2.6.0, `-opener` 2.6.0, `-process` 2.4.0, `-updater` 2.13.0). That PR bumped only the Rust side, so `tauri build` failed on every OS with "Found version mismatched Tauri packages". The npm side now matches: `@tauri-apps/api` 2.12.1, `cli` 2.12.1, `plugin-process` 2.4.0, `plugin-updater` 2.13.1.
+
 ## 2026-09-30: Replace yanked dependency blocking CI
 
 - Updated the locked `yoke-derive` dependency from 0.8.3 (yanked on crates.io) to 0.8.4. This resolves PR #80's `cargo deny` failure while retaining the policy that rejects yanked dependencies.
