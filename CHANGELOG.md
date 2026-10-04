@@ -4,7 +4,7 @@ Notable changes, newest first. The detailed record for September 2026 is `AUDIT.
 
 ## 2026-10-03: Tauri 2.12
 
-- Bumped the Rust side to `tauri` 2.12 / `tauri-build` 2.7 and the opener, dialog, process and updater plugins to their next minors (Dependabot PR #82), and the npm side to match: `@tauri-apps/api` and `@tauri-apps/cli` 2.12, `plugin-process` 2.4, `plugin-updater` 2.13. Dependabot can only group within one ecosystem, so the Cargo-only PR failed every build job on `tauri build`'s major/minor mismatch check.
+- Dependabot PR #82 moved the Tauri crates to 2.12 (`tauri` 2.12.0, `tauri-build` 2.7.1, dialog 2.8.0, fs/opener 2.6.0, process 2.4.0 and updater 2.13.0). Since Dependabot can only group within one ecosystem, it bumped only the Rust side, so `tauri build` failed its version-mismatch check on every OS. The npm packages now match: `@tauri-apps/api` and `@tauri-apps/cli` 2.12.1, `@tauri-apps/plugin-process` 2.4.0 and `@tauri-apps/plugin-updater` 2.13.1.
 
 ## 2026-09-30: Replace yanked dependency blocking CI
 
