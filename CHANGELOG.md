@@ -2,6 +2,10 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-10-03: Tauri 2.12
+
+- Bumped the Rust side to `tauri` 2.12 / `tauri-build` 2.7 and the opener, dialog, process and updater plugins to their next minors (Dependabot PR #82), and the npm side to match: `@tauri-apps/api` and `@tauri-apps/cli` 2.12, `plugin-process` 2.4, `plugin-updater` 2.13. Dependabot can only group within one ecosystem, so the Cargo-only PR failed every build job on `tauri build`'s major/minor mismatch check.
+
 ## 2026-09-30: Replace yanked dependency blocking CI
 
 - Updated the locked `yoke-derive` dependency from 0.8.3 (yanked on crates.io) to 0.8.4. This resolves PR #80's `cargo deny` failure while retaining the policy that rejects yanked dependencies.

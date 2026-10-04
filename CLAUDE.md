@@ -94,7 +94,7 @@ audit/, AUDIT.md          September 2026 audit (findings, plan, verification); a
 
 ## Stack
 
-Tauri 2.11 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides of a plugin to the same minor together; Dependabot groups them). React 19, TypeScript 7, Vite 8, Tailwind 4, xterm.js 6, Recharts 3, vis-network 10, lucide-react. Rust 2021 on Tokio; rusqlite 0.40 (bundled) + rusqlite_migration; russh 0.63 / russh-sftp 3; aes-gcm 0.11, argon2 0.6, hkdf 0.13, sha2 0.11, subtle, zeroize 1.9, secrecy 0.10 (`SecretString`); sysinfo 0.39, cron 0.17, mdns-sd 0.21, surge-ping, dns-lookup 4, ollama-rs 0.3. Tests: Vitest 5, React Testing Library 16, jest-dom 7, jsdom.
+Tauri 2.12 (`tauri` crate and `@tauri-apps/*` move in lockstep: bump both sides of a plugin to the same minor together; Dependabot groups them). React 19, TypeScript 7, Vite 8, Tailwind 4, xterm.js 6, Recharts 3, vis-network 10, lucide-react. Rust 2021 on Tokio; rusqlite 0.40 (bundled) + rusqlite_migration; russh 0.63 / russh-sftp 3; aes-gcm 0.11, argon2 0.6, hkdf 0.13, sha2 0.11, subtle, zeroize 1.9, secrecy 0.10 (`SecretString`); sysinfo 0.39, cron 0.17, mdns-sd 0.21, surge-ping, dns-lookup 4, ollama-rs 0.3. Tests: Vitest 5, React Testing Library 16, jest-dom 7, jsdom.
 
 ## IPC
 
