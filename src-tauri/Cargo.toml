@@ -23,12 +23,12 @@ too_many_arguments = "allow"
 type_complexity = "allow"
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.2", features = [] }
 
 [dependencies]
-tauri = { version = "2.11.5", features = [] }
-tauri-plugin-opener = "2.5.4"
-tauri-plugin-dialog = "2.7.2"
+tauri = { version = "2.12.2", features = [] }
+tauri-plugin-opener = "2.7.1"
+tauri-plugin-dialog = "2.8.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 argon2 = "0.6"
@@ -38,7 +38,7 @@ getrandom = "0.4.3"
 mdns-sd = "0.21.4"
 ollama-rs = { version = "0.3.6", features = ["stream"] }
 tokio-stream = "0.1.19"
-russh = { version = "0.63", default-features = false, features = ["flate2", "rsa", "ring"] }
+russh = { version = "0.64", default-features = false, features = ["flate2", "rsa", "ring"] }
 russh-sftp = { version = "3" }
 tokio = { version = "1.53.1", features = ["full"] }
 surge-ping = "0.9.0"
@@ -62,11 +62,16 @@ dns-lookup = "4"
 cron = "0.17.0"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
-tauri-plugin-process = "2.3.1"
-tauri-plugin-updater = "2.10.1"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-updater = "2.14.0"
 
 [dev-dependencies]
 # Same flume mdns-sd uses (it re-exports `flume::Receiver`); tests build channels with it.
 flume = { version = "0.12", default-features = false }
 # Paused clocks, so timeout behavior (e.g. the one-hour SFTP transfer cap) is instant to test.
 tokio = { version = "1.53.1", features = ["test-util"] }
+
+# Published updater 2.14.0 still requires vulnerable zip 4 on Windows. Pin the
+# merged upstream zip 9 fix until it ships in a crates.io release (upstream #3698).
+[patch.crates-io]
+tauri-plugin-updater = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "ba98bfadc4c868c9a7e1a226c83af528e1f11b89" }

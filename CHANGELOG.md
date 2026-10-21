@@ -2,6 +2,11 @@
 
 Notable changes, newest first. The detailed record for September 2026 is `AUDIT.md` (findings, fix order, commits) and the git history. The long-form notes from before that are in git history under `AGENTS.md` (up to commit `c36207d`).
 
+## 2026-10-21: Consolidated dependency security updates
+
+- Consolidated Dependabot PRs #87–#95: paired Tauri npm/Rust updates, russh 0.64.1, frontend tooling and Rust dependency updates, plus SHA-pinned setup-node 7.1.0 and upload-artifact 7.0.2. Overlapping Vite and source-map-js updates share one lockfile.
+- Updated rustls to 0.23.46, rustls-webpki to 0.103.16 and webpki-root-certs to 1.0.10. The updater stays on matching Rust/npm 2.14; its Rust source is temporarily pinned to upstream's merged ZIP 9 fix (PR tauri-apps/plugins-workspace#3698), resolving ZIP to 9.0.5 instead of vulnerable 4.6.1. No new advisory ignores; see SECURITY.md for the pin's removal condition.
+
 ## 2026-10-03: Tauri 2.12
 
 - Dependabot PR #82 moved the Tauri crates to 2.12 (`tauri` 2.12.0, `tauri-build` 2.7.1, dialog 2.8.0, fs/opener 2.6.0, process 2.4.0 and updater 2.13.0). Since Dependabot can only group within one ecosystem, it bumped only the Rust side, so `tauri build` failed its version-mismatch check on every OS. The npm packages now match: `@tauri-apps/api` and `@tauri-apps/cli` 2.12.1, `@tauri-apps/plugin-process` 2.4.0 and `@tauri-apps/plugin-updater` 2.13.1.

@@ -84,6 +84,22 @@ in `src-tauri/.cargo/audit.toml` and `src-tauri/deny.toml` rather than silently 
   glib directly. It goes away with Tauri's GTK4 migration. `cargo audit` reports unsound
   advisories as warnings only, so only `deny.toml` needs to ignore it.
 
+## Temporary upstream updater pin
+
+As of 2026-10-21, published `tauri-plugin-updater` 2.14.0 still requires `zip` 4
+on Windows. ZIP's RUSTSEC-2026-0367, RUSTSEC-2026-0368 and RUSTSEC-2026-0369
+advisories are fixed in ZIP 9. Quasar pins the updater to the immutable upstream
+merge commit `ba98bfadc4c868c9a7e1a226c83af528e1f11b89`
+([upstream PR #3698](https://github.com/tauri-apps/plugins-workspace/pull/3698)),
+which updates that dependency to ZIP 9 without changing the updater API.
+The npm updater remains on the matching 2.14 minor. The lockfile resolves ZIP
+9.0.5; no ZIP advisory is ignored.
+
+`src-tauri/deny.toml` permits only this upstream Git repository in addition to
+crates.io; `Cargo.toml` pins the exact revision. Remove the patch and Git source
+allowance together when a published updater includes ZIP 9, then rerun both
+audits and the Windows/macOS/Linux bundle builds.
+
 ## Known Design Notes
 
 A few things that look like vulnerabilities at first glance but are intentional — documented
