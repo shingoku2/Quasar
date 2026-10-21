@@ -63,3 +63,5 @@ allow-wildcard-paths = true
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# Temporary, immutable updater security fix; Cargo.toml pins the reviewed revision.
+allow-git = ["https://github.com/tauri-apps/plugins-workspace"]
